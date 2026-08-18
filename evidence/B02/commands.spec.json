@@ -1,0 +1,71 @@
+{
+  "batch": "B02",
+  "commands": [
+    {
+      "purpose": "environment fingerprint",
+      "expect": 0,
+      "command": "python3 -VV && uname -a && git --version && echo repo=$(git rev-parse --short HEAD)",
+      "save_to": "runtime/environment.txt"
+    },
+    {
+      "purpose": "dependency B01 evidence still validates",
+      "expect": 0,
+      "command": "python3 .payment-platform/skill-package/scripts/orchestrate.py validate B01 --repo .",
+      "save_to": "runtime/dependency-b01.json"
+    },
+    {
+      "purpose": "full governance regression suite",
+      "expect": 0,
+      "command": "python3 -m unittest discover -s tools/tests -t . -v",
+      "save_to": "test-results/unittest.log"
+    },
+    {
+      "purpose": "machine-readable test summary",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --out evidence/B02/test-results/summary.json",
+      "save_to": "test-results/summary.log"
+    },
+    {
+      "purpose": "threat model / ADR summary",
+      "expect": 0,
+      "command": "python3 scripts/threat-summary.py --out evidence/B02/runtime/threat-summary.json",
+      "save_to": "runtime/threat-summary.log"
+    },
+    {
+      "purpose": "generated review documents match their source of truth",
+      "expect": 0,
+      "command": "python3 scripts/render-docs.py --check",
+      "save_to": "runtime/docs-drift.txt"
+    },
+    {
+      "purpose": "governance gate on the real repository",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo .",
+      "save_to": "security/governance-report.json"
+    },
+    {
+      "purpose": "runtime fail-closed proof (21 scenarios incl. expired exception)",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py",
+      "save_to": "security/negative-controls.log"
+    },
+    {
+      "purpose": "exhausted budget must exit 3 (timeout path)",
+      "expect": 3,
+      "command": "python3 -m tools.paygov.cli verify threat-model --repo . --budget-seconds 0",
+      "save_to": "runtime/timeout-fail-closed.log"
+    },
+    {
+      "purpose": "duplicate invocation is byte-identical",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo . > /tmp/b02-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/b02-2.json && diff /tmp/b02-1.json /tmp/b02-2.json && echo IDENTICAL",
+      "save_to": "runtime/idempotency.txt"
+    },
+    {
+      "purpose": "registered validators after B02",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli list-validators --repo .",
+      "save_to": "runtime/validators.txt"
+    }
+  ]
+}

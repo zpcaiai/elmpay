@@ -1,0 +1,249 @@
+{
+  "batch_id": "B02",
+  "requirements": [
+    {
+      "id": "B02-R1",
+      "statement": "建立 ADR 机制，架构决策可追溯、不可原地改写",
+      "source": "batches/B02.md 目标"
+    },
+    {
+      "id": "B02-R2",
+      "statement": "建立信任边界、资产清单与攻击者模型",
+      "source": "security/THREAT_MODEL.md"
+    },
+    {
+      "id": "B02-R3",
+      "statement": "覆盖上游全部 12 条滥用案例并绑定缓解批次",
+      "source": "security/THREAT_MODEL.md 必须覆盖的滥用案例"
+    },
+    {
+      "id": "B02-R4",
+      "statement": "剩余风险必须有风险所有者、补偿控制与到期日，过期即阻断",
+      "source": "policies/non-negotiables.md#15"
+    },
+    {
+      "id": "B02-R5",
+      "statement": "ADR 与威胁模型的评审文档由单一事实源生成",
+      "source": "batches/B02.md 完成门#5"
+    }
+  ],
+  "code": [
+    {
+      "ref": "docs/adr/0001-monorepo-modular-boundaries.md",
+      "requirements": [
+        "B02-R1"
+      ]
+    },
+    {
+      "ref": "docs/adr/0002-business-orders-stay-out.md",
+      "requirements": [
+        "B02-R1",
+        "B02-R2"
+      ]
+    },
+    {
+      "ref": "docs/adr/0003-integer-minor-units.md",
+      "requirements": [
+        "B02-R1"
+      ]
+    },
+    {
+      "ref": "docs/adr/0004-server-verified-payment-truth.md",
+      "requirements": [
+        "B02-R1",
+        "B02-R3"
+      ]
+    },
+    {
+      "ref": "docs/adr/0005-idempotency-inbox-outbox.md",
+      "requirements": [
+        "B02-R1",
+        "B02-R3"
+      ]
+    },
+    {
+      "ref": "docs/adr/0006-postgres-source-of-truth.md",
+      "requirements": [
+        "B02-R1"
+      ]
+    },
+    {
+      "ref": "docs/adr/0007-no-raw-card-data.md",
+      "requirements": [
+        "B02-R1",
+        "B02-R2"
+      ]
+    },
+    {
+      "ref": "docs/adr/0008-kms-managed-keys.md",
+      "requirements": [
+        "B02-R1",
+        "B02-R2"
+      ]
+    },
+    {
+      "ref": "docs/adr/0009-zero-trust-access.md",
+      "requirements": [
+        "B02-R1",
+        "B02-R2"
+      ]
+    },
+    {
+      "ref": "docs/adr/0010-dependency-free-governance.md",
+      "requirements": [
+        "B02-R1"
+      ]
+    },
+    {
+      "ref": "docs/adr/0011-evidence-bound-to-commit.md",
+      "requirements": [
+        "B02-R1"
+      ]
+    },
+    {
+      "ref": "governance/threat-model.json",
+      "requirements": [
+        "B02-R2",
+        "B02-R3",
+        "B02-R4"
+      ]
+    },
+    {
+      "ref": "tools/paygov/adr.py",
+      "requirements": [
+        "B02-R1"
+      ]
+    },
+    {
+      "ref": "tools/paygov/threat.py",
+      "requirements": [
+        "B02-R2",
+        "B02-R3",
+        "B02-R4"
+      ]
+    },
+    {
+      "ref": "docs/adr/README.md",
+      "requirements": [
+        "B02-R5"
+      ]
+    },
+    {
+      "ref": "docs/security/THREAT_MODEL.md",
+      "requirements": [
+        "B02-R5"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b02_adr.py",
+      "requirements": [
+        "B02-R1"
+      ],
+      "cases": 14
+    },
+    {
+      "ref": "tools/tests/test_b02_threat_model.py",
+      "requirements": [
+        "B02-R2",
+        "B02-R3",
+        "B02-R4"
+      ],
+      "cases": 17
+    },
+    {
+      "ref": "tools/tests/test_b01_docs_drift.py",
+      "requirements": [
+        "B02-R5"
+      ],
+      "cases": 5
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-15",
+      "implemented_by": [
+        "governance/threat-model.json",
+        "tools/paygov/threat.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b02_threat_model.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/adr.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b02_adr.py"
+      ]
+    },
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "docs/adr/0009-zero-trust-access.md"
+      ],
+      "verified_by": [
+        "tools/tests/test_b02_adr.py"
+      ]
+    },
+    {
+      "id": "CTRL-012",
+      "implemented_by": [
+        "governance/threat-model.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b02_threat_model.py"
+      ]
+    },
+    {
+      "id": "CTRL-020",
+      "implemented_by": [
+        "docs/adr/0011-evidence-bound-to-commit.md"
+      ],
+      "verified_by": [
+        "evidence/completion/B02.json"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B02/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B02/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B02/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B02/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B02/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B02/runtime/threat-summary.json",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B02/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B02/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B02.json",
+      "kind": "completion"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+[
+  "docs/adr/0001-monorepo-modular-boundaries.md",
+  "docs/adr/0002-business-orders-stay-out.md",
+  "docs/adr/0003-integer-minor-units.md",
+  "docs/adr/0004-server-verified-payment-truth.md",
+  "docs/adr/0005-idempotency-inbox-outbox.md",
+  "docs/adr/0006-postgres-source-of-truth.md",
+  "docs/adr/0007-no-raw-card-data.md",
+  "docs/adr/0008-kms-managed-keys.md",
+  "docs/adr/0009-zero-trust-access.md",
+  "docs/adr/0010-dependency-free-governance.md",
+  "docs/adr/0011-evidence-bound-to-commit.md",
+  "docs/adr/README.md",
+  "docs/security/THREAT_MODEL.md",
+  "governance/threat-model.json",
+  "scripts/threat-summary.py",
+  "tools/paygov/adr.py",
+  "tools/paygov/threat.py",
+  "tools/tests/test_b02_adr.py",
+  "tools/tests/test_b02_threat_model.py"
+]

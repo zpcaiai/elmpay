@@ -1,0 +1,761 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B02",
+  "zones": [
+    {
+      "id": "Z01",
+      "name": "用户浏览器/移动端",
+      "trust": "untrusted"
+    },
+    {
+      "id": "Z02",
+      "name": "业务项目",
+      "trust": "semi-trusted"
+    },
+    {
+      "id": "Z03",
+      "name": "公共边缘",
+      "trust": "untrusted-ingress"
+    },
+    {
+      "id": "Z04",
+      "name": "支付核心",
+      "trust": "trusted"
+    },
+    {
+      "id": "Z05",
+      "name": "连接器",
+      "trust": "trusted-egress"
+    },
+    {
+      "id": "Z06",
+      "name": "支付渠道",
+      "trust": "external"
+    },
+    {
+      "id": "Z07",
+      "name": "管理后台",
+      "trust": "high-privilege"
+    },
+    {
+      "id": "Z08",
+      "name": "数据层",
+      "trust": "trusted-data"
+    },
+    {
+      "id": "Z09",
+      "name": "消息层",
+      "trust": "trusted-data"
+    },
+    {
+      "id": "Z10",
+      "name": "KMS/HSM",
+      "trust": "crypto"
+    },
+    {
+      "id": "Z11",
+      "name": "CI/CD",
+      "trust": "build"
+    },
+    {
+      "id": "Z12",
+      "name": "云控制面",
+      "trust": "infrastructure"
+    },
+    {
+      "id": "Z13",
+      "name": "第三方监控与邮件短信",
+      "trust": "external"
+    }
+  ],
+  "assets": [
+    {
+      "id": "AS-01",
+      "name": "渠道私钥与 API 密钥",
+      "classification": "secret",
+      "owner": "payment-platform-security",
+      "modules": [
+        "security"
+      ],
+      "threats": [
+        "泄露即可伪造交易与退款"
+      ]
+    },
+    {
+      "id": "AS-02",
+      "name": "商户号与渠道证书",
+      "classification": "secret",
+      "owner": "payment-platform-connectors",
+      "modules": [
+        "merchant-config"
+      ],
+      "threats": [
+        "被替换后资金流向攻击者"
+      ]
+    },
+    {
+      "id": "AS-03",
+      "name": "Payment Intent 与 Attempt",
+      "classification": "business-critical",
+      "owner": "payment-platform-architecture",
+      "modules": [
+        "payment-core"
+      ],
+      "threats": [
+        "被篡改可造成错误履约"
+      ]
+    },
+    {
+      "id": "AS-04",
+      "name": "支付与退款最终状态",
+      "classification": "business-critical",
+      "owner": "payment-platform-architecture",
+      "modules": [
+        "payment-core"
+      ],
+      "threats": [
+        "伪造成功导致不可撤销履约"
+      ]
+    },
+    {
+      "id": "AS-05",
+      "name": "复式账本",
+      "classification": "financial",
+      "owner": "payment-platform-finance",
+      "modules": [
+        "ledger-service"
+      ],
+      "threats": [
+        "被修改后资金差异不可解释"
+      ]
+    },
+    {
+      "id": "AS-06",
+      "name": "渠道账单与银行文件",
+      "classification": "financial",
+      "owner": "payment-platform-finance",
+      "modules": [
+        "reconciliation-service"
+      ],
+      "threats": [
+        "被篡改可掩盖差错"
+      ]
+    },
+    {
+      "id": "AS-07",
+      "name": "管理员与财务身份",
+      "classification": "identity",
+      "owner": "payment-platform-security",
+      "modules": [
+        "admin-web"
+      ],
+      "threats": [
+        "被攻陷可批量退款与导出"
+      ]
+    },
+    {
+      "id": "AS-08",
+      "name": "业务项目 Webhook 密钥",
+      "classification": "secret",
+      "owner": "payment-platform-architecture",
+      "modules": [
+        "webhook-delivery"
+      ],
+      "threats": [
+        "泄露可伪造支付事实"
+      ]
+    },
+    {
+      "id": "AS-09",
+      "name": "个人信息",
+      "classification": "personal-data",
+      "owner": "payment-platform-security",
+      "modules": [
+        "observability"
+      ],
+      "threats": [
+        "泄露触发隐私法律责任"
+      ]
+    },
+    {
+      "id": "AS-10",
+      "name": "发布制品与 CI 身份",
+      "classification": "supply-chain",
+      "owner": "payment-platform-platform-eng",
+      "modules": [
+        "edge-gateway"
+      ],
+      "threats": [
+        "被替换可直达生产"
+      ]
+    },
+    {
+      "id": "AS-11",
+      "name": "治理单一事实源",
+      "classification": "governance",
+      "owner": "payment-platform-architecture",
+      "modules": [
+        "merchant-config"
+      ],
+      "threats": [
+        "被篡改可静默移除红线"
+      ]
+    }
+  ],
+  "trust_boundaries": [
+    {
+      "id": "TB-01",
+      "name": "付款人到公共边缘",
+      "between": [
+        "Z01",
+        "Z03"
+      ],
+      "controls": [
+        "CTRL-010",
+        "CTRL-017"
+      ]
+    },
+    {
+      "id": "TB-02",
+      "name": "业务项目到公共边缘",
+      "between": [
+        "Z02",
+        "Z03"
+      ],
+      "controls": [
+        "CTRL-016",
+        "CTRL-014"
+      ]
+    },
+    {
+      "id": "TB-03",
+      "name": "公共边缘到支付核心",
+      "between": [
+        "Z03",
+        "Z04"
+      ],
+      "controls": [
+        "CTRL-014",
+        "CTRL-017"
+      ]
+    },
+    {
+      "id": "TB-04",
+      "name": "支付核心到连接器",
+      "between": [
+        "Z04",
+        "Z05"
+      ],
+      "controls": [
+        "CTRL-016"
+      ]
+    },
+    {
+      "id": "TB-05",
+      "name": "连接器到渠道",
+      "between": [
+        "Z05",
+        "Z06"
+      ],
+      "controls": [
+        "CTRL-002",
+        "CTRL-006"
+      ]
+    },
+    {
+      "id": "TB-06",
+      "name": "渠道回调到回调入口",
+      "between": [
+        "Z06",
+        "Z03"
+      ],
+      "controls": [
+        "CTRL-002"
+      ]
+    },
+    {
+      "id": "TB-07",
+      "name": "管理员到后台",
+      "between": [
+        "Z07",
+        "Z04"
+      ],
+      "controls": [
+        "CTRL-004",
+        "CTRL-014"
+      ]
+    },
+    {
+      "id": "TB-08",
+      "name": "服务到数据层",
+      "between": [
+        "Z04",
+        "Z08"
+      ],
+      "controls": [
+        "CTRL-005",
+        "CTRL-008"
+      ]
+    },
+    {
+      "id": "TB-09",
+      "name": "服务到消息层",
+      "between": [
+        "Z04",
+        "Z09"
+      ],
+      "controls": [
+        "CTRL-003",
+        "CTRL-005"
+      ]
+    },
+    {
+      "id": "TB-10",
+      "name": "服务到 KMS/HSM",
+      "between": [
+        "Z04",
+        "Z10"
+      ],
+      "controls": [
+        "CTRL-006"
+      ]
+    },
+    {
+      "id": "TB-11",
+      "name": "CI 到生产",
+      "between": [
+        "Z11",
+        "Z12"
+      ],
+      "controls": [
+        "CTRL-011",
+        "CTRL-018"
+      ]
+    },
+    {
+      "id": "TB-12",
+      "name": "服务到第三方监控与通知",
+      "between": [
+        "Z04",
+        "Z13"
+      ],
+      "controls": [
+        "CTRL-015"
+      ]
+    }
+  ],
+  "adversaries": [
+    {
+      "id": "AD-01",
+      "name": "外部欺诈者",
+      "capability": "低-中",
+      "motivation": "盗刷、套现、拒付套利"
+    },
+    {
+      "id": "AD-02",
+      "name": "钓鱼团伙",
+      "capability": "中",
+      "motivation": "窃取后台与商户凭证"
+    },
+    {
+      "id": "AD-03",
+      "name": "机器人与撞库者",
+      "capability": "中",
+      "motivation": "批量试卡、账户接管"
+    },
+    {
+      "id": "AD-04",
+      "name": "渠道凭证窃取者",
+      "capability": "中-高",
+      "motivation": "伪造交易与退款"
+    },
+    {
+      "id": "AD-05",
+      "name": "供应链攻击者",
+      "capability": "高",
+      "motivation": "经依赖、镜像、CI 直达生产"
+    },
+    {
+      "id": "AD-06",
+      "name": "恶意或被攻陷商户",
+      "capability": "中",
+      "motivation": "伪造退款、洗钱、越权访问"
+    },
+    {
+      "id": "AD-07",
+      "name": "内部人员",
+      "capability": "高",
+      "motivation": "滥用权限修改资金与配置"
+    },
+    {
+      "id": "AD-08",
+      "name": "被攻陷运维终端",
+      "capability": "高",
+      "motivation": "以合法身份执行破坏操作"
+    },
+    {
+      "id": "AD-09",
+      "name": "DDoS 攻击者",
+      "capability": "中",
+      "motivation": "造成支付不可用"
+    },
+    {
+      "id": "AD-10",
+      "name": "财务欺诈者",
+      "capability": "中",
+      "motivation": "操纵对账与差错掩盖损失"
+    }
+  ],
+  "abuse_cases": [
+    {
+      "id": "AC-01",
+      "title": "伪造或重放支付成功通知诱导履约",
+      "adversaries": [
+        "AD-01",
+        "AD-04"
+      ],
+      "assets": [
+        "AS-04",
+        "AS-08"
+      ],
+      "controls": [
+        "NN-03",
+        "NN-08",
+        "CTRL-002"
+      ],
+      "mitigating_batches": [
+        "B37",
+        "B38",
+        "B114"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AC-02",
+      "title": "篡改金额、币种、商户号、订单号、return_url 或渠道参数",
+      "adversaries": [
+        "AD-01",
+        "AD-06"
+      ],
+      "assets": [
+        "AS-03",
+        "AS-04"
+      ],
+      "controls": [
+        "NN-08",
+        "NN-10",
+        "CTRL-002"
+      ],
+      "mitigating_batches": [
+        "B37",
+        "B58",
+        "B114"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AC-03",
+      "title": "在创建/捕获/退款超时后重复调用造成双扣或双退",
+      "adversaries": [
+        "AD-01"
+      ],
+      "assets": [
+        "AS-04",
+        "AS-05"
+      ],
+      "controls": [
+        "NN-04",
+        "CTRL-003"
+      ],
+      "mitigating_batches": [
+        "B36",
+        "B115"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AC-04",
+      "title": "跨租户读取订单、重放 Webhook、盗用其他项目凭证",
+      "adversaries": [
+        "AD-06",
+        "AD-07"
+      ],
+      "assets": [
+        "AS-03",
+        "AS-08"
+      ],
+      "controls": [
+        "NN-09",
+        "CTRL-005",
+        "CTRL-016"
+      ],
+      "mitigating_batches": [
+        "B24",
+        "B31",
+        "B37"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AC-05",
+      "title": "攻陷后台后批量退款、改路由、导出数据或替换证书",
+      "adversaries": [
+        "AD-02",
+        "AD-07",
+        "AD-08"
+      ],
+      "assets": [
+        "AS-02",
+        "AS-07"
+      ],
+      "controls": [
+        "NN-11",
+        "CTRL-004",
+        "CTRL-014"
+      ],
+      "mitigating_batches": [
+        "B18",
+        "B19",
+        "B101"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AC-06",
+      "title": "注入第三方脚本窃取卡数据、会话或支付链接",
+      "adversaries": [
+        "AD-05",
+        "AD-02"
+      ],
+      "assets": [
+        "AS-09",
+        "AS-04"
+      ],
+      "controls": [
+        "NN-02",
+        "CTRL-010"
+      ],
+      "mitigating_batches": [
+        "B58",
+        "B59",
+        "B85"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AC-07",
+      "title": "注册同形域名、劫持 DNS、仿冒邮件或替换二维码",
+      "adversaries": [
+        "AD-02"
+      ],
+      "assets": [
+        "AS-04",
+        "AS-09"
+      ],
+      "controls": [
+        "NN-10",
+        "CTRL-010"
+      ],
+      "mitigating_batches": [
+        "B21",
+        "B84"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AC-08",
+      "title": "通过 SSRF 访问云元数据、KMS、内部管理端或白名单服务",
+      "adversaries": [
+        "AD-05",
+        "AD-01"
+      ],
+      "assets": [
+        "AS-01",
+        "AS-10"
+      ],
+      "controls": [
+        "NN-10",
+        "CTRL-014"
+      ],
+      "mitigating_batches": [
+        "B38",
+        "B88",
+        "B89"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AC-09",
+      "title": "通过注入修改支付状态或提取凭证",
+      "adversaries": [
+        "AD-01",
+        "AD-06"
+      ],
+      "assets": [
+        "AS-03",
+        "AS-01"
+      ],
+      "controls": [
+        "NN-09",
+        "CTRL-011"
+      ],
+      "mitigating_batches": [
+        "B22",
+        "B116"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AC-10",
+      "title": "破坏消息顺序、制造毒消息、阻断回调或操纵时钟",
+      "adversaries": [
+        "AD-05",
+        "AD-09"
+      ],
+      "assets": [
+        "AS-04",
+        "AS-05"
+      ],
+      "controls": [
+        "NN-04",
+        "CTRL-003"
+      ],
+      "mitigating_batches": [
+        "B91",
+        "B114",
+        "B115"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AC-11",
+      "title": "修改账本或对账差错掩盖退款、手续费、拒付与结算损失",
+      "adversaries": [
+        "AD-07",
+        "AD-10"
+      ],
+      "assets": [
+        "AS-05",
+        "AS-06"
+      ],
+      "controls": [
+        "NN-06",
+        "NN-11",
+        "CTRL-008",
+        "CTRL-009"
+      ],
+      "mitigating_batches": [
+        "B73",
+        "B78",
+        "B79"
+      ],
+      "status": "planned"
+    },
+    {
+      "id": "AC-12",
+      "title": "通过依赖、CI token、镜像或 IaC 攻陷生产",
+      "adversaries": [
+        "AD-05"
+      ],
+      "assets": [
+        "AS-10",
+        "AS-01"
+      ],
+      "controls": [
+        "CTRL-011",
+        "CTRL-018"
+      ],
+      "mitigating_batches": [
+        "B05",
+        "B109",
+        "B110"
+      ],
+      "status": "planned"
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RR-01",
+      "title": "生产渠道凭证尚未接入 KMS/HSM（当前仅 integration 环境）",
+      "severity": "medium",
+      "owner": "payment-platform-security",
+      "compensating_controls": [
+        "仅存在 integration 环境且无生产凭证",
+        "治理门禁拒绝任何密钥字面量",
+        "凭证只能以 kms:// 或 vault:// 引用出现"
+      ],
+      "due_date": "2026-11-16",
+      "review_batch": "B20",
+      "related_abuse_cases": [
+        "AC-05",
+        "AC-08"
+      ]
+    },
+    {
+      "id": "RR-02",
+      "title": "Java 构建、SAST/DAST 与供应链扫描尚未接入（B03/B05 之前）",
+      "severity": "medium",
+      "owner": "payment-platform-platform-eng",
+      "compensating_controls": [
+        "治理工具链零第三方依赖，供应链面积为零",
+        "仓库卫生扫描覆盖密钥与浮点金额",
+        "所有变更需 CODEOWNERS 复核"
+      ],
+      "due_date": "2026-10-17",
+      "review_batch": "B05",
+      "related_abuse_cases": [
+        "AC-12"
+      ]
+    },
+    {
+      "id": "RR-03",
+      "title": "反钓鱼、E-skimming 与页面完整性控制尚未实现",
+      "severity": "medium",
+      "owner": "payment-platform-security",
+      "compensating_controls": [
+        "尚无公开部署的收银台",
+        "支付链接与二维码域名策略已在需求基线中固化"
+      ],
+      "due_date": "2027-02-14",
+      "review_batch": "B85",
+      "related_abuse_cases": [
+        "AC-06",
+        "AC-07"
+      ]
+    },
+    {
+      "id": "RR-04",
+      "title": "威胁模型尚未覆盖各渠道协议的具体攻击面",
+      "severity": "low",
+      "owner": "payment-platform-connectors",
+      "compensating_controls": [
+        "每个渠道批次强制更新威胁与控制",
+        "渠道适配统一契约限制爆炸半径"
+      ],
+      "due_date": "2026-12-16",
+      "review_batch": "B55",
+      "related_abuse_cases": [
+        "AC-01",
+        "AC-02"
+      ]
+    },
+    {
+      "id": "RR-05",
+      "title": "证据由单一自动化执行者产生，独立审查依赖人工签署",
+      "severity": "high",
+      "owner": "payment-platform-security",
+      "compensating_controls": [
+        "executor 与 reviewer 必须不同且由门禁强制",
+        "完成文件的每个字段可从仓库重新计算复核",
+        "15 项运行期负向控制证明门禁真会失败",
+        "所有产物摘要与提交 SHA 绑定"
+      ],
+      "due_date": "2026-09-17",
+      "review_batch": "B119",
+      "related_abuse_cases": [
+        "AC-11",
+        "AC-12"
+      ]
+    }
+  ]
+}

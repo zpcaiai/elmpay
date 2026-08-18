@@ -23,14 +23,21 @@ COPIED_FILES = (
     "governance/module-registry.json",
     "governance/requirements.json",
     "governance/service-boundaries.json",
+    "governance/threat-model.json",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",
     "docs/requirements/REQUIREMENTS_BASELINE.md",
     "docs/requirements/SERVICE_BOUNDARIES.md",
     ".payment-platform/skill-package/policies/non-negotiables.md",
+    ".payment-platform/skill-package/security/THREAT_MODEL.md",
     ".payment-platform/skill-package/manifest.json",
     ".payment-platform/skill-package/compliance/controls-matrix.csv",
+)
+
+COPIED_DIRS = (
+    "docs/adr",
+    "docs/security",
 )
 
 
@@ -47,6 +54,8 @@ class FixtureRepo:
             dst = self.root / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(src, dst)
+        for rel in COPIED_DIRS:
+            shutil.copytree(REAL_ROOT / rel, self.root / rel, dirs_exist_ok=True)
         # Mirror the test module names so non-negotiable enforcement references resolve.
         for module in sorted((REAL_ROOT / "tools" / "tests").glob("test_*.py")):
             (self.root / "tools" / "tests" / module.name).write_text("", encoding="utf-8")

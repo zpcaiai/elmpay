@@ -23,15 +23,19 @@ COPIED = (
     "governance/module-registry.json",
     "governance/requirements.json",
     "governance/service-boundaries.json",
+    "governance/threat-model.json",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",
     "docs/requirements/REQUIREMENTS_BASELINE.md",
     "docs/requirements/SERVICE_BOUNDARIES.md",
     ".payment-platform/skill-package/policies/non-negotiables.md",
+    ".payment-platform/skill-package/security/THREAT_MODEL.md",
     ".payment-platform/skill-package/manifest.json",
     ".payment-platform/skill-package/compliance/controls-matrix.csv",
 )
+
+COPIED_DIRS = ("docs/adr", "docs/security")
 
 EXIT_OK, EXIT_PROBLEMS, EXIT_ERROR = 0, 2, 3
 
@@ -44,6 +48,8 @@ def build(tmp: Path) -> Path:
         dst = root / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / rel, dst)
+    for rel in COPIED_DIRS:
+        shutil.copytree(ROOT / rel, root / rel, dirs_exist_ok=True)
     for module in sorted((ROOT / "tools" / "tests").glob("test_*.py")):
         (root / "tools" / "tests" / module.name).write_text("", encoding="utf-8")
     registry = json.loads((root / "governance/module-registry.json").read_text("utf-8"))
@@ -95,6 +101,21 @@ SCENARIOS = [
      lambda d: d["forbidden_flows"][4].__setitem__("enforced_by", []), EXIT_PROBLEMS),
     ("B01 generated document drifts from source", "governance/requirements.json",
      lambda d: d["requirements"][2].__setitem__("title", "被悄悄改掉的标题"), EXIT_PROBLEMS),
+    ("B02 security exception silently expires", "governance/threat-model.json",
+     lambda d: d["residual_risks"][0].__setitem__("due_date", "2020-01-01"), EXIT_PROBLEMS),
+    ("B02 critical risk accepted instead of fixed", "governance/threat-model.json",
+     lambda d: d["residual_risks"][1].__setitem__("severity", "critical"), EXIT_PROBLEMS),
+    ("B02 residual risk loses its owner", "governance/threat-model.json",
+     lambda d: d["residual_risks"][2].__setitem__("owner", "TBD"), EXIT_PROBLEMS),
+    ("B02 abuse case dropped from the model", "governance/threat-model.json",
+     lambda d: d["abuse_cases"].pop(3), EXIT_PROBLEMS),
+]
+
+TEXT_SCENARIOS = [
+    ("B02 ADR loses its alternatives section",
+     "docs/adr/0001-monorepo-modular-boundaries.md", "## 备选方案", "## 闲聊", EXIT_PROBLEMS),
+    ("B02 ADR points at a non-existent requirement",
+     "docs/adr/0003-integer-minor-units.md", "PAY-REQ-0028", "PAY-REQ-9999", EXIT_PROBLEMS),
 ]
 
 
@@ -118,6 +139,17 @@ def main() -> int:
             if code != expected:
                 failures.append(name)
 
+        for index, (name, rel, find, replace, expected) in enumerate(TEXT_SCENARIOS):
+            root = build(tmp / f"text{index}")
+            path = root / rel
+            path.write_text(path.read_text(encoding="utf-8").replace(find, replace),
+                            encoding="utf-8")
+            code, _ = gate(root)
+            status = "OK " if code == expected else "FAIL"
+            print(f"[{status}] {name}: exit={code} expected={expected}")
+            if code != expected:
+                failures.append(name)
+
         timeout_root = build(tmp / "timeout")
         code, out = gate(timeout_root, ["--budget-seconds", "0"])
         status = "OK " if code == EXIT_ERROR else "FAIL"
@@ -126,7 +158,7 @@ def main() -> int:
             failures.append("timeout did not fail closed")
 
     print()
-    print(f"scenarios={len(SCENARIOS) + 2} failures={len(failures)}")
+    print(f"scenarios={len(SCENARIOS) + len(TEXT_SCENARIOS) + 2} failures={len(failures)}")
     for failure in failures:
         print(f"  UNCAUGHT: {failure}")
     return 0 if not failures else 1

@@ -1,0 +1,283 @@
+{
+  "abuse_cases": 12,
+  "abuse_cases_per_batch": {
+    "B05": [
+      "AC-12"
+    ],
+    "B101": [
+      "AC-05"
+    ],
+    "B109": [
+      "AC-12"
+    ],
+    "B110": [
+      "AC-12"
+    ],
+    "B114": [
+      "AC-01",
+      "AC-02",
+      "AC-10"
+    ],
+    "B115": [
+      "AC-03",
+      "AC-10"
+    ],
+    "B116": [
+      "AC-09"
+    ],
+    "B18": [
+      "AC-05"
+    ],
+    "B19": [
+      "AC-05"
+    ],
+    "B21": [
+      "AC-07"
+    ],
+    "B22": [
+      "AC-09"
+    ],
+    "B24": [
+      "AC-04"
+    ],
+    "B31": [
+      "AC-04"
+    ],
+    "B36": [
+      "AC-03"
+    ],
+    "B37": [
+      "AC-01",
+      "AC-02",
+      "AC-04"
+    ],
+    "B38": [
+      "AC-01",
+      "AC-08"
+    ],
+    "B58": [
+      "AC-02",
+      "AC-06"
+    ],
+    "B59": [
+      "AC-06"
+    ],
+    "B73": [
+      "AC-11"
+    ],
+    "B78": [
+      "AC-11"
+    ],
+    "B79": [
+      "AC-11"
+    ],
+    "B84": [
+      "AC-07"
+    ],
+    "B85": [
+      "AC-06"
+    ],
+    "B88": [
+      "AC-08"
+    ],
+    "B89": [
+      "AC-08"
+    ],
+    "B91": [
+      "AC-10"
+    ]
+  },
+  "abuse_cases_per_control": {
+    "CTRL-002": [
+      "AC-01",
+      "AC-02"
+    ],
+    "CTRL-003": [
+      "AC-03",
+      "AC-10"
+    ],
+    "CTRL-004": [
+      "AC-05"
+    ],
+    "CTRL-005": [
+      "AC-04"
+    ],
+    "CTRL-008": [
+      "AC-11"
+    ],
+    "CTRL-009": [
+      "AC-11"
+    ],
+    "CTRL-010": [
+      "AC-06",
+      "AC-07"
+    ],
+    "CTRL-011": [
+      "AC-09",
+      "AC-12"
+    ],
+    "CTRL-014": [
+      "AC-05",
+      "AC-08"
+    ],
+    "CTRL-016": [
+      "AC-04"
+    ],
+    "CTRL-018": [
+      "AC-12"
+    ],
+    "NN-02": [
+      "AC-06"
+    ],
+    "NN-03": [
+      "AC-01"
+    ],
+    "NN-04": [
+      "AC-03",
+      "AC-10"
+    ],
+    "NN-06": [
+      "AC-11"
+    ],
+    "NN-08": [
+      "AC-01",
+      "AC-02"
+    ],
+    "NN-09": [
+      "AC-04",
+      "AC-09"
+    ],
+    "NN-10": [
+      "AC-02",
+      "AC-07",
+      "AC-08"
+    ],
+    "NN-11": [
+      "AC-05",
+      "AC-11"
+    ]
+  },
+  "adr_count": 11,
+  "adrs": [
+    {
+      "controls": "NN-01",
+      "file": "0001-monorepo-modular-boundaries.md",
+      "requirements": "PAY-REQ-0010, PAY-REQ-0040",
+      "status": "accepted"
+    },
+    {
+      "controls": "NN-01",
+      "file": "0002-business-orders-stay-out.md",
+      "requirements": "PAY-REQ-0001, PAY-REQ-0002",
+      "status": "accepted"
+    },
+    {
+      "controls": "NN-05",
+      "file": "0003-integer-minor-units.md",
+      "requirements": "PAY-REQ-0028",
+      "status": "accepted"
+    },
+    {
+      "controls": "NN-03, NN-08, CTRL-002",
+      "file": "0004-server-verified-payment-truth.md",
+      "requirements": "PAY-REQ-0011, PAY-REQ-0019",
+      "status": "accepted"
+    },
+    {
+      "controls": "NN-04, CTRL-003",
+      "file": "0005-idempotency-inbox-outbox.md",
+      "requirements": "PAY-REQ-0003, PAY-REQ-0020",
+      "status": "accepted"
+    },
+    {
+      "controls": "CTRL-008, CTRL-013",
+      "file": "0006-postgres-source-of-truth.md",
+      "requirements": "PAY-REQ-0007, PAY-REQ-0027",
+      "status": "accepted"
+    },
+    {
+      "controls": "NN-02, CTRL-001",
+      "file": "0007-no-raw-card-data.md",
+      "requirements": "PAY-REQ-0016, PAY-REQ-0018, PAY-REQ-0026",
+      "status": "accepted"
+    },
+    {
+      "controls": "NN-07, CTRL-006",
+      "file": "0008-kms-managed-keys.md",
+      "requirements": "PAY-REQ-0044",
+      "status": "accepted"
+    },
+    {
+      "controls": "NN-11, CTRL-004, CTRL-014",
+      "file": "0009-zero-trust-access.md",
+      "requirements": "PAY-REQ-0041, PAY-REQ-0042, PAY-REQ-0040",
+      "status": "accepted"
+    },
+    {
+      "controls": "NN-12, CTRL-011",
+      "file": "0010-dependency-free-governance.md",
+      "requirements": "PAY-REQ-0049",
+      "status": "accepted"
+    },
+    {
+      "controls": "NN-12, CTRL-020",
+      "file": "0011-evidence-bound-to-commit.md",
+      "requirements": "PAY-REQ-0049",
+      "status": "accepted"
+    }
+  ],
+  "adversaries": 10,
+  "as_of": "2026-08-18",
+  "assets": 11,
+  "expired_exceptions": [],
+  "residual_risks": [
+    {
+      "compensating_controls": 3,
+      "days_to_expiry": 90,
+      "due_date": "2026-11-16",
+      "id": "RR-01",
+      "owner": "payment-platform-security",
+      "review_batch": "B20",
+      "severity": "medium"
+    },
+    {
+      "compensating_controls": 3,
+      "days_to_expiry": 60,
+      "due_date": "2026-10-17",
+      "id": "RR-02",
+      "owner": "payment-platform-platform-eng",
+      "review_batch": "B05",
+      "severity": "medium"
+    },
+    {
+      "compensating_controls": 2,
+      "days_to_expiry": 180,
+      "due_date": "2027-02-14",
+      "id": "RR-03",
+      "owner": "payment-platform-security",
+      "review_batch": "B85",
+      "severity": "medium"
+    },
+    {
+      "compensating_controls": 2,
+      "days_to_expiry": 120,
+      "due_date": "2026-12-16",
+      "id": "RR-04",
+      "owner": "payment-platform-connectors",
+      "review_batch": "B55",
+      "severity": "low"
+    },
+    {
+      "compensating_controls": 4,
+      "days_to_expiry": 30,
+      "due_date": "2026-09-17",
+      "id": "RR-05",
+      "owner": "payment-platform-security",
+      "review_batch": "B119",
+      "severity": "high"
+    }
+  ],
+  "trust_boundaries": 12,
+  "unmitigated_abuse_cases": [],
+  "zones": 13
+}

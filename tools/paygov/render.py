@@ -8,8 +8,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from . import adr as adr_mod
 from . import catalogue
-from .repo import Budget, load_json
+from .repo import Budget, load_json, read_text
 
 GENERATED_BANNER = (
     "<!-- GENERATED FILE — do not edit by hand.\n"
@@ -83,9 +84,63 @@ def boundaries_markdown(root: Path, budget: Budget | None = None) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def adr_index_markdown(root: Path, budget: Budget | None = None) -> str:
+    budget = budget or Budget().start()
+    rows = []
+    for path in sorted((root / "docs/adr").glob("*.md")):
+        if path.name == "README.md":
+            continue
+        text = read_text(path, budget)
+        meta, _ = adr_mod.parse(text)
+        title = text.splitlines()[0].removeprefix("# ").strip()
+        rows.append([f"[{title.split(':')[0]}]({path.name})", title.split(": ", 1)[-1],
+                     meta.get("状态", ""), meta.get("日期", ""), meta.get("批次", ""),
+                     meta.get("关联控制", "")])
+    lines = [GENERATED_BANNER.format(source="docs/adr/*.md"), "# 架构决策记录索引", "",
+             f"共 {len(rows)} 条 ADR。新增决策必须新建 ADR，不得原地改写既有决策；",
+             "被取代的 ADR 状态改为 `superseded`，并由取代它的 ADR 在“取代”字段中声明。", ""]
+    lines.append(_table(["ADR", "标题", "状态", "日期", "批次", "关联控制"], rows))
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def threat_model_markdown(root: Path, budget: Budget | None = None) -> str:
+    budget = budget or Budget().start()
+    doc = load_json(root / "governance/threat-model.json", budget)
+    lines = [GENERATED_BANNER.format(source="governance/threat-model.json"),
+             "# 威胁模型与剩余风险台账（B02）", "", "## 信任域", ""]
+    lines.append(_table(["ID", "名称", "信任级别"],
+                        [[z["id"], z["name"], z["trust"]] for z in doc["zones"]]))
+    lines += ["", "## 高价值资产", ""]
+    lines.append(_table(["ID", "资产", "分类", "责任人", "模块", "威胁"],
+                        [[a["id"], a["name"], a["classification"], a["owner"],
+                          "、".join(a["modules"]), "；".join(a["threats"])] for a in doc["assets"]]))
+    lines += ["", "## 信任边界", ""]
+    lines.append(_table(["ID", "边界", "跨越", "控制"],
+                        [[b["id"], b["name"], " ↔ ".join(b["between"]), " ".join(b["controls"])]
+                         for b in doc["trust_boundaries"]]))
+    lines += ["", "## 攻击者模型", ""]
+    lines.append(_table(["ID", "攻击者", "能力", "动机"],
+                        [[a["id"], a["name"], a["capability"], a["motivation"]]
+                         for a in doc["adversaries"]]))
+    lines += ["", "## 滥用案例", ""]
+    lines.append(_table(["ID", "滥用案例", "攻击者", "资产", "控制", "缓解批次", "状态"],
+                        [[c["id"], c["title"], " ".join(c["adversaries"]), " ".join(c["assets"]),
+                          " ".join(c["controls"]), " ".join(c["mitigating_batches"]), c["status"]]
+                         for c in doc["abuse_cases"]]))
+    lines += ["", "## 剩余风险台账", "",
+              "过期未复审的条目会使治理门禁失败（NN-15）。", ""]
+    lines.append(_table(["ID", "风险", "严重度", "风险所有者", "补偿控制", "到期日", "复审批次"],
+                        [[r["id"], r["title"], r["severity"], r["owner"],
+                          "；".join(r["compensating_controls"]), r["due_date"], r["review_batch"]]
+                         for r in doc["residual_risks"]]))
+    return "\n".join(lines).rstrip() + "\n"
+
+
 TARGETS: dict[str, callable] = {
     "docs/requirements/REQUIREMENTS_BASELINE.md": requirements_markdown,
     "docs/requirements/SERVICE_BOUNDARIES.md": boundaries_markdown,
+    "docs/adr/README.md": adr_index_markdown,
+    "docs/security/THREAT_MODEL.md": threat_model_markdown,
 }
 
 
