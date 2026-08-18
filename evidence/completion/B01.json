@@ -1,0 +1,80 @@
+{
+  "batch_id": "B01",
+  "status": "passed",
+  "commit_sha": "580596d3e921e0fbf4d59d4c405f7d50436ce4ce",
+  "environment": "integration",
+  "started_at": "2026-08-18T11:46:11Z",
+  "completed_at": "2026-08-18T11:46:32Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "governance/requirements.json",
+      "sha256": "b743452a714836fac764176a214999d7102ac373e33dc70d422ff00e9d609efa"
+    },
+    {
+      "path": "governance/service-boundaries.json",
+      "sha256": "70e1b29350672f8045fdaab40a9526f5beb49f040d5257d13154cf08eda778ac"
+    },
+    {
+      "path": "docs/requirements/REQUIREMENTS_BASELINE.md",
+      "sha256": "e7aeff05fa4ba08be9840f44f3fc8d85371a7834f728b80849c7a4b9b5af83fb"
+    },
+    {
+      "path": "docs/requirements/SERVICE_BOUNDARIES.md",
+      "sha256": "fada330d7241e0afe373a2deeed817808e85357574de9f5c2b45dc22bf939b1a"
+    },
+    {
+      "path": "tools/paygov/requirements.py",
+      "sha256": "9abe7f7a68134bb0c31ce932003301fbc6ed3e43f9cc0843be6e36b9d5e9a827"
+    },
+    {
+      "path": "tools/paygov/boundaries.py",
+      "sha256": "53e28f8b7da45991c6973a7964ee2e2efba3e8dd174470abe3cba8751ee4312b"
+    },
+    {
+      "path": "tools/paygov/catalogue.py",
+      "sha256": "16cbddd320ae48fe657dd9abe27e1f2b23fc33608a73d8d4332689c85074de16"
+    },
+    {
+      "path": "tools/paygov/render.py",
+      "sha256": "4150523bc7c6336205bb5d0f61fde1b45c0f840c8110661e9f66c31d41ab03be"
+    },
+    {
+      "path": "tools/paygov/docs.py",
+      "sha256": "2dc7262561b9889b6149ceae51a2390a7c520bee608919f7d69309f4f37f0fe2"
+    },
+    {
+      "path": "tools/tests/test_b01_requirements.py",
+      "sha256": "c2e170a3a36b63fd0303d8caf80a77bf00b2ddb813c4dfe776035e9fe3527751"
+    },
+    {
+      "path": "tools/tests/test_b01_boundaries.py",
+      "sha256": "8e0592c935b943154da3c63adfd29ebdbe26ec9e24624e9b57bc30633d8543a8"
+    },
+    {
+      "path": "tools/tests/test_b01_docs_drift.py",
+      "sha256": "79b43231656c5c2a34435e8c69a55b393de0336997534a91f1dad18378b2056e"
+    },
+    {
+      "path": "scripts/render-docs.py",
+      "sha256": "abde14875c5f36b225a53aaac08eaf199e4b8095dd49f1cbebc79096d5d070b4"
+    },
+    {
+      "path": "scripts/trace-coverage.py",
+      "sha256": "5aabff0778c7ae5417cd4f88d4c48931ca5e0d3dff210ede3162e33a9cb1accc"
+    }
+  ],
+  "tests": {
+    "passed": 110,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B00": "5f1488cf8df0ded265a8e1337142c72caaca37b86e5d2a3020f265107fef65a9"
+  }
+}

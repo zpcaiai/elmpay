@@ -1,10 +1,10 @@
 {
   "batch_id": "B00",
   "status": "passed",
-  "commit_sha": "fd66b358b70dbd77fb0153727182dfa088180951",
+  "commit_sha": "580596d3e921e0fbf4d59d4c405f7d50436ce4ce",
   "environment": "integration",
-  "started_at": "2026-08-18T11:34:21Z",
-  "completed_at": "2026-08-18T11:34:31Z",
+  "started_at": "2026-08-18T11:44:40Z",
+  "completed_at": "2026-08-18T11:45:12Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -50,27 +50,27 @@
     },
     {
       "path": "tools/paygov/registry.py",
-      "sha256": "195edb13bf62b6353090bc46d9304205ccfe90081b7c13a55fcfc0b023158993"
+      "sha256": "7872b29ba60ecbc48e1bf035fb4ffaa72fb841c5ae04e127f06fc8878c8cd577"
     },
     {
       "path": "tools/paygov/charter.py",
-      "sha256": "77816c2b66444f15fe68d29877edb2395ceccd75e2200fdb5bd5893c8d845547"
+      "sha256": "7a321e679d2acb6fc4d7be11f377e0e8e6932bfcb7db118f7ab91cc6051b5bca"
     },
     {
       "path": "tools/paygov/config.py",
-      "sha256": "64443077d062a47b9d6daf4eb28057904f62b1a11de3574062e4da91fdff138f"
+      "sha256": "594c9fa60ff509a43ebaeabdcb63fe1322751fe60911b6a37661919dc948338e"
     },
     {
       "path": "tools/paygov/nonneg.py",
-      "sha256": "a3ee6219534fb9c176c9bc4afc1010f41dfd5e5b59b053e88b4f1c411db1ea96"
+      "sha256": "2a493d25f969ed960334014b410a7a53f2435f7fbaf3b3e11c21ccb0bf3a1000"
     },
     {
       "path": "tools/paygov/modules.py",
-      "sha256": "f4d5b4a8d2bb6c7d194350d2f81df4b838c2dcfe0850e9b7bea4f34e87918a8f"
+      "sha256": "1ae3c80e473eb4cb0729351e833e194d869b55ffdb36450f0ce9c7bd063a5d01"
     },
     {
       "path": "tools/paygov/hygiene.py",
-      "sha256": "d45d62644d9396157d2f874ad60d85f7050de82a3d3a1361fe54a2b0892ee288"
+      "sha256": "3cbe972c0719418453ce61a2e27f0f6b853de368f6ff5e6a44113b8a8fb49174"
     },
     {
       "path": "tools/paygov/cli.py",
@@ -78,7 +78,7 @@
     },
     {
       "path": "tools/tests/support.py",
-      "sha256": "51d1cb8f178288a4c04c225f444f69267bc4f89366cedc1a364e6e01f361cc07"
+      "sha256": "e11539fb8dec8e43590947622d36bef1391f6ea763dccbc42b291dd06fb888b3"
     },
     {
       "path": "tools/tests/test_b00_charter.py",
@@ -102,7 +102,7 @@
     },
     {
       "path": "tools/tests/test_b00_cli.py",
-      "sha256": "8b9505e50b7dcecee62cd101fc3576155bc356c8272af44df4fe05dd8daa87e7"
+      "sha256": "b6b04f7da5f404ba293bd2ee0218c71ebe2aaff49519075ea185e751ec0d0036"
     },
     {
       "path": "scripts/record-commands.py",
@@ -118,7 +118,7 @@
     },
     {
       "path": "scripts/negative-controls.py",
-      "sha256": "b9e4da1b083988fb38be204cb5c47ba90eb048e59fd8b34910a85c44b9c6fcda"
+      "sha256": "bf850117d4c7eb98632293947346e05fd1f1bdbf49d70d0323777d1d0e95075c"
     },
     {
       "path": "scripts/run-governance-tests.sh",
@@ -142,7 +142,7 @@
     }
   ],
   "tests": {
-    "passed": 77,
+    "passed": 110,
     "failed": 0,
     "skipped_critical": 0
   },

@@ -110,6 +110,6 @@ test_rejects_unknown_verification_batch (tools.tests.test_b01_requirements.Basel
 test_rejects_untestable_acceptance (tools.tests.test_b01_requirements.BaselineRejects) ... ok
 
 ----------------------------------------------------------------------
-Ran 110 tests in 4.884s
+Ran 110 tests in 8.364s
 
 OK

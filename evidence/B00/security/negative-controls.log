@@ -7,6 +7,11 @@
 [OK ] NN-01 connector reaches a service: exit=2 expected=2
 [OK ] NN-01 business order table claimed: exit=2 expected=2
 [OK ] red line silently removed: exit=2 expected=2
+[OK ] B01 requirement loses its verifying batch: exit=2 expected=2
+[OK ] B01 requirement points at a non-existent control: exit=2 expected=2
+[OK ] B01 requirement becomes an orphan: exit=2 expected=2
+[OK ] B01 forbidden flow loses its enforcement: exit=2 expected=2
+[OK ] B01 generated document drifts from source: exit=2 expected=2
 [OK ] exhausted budget fails closed: exit=3 expected=3
 
-scenarios=10 failures=0
+scenarios=15 failures=0
