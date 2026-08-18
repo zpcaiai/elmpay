@@ -1,0 +1,11 @@
+{
+  "as_of": "2026-08-18",
+  "adr_count": 11,
+  "zones": 13,
+  "assets": 11,
+  "trust_boundaries": 12,
+  "adversaries": 10,
+  "abuse_cases": 12,
+  "unmitigated_abuse_cases": [],
+  "expired_exceptions": []
+}

@@ -1,0 +1,100 @@
+{
+  "batch_id": "B02",
+  "status": "passed",
+  "commit_sha": "d8a98355be7db5d71fa2bf816f9c5a07c50955d2",
+  "environment": "integration",
+  "started_at": "2026-08-18T12:04:48Z",
+  "completed_at": "2026-08-18T12:04:58Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "docs/adr/0001-monorepo-modular-boundaries.md",
+      "sha256": "cd7c9549a08f656c1cc902bed16b64160776bef281376be52ea375edd8b6b960"
+    },
+    {
+      "path": "docs/adr/0002-business-orders-stay-out.md",
+      "sha256": "0fbda089c95596fdf5646173856dc6e92cd8a5dfe924c89fbc6bf1f1b6bf1731"
+    },
+    {
+      "path": "docs/adr/0003-integer-minor-units.md",
+      "sha256": "374238ad1763673505be82a63f75767214ff0fad9b60ca484c9fb36bc8fe84e7"
+    },
+    {
+      "path": "docs/adr/0004-server-verified-payment-truth.md",
+      "sha256": "58ed89ce35df574a56e0f54255da6d28407f959a9bcc1ca9a31b92610f200f5a"
+    },
+    {
+      "path": "docs/adr/0005-idempotency-inbox-outbox.md",
+      "sha256": "5b72c91d07c825ae866774cc0b2fdc49cabce3296dfa3b4e6c12387da4c39633"
+    },
+    {
+      "path": "docs/adr/0006-postgres-source-of-truth.md",
+      "sha256": "ea3276653ad7ffdd2af7f7475b2453960e955c00073393c506045abd5c76d07f"
+    },
+    {
+      "path": "docs/adr/0007-no-raw-card-data.md",
+      "sha256": "9d58387ed5850aa324867168523fc66c74f054aaccd7613bbee5bb91da73065f"
+    },
+    {
+      "path": "docs/adr/0008-kms-managed-keys.md",
+      "sha256": "b2a2b28de5887e295f156faa4f55d88dbee905637f4a7a279c2060cb526d84f2"
+    },
+    {
+      "path": "docs/adr/0009-zero-trust-access.md",
+      "sha256": "4f2fc464a5bf1244aabbf44ef0c73a932e9cc186aa3d7f8901c17fcc19df33ba"
+    },
+    {
+      "path": "docs/adr/0010-dependency-free-governance.md",
+      "sha256": "6dc8f393536cece041d842ae6781f644467c24023670d41edf42f22ac493ced9"
+    },
+    {
+      "path": "docs/adr/0011-evidence-bound-to-commit.md",
+      "sha256": "c7417b3a1ba6af860cd65a474e254e906b634448baacba1e104d3750189ee569"
+    },
+    {
+      "path": "docs/adr/README.md",
+      "sha256": "7cace602df63962da83a141c4ba2e764cf96c176d03ac9bdde3213b92aacc76a"
+    },
+    {
+      "path": "docs/security/THREAT_MODEL.md",
+      "sha256": "414d6ebf8808bb7fc92c1250ff4c895062b1a7856e281cc676418a2d37fb1bce"
+    },
+    {
+      "path": "governance/threat-model.json",
+      "sha256": "347fc6b63ccbccd21b58e4f3c59a5e9785863d2d0299b1ad12d6a6639cb2be1f"
+    },
+    {
+      "path": "scripts/threat-summary.py",
+      "sha256": "cc56644b6446730b497752ebbe96593bc365174b5cd421e6b731b1fd3bae76ef"
+    },
+    {
+      "path": "tools/paygov/adr.py",
+      "sha256": "73099e094d1e2f05e78b7dcc3475c0af0419b643a6c642ad9cf6a1904bac73f8"
+    },
+    {
+      "path": "tools/paygov/threat.py",
+      "sha256": "77ec890e1fbc36a141d9c28e8bbff74b017af900e6f2f8798409c47302ac52fd"
+    },
+    {
+      "path": "tools/tests/test_b02_adr.py",
+      "sha256": "96c7e430ab730684df2c52ab95e1233239e0d3814f67df39788f895c5c75ceea"
+    },
+    {
+      "path": "tools/tests/test_b02_threat_model.py",
+      "sha256": "a7675dcc3946dc9f1b4762c48c176cb78aee2b0a61850a665da4e0020d09fdfe"
+    }
+  ],
+  "tests": {
+    "passed": 141,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B01": "8f0ecd385ba05a79d9849272dfa827bdbc6f204e6981c680c22bd5b51f703537"
+  }
+}

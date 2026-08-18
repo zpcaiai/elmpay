@@ -1,7 +1,5 @@
 {
   "batch": "B01",
-  "valid": false,
-  "problems": [
-    "dependency evidence is invalid: B00"
-  ]
+  "valid": true,
+  "problems": []
 }

@@ -1,10 +1,10 @@
 {
   "batch_id": "B00",
   "status": "passed",
-  "commit_sha": "cb370359ba1964d7db8fa55894fba83521d09b13",
+  "commit_sha": "d8a98355be7db5d71fa2bf816f9c5a07c50955d2",
   "environment": "integration",
-  "started_at": "2026-08-18T11:54:41Z",
-  "completed_at": "2026-08-18T11:54:59Z",
+  "started_at": "2026-08-18T12:04:09Z",
+  "completed_at": "2026-08-18T12:04:29Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -78,7 +78,7 @@
     },
     {
       "path": "tools/tests/support.py",
-      "sha256": "5c6e33d29760304ee09a417641e1fd35295cb8c9aa6c18c63ef45949dd164be0"
+      "sha256": "944b2a17aa3b654252efafc6c9098c8256ce33e48136b12fe5bb6a09f00320f4"
     },
     {
       "path": "tools/tests/test_b00_charter.py",
@@ -106,7 +106,7 @@
     },
     {
       "path": "scripts/record-commands.py",
-      "sha256": "172dac0dc91a1699dade82d680230e1a5e9ca1e70c5ffe073e1a2de2250b724c"
+      "sha256": "02d44c062d8df2d9fdc824ff7cd639664fe7917201949e79be69773421c403b0"
     },
     {
       "path": "scripts/make-completion.py",
@@ -114,11 +114,11 @@
     },
     {
       "path": "scripts/test-summary.py",
-      "sha256": "3ba2895567dd89d36266720899c0f68588332f2a9b9b187046097902dc9e1d77"
+      "sha256": "4bc958118e1515a51484db4f3a36c276aa30f76c0c8fefac01b562e35e688979"
     },
     {
       "path": "scripts/negative-controls.py",
-      "sha256": "5d702cda2a29d7d4dd0fabee6b870a70404845e5c3d8ccdc79cf409b58927247"
+      "sha256": "e1128f775ab6916ba28bf37f66a458b1dd931fc230604d7b373bd67db81d25fd"
     },
     {
       "path": "scripts/run-governance-tests.sh",
