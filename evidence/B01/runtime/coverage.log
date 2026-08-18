@@ -1,0 +1,10 @@
+{
+  "requirements_total": 50,
+  "requirements_must": 48,
+  "capabilities_total": 17,
+  "forbidden_flows_total": 10,
+  "modules_total": 22,
+  "uncovered_modules": [],
+  "unclaimed_requirements": [],
+  "dangling_capability_requirements": []
+}

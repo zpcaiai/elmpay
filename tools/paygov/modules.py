@@ -15,7 +15,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .errors import Problem
+from .errors import BudgetExceeded, Problem
 from .repo import Budget, load_json
 from .structs import SEMVER, expect
 
@@ -31,6 +31,8 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     where = str(REGISTRY_PATH)
     try:
         registry: Any = load_json(root / REGISTRY_PATH, budget)
+    except BudgetExceeded:
+        raise
     except Exception as exc:
         return [Problem("MODULE_UNREADABLE", where, str(exc), "NN-12")]
 

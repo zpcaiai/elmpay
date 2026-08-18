@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .errors import Problem, GovernanceError
+from .errors import BudgetExceeded, GovernanceError, Problem
 from .repo import Budget, load_json, read_text
 
 CHARTER_DIR = Path("docs/charter")
@@ -54,6 +54,8 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
         where = str(CHARTER_DIR / name)
         try:
             text = read_text(path, budget)
+        except BudgetExceeded:
+            raise
         except GovernanceError as exc:
             problems.append(Problem("CHARTER_MISSING", where, str(exc), "NN-12"))
             continue
@@ -82,6 +84,8 @@ def _check_red_line_table(root: Path, text: str, budget: Budget) -> list[Problem
     where = str(CHARTER_DIR / "PROGRAM_CHARTER.md")
     try:
         registry = load_json(root / "governance" / "non-negotiables.json", budget)
+    except BudgetExceeded:
+        raise
     except GovernanceError as exc:
         return [Problem("CHARTER_REGISTRY", where, str(exc), "NN-12")]
     problems: list[Problem] = []

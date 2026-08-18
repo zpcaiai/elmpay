@@ -1,0 +1,11 @@
+{
+  "batch": "B00",
+  "valid": false,
+  "problems": [
+    "artifact hash mismatch: tools/paygov/registry.py",
+    "artifact hash mismatch: tools/paygov/hygiene.py",
+    "artifact hash mismatch: tools/tests/support.py",
+    "artifact hash mismatch: tools/tests/test_b00_cli.py",
+    "artifact hash mismatch: scripts/negative-controls.py"
+  ]
+}

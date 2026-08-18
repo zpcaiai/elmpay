@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from . import catalogue
-from .errors import Problem
+from .errors import BudgetExceeded, Problem
 from .repo import Budget, load_json
 from .structs import BATCH_ID, SEMVER, expect
 
@@ -30,6 +30,8 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     where = str(PATH)
     try:
         doc: Any = load_json(root / PATH, budget)
+    except BudgetExceeded:
+        raise
     except Exception as exc:
         return [Problem("REQ_UNREADABLE", where, str(exc), "NN-12")]
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .errors import Problem
+from .errors import BudgetExceeded, Problem
 from .repo import Budget, load_json
 from .structs import COUNTRY, SEMVER, expect, require_keys
 
@@ -27,6 +27,8 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     where = str(CONFIG_PATH)
     try:
         cfg: Any = load_json(root / CONFIG_PATH, budget)
+    except BudgetExceeded:
+        raise
     except Exception as exc:  # GovernanceError and JSON errors alike
         return [Problem("CONFIG_UNREADABLE", where, str(exc), "NN-12")]
 
