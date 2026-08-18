@@ -65,6 +65,9 @@ def load_all() -> None:
     from . import ci  # noqa: F401
     _register_once("ci-pipeline", "B05", ci.validate)
 
+    from . import evidence  # noqa: F401
+    _register_once("evidence", "B06", evidence.validate)
+
 
 def _register_once(name: str, batch: str, fn: Validator) -> None:
     if name not in _REGISTRY:

@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B06",
+  "required_batch_files": [
+    "plan.md",
+    "commands.spec.json",
+    "artifacts.json",
+    "traceability.json",
+    "commands.ndjson"
+  ],
+  "required_batch_dirs": [
+    "test-results",
+    "runtime",
+    "security"
+  ],
+  "required_plan_sections": [
+    "范围",
+    "受影响组件",
+    "领域接口与数据契约",
+    "命令",
+    "测试策略",
+    "回滚",
+    "威胁变化",
+    "数据迁移",
+    "证据与审查"
+  ],
+  "required_command_classes": [
+    {
+      "id": "test-summary",
+      "match": "scripts/test-summary.py",
+      "purpose": "机器可读测试摘要，用于完成文件的 tests 字段"
+    },
+    {
+      "id": "governance-gate",
+      "match": "tools.paygov.cli verify-all",
+      "purpose": "全量治理门禁快照"
+    },
+    {
+      "id": "negative-controls",
+      "match": "scripts/negative-controls.py",
+      "purpose": "运行期 fail-closed 证明"
+    },
+    {
+      "id": "timeout-fail-closed",
+      "match": "--budget-seconds 0",
+      "purpose": "预算耗尽必须退出 3 而不是 0"
+    },
+    {
+      "id": "idempotency",
+      "match": "IDENTICAL",
+      "purpose": "重复调用输出字节一致"
+    },
+    {
+      "id": "environment",
+      "match": "python3 -VV",
+      "purpose": "环境指纹，使证据可复现"
+    }
+  ],
+  "traceability_path_keys": {
+    "code": "ref",
+    "tests": "ref",
+    "evidence": "path"
+  },
+  "principals": {
+    "executor": "claude-agent",
+    "reviewer": "Ethan"
+  },
+  "plan_section_note": "按标题关键字匹配 '## <n>. ...<关键字>...'，允许各批次自行编号。"
+}

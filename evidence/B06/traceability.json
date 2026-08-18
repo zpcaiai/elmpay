@@ -1,0 +1,179 @@
+{
+  "batch_id": "B06",
+  "requirements": [
+    {
+      "id": "B06-R1",
+      "statement": "实现 B00-B127 的依赖解析与 ready 判定",
+      "source": "batches/B06.md 目标"
+    },
+    {
+      "id": "B06-R2",
+      "statement": "实现证据初始化与完成校验，篡改必须被检出",
+      "source": "batches/B06.md 目标"
+    },
+    {
+      "id": "B06-R3",
+      "statement": "实现发布门禁：任一批次无效即不可发布",
+      "source": "policies/release-gates.md RG1"
+    },
+    {
+      "id": "B06-R4",
+      "statement": "本地实现必须与随包编排器结论一致",
+      "source": "batches/B06.md 前置条件"
+    },
+    {
+      "id": "B06-R5",
+      "statement": "证据结构、追踪引用与命令类别必须可机器校验",
+      "source": "policies/definition-of-done.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/paygov/orchestration.py",
+      "requirements": [
+        "B06-R1",
+        "B06-R2",
+        "B06-R3"
+      ]
+    },
+    {
+      "ref": "tools/paygov/evidence.py",
+      "requirements": [
+        "B06-R5"
+      ]
+    },
+    {
+      "ref": "governance/evidence-policy.json",
+      "requirements": [
+        "B06-R5"
+      ]
+    },
+    {
+      "ref": "scripts/batch.py",
+      "requirements": [
+        "B06-R1",
+        "B06-R3",
+        "B06-R4"
+      ]
+    },
+    {
+      "ref": "scripts/finish-batch.py",
+      "requirements": [
+        "B06-R2"
+      ]
+    },
+    {
+      "ref": "scripts/rebaseline.py",
+      "requirements": [
+        "B06-R2"
+      ]
+    },
+    {
+      "ref": "scripts/archive-evidence.py",
+      "requirements": [
+        "B06-R3"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b06_orchestration.py",
+      "requirements": [
+        "B06-R1",
+        "B06-R2",
+        "B06-R3",
+        "B06-R4"
+      ],
+      "cases": 28
+    },
+    {
+      "ref": "tools/tests/test_b06_evidence.py",
+      "requirements": [
+        "B06-R5"
+      ],
+      "cases": 14
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/orchestration.py",
+        "tools/paygov/evidence.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b06_orchestration.py",
+        "tools/tests/test_b06_evidence.py"
+      ]
+    },
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "governance/evidence-policy.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b06_evidence.py"
+      ]
+    },
+    {
+      "id": "CTRL-020",
+      "implemented_by": [
+        "scripts/batch.py"
+      ],
+      "verified_by": [
+        "evidence/B06/runtime/crosscheck.log"
+      ]
+    },
+    {
+      "id": "CTRL-007",
+      "implemented_by": [
+        "tools/paygov/orchestration.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b06_orchestration.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B06/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B06/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B06/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B06/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B06/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B06/runtime/crosscheck.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B06/runtime/batch-graph.json",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B06/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B06/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B06.json",
+      "kind": "completion"
+    }
+  ]
+}

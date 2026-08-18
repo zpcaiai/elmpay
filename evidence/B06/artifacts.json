@@ -1,0 +1,8 @@
+[
+  "governance/evidence-policy.json",
+  "scripts/batch.py",
+  "tools/paygov/evidence.py",
+  "tools/paygov/orchestration.py",
+  "tools/tests/test_b06_evidence.py",
+  "tools/tests/test_b06_orchestration.py"
+]

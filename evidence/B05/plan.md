@@ -82,3 +82,16 @@ Gradle 阶段的首次真实运行证据将在具备联网构建代理后补齐�
 
 `evidence/B05/`；执行者 `claude-agent`，独立审查者 `Ethan`。
 依赖 B03、B04 完成文件哈希写入 `evidence/completion/B05.json`。
+
+## 11. 威胁变化
+
+新增攻击面与对应控制：
+
+| 变化 | 威胁 | 控制 |
+| --- | --- | --- |
+| CI 成为通往生产的最高价值路径 | CI token、第三方 Action、可写权限被滥用直达生产（AC-12） | `contents: read` 最小权限；`write-all` 被拒绝；第三方 Action 必须 40 位 commit SHA 固定；禁止 `pull_request_target` |
+| 引入制品签名与来源证明 | 未签名制品被替换后仍可发布（AC-12） | `BLOCK-06` 阻断条件；`sign-artifacts.sh` 在缺少 cosign 时**拒绝输出未签名制品** |
+| 引入证据归档 bundle | 归档看起来权威却包含失效证据，误导审计（AC-11） | `archive-evidence.py` 在任一已完成批次不通过时拒绝出包；manifest 绑定 commit 与逐文件 SHA-256 |
+| 质量门槛成为可调参数 | 悄悄放宽阈值以让红色流水线变绿（AC-11） | 四项关键阈值必须为 0；必需阶段必须 fail-closed；阶段图无环且引用可解析；负向控制在运行期证明门禁真会失败 |
+
+本批次未新增被接受的剩余风险；Gradle 阶段尚未真实运行的缺口沿用 `RR-02`（复审批次 B05→B109）。

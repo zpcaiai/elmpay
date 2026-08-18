@@ -28,6 +28,7 @@ COPIED = (
     "governance/version-catalog.json",
     "governance/dev-platform.json",
     "governance/ci-pipeline.json",
+    "governance/evidence-policy.json",
     "gradle/libs.versions.toml",
     "settings.gradle.kts",
     "build.gradle.kts",
@@ -54,7 +55,7 @@ COPIED = (
     ".payment-platform/skill-package/compliance/controls-matrix.csv",
 )
 
-COPIED_DIRS = ("docs/adr", "docs/security", "docs/toolchain")
+COPIED_DIRS = ("docs/adr", "docs/security", "docs/toolchain", "evidence")
 
 EXIT_OK, EXIT_PROBLEMS, EXIT_ERROR = 0, 2, 3
 
@@ -77,6 +78,28 @@ def build(tmp: Path) -> Path:
     dev = json.loads((root / "governance/dev-platform.json").read_text("utf-8"))
     for simulator in dev["simulators"]:
         (root / simulator["build_context"]).mkdir(parents=True, exist_ok=True)
+    # Mirror the files the completion records point at so that the evidence
+    # validator sees a complete tree rather than a truncated one.
+    completion = root / "evidence" / "completion"
+    if completion.is_dir():
+        for path in sorted(completion.glob("*.json")):
+            data = json.loads(path.read_text(encoding="utf-8"))
+            for artifact in data.get("artifacts", []):
+                dest = root / artifact["path"]
+                source = ROOT / artifact["path"]
+                if source.is_file() and not dest.exists():
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(source, dest)
+            trace = root / "evidence" / path.stem / "traceability.json"
+            if trace.is_file():
+                doc = json.loads(trace.read_text(encoding="utf-8"))
+                refs = [e.get("ref") for e in doc.get("code", []) + doc.get("tests", [])]
+                refs += [e.get("path") for e in doc.get("evidence", [])]
+                for rel in [r for r in refs if r]:
+                    dest, source = root / rel, ROOT / rel
+                    if source.is_file() and not dest.exists():
+                        dest.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(source, dest)
     return root
 
 
@@ -177,6 +200,20 @@ SCENARIOS = [
          [c for c in d["blocking_conditions"] if c["id"] != "BLOCK-04"]), EXIT_PROBLEMS),
     ("B05 pipeline granted write access to contents", "governance/ci-pipeline.json",
      lambda d: d["permissions"].__setitem__("contents", "write"), EXIT_PROBLEMS),
+    ("B06 evidence policy drops the fail-closed proof requirement",
+     "governance/evidence-policy.json",
+     lambda d: d["required_command_classes"].__setitem__(
+         slice(None), [c for c in d["required_command_classes"]
+                       if c["id"] != "negative-controls"]), EXIT_OK),
+    ("B06 evidence policy demands an uncovered command class",
+     "governance/evidence-policy.json",
+     lambda d: d["required_command_classes"].append(
+         {"id": "mutation-test", "match": "pitest", "purpose": "mutation coverage"}),
+     EXIT_PROBLEMS),
+    ("B06 evidence policy renames the reviewer", "governance/evidence-policy.json",
+     lambda d: d["principals"].__setitem__("reviewer", "someone-else"), EXIT_PROBLEMS),
+    ("B06 evidence policy adds an unmet plan section", "governance/evidence-policy.json",
+     lambda d: d["required_plan_sections"].append("容量模型"), EXIT_PROBLEMS),
 ]
 
 TEXT_SCENARIOS = [
