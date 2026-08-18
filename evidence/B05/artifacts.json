@@ -1,0 +1,10 @@
+[
+  ".github/workflows/ci.yml",
+  "governance/ci-pipeline.json",
+  "scripts/archive-evidence.py",
+  "scripts/render-ci.py",
+  "scripts/sign-artifacts.sh",
+  "tools/paygov/ci.py",
+  "tools/paygov/cigen.py",
+  "tools/tests/test_b05_ci.py"
+]

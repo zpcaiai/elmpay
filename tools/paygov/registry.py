@@ -62,6 +62,9 @@ def load_all() -> None:
     from . import devplatform  # noqa: F401
     _register_once("dev-platform", "B04", devplatform.validate)
 
+    from . import ci  # noqa: F401
+    _register_once("ci-pipeline", "B05", ci.validate)
+
 
 def _register_once(name: str, batch: str, fn: Validator) -> None:
     if name not in _REGISTRY:

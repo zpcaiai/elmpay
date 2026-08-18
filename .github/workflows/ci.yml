@@ -1,0 +1,389 @@
+# GENERATED FILE — do not edit by hand.
+# Source of truth: governance/ci-pipeline.json
+# Regenerate with: python3 scripts/render-ci.py
+
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+permissions:
+  actions: none
+  contents: read
+  id-token: write
+  packages: none
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  governance:
+    name: '治理门禁'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: '校验章程、红线、模块边界、需求、威胁模型、工具链与本地平台声明' (1/4)
+        run: |
+          python3 -m tools.paygov.cli verify-all --repo .
+      - name: '校验章程、红线、模块边界、需求、威胁模型、工具链与本地平台声明' (2/4)
+        run: |
+          python3 scripts/render-docs.py --check
+      - name: '校验章程、红线、模块边界、需求、威胁模型、工具链与本地平台声明' (3/4)
+        run: |
+          python3 scripts/render-build.py --check
+      - name: '校验章程、红线、模块边界、需求、威胁模型、工具链与本地平台声明' (4/4)
+        run: |
+          python3 scripts/render-dev-platform.py --check
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: governance-artifacts
+          path: |
+            governance-report.json
+          if-no-files-found: warn
+
+  unit-test:
+    name: '单元与属性测试'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [governance]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: '编译并运行全部单元、属性与并发测试，禁止跳过关键测试' (1/2)
+        run: |
+          python3 scripts/test-summary.py --out build/test-summary.json --log build/unittest.log
+      - name: '编译并运行全部单元、属性与并发测试，禁止跳过关键测试' (2/2)
+        run: |
+          ./gradlew --no-daemon test
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: unit-test-artifacts
+          path: |
+            build/test-summary.json
+            build/unittest.log
+          if-no-files-found: warn
+
+  build:
+    name: '编译与制品构建'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    needs: [governance]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: '以固定工具链编译全部模块并产出不可变制品' (1/1)
+        run: |
+          ./gradlew --no-daemon --console=plain build -x test
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: build-artifacts
+          path: |
+            build/libs/*.jar
+          if-no-files-found: warn
+
+  static-analysis:
+    name: '静态分析'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [build]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: 'SAST、编译告警即错误、架构依赖规则检查' (1/2)
+        run: |
+          ./gradlew --no-daemon check -x test
+      - name: 'SAST、编译告警即错误、架构依赖规则检查' (2/2)
+        run: |
+          python3 -m tools.paygov.cli verify module-registry --repo .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: static-analysis-artifacts
+          path: |
+            build/reports/
+          if-no-files-found: warn
+
+  secret-scan:
+    name: '密钥扫描'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [governance]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: '扫描源码、配置、测试夹具与制品中的凭证材料' (1/1)
+        run: |
+          python3 -m tools.paygov.cli verify repo-hygiene --repo .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: secret-scan-artifacts
+          path: |
+            secret-scan.json
+          if-no-files-found: warn
+
+  dependency-scan:
+    name: '依赖与供应链扫描'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: [build]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: '已知漏洞、许可证与来源校验；发现阻断级问题即失败' (1/1)
+        run: |
+          ./gradlew --no-daemon dependencyCheckAnalyze
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: dependency-scan-artifacts
+          path: |
+            build/reports/dependency-check-report.json
+          if-no-files-found: warn
+
+  container-scan:
+    name: '容器镜像扫描'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [build]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: '基础镜像与运行时层漏洞扫描，镜像必须摘要固定' (1/1)
+        run: |
+          python3 -m tools.paygov.cli verify toolchain dev-platform --repo .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: container-scan-artifacts
+          path: |
+            container-scan.json
+          if-no-files-found: warn
+
+  iac-scan:
+    name: '基础设施即代码扫描'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [governance]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: 'Kubernetes、Terraform 与 compose 的策略即代码检查' (1/1)
+        run: |
+          python3 -m tools.paygov.cli verify dev-platform --repo .
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: iac-scan-artifacts
+          path: |
+            iac-scan.json
+          if-no-files-found: warn
+
+  sbom:
+    name: 'SBOM 生成'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [build]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: '为每个制品生成 SBOM 并随制品一同归档' (1/1)
+        run: |
+          ./gradlew --no-daemon cyclonedxBom
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: sbom-artifacts
+          path: |
+            build/reports/bom.json
+          if-no-files-found: warn
+
+  sign:
+    name: '制品签名与来源证明'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [sbom, unit-test, static-analysis, dependency-scan, container-scan, iac-scan, secret-scan]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: '对制品与镜像签名并生成 SLSA provenance' (1/1)
+        run: |
+          scripts/sign-artifacts.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: sign-artifacts
+          path: |
+            build/provenance.intoto.jsonl
+            build/signatures/
+          if-no-files-found: warn
+
+  negative-controls:
+    name: '运行期 fail-closed 验证'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [governance]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: '以真实 CLI 对被破坏的治理面验证门禁确实会失败' (1/1)
+        run: |
+          python3 scripts/negative-controls.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: negative-controls-artifacts
+          path: |
+            negative-controls.log
+          if-no-files-found: warn
+
+  evidence-archive:
+    name: '证据归档'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [sign, negative-controls]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: '校验批次证据、依赖哈希与追踪关系，并归档为不可变制品' (1/2)
+        run: |
+          python3 .payment-platform/skill-package/scripts/orchestrate.py status --repo .
+      - name: '校验批次证据、依赖哈希与追踪关系，并归档为不可变制品' (2/2)
+        run: |
+          python3 scripts/archive-evidence.py --out build/evidence-bundle.tar.gz
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: evidence-archive-artifacts
+          path: |
+            build/evidence-bundle.tar.gz
+          if-no-files-found: warn
+
+  release-gate:
+    name: 'Release gate (fail closed)'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [governance, build, unit-test, static-analysis, secret-scan, dependency-scan, container-scan, iac-scan, sbom, sign, negative-controls, evidence-archive]
+    if: always()
+    steps:
+      - name: 'Every required stage must have succeeded'
+        run: |
+          echo 'needs result: ${{ join(needs.*.result, ",") }}'
+          if [[ '${{ contains(needs.*.result, "failure") }}' == 'true' ]] || \
+             [[ '${{ contains(needs.*.result, "cancelled") }}' == 'true' ]] || \
+             [[ '${{ contains(needs.*.result, "skipped") }}' == 'true' ]]; then
+            echo 'release gate blocked: a required stage did not succeed' >&2
+            exit 1
+          fi

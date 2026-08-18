@@ -27,6 +27,7 @@ COPIED = (
     "governance/threat-model.json",
     "governance/version-catalog.json",
     "governance/dev-platform.json",
+    "governance/ci-pipeline.json",
     "gradle/libs.versions.toml",
     "settings.gradle.kts",
     "build.gradle.kts",
@@ -40,6 +41,8 @@ COPIED = (
     "platform/dev/simulators/stripe/Dockerfile",
     "platform/dev/simulators/paypal/Dockerfile",
     "platform/dev/simulators/apple-pay/Dockerfile",
+    ".github/workflows/ci.yml",
+    "scripts/sign-artifacts.sh",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",
@@ -157,6 +160,23 @@ SCENARIOS = [
          0, {"host": d["simulators"][0]["ports"][0]["host"], "container": "8080"}), EXIT_PROBLEMS),
     ("B04 service health check removed", "governance/dev-platform.json",
      lambda d: d["services"][1].__setitem__("healthcheck", ""), EXIT_PROBLEMS),
+    ("B05 required CI stage turned fail-open", "governance/ci-pipeline.json",
+     lambda d: next(s for s in d["stages"] if s["id"] == "secret-scan")
+        .__setitem__("fail_closed", False), EXIT_PROBLEMS),
+    ("B05 action pinned to a movable tag", "governance/ci-pipeline.json",
+     lambda d: d["actions"][0].__setitem__("ref", "v5"), EXIT_PROBLEMS),
+    ("B05 dependency scanning removed from the pipeline", "governance/ci-pipeline.json",
+     lambda d: d["required_stages"].remove("dependency-scan") or
+               d["stages"].__setitem__(slice(None),
+                   [s for s in d["stages"] if s["id"] != "dependency-scan"]), EXIT_PROBLEMS),
+    ("B05 blocking security findings allowed above zero", "governance/ci-pipeline.json",
+     lambda d: d["quality_gates"].__setitem__("blocking_security_findings_max", 3),
+     EXIT_PROBLEMS),
+    ("B05 evidence blocking condition removed", "governance/ci-pipeline.json",
+     lambda d: d["blocking_conditions"].__setitem__(slice(None),
+         [c for c in d["blocking_conditions"] if c["id"] != "BLOCK-04"]), EXIT_PROBLEMS),
+    ("B05 pipeline granted write access to contents", "governance/ci-pipeline.json",
+     lambda d: d["permissions"].__setitem__("contents", "write"), EXIT_PROBLEMS),
 ]
 
 TEXT_SCENARIOS = [

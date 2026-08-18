@@ -1,0 +1,190 @@
+{
+  "batch_id": "B05",
+  "requirements": [
+    {
+      "id": "B05-R1",
+      "statement": "把编译、静态分析、测试、供应链扫描、镜像签名与证据归档纳入 CI",
+      "source": "batches/B05.md 目标"
+    },
+    {
+      "id": "B05-R2",
+      "statement": "必需阶段必须 fail closed，不存在通过但有告警的状态",
+      "source": "policies/non-negotiables.md#12"
+    },
+    {
+      "id": "B05-R3",
+      "statement": "第三方 Action 必须以 commit SHA 固定，权限最小化",
+      "source": "CTRL-011 + CTRL-018"
+    },
+    {
+      "id": "B05-R4",
+      "statement": "严重安全问题、账本不平、不可恢复、证据缺失必须阻断发布",
+      "source": "batches/B04.md 实施要求#5 + policies/release-gates.md"
+    },
+    {
+      "id": "B05-R5",
+      "statement": "证据归档为不可变 bundle，任一批次不通过则拒绝出包",
+      "source": "policies/release-gates.md RG1"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/ci-pipeline.json",
+      "requirements": [
+        "B05-R1",
+        "B05-R2",
+        "B05-R3",
+        "B05-R4"
+      ]
+    },
+    {
+      "ref": "tools/paygov/ci.py",
+      "requirements": [
+        "B05-R2",
+        "B05-R3",
+        "B05-R4"
+      ]
+    },
+    {
+      "ref": "tools/paygov/cigen.py",
+      "requirements": [
+        "B05-R1",
+        "B05-R3"
+      ]
+    },
+    {
+      "ref": ".github/workflows/ci.yml",
+      "requirements": [
+        "B05-R1",
+        "B05-R2"
+      ]
+    },
+    {
+      "ref": "scripts/render-ci.py",
+      "requirements": [
+        "B05-R1"
+      ]
+    },
+    {
+      "ref": "scripts/sign-artifacts.sh",
+      "requirements": [
+        "B05-R1"
+      ]
+    },
+    {
+      "ref": "scripts/archive-evidence.py",
+      "requirements": [
+        "B05-R5"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b05_ci.py",
+      "requirements": [
+        "B05-R1",
+        "B05-R2",
+        "B05-R3",
+        "B05-R4"
+      ],
+      "cases": 27
+    },
+    {
+      "ref": "tools/tests/test_b00_cli.py",
+      "requirements": [
+        "B05-R2"
+      ],
+      "cases": 14
+    }
+  ],
+  "controls": [
+    {
+      "id": "CTRL-011",
+      "implemented_by": [
+        "governance/ci-pipeline.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b05_ci.py"
+      ]
+    },
+    {
+      "id": "CTRL-018",
+      "implemented_by": [
+        "tools/paygov/cigen.py",
+        "scripts/sign-artifacts.sh"
+      ],
+      "verified_by": [
+        "tools/tests/test_b05_ci.py"
+      ]
+    },
+    {
+      "id": "CTRL-020",
+      "implemented_by": [
+        "scripts/archive-evidence.py"
+      ],
+      "verified_by": [
+        "evidence/B05/runtime/evidence-bundle.log"
+      ]
+    },
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "governance/ci-pipeline.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b05_ci.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/ci.py"
+      ],
+      "verified_by": [
+        "scripts/negative-controls.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B05/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B05/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B05/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B05/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B05/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B05/runtime/ci-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B05/runtime/evidence-bundle.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B05/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B05/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B05.json",
+      "kind": "completion"
+    }
+  ]
+}

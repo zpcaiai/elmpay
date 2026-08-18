@@ -25,6 +25,7 @@ COPIED_FILES = (
     "governance/threat-model.json",
     "governance/version-catalog.json",
     "governance/dev-platform.json",
+    "governance/ci-pipeline.json",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",
@@ -58,6 +59,8 @@ GENERATED_BUILD_FILES = (
     "platform/dev/simulators/stripe/Dockerfile",
     "platform/dev/simulators/paypal/Dockerfile",
     "platform/dev/simulators/apple-pay/Dockerfile",
+    ".github/workflows/ci.yml",
+    "scripts/sign-artifacts.sh",
 )
 
 

@@ -1,0 +1,350 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B05",
+  "runner": "ubuntu-24.04",
+  "triggers": {
+    "push": [
+      "main"
+    ],
+    "pull_request": [
+      "main"
+    ],
+    "workflow_dispatch": true
+  },
+  "permissions": {
+    "contents": "read",
+    "id-token": "write",
+    "packages": "none",
+    "actions": "none"
+  },
+  "required_stages": [
+    "governance",
+    "build",
+    "unit-test",
+    "static-analysis",
+    "secret-scan",
+    "dependency-scan",
+    "container-scan",
+    "iac-scan",
+    "sbom",
+    "sign",
+    "negative-controls",
+    "evidence-archive"
+  ],
+  "actions": [
+    {
+      "name": "actions/checkout",
+      "ref": "08c6903cd8c0fde910a37f88322edcfb5dd907a8",
+      "version_comment": "v5.0.0"
+    },
+    {
+      "name": "actions/setup-java",
+      "ref": "c5195efecf7bdfc987ee8bae7a71cb8b11521c00",
+      "version_comment": "v5.0.0"
+    },
+    {
+      "name": "actions/upload-artifact",
+      "ref": "ea165f8d65b6e75b540449e92b4886f43607fa02",
+      "version_comment": "v4.6.2"
+    },
+    {
+      "name": "gradle/actions/setup-gradle",
+      "ref": "06832c7b30a0129d7fb559bcc6e43d26f6374244",
+      "version_comment": "v4.3.1"
+    }
+  ],
+  "quality_gates": {
+    "unit_test_failed_max": 0,
+    "skipped_critical_max": 0,
+    "blocking_security_findings_max": 0,
+    "governance_problems_max": 0,
+    "line_coverage_min_percent": 80,
+    "mutation_score_min_percent": 60
+  },
+  "blocking_conditions": [
+    {
+      "id": "BLOCK-01",
+      "description": "存在未接受的阻断级安全问题",
+      "detected_by": [
+        "static-analysis",
+        "dependency-scan",
+        "container-scan",
+        "iac-scan",
+        "secret-scan"
+      ],
+      "gate": "RG4"
+    },
+    {
+      "id": "BLOCK-02",
+      "description": "账本借贷不平或存在不可解释的资金差异",
+      "detected_by": [
+        "unit-test"
+      ],
+      "gate": "RG2"
+    },
+    {
+      "id": "BLOCK-03",
+      "description": "备份、回滚或灾难恢复路径不可用",
+      "detected_by": [
+        "evidence-archive"
+      ],
+      "gate": "RG5"
+    },
+    {
+      "id": "BLOCK-04",
+      "description": "关键证据缺失、追踪断链或依赖哈希不一致",
+      "detected_by": [
+        "governance",
+        "evidence-archive"
+      ],
+      "gate": "RG1"
+    },
+    {
+      "id": "BLOCK-05",
+      "description": "关键测试被跳过或测试摘要不干净",
+      "detected_by": [
+        "unit-test"
+      ],
+      "gate": "RG2"
+    },
+    {
+      "id": "BLOCK-06",
+      "description": "制品未签名或缺少来源证明",
+      "detected_by": [
+        "sign"
+      ],
+      "gate": "RG4"
+    }
+  ],
+  "stages": [
+    {
+      "id": "governance",
+      "name": "治理门禁",
+      "purpose": "校验章程、红线、模块边界、需求、威胁模型、工具链与本地平台声明",
+      "needs": [],
+      "commands": [
+        "python3 -m tools.paygov.cli verify-all --repo .",
+        "python3 scripts/render-docs.py --check",
+        "python3 scripts/render-build.py --check",
+        "python3 scripts/render-dev-platform.py --check"
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG1",
+      "artifacts": [
+        "governance-report.json"
+      ],
+      "timeout_minutes": 10
+    },
+    {
+      "id": "unit-test",
+      "name": "单元与属性测试",
+      "purpose": "编译并运行全部单元、属性与并发测试，禁止跳过关键测试",
+      "needs": [
+        "governance"
+      ],
+      "commands": [
+        "python3 scripts/test-summary.py --out build/test-summary.json --log build/unittest.log",
+        "./gradlew --no-daemon test"
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG2",
+      "artifacts": [
+        "build/test-summary.json",
+        "build/unittest.log"
+      ],
+      "timeout_minutes": 30
+    },
+    {
+      "id": "build",
+      "name": "编译与制品构建",
+      "purpose": "以固定工具链编译全部模块并产出不可变制品",
+      "needs": [
+        "governance"
+      ],
+      "commands": [
+        "./gradlew --no-daemon --console=plain build -x test"
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG1",
+      "artifacts": [
+        "build/libs/*.jar"
+      ],
+      "timeout_minutes": 30
+    },
+    {
+      "id": "static-analysis",
+      "name": "静态分析",
+      "purpose": "SAST、编译告警即错误、架构依赖规则检查",
+      "needs": [
+        "build"
+      ],
+      "commands": [
+        "./gradlew --no-daemon check -x test",
+        "python3 -m tools.paygov.cli verify module-registry --repo ."
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG4",
+      "artifacts": [
+        "build/reports/"
+      ],
+      "timeout_minutes": 20
+    },
+    {
+      "id": "secret-scan",
+      "name": "密钥扫描",
+      "purpose": "扫描源码、配置、测试夹具与制品中的凭证材料",
+      "needs": [
+        "governance"
+      ],
+      "commands": [
+        "python3 -m tools.paygov.cli verify repo-hygiene --repo ."
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG4",
+      "artifacts": [
+        "secret-scan.json"
+      ],
+      "timeout_minutes": 10
+    },
+    {
+      "id": "dependency-scan",
+      "name": "依赖与供应链扫描",
+      "purpose": "已知漏洞、许可证与来源校验；发现阻断级问题即失败",
+      "needs": [
+        "build"
+      ],
+      "commands": [
+        "./gradlew --no-daemon dependencyCheckAnalyze"
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG4",
+      "artifacts": [
+        "build/reports/dependency-check-report.json"
+      ],
+      "timeout_minutes": 25
+    },
+    {
+      "id": "container-scan",
+      "name": "容器镜像扫描",
+      "purpose": "基础镜像与运行时层漏洞扫描，镜像必须摘要固定",
+      "needs": [
+        "build"
+      ],
+      "commands": [
+        "python3 -m tools.paygov.cli verify toolchain dev-platform --repo ."
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG4",
+      "artifacts": [
+        "container-scan.json"
+      ],
+      "timeout_minutes": 20
+    },
+    {
+      "id": "iac-scan",
+      "name": "基础设施即代码扫描",
+      "purpose": "Kubernetes、Terraform 与 compose 的策略即代码检查",
+      "needs": [
+        "governance"
+      ],
+      "commands": [
+        "python3 -m tools.paygov.cli verify dev-platform --repo ."
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG4",
+      "artifacts": [
+        "iac-scan.json"
+      ],
+      "timeout_minutes": 15
+    },
+    {
+      "id": "sbom",
+      "name": "SBOM 生成",
+      "purpose": "为每个制品生成 SBOM 并随制品一同归档",
+      "needs": [
+        "build"
+      ],
+      "commands": [
+        "./gradlew --no-daemon cyclonedxBom"
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG4",
+      "artifacts": [
+        "build/reports/bom.json"
+      ],
+      "timeout_minutes": 15
+    },
+    {
+      "id": "sign",
+      "name": "制品签名与来源证明",
+      "purpose": "对制品与镜像签名并生成 SLSA provenance",
+      "needs": [
+        "sbom",
+        "unit-test",
+        "static-analysis",
+        "dependency-scan",
+        "container-scan",
+        "iac-scan",
+        "secret-scan"
+      ],
+      "commands": [
+        "scripts/sign-artifacts.sh"
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG4",
+      "artifacts": [
+        "build/provenance.intoto.jsonl",
+        "build/signatures/"
+      ],
+      "timeout_minutes": 15
+    },
+    {
+      "id": "negative-controls",
+      "name": "运行期 fail-closed 验证",
+      "purpose": "以真实 CLI 对被破坏的治理面验证门禁确实会失败",
+      "needs": [
+        "governance"
+      ],
+      "commands": [
+        "python3 scripts/negative-controls.py"
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG1",
+      "artifacts": [
+        "negative-controls.log"
+      ],
+      "timeout_minutes": 10
+    },
+    {
+      "id": "evidence-archive",
+      "name": "证据归档",
+      "purpose": "校验批次证据、依赖哈希与追踪关系，并归档为不可变制品",
+      "needs": [
+        "sign",
+        "negative-controls"
+      ],
+      "commands": [
+        "python3 .payment-platform/skill-package/scripts/orchestrate.py status --repo .",
+        "python3 scripts/archive-evidence.py --out build/evidence-bundle.tar.gz"
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG1",
+      "artifacts": [
+        "build/evidence-bundle.tar.gz"
+      ],
+      "timeout_minutes": 15
+    }
+  ]
+}
