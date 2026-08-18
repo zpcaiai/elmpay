@@ -1,10 +1,10 @@
 {
   "batch_id": "B00",
   "status": "passed",
-  "commit_sha": "81779ace484ea2148b97af4ae383ace0fbff0628",
+  "commit_sha": "bf0a26c388b01e04e03ec30ae4876eafe45f3805",
   "environment": "integration",
-  "started_at": "2026-08-18T12:10:04Z",
-  "completed_at": "2026-08-18T12:10:24Z",
+  "started_at": "2026-08-18T12:21:02Z",
+  "completed_at": "2026-08-18T12:21:19Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -50,7 +50,7 @@
     },
     {
       "path": "tools/paygov/registry.py",
-      "sha256": "b83ea8ee68ae47f7f62d4d4223ef59906c7d4d93cfda8fe8e0a6a328b54b1ee4"
+      "sha256": "cca16e6c4b18de10081ccadcb4cdac7df0095b30ecabcf008a297a5b1824541c"
     },
     {
       "path": "tools/paygov/charter.py",
@@ -70,15 +70,15 @@
     },
     {
       "path": "tools/paygov/hygiene.py",
-      "sha256": "3cbe972c0719418453ce61a2e27f0f6b853de368f6ff5e6a44113b8a8fb49174"
+      "sha256": "f3faa1316a7a61eab202032a42e34991cd2a75df66fe561991fc724243f48f8c"
     },
     {
       "path": "tools/paygov/cli.py",
-      "sha256": "955252ff7d15fda9b4abebbb511349202210424d27eb7b70f44572b746ef51ae"
+      "sha256": "b00860a0a4009e87cfca16f0a92af5469e82b3208e479a5f85be34135b391f88"
     },
     {
       "path": "tools/tests/support.py",
-      "sha256": "342a82bc4800c7efcdde56490ebbfd7dd46bc3847884d150f833c0069d7c2761"
+      "sha256": "af0f15adb2e2a64e5393a878dd808ab10eb7da04ad638304e74ec7fd9fa0063b"
     },
     {
       "path": "tools/tests/test_b00_charter.py",
@@ -118,7 +118,7 @@
     },
     {
       "path": "scripts/negative-controls.py",
-      "sha256": "c0eedd325241af1fdaa9b07ee99c3bf8c9e8f560b493fdf1847de66ad4dbc262"
+      "sha256": "ad3f95498d1aeaa6a213fccad9cf75990027ed29bec39cf48d109c91b77eeb7b"
     },
     {
       "path": "scripts/run-governance-tests.sh",
@@ -142,7 +142,7 @@
     }
   ],
   "tests": {
-    "passed": 166,
+    "passed": 209,
     "failed": 0,
     "skipped_critical": 0
   },

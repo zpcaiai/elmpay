@@ -1,10 +1,10 @@
 {
   "batch_id": "B03",
   "status": "passed",
-  "commit_sha": "81779ace484ea2148b97af4ae383ace0fbff0628",
+  "commit_sha": "bf0a26c388b01e04e03ec30ae4876eafe45f3805",
   "environment": "integration",
-  "started_at": "2026-08-18T12:11:05Z",
-  "completed_at": "2026-08-18T12:11:25Z",
+  "started_at": "2026-08-18T12:22:31Z",
+  "completed_at": "2026-08-18T12:22:49Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -22,19 +22,19 @@
     },
     {
       "path": "docs/toolchain/VERSION_CATALOG.md",
-      "sha256": "83fc4db7f45ea6ae274403d9e484d799757682a982f5c7df3006f80bbfcc08b0"
+      "sha256": "7097c0c240f446001eb2980b97d451068ed8defc236cfcd7eec777978c938d45"
     },
     {
       "path": "governance/version-catalog.json",
-      "sha256": "cee4843351ea56fdd67c15ef5736ca9b071d4c564ae8157d48b2aeae681ff3e1"
+      "sha256": "238b6b086820bb364ccab69823765e5f8d7add1694712536f32c67ac3dad02cc"
     },
     {
       "path": "gradle/libs.versions.toml",
-      "sha256": "7a7782f45f8764fb5d7ac90d927cd59dbdcc8fb6a0a5b0102452e280b1080759"
+      "sha256": "830fc12ff5affc2b4525aa7131df2e21f9a14f9475b5d683b5690ed9c067e43d"
     },
     {
       "path": "platform/toolchain/versions.env",
-      "sha256": "41957d96958c0bb0a350cf71cf2b57a736cb2daeeead24ccd06cf6bff45776a4"
+      "sha256": "e91e1651e42258399f2ea8023ffba0c4ef34f0dd259333134a5c09ee701d1d34"
     },
     {
       "path": "scripts/render-build.py",
@@ -46,7 +46,7 @@
     },
     {
       "path": "tools/paygov/buildgen.py",
-      "sha256": "08e9798cf97b98caf78d386d1f7b4a16b8da21fbb4d18d7b8c3775a1158f7669"
+      "sha256": "5f1fe6dd6162ffde858bc0f07c198d7391176f735f8fcde3c1ff6b04a48f05d9"
     },
     {
       "path": "tools/paygov/toolchain.py",
@@ -58,7 +58,7 @@
     }
   ],
   "tests": {
-    "passed": 166,
+    "passed": 209,
     "failed": 0,
     "skipped_critical": 0
   },
@@ -67,6 +67,6 @@
     "accepted_findings": 0
   },
   "dependency_hashes": {
-    "B01": "572da964a5e3713f6855c55f04b8c3bca14afbf6d63a85c1c19fe3ef037d431d"
+    "B01": "8afabffe196c1d2672fc4f0487853d6e20b2fdfc5eef2f2da23a64d9350cf18b"
   }
 }

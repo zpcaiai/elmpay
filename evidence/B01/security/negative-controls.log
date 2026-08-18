@@ -21,8 +21,15 @@
 [OK ] B03 dependency loses its owner: exit=2 expected=2
 [OK ] B03 module left without a build system: exit=2 expected=2
 [OK ] B03 Java baseline silently downgraded: exit=2 expected=2
+[OK ] B04 inline password in the local platform: exit=2 expected=2
+[OK ] B04 local service points at a production value: exit=2 expected=2
+[OK ] B04 local data declared non-synthetic: exit=2 expected=2
+[OK ] B04 enabled provider loses its offline simulator: exit=2 expected=2
+[OK ] B04 required service removed: exit=2 expected=2
+[OK ] B04 host port collision: exit=2 expected=2
+[OK ] B04 service health check removed: exit=2 expected=2
 [OK ] B02 ADR loses its alternatives section: exit=2 expected=2
 [OK ] B02 ADR points at a non-existent requirement: exit=2 expected=2
 [OK ] exhausted budget fails closed: exit=3 expected=3
 
-scenarios=26 failures=0
+scenarios=33 failures=0

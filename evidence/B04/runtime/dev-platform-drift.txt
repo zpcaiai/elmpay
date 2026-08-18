@@ -1,0 +1,8 @@
+up-to-date  platform/dev/.env.example
+up-to-date  platform/dev/README.md
+up-to-date  platform/dev/compose.yaml
+up-to-date  platform/dev/simulators/alipay/Dockerfile
+up-to-date  platform/dev/simulators/apple-pay/Dockerfile
+up-to-date  platform/dev/simulators/paypal/Dockerfile
+up-to-date  platform/dev/simulators/stripe/Dockerfile
+up-to-date  platform/dev/simulators/wechat/Dockerfile

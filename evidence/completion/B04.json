@@ -1,0 +1,96 @@
+{
+  "batch_id": "B04",
+  "status": "passed",
+  "commit_sha": "bf0a26c388b01e04e03ec30ae4876eafe45f3805",
+  "environment": "integration",
+  "started_at": "2026-08-18T12:22:54Z",
+  "completed_at": "2026-08-18T12:23:14Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "governance/dev-platform.json",
+      "sha256": "a6c1cdb77ebcac58675a487e6e075ca68294884f8f168c177150a4b791e9dbc6"
+    },
+    {
+      "path": "platform/dev/.env.example",
+      "sha256": "743890c189b17c2268bcbea750956261f814dc6cbde9a3600754b1aa54d98f28"
+    },
+    {
+      "path": "platform/dev/README.md",
+      "sha256": "2b682c3dab6bf7a07bad832575ef93b2f121920d3f3168729e8ba9145ec14471"
+    },
+    {
+      "path": "platform/dev/compose.yaml",
+      "sha256": "551ac95a8c9844b37a4a7d1825c88091c08631e1a86f87fd86cdfdc82f537dce"
+    },
+    {
+      "path": "platform/dev/simulators/alipay/Dockerfile",
+      "sha256": "b42abc592b5ea311c79e27ce36abd002506df7c9f411462aeaa14b80f746f5df"
+    },
+    {
+      "path": "platform/dev/simulators/apple-pay/Dockerfile",
+      "sha256": "96c9b6fd90d713c26187873f7ad28c5d32612f98d4fffca7f2f5903bab03d8f3"
+    },
+    {
+      "path": "platform/dev/simulators/paypal/Dockerfile",
+      "sha256": "fde6e6bb7bf017135f17d5787b4c57a4d277915ad7a092161174b2464c1d8b02"
+    },
+    {
+      "path": "platform/dev/simulators/stripe/Dockerfile",
+      "sha256": "be13843e41d7b3141fd2460a3e8c39697302467cad8651e06589235b667c304d"
+    },
+    {
+      "path": "platform/dev/simulators/wechat/Dockerfile",
+      "sha256": "e7707545e4f23d234165c6e8e795a3102d386936b5b83c47d6847ae512fd6a94"
+    },
+    {
+      "path": "scripts/dev-up.sh",
+      "sha256": "334fcd6378dc11ad38a84831d1e2e10cb54b2e2f74f4adbf4ff4f4e9505eb2f0"
+    },
+    {
+      "path": "scripts/render-dev-platform.py",
+      "sha256": "d6ad112d0ea9de639f20199e1b07a39d6db611cd9e61d1f39d21f59229661b8c"
+    },
+    {
+      "path": "scripts/simulator-smoke.py",
+      "sha256": "6aa74f297b3b3450bcc28e30c695ba67f1b3adaf832f5f965872a8775d368bc7"
+    },
+    {
+      "path": "tools/paygov/devgen.py",
+      "sha256": "f0724ef3c434219b50217a3bc47b070c1b668a973f658ae0b9029b3dafe7d912"
+    },
+    {
+      "path": "tools/paygov/devplatform.py",
+      "sha256": "2838ee5a4d3a73a94838ec9c11e8f0a369ec6aa064f34826d335fa3bad3cc50f"
+    },
+    {
+      "path": "tools/simulator/__init__.py",
+      "sha256": "ebb87ce375733248db5ba98e3ce499e0debf8aca786876ac8f2ef7bb1a28dfb4"
+    },
+    {
+      "path": "tools/simulator/provider_sim.py",
+      "sha256": "6099731b29394c4bb322e84556167d8b6c15e37d6422654d743035e76544e9b6"
+    },
+    {
+      "path": "tools/tests/test_b04_dev_platform.py",
+      "sha256": "75be9f71bcf6ddbd76a7048f53447496086c7b523bf25506500a20fb8f11a5d9"
+    },
+    {
+      "path": "tools/tests/test_b04_simulator.py",
+      "sha256": "fd88787f7e3ca59dc7cc9d7553953bb43689ab9f25c2955300e247d7e8a1e64f"
+    }
+  ],
+  "tests": {
+    "passed": 209,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B03": "e3ded5b60740a9cc04c60e281955082fd6b295caa35900b0777883700b206150"
+  }
+}

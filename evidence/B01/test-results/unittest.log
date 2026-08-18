@@ -164,8 +164,51 @@ test_rejects_module_claimed_twice (tools.tests.test_b03_toolchain.ToolchainRejec
 test_rejects_module_without_build_system (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
 test_rejects_snapshot (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
 test_rejects_unverified_catalogue_without_a_note (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_all_images_are_digest_pinned (tools.tests.test_b04_dev_platform.DevPlatformHappyPath) ... ok
+test_b04_validator_is_registered (tools.tests.test_b04_dev_platform.DevPlatformHappyPath) ... ok
+test_env_example_contains_no_real_values (tools.tests.test_b04_dev_platform.DevPlatformHappyPath) ... ok
+test_every_enabled_provider_has_a_simulator (tools.tests.test_b04_dev_platform.DevPlatformHappyPath) ... ok
+test_every_service_declares_a_healthcheck (tools.tests.test_b04_dev_platform.DevPlatformHappyPath) ... ok
+test_generated_compose_binds_ports_to_loopback_only (tools.tests.test_b04_dev_platform.DevPlatformHappyPath) ... ok
+test_generated_compose_has_no_privileged_containers (tools.tests.test_b04_dev_platform.DevPlatformHappyPath) ... ok
+test_generation_is_deterministic (tools.tests.test_b04_dev_platform.DevPlatformHappyPath) ... ok
+test_real_platform_passes (tools.tests.test_b04_dev_platform.DevPlatformHappyPath) ... ok
+test_required_services_are_present (tools.tests.test_b04_dev_platform.DevPlatformHappyPath) ... ok
+test_rejects_allowing_real_card_data (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_hand_edited_compose (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_host_port_conflict (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_image_outside_the_version_catalogue (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_inline_password (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_missing_generated_file (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_missing_required_service (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_missing_simulator_for_enabled_provider (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_non_synthetic_data_classification (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_production_environment_target (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_production_marker_in_environment (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_service_without_healthcheck (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_simulator_without_build_context (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_undeclared_secret_variable (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_rejects_undeclared_volume (tools.tests.test_b04_dev_platform.DevPlatformRejects) ... ok
+test_card_number_shaped_payload_is_rejected (tools.tests.test_b04_simulator.SimulatorLifecycle) ... ok
+test_concurrent_replays_produce_exactly_one_payment (tools.tests.test_b04_simulator.SimulatorLifecycle) ... ok
+test_create_payment_requires_idempotency_key (tools.tests.test_b04_simulator.SimulatorLifecycle) ... ok
+test_created_payment_is_queryable (tools.tests.test_b04_simulator.SimulatorLifecycle) ... ok
+test_health_declares_synthetic_data (tools.tests.test_b04_simulator.SimulatorLifecycle) ... ok
+test_same_key_different_payload_is_a_conflict (tools.tests.test_b04_simulator.SimulatorLifecycle) ... ok
+test_same_key_same_payload_returns_first_result (tools.tests.test_b04_simulator.SimulatorLifecycle) ... ok
+test_unknown_payment_is_not_found (tools.tests.test_b04_simulator.SimulatorLifecycle) ... ok
+test_card_data_guard_accepts_non_card_digits (tools.tests.test_b04_simulator.SimulatorRefusesUnsafeConfiguration) ... ok
+test_card_data_guard_rejects_valid_luhn (tools.tests.test_b04_simulator.SimulatorRefusesUnsafeConfiguration) ... ok
+test_refuses_non_synthetic_secret (tools.tests.test_b04_simulator.SimulatorRefusesUnsafeConfiguration) ... ok
+test_refuses_production_marker_in_merchant_id (tools.tests.test_b04_simulator.SimulatorRefusesUnsafeConfiguration) ... ok
+test_refuses_unknown_provider (tools.tests.test_b04_simulator.SimulatorRefusesUnsafeConfiguration) ... ok
+test_callback_signature_verifies (tools.tests.test_b04_simulator.SimulatorSignatures) ... ok
+test_signature_is_deterministic (tools.tests.test_b04_simulator.SimulatorSignatures) ... ok
+test_stale_timestamp_fails_verification (tools.tests.test_b04_simulator.SimulatorSignatures) ... ok
+test_tampered_body_fails_verification (tools.tests.test_b04_simulator.SimulatorSignatures) ... ok
+test_wrong_secret_fails_verification (tools.tests.test_b04_simulator.SimulatorSignatures) ... ok
 
 ----------------------------------------------------------------------
-Ran 166 tests in 8.039s
+Ran 209 tests in 12.026s
 
 OK

@@ -1,0 +1,32 @@
+simulator: wechat
+  [wechat] /healthz -> 200 {'status': 'ok', 'provider': 'wechat', 'mode': 'simulator', 'data': 'synthetic'}
+  [wechat] create=201 replay=200 conflict=409
+  [wechat] card-shaped payload -> 422
+  [wechat] callback signature valid=True tampered_accepted=False
+simulator: alipay
+  [alipay] /healthz -> 200 {'status': 'ok', 'provider': 'alipay', 'mode': 'simulator', 'data': 'synthetic'}
+  [alipay] create=201 replay=200 conflict=409
+  [alipay] card-shaped payload -> 422
+  [alipay] callback signature valid=True tampered_accepted=False
+simulator: stripe
+  [stripe] /healthz -> 200 {'status': 'ok', 'provider': 'stripe', 'mode': 'simulator', 'data': 'synthetic'}
+  [stripe] create=201 replay=200 conflict=409
+  [stripe] card-shaped payload -> 422
+  [stripe] callback signature valid=True tampered_accepted=False
+simulator: paypal
+  [paypal] /healthz -> 200 {'status': 'ok', 'provider': 'paypal', 'mode': 'simulator', 'data': 'synthetic'}
+  [paypal] create=201 replay=200 conflict=409
+  [paypal] card-shaped payload -> 422
+  [paypal] callback signature valid=True tampered_accepted=False
+simulator: apple_pay
+  [apple_pay] /healthz -> 200 {'status': 'ok', 'provider': 'apple_pay', 'mode': 'simulator', 'data': 'synthetic'}
+  [apple_pay] create=201 replay=200 conflict=409
+  [apple_pay] card-shaped payload -> 422
+  [apple_pay] callback signature valid=True tampered_accepted=False
+
+refusal checks
+  [OK ] non-synthetic secret: refused (simulator secrets must be synthetic and start with 'sim-'; refusing to run with a credential that may be real (NN-07))
+  [OK ] production merchant id: refused (configuration looks like production material ('prod'); the local platform must never hold production credentials (NN-07))
+  [OK ] unknown provider: refused (unsupported provider 'unionpay')
+
+providers=5 failures=0

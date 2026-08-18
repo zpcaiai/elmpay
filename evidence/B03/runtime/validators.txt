@@ -1,5 +1,6 @@
 B02	adr
 B00	charter
+B04	dev-platform
 B01	generated-docs
 B00	module-registry
 B00	non-negotiables
