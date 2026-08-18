@@ -1,2 +1,4 @@
+up-to-date  docs/adr/README.md
 up-to-date  docs/requirements/REQUIREMENTS_BASELINE.md
 up-to-date  docs/requirements/SERVICE_BOUNDARIES.md
+up-to-date  docs/security/THREAT_MODEL.md

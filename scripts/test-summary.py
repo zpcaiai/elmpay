@@ -22,6 +22,7 @@ CRITICAL_PREFIXES = ("test_",)
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True)
+    parser.add_argument("--log", help="also write the verbose runner log here")
     args = parser.parse_args()
 
     loader = unittest.TestLoader()
@@ -47,6 +48,10 @@ def main() -> int:
     out = ROOT / args.out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if args.log:
+        log = ROOT / args.log
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_text(stream.getvalue(), encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0 if summary["failed"] == 0 and summary["skipped_critical"] == 0 else 1
 

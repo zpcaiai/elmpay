@@ -108,8 +108,39 @@ test_rejects_unknown_control_reference (tools.tests.test_b01_requirements.Baseli
 test_rejects_unknown_owner_module (tools.tests.test_b01_requirements.BaselineRejects) ... ok
 test_rejects_unknown_verification_batch (tools.tests.test_b01_requirements.BaselineRejects) ... ok
 test_rejects_untestable_acceptance (tools.tests.test_b01_requirements.BaselineRejects) ... ok
+test_b02_validators_are_registered (tools.tests.test_b02_adr.AdrHappyPath) ... ok
+test_core_decisions_are_recorded (tools.tests.test_b02_adr.AdrHappyPath) ... ok
+test_real_adrs_pass (tools.tests.test_b02_adr.AdrHappyPath) ... ok
+test_rejects_bad_filename (tools.tests.test_b02_adr.AdrRejects) ... ok
+test_rejects_empty_adr_directory (tools.tests.test_b02_adr.AdrRejects) ... ok
+test_rejects_missing_metadata (tools.tests.test_b02_adr.AdrRejects) ... ok
+test_rejects_missing_section (tools.tests.test_b02_adr.AdrRejects) ... ok
+test_rejects_numbering_gap (tools.tests.test_b02_adr.AdrRejects) ... ok
+test_rejects_stub_adr (tools.tests.test_b02_adr.AdrRejects) ... ok
+test_rejects_supersede_of_unknown_adr (tools.tests.test_b02_adr.AdrRejects) ... ok
+test_rejects_superseded_without_successor (tools.tests.test_b02_adr.AdrRejects) ... ok
+test_rejects_unknown_control_link (tools.tests.test_b02_adr.AdrRejects) ... ok
+test_rejects_unknown_requirement_link (tools.tests.test_b02_adr.AdrRejects) ... ok
+test_rejects_unknown_status (tools.tests.test_b02_adr.AdrRejects) ... ok
+test_all_twelve_upstream_abuse_cases_are_mirrored (tools.tests.test_b02_threat_model.ThreatModelHappyPath) ... ok
+test_every_residual_risk_has_owner_controls_and_deadline (tools.tests.test_b02_threat_model.ThreatModelHappyPath) ... ok
+test_no_residual_risk_is_critical (tools.tests.test_b02_threat_model.ThreatModelHappyPath) ... ok
+test_real_threat_model_passes (tools.tests.test_b02_threat_model.ThreatModelHappyPath) ... ok
+test_single_executor_risk_is_declared_honestly (tools.tests.test_b02_threat_model.ThreatModelHappyPath) ... ok
+test_rejects_abuse_case_with_unknown_adversary (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_rejects_abuse_case_without_mitigating_batch (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_rejects_accepted_abuse_case_without_residual_risk (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_rejects_asset_with_unknown_module (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_rejects_boundary_with_unknown_zone (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_rejects_critical_residual_risk (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_rejects_dropped_abuse_case (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_rejects_expired_security_exception (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_rejects_missing_upstream_threat_model (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_rejects_placeholder_owner (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_rejects_risk_without_compensating_controls (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_rejects_unknown_review_batch (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
 
 ----------------------------------------------------------------------
-Ran 110 tests in 12.313s
+Ran 141 tests in 8.603s
 
 OK

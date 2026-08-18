@@ -1,32 +1,59 @@
 {
   "batch": "B00",
   "commands": [
-    {"purpose": "environment fingerprint", "expect": 0,
-     "command": "python3 -VV && uname -a && git --version && echo repo=$(git rev-parse --short HEAD)",
-     "save_to": "runtime/environment.txt"},
-    {"purpose": "full governance regression suite (normal path)", "expect": 0,
-     "command": "python3 -m unittest discover -s tools/tests -t . -v",
-     "save_to": "test-results/unittest.log"},
-    {"purpose": "machine-readable test summary", "expect": 0,
-     "command": "python3 scripts/test-summary.py --out evidence/B00/test-results/summary.json",
-     "save_to": "test-results/summary.log"},
-    {"purpose": "governance gate on the real repository (must pass)", "expect": 0,
-     "command": "python3 -m tools.paygov.cli verify-all --repo .",
-     "save_to": "security/governance-report.json"},
-    {"purpose": "registered validators", "expect": 0,
-     "command": "python3 -m tools.paygov.cli list-validators --repo .",
-     "save_to": "runtime/validators.txt"},
-    {"purpose": "runtime fail-closed proof against corrupted governance surface", "expect": 0,
-     "command": "python3 scripts/negative-controls.py",
-     "save_to": "security/negative-controls.log"},
-    {"purpose": "exhausted budget must exit 3, never 0 (timeout path)", "expect": 3,
-     "command": "python3 -m tools.paygov.cli verify repo-hygiene --repo . --budget-seconds 0",
-     "save_to": "runtime/timeout-fail-closed.log"},
-    {"purpose": "duplicate invocation is byte-identical (idempotency)", "expect": 0,
-     "command": "python3 -m tools.paygov.cli verify-all --repo . > /tmp/paygov-run1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/paygov-run2.json && diff /tmp/paygov-run1.json /tmp/paygov-run2.json && echo IDENTICAL",
-     "save_to": "runtime/idempotency.txt"},
-    {"purpose": "batch orchestrator sees B00 as ready before completion", "expect": 0,
-     "command": "python3 .payment-platform/skill-package/scripts/orchestrate.py ready --repo .",
-     "save_to": "runtime/orchestrator-ready.txt"}
+    {
+      "purpose": "environment fingerprint",
+      "expect": 0,
+      "command": "python3 -VV && uname -a && git --version && echo repo=$(git rev-parse --short HEAD)",
+      "save_to": "runtime/environment.txt"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary)",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --out evidence/B00/test-results/summary.json --log evidence/B00/test-results/unittest.log",
+      "save_to": "test-results/summary.log"
+    },
+    {
+      "purpose": "batch orchestrator ready set",
+      "expect": 0,
+      "command": "python3 .payment-platform/skill-package/scripts/orchestrate.py ready --repo .",
+      "save_to": "runtime/orchestrator-ready.txt"
+    },
+    {
+      "purpose": "generated review documents match their source of truth",
+      "expect": 0,
+      "command": "python3 scripts/render-docs.py --check",
+      "save_to": "runtime/docs-drift.txt"
+    },
+    {
+      "purpose": "governance gate on the real repository",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo .",
+      "save_to": "security/governance-report.json"
+    },
+    {
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py",
+      "save_to": "security/negative-controls.log"
+    },
+    {
+      "purpose": "exhausted budget must exit 3, never 0 (timeout path)",
+      "expect": 3,
+      "command": "python3 -m tools.paygov.cli verify repo-hygiene --repo . --budget-seconds 0",
+      "save_to": "runtime/timeout-fail-closed.log"
+    },
+    {
+      "purpose": "duplicate invocation is byte-identical (idempotency)",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo . > /tmp/B00-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B00-2.json && diff /tmp/B00-1.json /tmp/B00-2.json && echo IDENTICAL",
+      "save_to": "runtime/idempotency.txt"
+    },
+    {
+      "purpose": "registered validators",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli list-validators --repo .",
+      "save_to": "runtime/validators.txt"
+    }
   ]
 }

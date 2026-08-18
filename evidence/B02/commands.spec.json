@@ -14,19 +14,13 @@
       "save_to": "runtime/dependency-b01.json"
     },
     {
-      "purpose": "full governance regression suite",
+      "purpose": "full governance regression suite (verbose log + machine summary)",
       "expect": 0,
-      "command": "python3 -m unittest discover -s tools/tests -t . -v",
-      "save_to": "test-results/unittest.log"
-    },
-    {
-      "purpose": "machine-readable test summary",
-      "expect": 0,
-      "command": "python3 scripts/test-summary.py --out evidence/B02/test-results/summary.json",
+      "command": "python3 scripts/test-summary.py --out evidence/B02/test-results/summary.json --log evidence/B02/test-results/unittest.log",
       "save_to": "test-results/summary.log"
     },
     {
-      "purpose": "threat model / ADR summary",
+      "purpose": "ADR and threat model summary",
       "expect": 0,
       "command": "python3 scripts/threat-summary.py --out evidence/B02/runtime/threat-summary.json",
       "save_to": "runtime/threat-summary.log"
@@ -44,25 +38,25 @@
       "save_to": "security/governance-report.json"
     },
     {
-      "purpose": "runtime fail-closed proof (21 scenarios incl. expired exception)",
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces",
       "expect": 0,
       "command": "python3 scripts/negative-controls.py",
       "save_to": "security/negative-controls.log"
     },
     {
-      "purpose": "exhausted budget must exit 3 (timeout path)",
+      "purpose": "exhausted budget must exit 3, never 0 (timeout path)",
       "expect": 3,
       "command": "python3 -m tools.paygov.cli verify threat-model --repo . --budget-seconds 0",
       "save_to": "runtime/timeout-fail-closed.log"
     },
     {
-      "purpose": "duplicate invocation is byte-identical",
+      "purpose": "duplicate invocation is byte-identical (idempotency)",
       "expect": 0,
-      "command": "python3 -m tools.paygov.cli verify-all --repo . > /tmp/b02-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/b02-2.json && diff /tmp/b02-1.json /tmp/b02-2.json && echo IDENTICAL",
+      "command": "python3 -m tools.paygov.cli verify-all --repo . > /tmp/B02-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B02-2.json && diff /tmp/B02-1.json /tmp/B02-2.json && echo IDENTICAL",
       "save_to": "runtime/idempotency.txt"
     },
     {
-      "purpose": "registered validators after B02",
+      "purpose": "registered validators",
       "expect": 0,
       "command": "python3 -m tools.paygov.cli list-validators --repo .",
       "save_to": "runtime/validators.txt"

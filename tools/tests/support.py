@@ -7,7 +7,6 @@ only the files the validators read.
 from __future__ import annotations
 
 import json
-import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -41,6 +40,31 @@ COPIED_DIRS = (
 )
 
 
+def _snapshot() -> dict[str, bytes]:
+    """Read every fixture input once.
+
+    The repository lives on a slow mount and the suite builds a fresh fixture
+    per test; reading the sources once and writing from memory keeps the suite
+    fast without weakening isolation.
+    """
+    blobs: dict[str, bytes] = {}
+    for rel in COPIED_FILES:
+        blobs[rel] = (REAL_ROOT / rel).read_bytes()
+    for rel in COPIED_DIRS:
+        for path in sorted((REAL_ROOT / rel).rglob("*")):
+            if path.is_file():
+                blobs[path.relative_to(REAL_ROOT).as_posix()] = path.read_bytes()
+    for module in sorted((REAL_ROOT / "tools" / "tests").glob("test_*.py")):
+        blobs[f"tools/tests/{module.name}"] = b""
+    return blobs
+
+
+_SNAPSHOT = _snapshot()
+_MODULE_PATHS = tuple(
+    m["path"] for m in json.loads(
+        (REAL_ROOT / "governance" / "module-registry.json").read_text("utf-8"))["modules"])
+
+
 class FixtureRepo:
     """A temporary repository root that satisfies ``repo_root`` discovery."""
 
@@ -49,20 +73,13 @@ class FixtureRepo:
         self.root = Path(self._tmp.name)
         (self.root / "tools" / "paygov").mkdir(parents=True)
         (self.root / "tools" / "tests").mkdir(parents=True)
-        for rel in COPIED_FILES:
-            src = REAL_ROOT / rel
+        for rel, blob in _SNAPSHOT.items():
             dst = self.root / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(src, dst)
-        for rel in COPIED_DIRS:
-            shutil.copytree(REAL_ROOT / rel, self.root / rel, dirs_exist_ok=True)
-        # Mirror the test module names so non-negotiable enforcement references resolve.
-        for module in sorted((REAL_ROOT / "tools" / "tests").glob("test_*.py")):
-            (self.root / "tools" / "tests" / module.name).write_text("", encoding="utf-8")
+            dst.write_bytes(blob)
         # Mirror declared module directories so MODULE_PATH checks pass.
-        registry = json.loads((self.root / "governance" / "module-registry.json").read_text("utf-8"))
-        for module in registry["modules"]:
-            (self.root / module["path"]).mkdir(parents=True, exist_ok=True)
+        for path in _MODULE_PATHS:
+            (self.root / path).mkdir(parents=True, exist_ok=True)
 
     def read(self, rel: str):
         return json.loads((self.root / rel).read_text(encoding="utf-8"))

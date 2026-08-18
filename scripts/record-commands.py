@@ -5,6 +5,12 @@ Every command is really executed; its exit code, duration, output digest and
 truncated tail are appended to ``evidence/<BATCH>/commands.ndjson`` in the shape
 the batch orchestrator validates (timestamp, command, exit_code).
 
+Long specs can be recorded in slices so that each slice fits inside a
+constrained execution window:
+
+    scripts/record-commands.py B02 --spec evidence/B02/commands.spec.json --range 0:5
+    scripts/record-commands.py B02 --spec evidence/B02/commands.spec.json --range 5: --append
+
 Usage:
     scripts/record-commands.py B00 --spec evidence/B00/commands.spec.json
 """
@@ -55,15 +61,24 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("batch")
     parser.add_argument("--spec", required=True)
+    parser.add_argument("--range", dest="slice_spec", default=":",
+                        help="python-style slice over the command list, e.g. '0:5' or '5:'")
+    parser.add_argument("--append", action="store_true",
+                        help="append to an existing commands.ndjson instead of replacing it")
     args = parser.parse_args()
 
     batch_dir = ROOT / "evidence" / args.batch
     batch_dir.mkdir(parents=True, exist_ok=True)
     spec = json.loads((ROOT / args.spec).read_text(encoding="utf-8"))
 
-    records = [run_one(entry, batch_dir) for entry in spec["commands"]]
+    start_text, _, stop_text = args.slice_spec.partition(":")
+    start = int(start_text) if start_text else None
+    stop = int(stop_text) if stop_text else None
+    selected = spec["commands"][slice(start, stop)]
+
+    records = [run_one(entry, batch_dir) for entry in selected]
     ndjson = batch_dir / "commands.ndjson"
-    with ndjson.open("w", encoding="utf-8") as handle:
+    with ndjson.open("a" if args.append else "w", encoding="utf-8") as handle:
         for record in records:
             handle.write(json.dumps(record, ensure_ascii=False) + "\n")
 

@@ -1,10 +1,10 @@
 {
   "batch_id": "B01",
   "status": "passed",
-  "commit_sha": "580596d3e921e0fbf4d59d4c405f7d50436ce4ce",
+  "commit_sha": "cb370359ba1964d7db8fa55894fba83521d09b13",
   "environment": "integration",
-  "started_at": "2026-08-18T11:46:11Z",
-  "completed_at": "2026-08-18T11:46:32Z",
+  "started_at": "2026-08-18T11:54:59Z",
+  "completed_at": "2026-08-18T11:55:15Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -38,7 +38,7 @@
     },
     {
       "path": "tools/paygov/render.py",
-      "sha256": "4150523bc7c6336205bb5d0f61fde1b45c0f840c8110661e9f66c31d41ab03be"
+      "sha256": "85183db8614699df83fb95af22e42f0ae7ae142bcbd4d980c3b4c0a6104dd368"
     },
     {
       "path": "tools/paygov/docs.py",
@@ -66,7 +66,7 @@
     }
   ],
   "tests": {
-    "passed": 110,
+    "passed": 141,
     "failed": 0,
     "skipped_critical": 0
   },
@@ -75,6 +75,6 @@
     "accepted_findings": 0
   },
   "dependency_hashes": {
-    "B00": "5f1488cf8df0ded265a8e1337142c72caaca37b86e5d2a3020f265107fef65a9"
+    "B00": "906b492e22f86ffba90a74eb3080a4aef7292a71f49c072b615f57c4874f1377"
   }
 }
