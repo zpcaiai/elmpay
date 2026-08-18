@@ -136,7 +136,29 @@ def threat_model_markdown(root: Path, budget: Budget | None = None) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def version_catalog_markdown(root: Path, budget: Budget | None = None) -> str:
+    budget = budget or Budget().start()
+    doc = load_json(root / "governance/version-catalog.json", budget)
+    lines = [GENERATED_BANNER.format(source="governance/version-catalog.json"),
+             "# 版本目录（B03）", "",
+             f"核验状态：`{doc['verification_status']}`。{doc.get('verification_note', '')}", "",
+             "所有版本必须精确固定；容器镜像必须以摘要固定。构建文件由本目录生成，漂移即失败。", ""]
+    lines.append(_table(["ID", "名称", "类别", "版本", "固定方式", "责任人", "升级策略"],
+                        [[e["id"], e["name"], e["category"], e["version"], e["pin_type"],
+                          e["owner"], e["upgrade_policy"]] for e in doc["entries"]]))
+    lines += ["", "## 构建系统归属", ""]
+    lines.append(_table(["构建系统", "模块"],
+                        [[system, "、".join(names)]
+                         for system, names in sorted(doc["modules_by_build_system"].items())]))
+    lines += ["", "## 生成的构建文件", "",
+              "`gradle/libs.versions.toml`、`settings.gradle.kts`、`build.gradle.kts`、",
+              "`.tool-versions`、`platform/toolchain/versions.env`", "",
+              "重新生成：`python3 scripts/render-build.py`"]
+    return "\n".join(lines).rstrip() + "\n"
+
+
 TARGETS: dict[str, callable] = {
+    "docs/toolchain/VERSION_CATALOG.md": version_catalog_markdown,
     "docs/requirements/REQUIREMENTS_BASELINE.md": requirements_markdown,
     "docs/requirements/SERVICE_BOUNDARIES.md": boundaries_markdown,
     "docs/adr/README.md": adr_index_markdown,

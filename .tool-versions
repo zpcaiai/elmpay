@@ -1,0 +1,9 @@
+# GENERATED FILE — do not edit by hand.
+# Source of truth: governance/version-catalog.json
+# Regenerate with: python3 scripts/render-build.py
+
+java temurin-25.0.4+7
+gradle 9.2.1
+nodejs 24.9.0
+pnpm 10.14.0
+postgres 18.2

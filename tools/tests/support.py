@@ -23,6 +23,7 @@ COPIED_FILES = (
     "governance/requirements.json",
     "governance/service-boundaries.json",
     "governance/threat-model.json",
+    "governance/version-catalog.json",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",
@@ -37,6 +38,17 @@ COPIED_FILES = (
 COPIED_DIRS = (
     "docs/adr",
     "docs/security",
+    "docs/toolchain",
+)
+
+# Generated build files: the toolchain validator compares them against the
+# catalogue, so a fixture must carry them too.
+GENERATED_BUILD_FILES = (
+    "gradle/libs.versions.toml",
+    "settings.gradle.kts",
+    "build.gradle.kts",
+    ".tool-versions",
+    "platform/toolchain/versions.env",
 )
 
 
@@ -48,7 +60,7 @@ def _snapshot() -> dict[str, bytes]:
     fast without weakening isolation.
     """
     blobs: dict[str, bytes] = {}
-    for rel in COPIED_FILES:
+    for rel in COPIED_FILES + GENERATED_BUILD_FILES:
         blobs[rel] = (REAL_ROOT / rel).read_bytes()
     for rel in COPIED_DIRS:
         for path in sorted((REAL_ROOT / rel).rglob("*")):

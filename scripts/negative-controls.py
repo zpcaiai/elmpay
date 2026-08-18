@@ -25,6 +25,12 @@ COPIED = (
     "governance/requirements.json",
     "governance/service-boundaries.json",
     "governance/threat-model.json",
+    "governance/version-catalog.json",
+    "gradle/libs.versions.toml",
+    "settings.gradle.kts",
+    "build.gradle.kts",
+    ".tool-versions",
+    "platform/toolchain/versions.env",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",
@@ -36,7 +42,7 @@ COPIED = (
     ".payment-platform/skill-package/compliance/controls-matrix.csv",
 )
 
-COPIED_DIRS = ("docs/adr", "docs/security")
+COPIED_DIRS = ("docs/adr", "docs/security", "docs/toolchain")
 
 EXIT_OK, EXIT_PROBLEMS, EXIT_ERROR = 0, 2, 3
 
@@ -110,6 +116,18 @@ SCENARIOS = [
      lambda d: d["residual_risks"][2].__setitem__("owner", "TBD"), EXIT_PROBLEMS),
     ("B02 abuse case dropped from the model", "governance/threat-model.json",
      lambda d: d["abuse_cases"].pop(3), EXIT_PROBLEMS),
+    ("B03 dependency floats to a dynamic version", "governance/version-catalog.json",
+     lambda d: d["entries"][1].__setitem__("version", "4.1.+"), EXIT_PROBLEMS),
+    ("B03 container image pinned by tag only", "governance/version-catalog.json",
+     lambda d: next(e for e in d["entries"] if e["category"] == "container")
+        .__setitem__("digest", ""), EXIT_PROBLEMS),
+    ("B03 dependency loses its owner", "governance/version-catalog.json",
+     lambda d: d["entries"][0].__setitem__("owner", ""), EXIT_PROBLEMS),
+    ("B03 module left without a build system", "governance/version-catalog.json",
+     lambda d: d["modules_by_build_system"]["gradle"].pop(), EXIT_PROBLEMS),
+    ("B03 Java baseline silently downgraded", "governance/version-catalog.json",
+     lambda d: next(e for e in d["entries"] if e["id"] == "jdk")
+        .__setitem__("version", "21.0.10"), EXIT_PROBLEMS),
 ]
 
 TEXT_SCENARIOS = [

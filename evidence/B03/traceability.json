@@ -1,0 +1,211 @@
+{
+  "batch_id": "B03",
+  "requirements": [
+    {
+      "id": "B03-R1",
+      "statement": "建立 Java 25、Spring Boot 4.1、Gradle、前端、数据库与基础设施的可重复构建基线",
+      "source": "batches/B03.md 目标"
+    },
+    {
+      "id": "B03-R2",
+      "statement": "所有依赖精确固定，容器镜像以摘要固定",
+      "source": "policies/non-negotiables.md#12 + CTRL-011"
+    },
+    {
+      "id": "B03-R3",
+      "statement": "每个模块必须且只能属于一个构建系统",
+      "source": "architecture/PROJECT_LAYOUT.md"
+    },
+    {
+      "id": "B03-R4",
+      "statement": "构建文件由版本目录生成，禁止手改",
+      "source": "CTRL-018"
+    },
+    {
+      "id": "B03-R5",
+      "statement": "每个版本条目有所有者与升级策略",
+      "source": "policies/non-negotiables.md#11"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/version-catalog.json",
+      "requirements": [
+        "B03-R1",
+        "B03-R2",
+        "B03-R3",
+        "B03-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/toolchain.py",
+      "requirements": [
+        "B03-R2",
+        "B03-R3",
+        "B03-R4",
+        "B03-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/buildgen.py",
+      "requirements": [
+        "B03-R4"
+      ]
+    },
+    {
+      "ref": "scripts/render-build.py",
+      "requirements": [
+        "B03-R4"
+      ]
+    },
+    {
+      "ref": "gradle/libs.versions.toml",
+      "requirements": [
+        "B03-R1"
+      ]
+    },
+    {
+      "ref": "settings.gradle.kts",
+      "requirements": [
+        "B03-R3"
+      ]
+    },
+    {
+      "ref": "build.gradle.kts",
+      "requirements": [
+        "B03-R1"
+      ]
+    },
+    {
+      "ref": ".tool-versions",
+      "requirements": [
+        "B03-R1"
+      ]
+    },
+    {
+      "ref": "platform/toolchain/versions.env",
+      "requirements": [
+        "B03-R2"
+      ]
+    },
+    {
+      "ref": "docs/adr/0012-pinned-toolchain-baseline.md",
+      "requirements": [
+        "B03-R1",
+        "B03-R4"
+      ]
+    },
+    {
+      "ref": "docs/toolchain/VERSION_CATALOG.md",
+      "requirements": [
+        "B03-R1"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b03_toolchain.py",
+      "requirements": [
+        "B03-R1",
+        "B03-R2",
+        "B03-R3",
+        "B03-R4",
+        "B03-R5"
+      ],
+      "cases": 25
+    },
+    {
+      "ref": "tools/tests/test_b02_adr.py",
+      "requirements": [
+        "B03-R1"
+      ],
+      "cases": 14
+    }
+  ],
+  "controls": [
+    {
+      "id": "CTRL-011",
+      "implemented_by": [
+        "governance/version-catalog.json",
+        "tools/paygov/toolchain.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b03_toolchain.py"
+      ]
+    },
+    {
+      "id": "CTRL-018",
+      "implemented_by": [
+        "tools/paygov/buildgen.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b03_toolchain.py"
+      ]
+    },
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "governance/version-catalog.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b03_toolchain.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/toolchain.py"
+      ],
+      "verified_by": [
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-15",
+      "implemented_by": [
+        "governance/threat-model.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b02_threat_model.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B03/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B03/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B03/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B03/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B03/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B03/runtime/build-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B03/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B03/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B03.json",
+      "kind": "completion"
+    }
+  ]
+}

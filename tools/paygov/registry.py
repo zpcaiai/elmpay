@@ -56,6 +56,9 @@ def load_all() -> None:
     _register_once("adr", "B02", adr.validate)
     _register_once("threat-model", "B02", threat.validate)
 
+    from . import toolchain  # noqa: F401
+    _register_once("toolchain", "B03", toolchain.validate)
+
 
 def _register_once(name: str, batch: str, fn: Validator) -> None:
     if name not in _REGISTRY:

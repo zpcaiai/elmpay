@@ -756,6 +756,23 @@
         "AC-11",
         "AC-12"
       ]
+    },
+    {
+      "id": "RR-06",
+      "title": "版本目录中的具体 patch 版本与容器镜像摘要尚未对官方发布渠道核验（离线构建环境）",
+      "severity": "medium",
+      "owner": "payment-platform-platform-eng",
+      "compensating_controls": [
+        "所有版本均为精确固定，禁止浮动版本与动态范围",
+        "容器镜像强制 digest 字段格式校验，占位摘要在 B04 联网构建代理上替换",
+        "生成式构建文件漂移检测，防止绕过目录直接改 build 脚本",
+        "每个条目均有所有者与升级策略，升级必须经 CODEOWNERS 复核"
+      ],
+      "due_date": "2026-12-16",
+      "review_batch": "B109",
+      "related_abuse_cases": [
+        "AC-12"
+      ]
     }
   ]
 }

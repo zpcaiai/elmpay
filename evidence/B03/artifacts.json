@@ -1,0 +1,14 @@
+[
+  ".tool-versions",
+  "build.gradle.kts",
+  "docs/adr/0012-pinned-toolchain-baseline.md",
+  "docs/toolchain/VERSION_CATALOG.md",
+  "governance/version-catalog.json",
+  "gradle/libs.versions.toml",
+  "platform/toolchain/versions.env",
+  "scripts/render-build.py",
+  "settings.gradle.kts",
+  "tools/paygov/buildgen.py",
+  "tools/paygov/toolchain.py",
+  "tools/tests/test_b03_toolchain.py"
+]

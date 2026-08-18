@@ -1,0 +1,40 @@
+# GENERATED FILE — do not edit by hand.
+# Source of truth: governance/version-catalog.json
+# Regenerate with: python3 scripts/render-build.py
+
+[versions]
+flyway = "11.9.0"
+gradle = "9.2.1"
+grpc = "1.72.0"
+jdk = "25.0.4+7"
+jqwik = "1.9.4"
+junit = "5.13.2"
+kafka = "4.2.0"
+kafkaImage = "4.2.0"
+kotlin = "2.3.0"
+kubernetes = "1.36.2"
+node = "24.9.0"
+otel = "2.20.0"
+pnpm = "10.14.0"
+postgresImage = "18.2-bookworm"
+postgresql = "18.2"
+protobuf = "4.30.1"
+redis = "8.2.1"
+redisImage = "8.2.1-bookworm"
+springBoot = "4.1.3"
+springCloud = "2026.0.2"
+testcontainers = "1.22.0"
+
+[libraries]
+flyway = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
+grpc-java = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
+jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }
+junit = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+opentelemetry-java = { module = "io.opentelemetry.javaagent:opentelemetry-javaagent", version.ref = "otel" }
+protobuf = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
+spring-boot = { module = "org.springframework.boot:spring-boot-starter", version.ref = "springBoot" }
+spring-cloud = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "springCloud" }
+testcontainers = { module = "org.testcontainers:postgresql", version.ref = "testcontainers" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }
