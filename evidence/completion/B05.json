@@ -1,0 +1,57 @@
+{
+  "batch_id": "B05",
+  "status": "passed",
+  "commit_sha": "c9af7946935caf4afb8fe143f392610038d751fc",
+  "environment": "integration",
+  "started_at": "2026-08-18T12:30:12Z",
+  "completed_at": "2026-08-18T12:30:28Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "df07475e9f640d7133550f58b88373fda910141d4841ddaa5a41ab9a53a14988"
+    },
+    {
+      "path": "governance/ci-pipeline.json",
+      "sha256": "24449bad62cc859e7a78a77c19a3a47c11c2d016fa7eaca482e7cb40b8859e54"
+    },
+    {
+      "path": "scripts/archive-evidence.py",
+      "sha256": "4b5c61ffdd61241a26a5ffbea01be7fbef8fc119ce71036a20e8a0a2c8c31217"
+    },
+    {
+      "path": "scripts/render-ci.py",
+      "sha256": "2053b705734f63076ffb43b8ddd13ea03aeadcce4b765a22ef9799c0b7f1908a"
+    },
+    {
+      "path": "scripts/sign-artifacts.sh",
+      "sha256": "ec1f03f4517ccfd7799788aab1183ca6da765f3abd22fdfa4964b1c6b96e6ad0"
+    },
+    {
+      "path": "tools/paygov/ci.py",
+      "sha256": "20672c3ee7f77ac98da84cffe55bbe57fa3c65d13dec649d783f0ba80d29e751"
+    },
+    {
+      "path": "tools/paygov/cigen.py",
+      "sha256": "ca4dfdeab01ee1ef028adee2600628c66c8d21ec4755062d03f304533ae3ea49"
+    },
+    {
+      "path": "tools/tests/test_b05_ci.py",
+      "sha256": "a233c09d56a4a91d3cc29bb094c14ca56ce35d81d41ed7919d3259445836f955"
+    }
+  ],
+  "tests": {
+    "passed": 236,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B03": "19a877afa0b9cb389547df87146ea25f31ba759ae542779459f9b2324ef92940",
+    "B04": "9f7d1308e6a5f2383b4d2bfdebd940cf8582495d0a553434355f61211be838b9"
+  }
+}

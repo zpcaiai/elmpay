@@ -28,8 +28,14 @@
 [OK ] B04 required service removed: exit=2 expected=2
 [OK ] B04 host port collision: exit=2 expected=2
 [OK ] B04 service health check removed: exit=2 expected=2
+[OK ] B05 required CI stage turned fail-open: exit=2 expected=2
+[OK ] B05 action pinned to a movable tag: exit=2 expected=2
+[OK ] B05 dependency scanning removed from the pipeline: exit=2 expected=2
+[OK ] B05 blocking security findings allowed above zero: exit=2 expected=2
+[OK ] B05 evidence blocking condition removed: exit=2 expected=2
+[OK ] B05 pipeline granted write access to contents: exit=2 expected=2
 [OK ] B02 ADR loses its alternatives section: exit=2 expected=2
 [OK ] B02 ADR points at a non-existent requirement: exit=2 expected=2
 [OK ] exhausted budget fails closed: exit=3 expected=3
 
-scenarios=33 failures=0
+scenarios=39 failures=0

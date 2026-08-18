@@ -1,0 +1,12 @@
+  [OK ] B00
+  [OK ] B01
+  [OK ] B02
+  [OK ] B03
+  [OK ] B04
+{
+  "bundle": "build/evidence-bundle.tar.gz",
+  "batches": 5,
+  "files": 104,
+  "commit_sha": "c9af7946935caf4afb8fe143f392610038d751fc",
+  "bundle_sha256": "968c387bb71dd1348a0c05cdbe04e54c06bdb9a21eccac8adf3fd80ce85d9d92"
+}
