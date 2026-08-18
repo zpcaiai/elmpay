@@ -1,0 +1,1154 @@
+version: 1.0.0
+tests:
+- id: AT-B00-01
+  batch: B00
+  title: 项目章程与仓库引导
+  objective: 建立支付平台的业务边界、交付目标、默认部署模式、风险接受原则和不可绕过的安全红线。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B00/test-results/
+  - evidence/B00/security/
+  - evidence/completion/B00.json
+- id: AT-B01-01
+  batch: B01
+  title: 需求基线与服务边界
+  objective: 把多项目订单接入、支付编排、退款、对账、风控、管理后台与渠道能力转化为可追踪需求。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B01/test-results/
+  - evidence/B01/security/
+  - evidence/completion/B01.json
+- id: AT-B02-01
+  batch: B02
+  title: 架构决策记录与初始威胁模型
+  objective: 建立 ADR、信任边界、资产清单、攻击者模型、滥用案例和剩余风险台账。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B02/test-results/
+  - evidence/B02/security/
+  - evidence/completion/B02.json
+- id: AT-B03-01
+  batch: B03
+  title: 单仓工具链与版本目录
+  objective: 建立 Java 25、Spring Boot 4.1、Gradle、前端、数据库和基础设施的可重复构建基线。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B03/test-results/
+  - evidence/B03/security/
+  - evidence/completion/B03.json
+- id: AT-B04-01
+  batch: B04
+  title: 本地开发平台与测试容器
+  objective: 提供离线可重复的 PostgreSQL、Kafka、Redis、OIDC、对象存储与渠道模拟环境。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B04/test-results/
+  - evidence/B04/security/
+  - evidence/completion/B04.json
+- id: AT-B05-01
+  batch: B05
+  title: 持续集成与质量基线
+  objective: 把编译、静态分析、测试、供应链扫描、镜像签名和证据归档纳入 CI。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B05/test-results/
+  - evidence/B05/security/
+  - evidence/completion/B05.json
+- id: AT-B06-01
+  batch: B06
+  title: 批次编排与证据框架
+  objective: 实现 B00-B127 的依赖解析、ready 判定、证据初始化、完成校验和发布门禁。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B06/test-results/
+  - evidence/B06/security/
+  - evidence/completion/B06.json
+- id: AT-B07-01
+  batch: B07
+  title: 单一事实源与需求追踪
+  objective: 建立需求到架构、代码、测试、控制、运行证据和发布结论的双向追踪。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B07/test-results/
+  - evidence/B07/security/
+  - evidence/completion/B07.json
+- id: AT-B08-01
+  batch: B08
+  title: 支付领域模型与统一语言
+  objective: 定义租户、项目、商户、支付意图、支付尝试、退款、争议、订阅、账本和对账对象。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B08/test-results/
+  - evidence/B08/security/
+  - evidence/completion/B08.json
+- id: AT-B09-01
+  batch: B09
+  title: 金额、币种与精度模型
+  objective: 强制使用最小货币单位和货币元数据，消除浮点数、舍入和零小数币种错误。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B09/test-results/
+  - evidence/B09/security/
+  - evidence/completion/B09.json
+- id: AT-B10-01
+  batch: B10
+  title: 支付状态机与业务不变量
+  objective: 定义支付、退款、订阅、争议和对账状态机及所有允许的单向或补偿式转换。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B10/test-results/
+  - evidence/B10/security/
+  - evidence/completion/B10.json
+- id: AT-B11-01
+  batch: B11
+  title: API 规范、错误与兼容模型
+  objective: 统一版本、幂等、分页、错误码、追踪头、请求签名、弃用与向后兼容规则。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B11/test-results/
+  - evidence/B11/security/
+  - evidence/completion/B11.json
+- id: AT-B12-01
+  batch: B12
+  title: 事件目录、Outbox 与 Inbox
+  objective: 建立至少一次传递下的恰好一次业务效果、事件版本和乱序容忍机制。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B12/test-results/
+  - evidence/B12/security/
+  - evidence/completion/B12.json
+- id: AT-B13-01
+  batch: B13
+  title: 数据所有权、分区与租户模型
+  objective: 确定表所有权、分区键、行级隔离、冷热数据、归档和未来分片策略。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B13/test-results/
+  - evidence/B13/security/
+  - evidence/completion/B13.json
+- id: AT-B14-01
+  batch: B14
+  title: 服务拆分与依赖规则
+  objective: 定义边缘网关、支付核心、渠道连接器、风控、账本、对账、管理端和工作流边界。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B14/test-results/
+  - evidence/B14/security/
+  - evidence/completion/B14.json
+- id: AT-B15-01
+  batch: B15
+  title: 现有项目订单迁移架构
+  objective: 为已有项目保留业务订单，仅迁移支付事实和支付动作，并提供适配层与双写策略。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B15/test-results/
+  - evidence/B15/security/
+  - evidence/completion/B15.json
+- id: AT-B16-01
+  batch: B16
+  title: 零信任安全架构
+  objective: 将每次人、服务和工作负载访问都绑定到身份、设备、上下文、最小权限和可审计决策。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B16/test-results/
+  - evidence/B16/security/
+  - evidence/completion/B16.json
+- id: AT-B17-01
+  batch: B17
+  title: 客户、管理员与服务身份
+  objective: 实现 OIDC/OAuth2、工作负载身份、短期凭证、会话绑定和安全账户恢复。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B17/test-results/
+  - evidence/B17/security/
+  - evidence/completion/B17.json
+- id: AT-B18-01
+  batch: B18
+  title: 抗钓鱼 MFA 与 WebAuthn
+  objective: 为管理员、财务、客服和高风险操作强制 WebAuthn/硬件密钥或等价抗钓鱼认证。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B18/test-results/
+  - evidence/B18/security/
+  - evidence/completion/B18.json
+- id: AT-B19-01
+  batch: B19
+  title: RBAC、ABAC、职责分离与临时授权
+  objective: 实现租户级、对象级和字段级授权，关键动作双人复核并支持限时提权。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B19/test-results/
+  - evidence/B19/security/
+  - evidence/completion/B19.json
+- id: AT-B20-01
+  batch: B20
+  title: KMS、HSM 与信封加密
+  objective: 所有渠道私钥、API 密钥和敏感配置由 KMS/HSM 管理，应用仅持有短期解密能力。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B20/test-results/
+  - evidence/B20/security/
+  - evidence/completion/B20.json
+- id: AT-B21-01
+  batch: B21
+  title: 密钥、证书与域名生命周期
+  objective: 实现生成、分发、轮换、重叠验证、撤销、到期告警和灾难恢复。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B21/test-results/
+  - evidence/B21/security/
+  - evidence/completion/B21.json
+- id: AT-B22-01
+  batch: B22
+  title: ASVS、API 与移动安全基线
+  objective: 把 OWASP ASVS、API Security、MASVS 和安全编码要求映射到代码规则与测试。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B22/test-results/
+  - evidence/B22/security/
+  - evidence/completion/B22.json
+- id: AT-B23-01
+  batch: B23
+  title: 不可抵赖审计与防篡改日志
+  objective: 构建带主体、对象、理由、前后值、关联 ID、时间戳和完整性保护的审计链。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B23/test-results/
+  - evidence/B23/security/
+  - evidence/completion/B23.json
+- id: AT-B24-01
+  batch: B24
+  title: 租户与项目注册中心
+  objective: 支持公司、租户、项目、环境、区域和数据域隔离，并生成稳定的调用身份。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B24/test-results/
+  - evidence/B24/security/
+  - evidence/completion/B24.json
+- id: AT-B25-01
+  batch: B25
+  title: 商户资料与 KYB 元数据
+  objective: 管理法人与业务资料、经营地区、结算币种、风险等级和审批状态，但不替代持牌机构核验。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B25/test-results/
+  - evidence/B25/security/
+  - evidence/completion/B25.json
+- id: AT-B26-01
+  batch: B26
+  title: 商户渠道账户与凭证绑定
+  objective: 按租户、项目、环境和渠道隔离商户账户，禁止共享密钥与跨租户回调。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B26/test-results/
+  - evidence/B26/security/
+  - evidence/completion/B26.json
+- id: AT-B27-01
+  batch: B27
+  title: 渠道能力与地区政策矩阵
+  objective: 表达支付方式、币种、地区、设备、授权捕获、退款、订阅、争议和可用性限制。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B27/test-results/
+  - evidence/B27/security/
+  - evidence/completion/B27.json
+- id: AT-B28-01
+  batch: B28
+  title: 路由规则、灰度与配置版本
+  objective: 实现确定性优先级、成本/成功率/风险路由、配置审计、回滚和模拟评估。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B28/test-results/
+  - evidence/B28/security/
+  - evidence/completion/B28.json
+- id: AT-B29-01
+  batch: B29
+  title: 费率、成本、佣金与计量模型
+  objective: 区分渠道成本、平台服务费、税费和内部成本，不得以账面模型替代真实资金结算。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B29/test-results/
+  - evidence/B29/security/
+  - evidence/completion/B29.json
+- id: AT-B30-01
+  batch: B30
+  title: 商户接入与四眼审批
+  objective: 将凭证导入、域名验证、回调验证、限额、上线和停用做成可恢复审批工作流。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B30/test-results/
+  - evidence/B30/security/
+  - evidence/completion/B30.json
+- id: AT-B31-01
+  batch: B31
+  title: 租户隔离验证
+  objective: 用行级安全、对象授权、缓存键、消息主题、日志与导出测试证明无跨租户泄漏。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B31/test-results/
+  - evidence/B31/security/
+  - evidence/completion/B31.json
+- id: AT-B32-01
+  batch: B32
+  title: Payment Intent 服务
+  objective: 创建不可变金额快照、过期时间、确认策略、支付方法约束和业务订单关联。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B32/test-results/
+  - evidence/B32/security/
+  - evidence/completion/B32.json
+- id: AT-B33-01
+  batch: B33
+  title: 支付尝试与渠道交易
+  objective: 每次渠道调用形成独立 attempt，保留请求摘要、响应、错误分类、重试与最终性。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B33/test-results/
+  - evidence/B33/security/
+  - evidence/completion/B33.json
+- id: AT-B34-01
+  batch: B34
+  title: 授权、捕获、撤销与关闭
+  objective: 支持即时捕获、延迟捕获、部分捕获、撤销、关闭和不确定结果查询。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B34/test-results/
+  - evidence/B34/security/
+  - evidence/completion/B34.json
+- id: AT-B35-01
+  batch: B35
+  title: 支付方式抽象与令牌引用
+  objective: 只保存 PSP/钱包令牌和非敏感指纹，禁止进入原始 PAN、CVV、磁道或完整 Apple Pay 明文令牌。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B35/test-results/
+  - evidence/B35/security/
+  - evidence/completion/B35.json
+- id: AT-B36-01
+  batch: B36
+  title: 幂等、去重与并发控制
+  objective: 覆盖客户端重试、服务重试、回调重放、并发确认、重复退款和分布式竞态。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B36/test-results/
+  - evidence/B36/security/
+  - evidence/completion/B36.json
+- id: AT-B37-01
+  batch: B37
+  title: 渠道 Webhook 入口
+  objective: 先验证来源与签名，再持久化原始事件摘要，随后快速应答并异步执行业务效果。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B37/test-results/
+  - evidence/B37/security/
+  - evidence/completion/B37.json
+- id: AT-B38-01
+  batch: B38
+  title: 业务项目 Webhook 与事件投递
+  objective: 向各业务项目可靠投递支付事实，提供签名、重试、死信、暂停、回放和端点轮换。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B38/test-results/
+  - evidence/B38/security/
+  - evidence/completion/B38.json
+- id: AT-B39-01
+  batch: B39
+  title: 查询模型与支付状态 API
+  objective: 构建一致的读模型、时间线、渠道详情、风险结果和面向业务项目的状态查询。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B39/test-results/
+  - evidence/B39/security/
+  - evidence/completion/B39.json
+- id: AT-B40-01
+  batch: B40
+  title: 微信支付 APIv3 核心与凭证
+  objective: 使用官方 APIv3 SDK、商户证书/微信支付公钥、APIv3 密钥、自动验签和安全轮换。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B40/test-results/
+  - evidence/B40/security/
+  - evidence/completion/B40.json
+- id: AT-B41-01
+  batch: B41
+  title: 微信 JSAPI 与小程序支付
+  objective: 实现 openid 绑定、预支付、前端调起、回调确认、订单查询和用户取消语义。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B41/test-results/
+  - evidence/B41/security/
+  - evidence/completion/B41.json
+- id: AT-B42-01
+  batch: B42
+  title: 微信 Native、H5 与 App 支付
+  objective: 覆盖二维码、H5 域名、App 签名包、过期、重复扫码、回跳和端能力判断。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B42/test-results/
+  - evidence/B42/security/
+  - evidence/completion/B42.json
+- id: AT-B43-01
+  batch: B43
+  title: 微信退款、关单、查询与账单
+  objective: 实现全额/部分退款、退款查询、关单、交易/资金账单下载、哈希校验和对账输入。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B43/test-results/
+  - evidence/B43/security/
+  - evidence/completion/B43.json
+- id: AT-B44-01
+  batch: B44
+  title: 支付宝证书模式与核心 SDK
+  objective: 优先使用官方 SDK 和证书模式，严格校验支付宝公钥证书、应用证书和根证书。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B44/test-results/
+  - evidence/B44/security/
+  - evidence/completion/B44.json
+- id: AT-B45-01
+  batch: B45
+  title: 支付宝电脑、手机网站与 App 支付
+  objective: 实现网页/WAP/App 下单、同步回跳仅展示、异步通知定责和订单查询补偿。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B45/test-results/
+  - evidence/B45/security/
+  - evidence/completion/B45.json
+- id: AT-B46-01
+  batch: B46
+  title: 支付宝当面付与小程序支付
+  objective: 实现预创建二维码、条码场景控制、小程序支付、扫码过期与门店维度审计。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B46/test-results/
+  - evidence/B46/security/
+  - evidence/completion/B46.json
+- id: AT-B47-01
+  batch: B47
+  title: 支付宝退款、关闭、查询、账单与通知
+  objective: 实现通知验签、seller/app/order/amount 多重校验、退款、关闭、账单与差错处理。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B47/test-results/
+  - evidence/B47/security/
+  - evidence/completion/B47.json
+- id: AT-B48-01
+  batch: B48
+  title: Stripe PaymentIntents 与令牌化卡支付
+  objective: 使用 PaymentIntents、Elements/Payment Element、SetupIntents、3DS/SCA 和服务器端幂等。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B48/test-results/
+  - evidence/B48/security/
+  - evidence/completion/B48.json
+- id: AT-B49-01
+  batch: B49
+  title: Stripe Webhook、退款与争议
+  objective: 验证签名、处理重复/乱序事件、退款、争议、证据提交和最终状态同步。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B49/test-results/
+  - evidence/B49/security/
+  - evidence/completion/B49.json
+- id: AT-B50-01
+  batch: B50
+  title: Stripe 订阅、发票与客户门户
+  objective: 实现计划、价格、试用、按量计费、发票、税务接口边界、客户门户和 webhook 驱动状态。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B50/test-results/
+  - evidence/B50/security/
+  - evidence/completion/B50.json
+- id: AT-B51-01
+  batch: B51
+  title: PayPal Orders v2 授权与捕获
+  objective: 实现 create/approve/authorize/capture、PayPal-Request-Id、货币与金额校验及不确定结果查询。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B51/test-results/
+  - evidence/B51/security/
+  - evidence/completion/B51.json
+- id: AT-B52-01
+  batch: B52
+  title: PayPal Webhook、退款、争议与订阅
+  objective: 实现 webhook 验证、退款、争议、订阅生命周期和重复事件幂等处理。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B52/test-results/
+  - evidence/B52/security/
+  - evidence/completion/B52.json
+- id: AT-B53-01
+  batch: B53
+  title: Apple Pay Web 与 iOS
+  objective: 默认经 Stripe 等 PSP 处理令牌，支持网页和原生支付表、能力检测、商户标识与安全回传。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B53/test-results/
+  - evidence/B53/security/
+  - evidence/completion/B53.json
+- id: AT-B54-01
+  batch: B54
+  title: Apple Pay 域名、证书与商户令牌
+  objective: 管理域名注册、验证文件、证书重叠轮换、merchant token 与周期扣款授权状态。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B54/test-results/
+  - evidence/B54/security/
+  - evidence/completion/B54.json
+- id: AT-B55-01
+  batch: B55
+  title: 全渠道沙箱、认证与契约测试
+  objective: 对微信、支付宝、Stripe、PayPal、Apple Pay 建立官方沙箱、模拟器、回放和上线检查矩阵。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B55/test-results/
+  - evidence/B55/security/
+  - evidence/completion/B55.json
+- id: AT-B56-01
+  batch: B56
+  title: 托管收银台服务
+  objective: 提供平台托管、品牌可配置、渠道自适应、会话隔离和严格 CSP 的支付页面。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B56/test-results/
+  - evidence/B56/security/
+  - evidence/completion/B56.json
+- id: AT-B57-01
+  batch: B57
+  title: 支付链接与二维码服务
+  objective: 生成短期、一次性、签名绑定金额/商户/订单的链接和二维码，拒绝任意跳转。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B57/test-results/
+  - evidence/B57/security/
+  - evidence/completion/B57.json
+- id: AT-B58-01
+  batch: B58
+  title: 防篡改 Checkout Session
+  objective: 将金额、币种、项目、回跳白名单、设备上下文和过期时间绑定到签名会话。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B58/test-results/
+  - evidence/B58/security/
+  - evidence/completion/B58.json
+- id: AT-B59-01
+  batch: B59
+  title: Web 收银台 UI
+  objective: 实现支付方法选择、状态恢复、异步等待、无障碍、错误解释和无敏感数据日志。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B59/test-results/
+  - evidence/B59/security/
+  - evidence/completion/B59.json
+- id: AT-B60-01
+  batch: B60
+  title: iOS、Android 与 Flutter SDK
+  objective: 封装会话创建、渠道调起、深链回传、设备证明接口、重试和安全日志。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B60/test-results/
+  - evidence/B60/security/
+  - evidence/completion/B60.json
+- id: AT-B61-01
+  batch: B61
+  title: Java、Go、Node、Python 与 .NET SDK
+  objective: 提供强类型客户端、幂等默认值、重试边界、签名验证和版本兼容测试。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B61/test-results/
+  - evidence/B61/security/
+  - evidence/completion/B61.json
+- id: AT-B62-01
+  batch: B62
+  title: 能力检测、降级与回退
+  objective: 按设备、浏览器、地区、币种、钱包配置和渠道健康选择可用支付方法。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B62/test-results/
+  - evidence/B62/security/
+  - evidence/completion/B62.json
+- id: AT-B63-01
+  batch: B63
+  title: 国际化、本地化与无障碍
+  objective: 覆盖语言、时区、金额格式、RTL、屏幕阅读器、键盘操作和支付品牌规范。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B63/test-results/
+  - evidence/B63/security/
+  - evidence/completion/B63.json
+- id: AT-B64-01
+  batch: B64
+  title: 退款编排
+  objective: 支持全额/部分/多次退款、剩余额度、渠道约束、状态追踪和不确定结果恢复。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B64/test-results/
+  - evidence/B64/security/
+  - evidence/completion/B64.json
+- id: AT-B65-01
+  batch: B65
+  title: 退款风险与审批
+  objective: 按金额、时间、角色、设备、异常行为和商户规则决定自动、人工或拒绝。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B65/test-results/
+  - evidence/B65/security/
+  - evidence/completion/B65.json
+- id: AT-B66-01
+  batch: B66
+  title: 争议与拒付管理
+  objective: 统一争议事件、截止时间、证据、责任、财务影响和申诉操作。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B66/test-results/
+  - evidence/B66/security/
+  - evidence/completion/B66.json
+- id: AT-B67-01
+  batch: B67
+  title: 订阅与周期计费领域
+  objective: 实现计划、价格、试用、周期、用量、续费、升级降级和支付方法授权。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B67/test-results/
+  - evidence/B67/security/
+  - evidence/completion/B67.json
+- id: AT-B68-01
+  batch: B68
+  title: Mandate 与支付令牌引用
+  objective: 记录用户授权范围、用途、渠道 mandate、撤销和 PSP 令牌，不保存卡号。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B68/test-results/
+  - evidence/B68/security/
+  - evidence/completion/B68.json
+- id: AT-B69-01
+  batch: B69
+  title: 失败重试、Dunning 与账户更新边界
+  objective: 实现风险感知重试、通知节奏、宽限期、暂停和 PSP 更新能力。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B69/test-results/
+  - evidence/B69/security/
+  - evidence/completion/B69.json
+- id: AT-B70-01
+  batch: B70
+  title: 取消、比例计费、余额抵扣与贷项
+  objective: 实现可解释且可追溯的订阅变更、信用余额和发票调整。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B70/test-results/
+  - evidence/B70/security/
+  - evidence/completion/B70.json
+- id: AT-B71-01
+  batch: B71
+  title: 退款争议订阅端到端认证
+  objective: 覆盖跨日、跨币种、部分退款、重复回调、失败续费、争议和账本一致性。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B71/test-results/
+  - evidence/B71/security/
+  - evidence/completion/B71.json
+- id: AT-B72-01
+  batch: B72
+  title: 不可变复式账本
+  objective: 建立追加式双分录账本、科目、交易、分录、有效时间和不可修改规则。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B72/test-results/
+  - evidence/B72/security/
+  - evidence/completion/B72.json
+- id: AT-B73-01
+  batch: B73
+  title: 过账规则与账本不变量
+  objective: 确保每笔交易借贷平衡、币种一致、唯一业务来源、可逆但不可改写。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B73/test-results/
+  - evidence/B73/security/
+  - evidence/completion/B73.json
+- id: AT-B74-01
+  batch: B74
+  title: 手续费、税费、舍入与汇率
+  objective: 记录原币、结算币、汇率来源、费用组成、舍入差额和估算/最终值。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B74/test-results/
+  - evidence/B74/security/
+  - evidence/completion/B74.json
+- id: AT-B75-01
+  batch: B75
+  title: 结算指令与到账视图
+  objective: 展示渠道结算批次和银行到账预期，但不建立自有资金池或代收代付。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B75/test-results/
+  - evidence/B75/security/
+  - evidence/completion/B75.json
+- id: AT-B76-01
+  batch: B76
+  title: 渠道账单与银行文件摄取
+  objective: 下载、校验、解析、去重和版本化微信/支付宝/Stripe/PayPal 账单与银行文件。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B76/test-results/
+  - evidence/B76/security/
+  - evidence/completion/B76.json
+- id: AT-B77-01
+  batch: B77
+  title: 三方对账引擎
+  objective: 对业务订单、支付平台、渠道账单和银行到账进行逐笔与汇总核对。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B77/test-results/
+  - evidence/B77/security/
+  - evidence/completion/B77.json
+- id: AT-B78-01
+  batch: B78
+  title: 差错、人工调整与复核
+  objective: 将长短款、重复、丢失、金额不符和跨日差异形成可审计工单。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B78/test-results/
+  - evidence/B78/security/
+  - evidence/completion/B78.json
+- id: AT-B79-01
+  batch: B79
+  title: 财务报告、导出与审计追踪
+  objective: 提供 GMV、净收入、费用、退款、拒付、结算、差错和不可篡改导出。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B79/test-results/
+  - evidence/B79/security/
+  - evidence/completion/B79.json
+- id: AT-B80-01
+  batch: B80
+  title: 实时支付风控引擎
+  objective: 在创建、确认、捕获、退款、改密、加支付方式和提权时返回可解释决策。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B80/test-results/
+  - evidence/B80/security/
+  - evidence/completion/B80.json
+- id: AT-B81-01
+  batch: B81
+  title: 速度、设备、网络与账户信号
+  objective: 构建时间窗计数、设备信誉、IP/ASN、地理异常、账户年龄和行为序列。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B81/test-results/
+  - evidence/B81/security/
+  - evidence/completion/B81.json
+- id: AT-B82-01
+  batch: B82
+  title: 规则引擎、版本与解释
+  objective: 实现确定性规则、优先级、冲突策略、影子评估、回滚和命中理由。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B82/test-results/
+  - evidence/B82/security/
+  - evidence/completion/B82.json
+- id: AT-B83-01
+  batch: B83
+  title: 机器学习评分接口与特征边界
+  objective: 定义在线特征、离线训练、模型签名、漂移、降级和人工可覆盖边界。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B83/test-results/
+  - evidence/B83/security/
+  - evidence/completion/B83.json
+- id: AT-B84-01
+  batch: B84
+  title: 反钓鱼、域名与品牌保护
+  objective: 实现统一支付域名、IDN 同形检测、证书透明度监控、DNS/注册商保护和仿冒告警。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B84/test-results/
+  - evidence/B84/security/
+  - evidence/completion/B84.json
+- id: AT-B85-01
+  batch: B85
+  title: E-skimming、脚本供应链与浏览器完整性
+  objective: 实施脚本清单、授权、完整性、CSP、Trusted Types、页面变更检测和第三方隔离。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B85/test-results/
+  - evidence/B85/security/
+  - evidence/completion/B85.json
+- id: AT-B86-01
+  batch: B86
+  title: DDoS、机器人、撞库与账户接管
+  objective: 在 CDN/WAF/API/身份层实施速率、挑战、信誉、凭证泄漏检测和会话撤销。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B86/test-results/
+  - evidence/B86/security/
+  - evidence/completion/B86.json
+- id: AT-B87-01
+  batch: B87
+  title: 风险运营、案件与名单管理
+  objective: 提供案件、证据、处置、申诉、白名单/黑名单、过期和双人审批。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B87/test-results/
+  - evidence/B87/security/
+  - evidence/completion/B87.json
+- id: AT-B88-01
+  batch: B88
+  title: API Gateway、WAF 与限流
+  objective: 实现统一鉴权、请求大小、Schema 校验、限流、签名、CORS、WAF 和审计。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B88/test-results/
+  - evidence/B88/security/
+  - evidence/completion/B88.json
+- id: AT-B89-01
+  batch: B89
+  title: 服务网格、mTLS 与网络策略
+  objective: 为东西向流量启用工作负载身份、mTLS、最小可达性和出口控制。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B89/test-results/
+  - evidence/B89/security/
+  - evidence/completion/B89.json
+- id: AT-B90-01
+  batch: B90
+  title: PostgreSQL 高可用、备份与 PITR
+  objective: 实现多可用区、加密、故障转移、PITR、恢复演练和迁移安全。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B90/test-results/
+  - evidence/B90/security/
+  - evidence/completion/B90.json
+- id: AT-B91-01
+  batch: B91
+  title: Kafka 事件耐久性与业务幂等
+  objective: 明确至少一次传递，使用 Outbox/Inbox 保证业务效果，处理乱序、重平衡和毒消息。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B91/test-results/
+  - evidence/B91/security/
+  - evidence/completion/B91.json
+- id: AT-B92-01
+  batch: B92
+  title: Redis 安全缓存、锁与限速
+  objective: 限制 Redis 为可重建状态，锁带 fencing token，禁止以缓存作为支付真相。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B92/test-results/
+  - evidence/B92/security/
+  - evidence/completion/B92.json
+- id: AT-B93-01
+  batch: B93
+  title: Kubernetes、GitOps 与策略即代码
+  objective: 实现最小镜像、只读根、非 root、准入策略、网络策略、密钥挂载和可审计发布。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B93/test-results/
+  - evidence/B93/security/
+  - evidence/completion/B93.json
+- id: AT-B94-01
+  batch: B94
+  title: 多区域架构与数据主权
+  objective: 选择主动-被动或受控主动-主动，明确写入归属、数据驻留、RPO/RTO 和回切。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B94/test-results/
+  - evidence/B94/security/
+  - evidence/completion/B94.json
+- id: AT-B95-01
+  batch: B95
+  title: 业务连续性、混沌与恢复演练
+  objective: 验证渠道故障、数据库故障、消息堆积、KMS 不可用、域名劫持和区域中断。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B95/test-results/
+  - evidence/B95/security/
+  - evidence/completion/B95.json
+- id: AT-B96-01
+  batch: B96
+  title: OpenTelemetry 日志指标追踪
+  objective: 统一 trace、metric、log、baggage、关联 ID 和敏感字段脱敏。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B96/test-results/
+  - evidence/B96/security/
+  - evidence/completion/B96.json
+- id: AT-B97-01
+  batch: B97
+  title: SLI、SLO、错误预算与告警
+  objective: 定义支付成功率、确认延迟、回调延迟、对账差错、风险误杀和恢复指标。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B97/test-results/
+  - evidence/B97/security/
+  - evidence/completion/B97.json
+- id: AT-B98-01
+  batch: B98
+  title: 支付漏斗与商业仪表盘
+  objective: 按项目、渠道、地区、设备、金额、失败原因和版本观察转化与异常。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B98/test-results/
+  - evidence/B98/security/
+  - evidence/completion/B98.json
+- id: AT-B99-01
+  batch: B99
+  title: SIEM、SOC 与安全检测
+  objective: 接入身份、网关、KMS、数据库、容器、代码供应链和支付风险检测。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B99/test-results/
+  - evidence/B99/security/
+  - evidence/completion/B99.json
+- id: AT-B100-01
+  batch: B100
+  title: 渠道健康、熔断与故障转移
+  objective: 基于错误分类、成功率、延迟和渠道公告执行熔断、探测与安全路由。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B100/test-results/
+  - evidence/B100/security/
+  - evidence/completion/B100.json
+- id: AT-B101-01
+  batch: B101
+  title: 运营控制台与安全回放
+  objective: 提供只读诊断、受控重试、Webhook 回放、状态修复建议和双人审批。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B101/test-results/
+  - evidence/B101/security/
+  - evidence/completion/B101.json
+- id: AT-B102-01
+  batch: B102
+  title: 事件响应、运行手册与状态页
+  objective: 覆盖资金风险、数据泄漏、密钥泄漏、渠道故障、钓鱼和大规模攻击。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B102/test-results/
+  - evidence/B102/security/
+  - evidence/completion/B102.json
+- id: AT-B103-01
+  batch: B103
+  title: 容量、性能、成本与限额
+  objective: 建模峰值 TPS、队列、数据库、渠道限额、成本上限和自动扩缩容保护。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B103/test-results/
+  - evidence/B103/security/
+  - evidence/completion/B103.json
+- id: AT-B104-01
+  batch: B104
+  title: PCI DSS 4.0.1 范围与控制映射
+  objective: 通过托管字段/令牌化缩小卡数据环境，并建立控制责任、证据和评估路径。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B104/test-results/
+  - evidence/B104/security/
+  - evidence/completion/B104.json
+- id: AT-B105-01
+  batch: B105
+  title: 中国支付与数据合规配置
+  objective: 映射非银行支付业务边界、个人信息保护、数据安全、网络安全与数据驻留要求。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B105/test-results/
+  - evidence/B105/security/
+  - evidence/completion/B105.json
+- id: AT-B106-01
+  batch: B106
+  title: GDPR、PSD2/SCA 与全球隐私
+  objective: 实现合法基础、数据主体权利、DPIA、跨境机制、SCA/3DS 和地区化策略。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B106/test-results/
+  - evidence/B106/security/
+  - evidence/completion/B106.json
+- id: AT-B107-01
+  batch: B107
+  title: AML、KYC、KYB、制裁与监管边界
+  objective: 把身份核验和制裁能力作为持牌 PSP/专业服务集成，禁止无牌资金中介功能。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B107/test-results/
+  - evidence/B107/security/
+  - evidence/completion/B107.json
+- id: AT-B108-01
+  batch: B108
+  title: 数据分类、保留、删除与令牌化
+  objective: 建立字段级分类、最少化、用途限制、保留计划、法律保留和可证明删除。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B108/test-results/
+  - evidence/B108/security/
+  - evidence/completion/B108.json
+- id: AT-B109-01
+  batch: B109
+  title: 安全 SDLC、SBOM、SLSA 与制品签名
+  objective: 生成依赖锁、SBOM、构建来源、签名、验证和部署准入证据。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B109/test-results/
+  - evidence/B109/security/
+  - evidence/completion/B109.json
+- id: AT-B110-01
+  batch: B110
+  title: 漏洞管理、渗透测试与红队
+  objective: 定义扫描频率、严重度 SLA、例外、复测、外部渗透和支付专项红队。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B110/test-results/
+  - evidence/B110/security/
+  - evidence/completion/B110.json
+- id: AT-B111-01
+  batch: B111
+  title: 第三方风险、合同与供应商退出
+  objective: 评估 PSP、云、短信、邮件、风控、监控和开源依赖的责任与退出方案。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B111/test-results/
+  - evidence/B111/security/
+  - evidence/completion/B111.json
+- id: AT-B112-01
+  batch: B112
+  title: 单元、属性与模型化测试
+  objective: 对金额、状态机、账本、路由、授权和日期边界实施属性与状态模型测试。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B112/test-results/
+  - evidence/B112/security/
+  - evidence/completion/B112.json
+- id: AT-B113-01
+  batch: B113
+  title: 渠道契约测试与模拟器
+  objective: 为各渠道构建可版本化请求/响应、错误、超时、签名和 webhook 模拟。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B113/test-results/
+  - evidence/B113/security/
+  - evidence/completion/B113.json
+- id: AT-B114-01
+  batch: B114
+  title: Webhook 回放、模糊与故障注入
+  objective: 覆盖伪造、重放、乱序、重复、延迟、截断、错误签名、证书轮换和时间漂移。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B114/test-results/
+  - evidence/B114/security/
+  - evidence/completion/B114.json
+- id: AT-B115-01
+  batch: B115
+  title: 并发、重复、乱序与时钟测试
+  objective: 验证双击、网络重试、多实例竞态、锁失效、回调先于响应和跨日。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B115/test-results/
+  - evidence/B115/security/
+  - evidence/completion/B115.json
+- id: AT-B116-01
+  batch: B116
+  title: SAST、DAST、IAST、密钥与依赖测试
+  objective: 构建 fail-closed 安全流水线并对支付入口、后台和 SDK 做专项测试。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B116/test-results/
+  - evidence/B116/security/
+  - evidence/completion/B116.json
+- id: AT-B117-01
+  batch: B117
+  title: 性能、负载、耐久与容量测试
+  objective: 验证峰值、突发、长稳、队列堆积、数据库故障、渠道降级和恢复。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B117/test-results/
+  - evidence/B117/security/
+  - evidence/completion/B117.json
+- id: AT-B118-01
+  batch: B118
+  title: UAT、财务与运营验收
+  objective: 以真实业务场景验证下单、支付、退款、订阅、争议、对账、报表和客服流程。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B118/test-results/
+  - evidence/B118/security/
+  - evidence/completion/B118.json
+- id: AT-B119-01
+  batch: B119
+  title: 合规证据与独立评审门
+  objective: 由非实现者复核威胁模型、控制、渗透、恢复、账本和合规证据。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B119/test-results/
+  - evidence/B119/security/
+  - evidence/completion/B119.json
+- id: AT-B120-01
+  batch: B120
+  title: 现有项目接入适配器
+  objective: 为每个旧项目实现订单映射、签名、幂等、Webhook 消费和回滚。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B120/test-results/
+  - evidence/B120/security/
+  - evidence/completion/B120.json
+- id: AT-B121-01
+  batch: B121
+  title: 影子流量、双运行与差异验证
+  objective: 不扣款地对比路由与请求，随后小流量双轨验证状态和对账一致性。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B121/test-results/
+  - evidence/B121/security/
+  - evidence/completion/B121.json
+- id: AT-B122-01
+  batch: B122
+  title: 生产商户配置与渠道上线
+  objective: 完成正式商户号、域名、证书、Webhook、限额、告警、账单和应急联系人。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B122/test-results/
+  - evidence/B122/security/
+  - evidence/completion/B122.json
+- id: AT-B123-01
+  batch: B123
+  title: 上线准备与 Go/No-Go
+  objective: 逐项检查安全、可靠性、财务、合规、运营、支持、回滚和外部依赖。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B123/test-results/
+  - evidence/B123/security/
+  - evidence/completion/B123.json
+- id: AT-B124-01
+  batch: B124
+  title: 分阶段发布、灰度与回滚
+  objective: 按租户、项目、渠道和地区灰度，使用自动停机线和可验证回滚。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B124/test-results/
+  - evidence/B124/security/
+  - evidence/completion/B124.json
+- id: AT-B125-01
+  batch: B125
+  title: 上线后监控与日终对账
+  objective: 首日、首周和首月强化监控，逐日完成交易、资金和银行三方核对。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B125/test-results/
+  - evidence/B125/security/
+  - evidence/completion/B125.json
+- id: AT-B126-01
+  batch: B126
+  title: 商业定价、SLA、支持与用量计费
+  objective: 提供内部成本、服务等级、支持分级、审计导出和平台自身计费。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B126/test-results/
+  - evidence/B126/security/
+  - evidence/completion/B126.json
+- id: AT-B127-01
+  batch: B127
+  title: 最终生产认证与发布签署
+  objective: 只有全部批次、控制、测试、恢复、对账和独立评审通过后才允许生产认证。
+  required_result: all mandatory, negative, concurrency, security and recovery checks in batch document pass
+  evidence:
+  - evidence/B127/test-results/
+  - evidence/B127/security/
+  - evidence/completion/B127.json

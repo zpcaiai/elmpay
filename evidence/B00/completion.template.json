@@ -1,0 +1,26 @@
+{
+  "batch_id": "B00",
+  "status": "passed",
+  "commit_sha": "replace-with-commit-sha",
+  "environment": "integration",
+  "started_at": "2026-01-01T00:00:00Z",
+  "completed_at": "2026-01-01T00:00:01Z",
+  "executor": "implementation-owner",
+  "reviewer": "independent-reviewer",
+  "artifacts": [
+    {
+      "path": "replace-with-relative-path",
+      "sha256": "replace-with-sha256"
+    }
+  ],
+  "tests": {
+    "passed": 1,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {}
+}

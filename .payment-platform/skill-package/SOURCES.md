@@ -1,0 +1,41 @@
+# 官方参考资料快照
+
+本包在 2026-08-18 依据以下官方或标准组织资料设计。实现时仍应检查渠道账户对应的最新文档和合同。
+
+- **Codex Agent Skills** — https://developers.openai.com/codex/build-skills
+- **Claude Code Skills** — https://docs.anthropic.com/en/docs/claude-code/skills
+- **WeChat Pay APIv3 Java SDK** — https://github.com/wechatpay-apiv3/wechatpay-java
+- **WeChat Pay signature verification** — https://pay.wechatpay.cn/doc/v3/partner/4013059030
+- **WeChat Pay bill download** — https://pay.wechatpay.cn/doc/v3/partner/4012158422
+- **Alipay web payment** — https://opendocs.alipay.com/open/270/105899
+- **Alipay async notification** — https://opendocs.alipay.com/open/204/105301
+- **Alipay signature verification** — https://opendocs.alipay.com/common/02mse7
+- **Stripe Payment Intents** — https://docs.stripe.com/payments/payment-intents
+- **Stripe Webhooks** — https://docs.stripe.com/webhooks
+- **Stripe Apple Pay** — https://docs.stripe.com/apple-pay
+- **PayPal Orders API** — https://developer.paypal.com/api/rest/integration/orders-api
+- **PayPal Webhooks** — https://developer.paypal.com/api/rest/webhooks
+- **PayPal Idempotency** — https://developer.paypal.com/api/rest/reference/idempotency
+- **Apple Pay implementation** — https://developer.apple.com/apple-pay/implementation/
+- **Apple Pay token format** — https://developer.apple.com/documentation/passkit/payment-token-format-reference
+- **PCI DSS** — https://www.pcisecuritystandards.org/standards/pci-dss/
+- **PCI DSS v4.0.1 library** — https://www.pcisecuritystandards.org/document_library/
+- **PCI payment page / e-skimming guidance** — https://blog.pcisecuritystandards.org/new-information-supplement-payment-page-security-and-preventing-e-skimming
+- **OWASP ASVS** — https://owasp.org/www-project-application-security-verification-standard/
+- **OWASP API Security Top 10 2023** — https://owasp.org/API-Security/editions/2023/en/0x11-t10/
+- **OWASP Top 10 2025** — https://owasp.org/Top10/2025/
+- **OWASP MASVS** — https://mas.owasp.org/MASVS/
+- **OWASP WSTG** — https://owasp.org/www-project-web-security-testing-guide/
+- **NIST Zero Trust SP 800-207** — https://csrc.nist.gov/pubs/sp/800/207/final
+- **NIST SSDF SP 800-218** — https://csrc.nist.gov/pubs/sp/800/218/final
+- **NIST SP 800-63B-4** — https://pages.nist.gov/800-63-4/sp800-63b.html
+- **W3C WebAuthn Level 3** — https://www.w3.org/TR/webauthn-3/
+- **Unicode UTS #39** — https://www.unicode.org/reports/tr39/
+- **China non-bank payment regulation** — https://www.moj.gov.cn/pub/sfbgw/fzgz/fzgzxzlf/fzgzlfgz/202312/t20231218_491819.html
+- **PIPL** — https://www.cac.gov.cn/2021-08/20/c_1631050028355286.htm
+- **Data Security Law** — https://www.cac.gov.cn/2021-06/11/c_1624994566919140.htm
+- **Network Data Security Regulation** — https://www.cac.gov.cn/2024-09/30/c_1729384452307680.htm
+- **Cybersecurity Law 2025 revision** — https://www.cac.gov.cn/2025-12/29/c_1768735112911946.htm
+- **GDPR** — https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng
+- **EBA SCA/PSD2** — https://www.eba.europa.eu/legacy/regulation-and-policy/regulatory-activities/payment-services-and-electronic-money-0
+- **EMV 3-D Secure** — https://www.emvco.com/emv-technologies/3-d-secure/

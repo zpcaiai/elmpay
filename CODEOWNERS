@@ -1,0 +1,14 @@
+# Ownership drives the four-eyes rule. A change to a path requires review by an
+# owner who is not the change author (see policies/non-negotiables.md NN-11).
+/governance/           @payment-platform-architecture
+/docs/charter/         @payment-platform-architecture
+/docs/adr/             @payment-platform-architecture
+/tools/                @payment-platform-platform-eng
+/libs/money/           @payment-platform-architecture @payment-platform-finance
+/services/ledger-service/       @payment-platform-finance
+/services/reconciliation-service/ @payment-platform-finance
+/services/risk-engine/ @payment-platform-risk
+/connectors/           @payment-platform-connectors
+/platform/             @payment-platform-sre
+/.github/              @payment-platform-platform-eng @payment-platform-security
+/evidence/             @payment-platform-security

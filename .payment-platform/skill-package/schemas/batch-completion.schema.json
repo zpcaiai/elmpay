@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "BatchCompletion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "batch_id",
+    "status",
+    "commit_sha",
+    "environment",
+    "started_at",
+    "completed_at",
+    "executor",
+    "reviewer",
+    "artifacts",
+    "tests",
+    "security",
+    "dependency_hashes"
+  ],
+  "properties": {
+    "batch_id": {
+      "type": "string",
+      "pattern": "^B(0[0-9]|[1-9][0-9]|1[01][0-9]|12[0-7])$"
+    },
+    "status": {
+      "const": "passed"
+    },
+    "commit_sha": {
+      "type": "string",
+      "minLength": 7
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 2
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "executor": {
+      "type": "string",
+      "minLength": 2
+    },
+    "reviewer": {
+      "type": "string",
+      "minLength": 2
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "required": [
+        "passed",
+        "failed",
+        "skipped_critical"
+      ],
+      "properties": {
+        "passed": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "failed": {
+          "const": 0
+        },
+        "skipped_critical": {
+          "const": 0
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "required": [
+        "blocking_findings",
+        "accepted_findings"
+      ],
+      "properties": {
+        "blocking_findings": {
+          "const": 0
+        },
+        "accepted_findings": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "dependency_hashes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    }
+  }
+}

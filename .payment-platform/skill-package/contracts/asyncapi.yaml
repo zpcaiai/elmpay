@@ -1,0 +1,61 @@
+asyncapi: 3.0.0
+info:
+  title: Enterprise Payment Platform Events
+  version: 1.0.0
+channels:
+  paymentEvents:
+    address: payment.events.v1
+    messages:
+      paymentSucceeded:
+        $ref: '#/components/messages/PaymentSucceeded'
+      paymentFailed:
+        $ref: '#/components/messages/PaymentFailed'
+  refundEvents:
+    address: refund.events.v1
+    messages:
+      refundSucceeded:
+        $ref: '#/components/messages/RefundSucceeded'
+operations:
+  publishPaymentSucceeded:
+    action: send
+    channel: {$ref: '#/channels/paymentEvents'}
+    messages:
+      - $ref: '#/channels/paymentEvents/messages/paymentSucceeded'
+components:
+  messages:
+    PaymentSucceeded:
+      name: payment.succeeded.v1
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              data:
+                type: object
+                required: [payment_intent_id, project_id, business_order_no, amount, currency]
+                properties:
+                  payment_intent_id: {type: string}
+                  project_id: {type: string}
+                  business_order_no: {type: string}
+                  amount: {type: integer}
+                  currency: {type: string}
+    PaymentFailed:
+      name: payment.failed.v1
+      payload: {$ref: '#/components/schemas/EventEnvelope'}
+    RefundSucceeded:
+      name: refund.succeeded.v1
+      payload: {$ref: '#/components/schemas/EventEnvelope'}
+  schemas:
+    EventEnvelope:
+      type: object
+      required: [event_id, event_type, event_version, occurred_at, tenant_id, project_id, correlation_id, data]
+      properties:
+        event_id: {type: string}
+        event_type: {type: string}
+        event_version: {type: integer, minimum: 1}
+        occurred_at: {type: string, format: date-time}
+        tenant_id: {type: string}
+        project_id: {type: string}
+        correlation_id: {type: string}
+        causation_id: {type: string}
+        data: {type: object}

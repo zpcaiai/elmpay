@@ -1,0 +1,222 @@
+openapi: 3.1.0
+info:
+  title: Enterprise Payment Platform API
+  version: 1.0.0
+  description: Multi-project payment orchestration API. Amounts are integer minor units.
+servers:
+  - url: https://pay-api.example.com
+security:
+  - OAuth2: [payments.write]
+paths:
+  /v1/payment-intents:
+    post:
+      operationId: createPaymentIntent
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreatePaymentIntent'}
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PaymentIntent'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /v1/payment-intents/{payment_intent_id}:
+    get:
+      operationId: getPaymentIntent
+      parameters:
+        - $ref: '#/components/parameters/PaymentIntentId'
+        - $ref: '#/components/parameters/ProjectId'
+      responses:
+        '200':
+          description: Current verified state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PaymentIntent'}
+  /v1/payment-intents/{payment_intent_id}/confirm:
+    post:
+      operationId: confirmPaymentIntent
+      parameters:
+        - $ref: '#/components/parameters/PaymentIntentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment_method_type: {type: string}
+                return_url_token: {type: string}
+      responses:
+        '200':
+          description: Confirmation state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PaymentIntent'}
+  /v1/payment-intents/{payment_intent_id}/capture:
+    post:
+      operationId: capturePaymentIntent
+      parameters:
+        - $ref: '#/components/parameters/PaymentIntentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Capture state
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PaymentIntent'}
+  /v1/refunds:
+    post:
+      operationId: createRefund
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateRefund'}
+      responses:
+        '201':
+          description: Refund accepted
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Refund'}
+  /v1/checkout-sessions:
+    post:
+      operationId: createCheckoutSession
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [business_order_no, amount, currency]
+              properties:
+                business_order_no: {type: string, maxLength: 128}
+                amount: {type: integer, minimum: 1}
+                currency: {type: string, pattern: '^[A-Z]{3}$'}
+                return_route_id: {type: string, description: Pre-registered route identifier, never a raw URL}
+      responses:
+        '201':
+          description: Signed hosted checkout session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [checkout_session_id, expires_at, checkout_url]
+                properties:
+                  checkout_session_id: {type: string}
+                  expires_at: {type: string, format: date-time}
+                  checkout_url: {type: string, format: uri}
+components:
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://identity.example.com/oauth2/token
+          scopes:
+            payments.write: Create and operate payments
+            payments.read: Read payment status
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 16, maxLength: 128}
+    ProjectId:
+      name: X-Project-Id
+      in: header
+      required: true
+      schema: {type: string, pattern: '^[a-z0-9][a-z0-9-]{2,62}$'}
+    PaymentIntentId:
+      name: payment_intent_id
+      in: path
+      required: true
+      schema: {type: string}
+  responses:
+    Conflict:
+      description: Idempotency payload conflict or invalid state transition
+      content:
+        application/problem+json:
+          schema: {$ref: '#/components/schemas/Problem'}
+  schemas:
+    CreatePaymentIntent:
+      type: object
+      additionalProperties: false
+      required: [business_order_no, amount, currency]
+      properties:
+        business_order_no: {type: string, minLength: 1, maxLength: 128}
+        amount: {type: integer, minimum: 1}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        capture_method: {type: string, enum: [automatic, manual], default: automatic}
+        allowed_payment_methods:
+          type: array
+          items: {type: string, enum: [wechat_jsapi, wechat_native, wechat_h5, wechat_app, alipay_web, alipay_wap, alipay_app, alipay_qr, stripe_card, paypal, apple_pay]}
+        metadata:
+          type: object
+          additionalProperties: {type: string, maxLength: 256}
+          maxProperties: 20
+    PaymentIntent:
+      type: object
+      required: [id, project_id, business_order_no, amount, currency, status, created_at]
+      properties:
+        id: {type: string}
+        project_id: {type: string}
+        business_order_no: {type: string}
+        amount: {type: integer}
+        amount_captured: {type: integer}
+        amount_refunded: {type: integer}
+        currency: {type: string}
+        status: {type: string, enum: [requires_payment_method, requires_confirmation, requires_action, processing, requires_capture, succeeded, failed, canceled]}
+        next_action:
+          type: object
+          additionalProperties: true
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    CreateRefund:
+      type: object
+      additionalProperties: false
+      required: [payment_intent_id, amount, reason]
+      properties:
+        payment_intent_id: {type: string}
+        amount: {type: integer, minimum: 1}
+        reason: {type: string, enum: [customer_request, duplicate, fraudulent, service_failure, other]}
+    Refund:
+      type: object
+      required: [id, payment_intent_id, amount, currency, status]
+      properties:
+        id: {type: string}
+        payment_intent_id: {type: string}
+        amount: {type: integer}
+        currency: {type: string}
+        status: {type: string, enum: [requested, approval_pending, processing, succeeded, partially_succeeded, failed, unknown]}
+    Problem:
+      type: object
+      required: [type, title, status, code, trace_id]
+      properties:
+        type: {type: string, format: uri}
+        title: {type: string}
+        status: {type: integer}
+        code: {type: string}
+        detail: {type: string}
+        trace_id: {type: string}

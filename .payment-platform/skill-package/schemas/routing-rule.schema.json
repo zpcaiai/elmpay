@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "rule_id",
+    "version",
+    "priority",
+    "enabled",
+    "conditions",
+    "action"
+  ],
+  "properties": {
+    "rule_id": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "priority": {
+      "type": "integer"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "field",
+          "operator",
+          "value"
+        ]
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "provider",
+        "merchant_account_id"
+      ]
+    },
+    "effective_from": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "effective_to": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

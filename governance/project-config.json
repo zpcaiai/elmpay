@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B00",
+  "project": {
+    "name": "elmpay",
+    "profile": "full-multi-project",
+    "primary_region": "cn-east",
+    "data_residency": ["CN", "EU"]
+  },
+  "providers": {
+    "wechat": {
+      "enabled": true,
+      "priority": 1,
+      "modes": ["jsapi", "mini_program", "native", "h5", "app"],
+      "credentials": "kms://elmpay/wechat/merchant/main"
+    },
+    "alipay": {
+      "enabled": true,
+      "priority": 2,
+      "certificate_mode": true,
+      "modes": ["web", "wap", "app", "precreate", "mini_program"],
+      "credentials": "kms://elmpay/alipay/app/main"
+    },
+    "stripe": {
+      "enabled": true,
+      "priority": 3,
+      "card_data_mode": "hosted_fields_only",
+      "apple_pay": true,
+      "credentials": "vault://elmpay/stripe/live"
+    },
+    "paypal": {
+      "enabled": true,
+      "priority": 4,
+      "orders_v2": true,
+      "credentials": "vault://elmpay/paypal/live"
+    },
+    "apple_pay": {
+      "enabled": true,
+      "priority": 5,
+      "processing": "via_stripe",
+      "direct_token_decryption": false,
+      "credentials": "vault://elmpay/apple-pay/merchant-id"
+    }
+  },
+  "security": {
+    "admin_mfa": "webauthn_required",
+    "raw_card_data": "prohibited",
+    "high_risk_four_eyes": true,
+    "service_identity": "mtls",
+    "secret_backends": ["kms", "vault"]
+  },
+  "money": {
+    "representation": "integer_minor_unit",
+    "forbidden_numeric_types": ["float", "double", "java.lang.Float", "java.lang.Double"],
+    "currency_metadata_source": "governance/currency-metadata.json",
+    "rounding_policy": "half_even_documented_per_flow"
+  },
+  "regulated_features": {
+    "stored_value": false,
+    "fund_pool": false,
+    "cross_merchant_clearing": false,
+    "unlicensed_payouts": false
+  },
+  "evidence": {
+    "executor": "claude-agent",
+    "reviewer": "Ethan",
+    "environment": "integration"
+  }
+}

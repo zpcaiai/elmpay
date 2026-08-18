@@ -1,0 +1,30 @@
+# build output
+build/
+out/
+target/
+dist/
+node_modules/
+.gradle/
+# python
+__pycache__/
+*.pyc
+.venv/
+# os / editor
+.DS_Store
+.idea/
+*.iml
+.vscode/
+# skill package distribution artifacts (source of truth is .payment-platform/)
+enterprise-payment-platform-skills-*.zip
+enterprise-payment-platform-skills-*/
+# local secrets must never be committed
+*.pem
+*.p12
+*.jks
+*.key
+.env
+.env.*
+!.env.example
+# broken git dir left by a read-only mount; safe to delete manually
+_to_delete/
+.git.broken/

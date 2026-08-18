@@ -1,0 +1,2419 @@
+{
+  "package": {
+    "name": "enterprise-payment-platform-skills",
+    "version": "1.0.0",
+    "generated_at": "2026-08-18",
+    "language": "zh-CN",
+    "license": "MIT",
+    "hosts": [
+      "Codex .agents/skills",
+      "Claude Code .claude/skills"
+    ]
+  },
+  "product": {
+    "name": "Enterprise Payment Orchestration Platform",
+    "default_profile": "full-multi-project",
+    "priority_providers": [
+      "WeChat Pay APIv3",
+      "Alipay certificate mode"
+    ],
+    "global_providers": [
+      "Stripe",
+      "PayPal",
+      "Apple Pay via PSP by default"
+    ],
+    "regulated_boundary": "技术编排与商户直连结算；默认禁止平台自有资金池、储值余额、无牌代收代付和跨商户清算。"
+  },
+  "technology_defaults": {
+    "runtime": "Java 25 LTS",
+    "framework": "Spring Boot 4.1.x",
+    "database": "PostgreSQL 18.x",
+    "orchestration": "Kubernetes 1.36.x",
+    "messaging": "Kafka-compatible durable event log",
+    "cache": "Redis-compatible ephemeral cache only",
+    "observability": "OpenTelemetry",
+    "secrets": "KMS/HSM/Vault abstraction",
+    "frontend": "TypeScript web admin and hosted checkout with strict CSP"
+  },
+  "security_baselines": [
+    "PCI DSS 4.0.1 scope minimization and evidence",
+    "OWASP Top 10 2025, ASVS, API Security Top 10 2023, MASVS, WSTG",
+    "NIST SP 800-207 Zero Trust and SP 800-218 SSDF",
+    "NIST SP 800-63B-4 and W3C WebAuthn for phishing-resistant access",
+    "Provider official signature verification, idempotency and webhook rules",
+    "No raw PAN, CVV, track data, or reusable wallet plaintext in platform storage"
+  ],
+  "release_gates": {
+    "RG0": "package integrity and skill validation",
+    "RG1": "all batch evidence valid",
+    "RG2": "payment and ledger invariants pass",
+    "RG3": "provider sandbox/certification pass",
+    "RG4": "security and penetration gates pass",
+    "RG5": "backup, restore and disaster recovery pass",
+    "RG6": "reconciliation and finance UAT pass",
+    "RG7": "independent review and production sign-off"
+  },
+  "waves": [
+    {
+      "id": "W00",
+      "title": "项目基础与证据系统",
+      "batches": [
+        "B00",
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B05",
+        "B06",
+        "B07"
+      ]
+    },
+    {
+      "id": "W01",
+      "title": "领域、状态机与数据架构",
+      "batches": [
+        "B08",
+        "B09",
+        "B10",
+        "B11",
+        "B12",
+        "B13",
+        "B14",
+        "B15"
+      ]
+    },
+    {
+      "id": "W02",
+      "title": "身份、密码学与安全开发",
+      "batches": [
+        "B16",
+        "B17",
+        "B18",
+        "B19",
+        "B20",
+        "B21",
+        "B22",
+        "B23"
+      ]
+    },
+    {
+      "id": "W03",
+      "title": "租户、商户、渠道与路由配置",
+      "batches": [
+        "B24",
+        "B25",
+        "B26",
+        "B27",
+        "B28",
+        "B29",
+        "B30",
+        "B31"
+      ]
+    },
+    {
+      "id": "W04",
+      "title": "支付核心与 Webhook",
+      "batches": [
+        "B32",
+        "B33",
+        "B34",
+        "B35",
+        "B36",
+        "B37",
+        "B38",
+        "B39"
+      ]
+    },
+    {
+      "id": "W05",
+      "title": "微信支付与支付宝优先接入",
+      "batches": [
+        "B40",
+        "B41",
+        "B42",
+        "B43",
+        "B44",
+        "B45",
+        "B46",
+        "B47"
+      ]
+    },
+    {
+      "id": "W06",
+      "title": "Stripe、PayPal 与 Apple Pay",
+      "batches": [
+        "B48",
+        "B49",
+        "B50",
+        "B51",
+        "B52",
+        "B53",
+        "B54",
+        "B55"
+      ]
+    },
+    {
+      "id": "W07",
+      "title": "托管收银台、支付链接与 SDK",
+      "batches": [
+        "B56",
+        "B57",
+        "B58",
+        "B59",
+        "B60",
+        "B61",
+        "B62",
+        "B63"
+      ]
+    },
+    {
+      "id": "W08",
+      "title": "退款、争议与订阅",
+      "batches": [
+        "B64",
+        "B65",
+        "B66",
+        "B67",
+        "B68",
+        "B69",
+        "B70",
+        "B71"
+      ]
+    },
+    {
+      "id": "W09",
+      "title": "账本、结算视图与对账",
+      "batches": [
+        "B72",
+        "B73",
+        "B74",
+        "B75",
+        "B76",
+        "B77",
+        "B78",
+        "B79"
+      ]
+    },
+    {
+      "id": "W10",
+      "title": "实时风控、反钓鱼与抗攻击",
+      "batches": [
+        "B80",
+        "B81",
+        "B82",
+        "B83",
+        "B84",
+        "B85",
+        "B86",
+        "B87"
+      ]
+    },
+    {
+      "id": "W11",
+      "title": "平台可靠性与灾难恢复",
+      "batches": [
+        "B88",
+        "B89",
+        "B90",
+        "B91",
+        "B92",
+        "B93",
+        "B94",
+        "B95"
+      ]
+    },
+    {
+      "id": "W12",
+      "title": "可观测性与生产运营",
+      "batches": [
+        "B96",
+        "B97",
+        "B98",
+        "B99",
+        "B100",
+        "B101",
+        "B102",
+        "B103"
+      ]
+    },
+    {
+      "id": "W13",
+      "title": "合规、隐私与供应链治理",
+      "batches": [
+        "B104",
+        "B105",
+        "B106",
+        "B107",
+        "B108",
+        "B109",
+        "B110",
+        "B111"
+      ]
+    },
+    {
+      "id": "W14",
+      "title": "测试、认证与独立审查",
+      "batches": [
+        "B112",
+        "B113",
+        "B114",
+        "B115",
+        "B116",
+        "B117",
+        "B118",
+        "B119"
+      ]
+    },
+    {
+      "id": "W15",
+      "title": "迁移、上线与商业运营",
+      "batches": [
+        "B120",
+        "B121",
+        "B122",
+        "B123",
+        "B124",
+        "B125",
+        "B126",
+        "B127"
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "name": "pay-program-orchestrator",
+      "title": "支付平台总编排器",
+      "description": "编排完整商业级支付平台 B00-B127，解析依赖、生成下一批任务、初始化和验证证据，并执行最终生产发布门禁。",
+      "batches": []
+    },
+    {
+      "name": "pay-program-foundation",
+      "title": "项目章程与仓库引导 / 需求基线与服务边界",
+      "description": "实现并验证 B00–B01：项目章程与仓库引导与需求基线与服务边界。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B00",
+        "B01"
+      ]
+    },
+    {
+      "name": "pay-architecture-toolchain",
+      "title": "架构决策记录与初始威胁模型 / 单仓工具链与版本目录",
+      "description": "实现并验证 B02–B03：架构决策记录与初始威胁模型与单仓工具链与版本目录。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B02",
+        "B03"
+      ]
+    },
+    {
+      "name": "pay-dev-platform-ci",
+      "title": "本地开发平台与测试容器 / 持续集成与质量基线",
+      "description": "实现并验证 B04–B05：本地开发平台与测试容器与持续集成与质量基线。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B04",
+        "B05"
+      ]
+    },
+    {
+      "name": "pay-evidence-traceability",
+      "title": "批次编排与证据框架 / 单一事实源与需求追踪",
+      "description": "实现并验证 B06–B07：批次编排与证据框架与单一事实源与需求追踪。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B06",
+        "B07"
+      ]
+    },
+    {
+      "name": "pay-domain-money-model",
+      "title": "支付领域模型与统一语言 / 金额、币种与精度模型",
+      "description": "实现并验证 B08–B09：支付领域模型与统一语言与金额、币种与精度模型。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B08",
+        "B09"
+      ]
+    },
+    {
+      "name": "pay-state-api-contracts",
+      "title": "支付状态机与业务不变量 / API 规范、错误与兼容模型",
+      "description": "实现并验证 B10–B11：支付状态机与业务不变量与API 规范、错误与兼容模型。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B10",
+        "B11"
+      ]
+    },
+    {
+      "name": "pay-events-data-architecture",
+      "title": "事件目录、Outbox 与 Inbox / 数据所有权、分区与租户模型",
+      "description": "实现并验证 B12–B13：事件目录、Outbox 与 Inbox与数据所有权、分区与租户模型。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B12",
+        "B13"
+      ]
+    },
+    {
+      "name": "pay-service-migration-architecture",
+      "title": "服务拆分与依赖规则 / 现有项目订单迁移架构",
+      "description": "实现并验证 B14–B15：服务拆分与依赖规则与现有项目订单迁移架构。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B14",
+        "B15"
+      ]
+    },
+    {
+      "name": "pay-zero-trust-identity",
+      "title": "零信任安全架构 / 客户、管理员与服务身份",
+      "description": "实现并验证 B16–B17：零信任安全架构与客户、管理员与服务身份。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B16",
+        "B17"
+      ]
+    },
+    {
+      "name": "pay-phishing-resistant-access",
+      "title": "抗钓鱼 MFA 与 WebAuthn / RBAC、ABAC、职责分离与临时授权",
+      "description": "实现并验证 B18–B19：抗钓鱼 MFA 与 WebAuthn与RBAC、ABAC、职责分离与临时授权。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B18",
+        "B19"
+      ]
+    },
+    {
+      "name": "pay-cryptography-key-lifecycle",
+      "title": "KMS、HSM 与信封加密 / 密钥、证书与域名生命周期",
+      "description": "实现并验证 B20–B21：KMS、HSM 与信封加密与密钥、证书与域名生命周期。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B20",
+        "B21"
+      ]
+    },
+    {
+      "name": "pay-secure-coding-audit",
+      "title": "ASVS、API 与移动安全基线 / 不可抵赖审计与防篡改日志",
+      "description": "实现并验证 B22–B23：ASVS、API 与移动安全基线与不可抵赖审计与防篡改日志。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B22",
+        "B23"
+      ]
+    },
+    {
+      "name": "pay-tenant-merchant-registry",
+      "title": "租户与项目注册中心 / 商户资料与 KYB 元数据",
+      "description": "实现并验证 B24–B25：租户与项目注册中心与商户资料与 KYB 元数据。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B24",
+        "B25"
+      ]
+    },
+    {
+      "name": "pay-provider-account-capabilities",
+      "title": "商户渠道账户与凭证绑定 / 渠道能力与地区政策矩阵",
+      "description": "实现并验证 B26–B27：商户渠道账户与凭证绑定与渠道能力与地区政策矩阵。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B26",
+        "B27"
+      ]
+    },
+    {
+      "name": "pay-routing-pricing",
+      "title": "路由规则、灰度与配置版本 / 费率、成本、佣金与计量模型",
+      "description": "实现并验证 B28–B29：路由规则、灰度与配置版本与费率、成本、佣金与计量模型。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B28",
+        "B29"
+      ]
+    },
+    {
+      "name": "pay-onboarding-tenant-isolation",
+      "title": "商户接入与四眼审批 / 租户隔离验证",
+      "description": "实现并验证 B30–B31：商户接入与四眼审批与租户隔离验证。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B30",
+        "B31"
+      ]
+    },
+    {
+      "name": "pay-payment-intents-attempts",
+      "title": "Payment Intent 服务 / 支付尝试与渠道交易",
+      "description": "实现并验证 B32–B33：Payment Intent 服务与支付尝试与渠道交易。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B32",
+        "B33"
+      ]
+    },
+    {
+      "name": "pay-auth-capture-payment-methods",
+      "title": "授权、捕获、撤销与关闭 / 支付方式抽象与令牌引用",
+      "description": "实现并验证 B34–B35：授权、捕获、撤销与关闭与支付方式抽象与令牌引用。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B34",
+        "B35"
+      ]
+    },
+    {
+      "name": "pay-idempotency-webhook-ingress",
+      "title": "幂等、去重与并发控制 / 渠道 Webhook 入口",
+      "description": "实现并验证 B36–B37：幂等、去重与并发控制与渠道 Webhook 入口。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B36",
+        "B37"
+      ]
+    },
+    {
+      "name": "pay-business-webhooks-read-model",
+      "title": "业务项目 Webhook 与事件投递 / 查询模型与支付状态 API",
+      "description": "实现并验证 B38–B39：业务项目 Webhook 与事件投递与查询模型与支付状态 API。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B38",
+        "B39"
+      ]
+    },
+    {
+      "name": "pay-wechat-core-jsapi",
+      "title": "微信支付 APIv3 核心与凭证 / 微信 JSAPI 与小程序支付",
+      "description": "实现并验证 B40–B41：微信支付 APIv3 核心与凭证与微信 JSAPI 与小程序支付。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B40",
+        "B41"
+      ]
+    },
+    {
+      "name": "pay-wechat-multichannel-operations",
+      "title": "微信 Native、H5 与 App 支付 / 微信退款、关单、查询与账单",
+      "description": "实现并验证 B42–B43：微信 Native、H5 与 App 支付与微信退款、关单、查询与账单。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B42",
+        "B43"
+      ]
+    },
+    {
+      "name": "pay-alipay-core-online",
+      "title": "支付宝证书模式与核心 SDK / 支付宝电脑、手机网站与 App 支付",
+      "description": "实现并验证 B44–B45：支付宝证书模式与核心 SDK与支付宝电脑、手机网站与 App 支付。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B44",
+        "B45"
+      ]
+    },
+    {
+      "name": "pay-alipay-offline-operations",
+      "title": "支付宝当面付与小程序支付 / 支付宝退款、关闭、查询、账单与通知",
+      "description": "实现并验证 B46–B47：支付宝当面付与小程序支付与支付宝退款、关闭、查询、账单与通知。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B46",
+        "B47"
+      ]
+    },
+    {
+      "name": "pay-stripe-payments-operations",
+      "title": "Stripe PaymentIntents 与令牌化卡支付 / Stripe Webhook、退款与争议",
+      "description": "实现并验证 B48–B49：Stripe PaymentIntents 与令牌化卡支付与Stripe Webhook、退款与争议。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B48",
+        "B49"
+      ]
+    },
+    {
+      "name": "pay-stripe-billing-paypal-orders",
+      "title": "Stripe 订阅、发票与客户门户 / PayPal Orders v2 授权与捕获",
+      "description": "实现并验证 B50–B51：Stripe 订阅、发票与客户门户与PayPal Orders v2 授权与捕获。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B50",
+        "B51"
+      ]
+    },
+    {
+      "name": "pay-paypal-applepay",
+      "title": "PayPal Webhook、退款、争议与订阅 / Apple Pay Web 与 iOS",
+      "description": "实现并验证 B52–B53：PayPal Webhook、退款、争议与订阅与Apple Pay Web 与 iOS。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B52",
+        "B53"
+      ]
+    },
+    {
+      "name": "pay-applepay-provider-certification",
+      "title": "Apple Pay 域名、证书与商户令牌 / 全渠道沙箱、认证与契约测试",
+      "description": "实现并验证 B54–B55：Apple Pay 域名、证书与商户令牌与全渠道沙箱、认证与契约测试。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B54",
+        "B55"
+      ]
+    },
+    {
+      "name": "pay-hosted-checkout-links",
+      "title": "托管收银台服务 / 支付链接与二维码服务",
+      "description": "实现并验证 B56–B57：托管收银台服务与支付链接与二维码服务。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B56",
+        "B57"
+      ]
+    },
+    {
+      "name": "pay-signed-session-web-checkout",
+      "title": "防篡改 Checkout Session / Web 收银台 UI",
+      "description": "实现并验证 B58–B59：防篡改 Checkout Session与Web 收银台 UI。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B58",
+        "B59"
+      ]
+    },
+    {
+      "name": "pay-mobile-server-sdks",
+      "title": "iOS、Android 与 Flutter SDK / Java、Go、Node、Python 与 .NET SDK",
+      "description": "实现并验证 B60–B61：iOS、Android 与 Flutter SDK与Java、Go、Node、Python 与 .NET SDK。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B60",
+        "B61"
+      ]
+    },
+    {
+      "name": "pay-client-fallback-localization",
+      "title": "能力检测、降级与回退 / 国际化、本地化与无障碍",
+      "description": "实现并验证 B62–B63：能力检测、降级与回退与国际化、本地化与无障碍。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B62",
+        "B63"
+      ]
+    },
+    {
+      "name": "pay-refunds-approval",
+      "title": "退款编排 / 退款风险与审批",
+      "description": "实现并验证 B64–B65：退款编排与退款风险与审批。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B64",
+        "B65"
+      ]
+    },
+    {
+      "name": "pay-disputes-subscriptions",
+      "title": "争议与拒付管理 / 订阅与周期计费领域",
+      "description": "实现并验证 B66–B67：争议与拒付管理与订阅与周期计费领域。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B66",
+        "B67"
+      ]
+    },
+    {
+      "name": "pay-mandates-dunning",
+      "title": "Mandate 与支付令牌引用 / 失败重试、Dunning 与账户更新边界",
+      "description": "实现并验证 B68–B69：Mandate 与支付令牌引用与失败重试、Dunning 与账户更新边界。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B68",
+        "B69"
+      ]
+    },
+    {
+      "name": "pay-subscription-lifecycle-e2e",
+      "title": "取消、比例计费、余额抵扣与贷项 / 退款争议订阅端到端认证",
+      "description": "实现并验证 B70–B71：取消、比例计费、余额抵扣与贷项与退款争议订阅端到端认证。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B70",
+        "B71"
+      ]
+    },
+    {
+      "name": "pay-double-entry-ledger",
+      "title": "不可变复式账本 / 过账规则与账本不变量",
+      "description": "实现并验证 B72–B73：不可变复式账本与过账规则与账本不变量。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B72",
+        "B73"
+      ]
+    },
+    {
+      "name": "pay-fees-fx-settlement-view",
+      "title": "手续费、税费、舍入与汇率 / 结算指令与到账视图",
+      "description": "实现并验证 B74–B75：手续费、税费、舍入与汇率与结算指令与到账视图。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B74",
+        "B75"
+      ]
+    },
+    {
+      "name": "pay-statement-reconciliation",
+      "title": "渠道账单与银行文件摄取 / 三方对账引擎",
+      "description": "实现并验证 B76–B77：渠道账单与银行文件摄取与三方对账引擎。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B76",
+        "B77"
+      ]
+    },
+    {
+      "name": "pay-exceptions-financial-reporting",
+      "title": "差错、人工调整与复核 / 财务报告、导出与审计追踪",
+      "description": "实现并验证 B78–B79：差错、人工调整与复核与财务报告、导出与审计追踪。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B78",
+        "B79"
+      ]
+    },
+    {
+      "name": "pay-risk-engine-signals",
+      "title": "实时支付风控引擎 / 速度、设备、网络与账户信号",
+      "description": "实现并验证 B80–B81：实时支付风控引擎与速度、设备、网络与账户信号。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B80",
+        "B81"
+      ]
+    },
+    {
+      "name": "pay-risk-rules-ml",
+      "title": "规则引擎、版本与解释 / 机器学习评分接口与特征边界",
+      "description": "实现并验证 B82–B83：规则引擎、版本与解释与机器学习评分接口与特征边界。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B82",
+        "B83"
+      ]
+    },
+    {
+      "name": "pay-anti-phishing-eskimming",
+      "title": "反钓鱼、域名与品牌保护 / E-skimming、脚本供应链与浏览器完整性",
+      "description": "实现并验证 B84–B85：反钓鱼、域名与品牌保护与E-skimming、脚本供应链与浏览器完整性。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B84",
+        "B85"
+      ]
+    },
+    {
+      "name": "pay-abuse-risk-operations",
+      "title": "DDoS、机器人、撞库与账户接管 / 风险运营、案件与名单管理",
+      "description": "实现并验证 B86–B87：DDoS、机器人、撞库与账户接管与风险运营、案件与名单管理。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B86",
+        "B87"
+      ]
+    },
+    {
+      "name": "pay-edge-service-mesh",
+      "title": "API Gateway、WAF 与限流 / 服务网格、mTLS 与网络策略",
+      "description": "实现并验证 B88–B89：API Gateway、WAF 与限流与服务网格、mTLS 与网络策略。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B88",
+        "B89"
+      ]
+    },
+    {
+      "name": "pay-data-event-resilience",
+      "title": "PostgreSQL 高可用、备份与 PITR / Kafka 事件耐久性与业务幂等",
+      "description": "实现并验证 B90–B91：PostgreSQL 高可用、备份与 PITR与Kafka 事件耐久性与业务幂等。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B90",
+        "B91"
+      ]
+    },
+    {
+      "name": "pay-cache-kubernetes-gitops",
+      "title": "Redis 安全缓存、锁与限速 / Kubernetes、GitOps 与策略即代码",
+      "description": "实现并验证 B92–B93：Redis 安全缓存、锁与限速与Kubernetes、GitOps 与策略即代码。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B92",
+        "B93"
+      ]
+    },
+    {
+      "name": "pay-multiregion-dr",
+      "title": "多区域架构与数据主权 / 业务连续性、混沌与恢复演练",
+      "description": "实现并验证 B94–B95：多区域架构与数据主权与业务连续性、混沌与恢复演练。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B94",
+        "B95"
+      ]
+    },
+    {
+      "name": "pay-observability-slo",
+      "title": "OpenTelemetry 日志指标追踪 / SLI、SLO、错误预算与告警",
+      "description": "实现并验证 B96–B97：OpenTelemetry 日志指标追踪与SLI、SLO、错误预算与告警。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B96",
+        "B97"
+      ]
+    },
+    {
+      "name": "pay-business-security-monitoring",
+      "title": "支付漏斗与商业仪表盘 / SIEM、SOC 与安全检测",
+      "description": "实现并验证 B98–B99：支付漏斗与商业仪表盘与SIEM、SOC 与安全检测。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B98",
+        "B99"
+      ]
+    },
+    {
+      "name": "pay-provider-resilience-ops-console",
+      "title": "渠道健康、熔断与故障转移 / 运营控制台与安全回放",
+      "description": "实现并验证 B100–B101：渠道健康、熔断与故障转移与运营控制台与安全回放。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B100",
+        "B101"
+      ]
+    },
+    {
+      "name": "pay-incidents-capacity-cost",
+      "title": "事件响应、运行手册与状态页 / 容量、性能、成本与限额",
+      "description": "实现并验证 B102–B103：事件响应、运行手册与状态页与容量、性能、成本与限额。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B102",
+        "B103"
+      ]
+    },
+    {
+      "name": "pay-pci-china-compliance",
+      "title": "PCI DSS 4.0.1 范围与控制映射 / 中国支付与数据合规配置",
+      "description": "实现并验证 B104–B105：PCI DSS 4.0.1 范围与控制映射与中国支付与数据合规配置。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B104",
+        "B105"
+      ]
+    },
+    {
+      "name": "pay-global-compliance-aml-boundaries",
+      "title": "GDPR、PSD2/SCA 与全球隐私 / AML、KYC、KYB、制裁与监管边界",
+      "description": "实现并验证 B106–B107：GDPR、PSD2/SCA 与全球隐私与AML、KYC、KYB、制裁与监管边界。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B106",
+        "B107"
+      ]
+    },
+    {
+      "name": "pay-data-lifecycle-supply-chain",
+      "title": "数据分类、保留、删除与令牌化 / 安全 SDLC、SBOM、SLSA 与制品签名",
+      "description": "实现并验证 B108–B109：数据分类、保留、删除与令牌化与安全 SDLC、SBOM、SLSA 与制品签名。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B108",
+        "B109"
+      ]
+    },
+    {
+      "name": "pay-vulnerability-vendor-risk",
+      "title": "漏洞管理、渗透测试与红队 / 第三方风险、合同与供应商退出",
+      "description": "实现并验证 B110–B111：漏洞管理、渗透测试与红队与第三方风险、合同与供应商退出。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B110",
+        "B111"
+      ]
+    },
+    {
+      "name": "pay-unit-contract-testing",
+      "title": "单元、属性与模型化测试 / 渠道契约测试与模拟器",
+      "description": "实现并验证 B112–B113：单元、属性与模型化测试与渠道契约测试与模拟器。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B112",
+        "B113"
+      ]
+    },
+    {
+      "name": "pay-webhook-concurrency-fault-testing",
+      "title": "Webhook 回放、模糊与故障注入 / 并发、重复、乱序与时钟测试",
+      "description": "实现并验证 B114–B115：Webhook 回放、模糊与故障注入与并发、重复、乱序与时钟测试。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B114",
+        "B115"
+      ]
+    },
+    {
+      "name": "pay-security-performance-testing",
+      "title": "SAST、DAST、IAST、密钥与依赖测试 / 性能、负载、耐久与容量测试",
+      "description": "实现并验证 B116–B117：SAST、DAST、IAST、密钥与依赖测试与性能、负载、耐久与容量测试。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B116",
+        "B117"
+      ]
+    },
+    {
+      "name": "pay-uat-compliance-evidence",
+      "title": "UAT、财务与运营验收 / 合规证据与独立评审门",
+      "description": "实现并验证 B118–B119：UAT、财务与运营验收与合规证据与独立评审门。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B118",
+        "B119"
+      ]
+    },
+    {
+      "name": "pay-project-migration-shadow",
+      "title": "现有项目接入适配器 / 影子流量、双运行与差异验证",
+      "description": "实现并验证 B120–B121：现有项目接入适配器与影子流量、双运行与差异验证。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B120",
+        "B121"
+      ]
+    },
+    {
+      "name": "pay-production-onboarding-readiness",
+      "title": "生产商户配置与渠道上线 / 上线准备与 Go/No-Go",
+      "description": "实现并验证 B122–B123：生产商户配置与渠道上线与上线准备与 Go/No-Go。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B122",
+        "B123"
+      ]
+    },
+    {
+      "name": "pay-rollout-postlaunch",
+      "title": "分阶段发布、灰度与回滚 / 上线后监控与日终对账",
+      "description": "实现并验证 B124–B125：分阶段发布、灰度与回滚与上线后监控与日终对账。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B124",
+        "B125"
+      ]
+    },
+    {
+      "name": "pay-commercial-release-certification",
+      "title": "商业定价、SLA、支持与用量计费 / 最终生产认证与发布签署",
+      "description": "实现并验证 B126–B127：商业定价、SLA、支持与用量计费与最终生产认证与发布签署。用于支付平台对应领域的代码、测试、证据和生产门禁。",
+      "batches": [
+        "B126",
+        "B127"
+      ]
+    }
+  ],
+  "batches": [
+    {
+      "id": "B00",
+      "title": "项目章程与仓库引导",
+      "goal": "建立支付平台的业务边界、交付目标、默认部署模式、风险接受原则和不可绕过的安全红线。",
+      "wave": "W00",
+      "wave_title": "项目基础与证据系统",
+      "depends_on": [],
+      "skill": "pay-program-foundation",
+      "order": 0
+    },
+    {
+      "id": "B01",
+      "title": "需求基线与服务边界",
+      "goal": "把多项目订单接入、支付编排、退款、对账、风控、管理后台与渠道能力转化为可追踪需求。",
+      "wave": "W00",
+      "wave_title": "项目基础与证据系统",
+      "depends_on": [
+        "B00"
+      ],
+      "skill": "pay-program-foundation",
+      "order": 1
+    },
+    {
+      "id": "B02",
+      "title": "架构决策记录与初始威胁模型",
+      "goal": "建立 ADR、信任边界、资产清单、攻击者模型、滥用案例和剩余风险台账。",
+      "wave": "W00",
+      "wave_title": "项目基础与证据系统",
+      "depends_on": [
+        "B01"
+      ],
+      "skill": "pay-architecture-toolchain",
+      "order": 2
+    },
+    {
+      "id": "B03",
+      "title": "单仓工具链与版本目录",
+      "goal": "建立 Java 25、Spring Boot 4.1、Gradle、前端、数据库和基础设施的可重复构建基线。",
+      "wave": "W00",
+      "wave_title": "项目基础与证据系统",
+      "depends_on": [
+        "B01"
+      ],
+      "skill": "pay-architecture-toolchain",
+      "order": 3
+    },
+    {
+      "id": "B04",
+      "title": "本地开发平台与测试容器",
+      "goal": "提供离线可重复的 PostgreSQL、Kafka、Redis、OIDC、对象存储与渠道模拟环境。",
+      "wave": "W00",
+      "wave_title": "项目基础与证据系统",
+      "depends_on": [
+        "B03"
+      ],
+      "skill": "pay-dev-platform-ci",
+      "order": 4
+    },
+    {
+      "id": "B05",
+      "title": "持续集成与质量基线",
+      "goal": "把编译、静态分析、测试、供应链扫描、镜像签名和证据归档纳入 CI。",
+      "wave": "W00",
+      "wave_title": "项目基础与证据系统",
+      "depends_on": [
+        "B03",
+        "B04"
+      ],
+      "skill": "pay-dev-platform-ci",
+      "order": 5
+    },
+    {
+      "id": "B06",
+      "title": "批次编排与证据框架",
+      "goal": "实现 B00-B127 的依赖解析、ready 判定、证据初始化、完成校验和发布门禁。",
+      "wave": "W00",
+      "wave_title": "项目基础与证据系统",
+      "depends_on": [
+        "B02",
+        "B05"
+      ],
+      "skill": "pay-evidence-traceability",
+      "order": 6
+    },
+    {
+      "id": "B07",
+      "title": "单一事实源与需求追踪",
+      "goal": "建立需求到架构、代码、测试、控制、运行证据和发布结论的双向追踪。",
+      "wave": "W00",
+      "wave_title": "项目基础与证据系统",
+      "depends_on": [
+        "B06"
+      ],
+      "skill": "pay-evidence-traceability",
+      "order": 7
+    },
+    {
+      "id": "B08",
+      "title": "支付领域模型与统一语言",
+      "goal": "定义租户、项目、商户、支付意图、支付尝试、退款、争议、订阅、账本和对账对象。",
+      "wave": "W01",
+      "wave_title": "领域、状态机与数据架构",
+      "depends_on": [
+        "B07"
+      ],
+      "skill": "pay-domain-money-model",
+      "order": 8
+    },
+    {
+      "id": "B09",
+      "title": "金额、币种与精度模型",
+      "goal": "强制使用最小货币单位和货币元数据，消除浮点数、舍入和零小数币种错误。",
+      "wave": "W01",
+      "wave_title": "领域、状态机与数据架构",
+      "depends_on": [
+        "B08"
+      ],
+      "skill": "pay-domain-money-model",
+      "order": 9
+    },
+    {
+      "id": "B10",
+      "title": "支付状态机与业务不变量",
+      "goal": "定义支付、退款、订阅、争议和对账状态机及所有允许的单向或补偿式转换。",
+      "wave": "W01",
+      "wave_title": "领域、状态机与数据架构",
+      "depends_on": [
+        "B08"
+      ],
+      "skill": "pay-state-api-contracts",
+      "order": 10
+    },
+    {
+      "id": "B11",
+      "title": "API 规范、错误与兼容模型",
+      "goal": "统一版本、幂等、分页、错误码、追踪头、请求签名、弃用与向后兼容规则。",
+      "wave": "W01",
+      "wave_title": "领域、状态机与数据架构",
+      "depends_on": [
+        "B10"
+      ],
+      "skill": "pay-state-api-contracts",
+      "order": 11
+    },
+    {
+      "id": "B12",
+      "title": "事件目录、Outbox 与 Inbox",
+      "goal": "建立至少一次传递下的恰好一次业务效果、事件版本和乱序容忍机制。",
+      "wave": "W01",
+      "wave_title": "领域、状态机与数据架构",
+      "depends_on": [
+        "B10"
+      ],
+      "skill": "pay-events-data-architecture",
+      "order": 12
+    },
+    {
+      "id": "B13",
+      "title": "数据所有权、分区与租户模型",
+      "goal": "确定表所有权、分区键、行级隔离、冷热数据、归档和未来分片策略。",
+      "wave": "W01",
+      "wave_title": "领域、状态机与数据架构",
+      "depends_on": [
+        "B12"
+      ],
+      "skill": "pay-events-data-architecture",
+      "order": 13
+    },
+    {
+      "id": "B14",
+      "title": "服务拆分与依赖规则",
+      "goal": "定义边缘网关、支付核心、渠道连接器、风控、账本、对账、管理端和工作流边界。",
+      "wave": "W01",
+      "wave_title": "领域、状态机与数据架构",
+      "depends_on": [
+        "B12"
+      ],
+      "skill": "pay-service-migration-architecture",
+      "order": 14
+    },
+    {
+      "id": "B15",
+      "title": "现有项目订单迁移架构",
+      "goal": "为已有项目保留业务订单，仅迁移支付事实和支付动作，并提供适配层与双写策略。",
+      "wave": "W01",
+      "wave_title": "领域、状态机与数据架构",
+      "depends_on": [
+        "B14",
+        "B13"
+      ],
+      "skill": "pay-service-migration-architecture",
+      "order": 15
+    },
+    {
+      "id": "B16",
+      "title": "零信任安全架构",
+      "goal": "将每次人、服务和工作负载访问都绑定到身份、设备、上下文、最小权限和可审计决策。",
+      "wave": "W02",
+      "wave_title": "身份、密码学与安全开发",
+      "depends_on": [
+        "B15"
+      ],
+      "skill": "pay-zero-trust-identity",
+      "order": 16
+    },
+    {
+      "id": "B17",
+      "title": "客户、管理员与服务身份",
+      "goal": "实现 OIDC/OAuth2、工作负载身份、短期凭证、会话绑定和安全账户恢复。",
+      "wave": "W02",
+      "wave_title": "身份、密码学与安全开发",
+      "depends_on": [
+        "B16"
+      ],
+      "skill": "pay-zero-trust-identity",
+      "order": 17
+    },
+    {
+      "id": "B18",
+      "title": "抗钓鱼 MFA 与 WebAuthn",
+      "goal": "为管理员、财务、客服和高风险操作强制 WebAuthn/硬件密钥或等价抗钓鱼认证。",
+      "wave": "W02",
+      "wave_title": "身份、密码学与安全开发",
+      "depends_on": [
+        "B16"
+      ],
+      "skill": "pay-phishing-resistant-access",
+      "order": 18
+    },
+    {
+      "id": "B19",
+      "title": "RBAC、ABAC、职责分离与临时授权",
+      "goal": "实现租户级、对象级和字段级授权，关键动作双人复核并支持限时提权。",
+      "wave": "W02",
+      "wave_title": "身份、密码学与安全开发",
+      "depends_on": [
+        "B18"
+      ],
+      "skill": "pay-phishing-resistant-access",
+      "order": 19
+    },
+    {
+      "id": "B20",
+      "title": "KMS、HSM 与信封加密",
+      "goal": "所有渠道私钥、API 密钥和敏感配置由 KMS/HSM 管理，应用仅持有短期解密能力。",
+      "wave": "W02",
+      "wave_title": "身份、密码学与安全开发",
+      "depends_on": [
+        "B18"
+      ],
+      "skill": "pay-cryptography-key-lifecycle",
+      "order": 20
+    },
+    {
+      "id": "B21",
+      "title": "密钥、证书与域名生命周期",
+      "goal": "实现生成、分发、轮换、重叠验证、撤销、到期告警和灾难恢复。",
+      "wave": "W02",
+      "wave_title": "身份、密码学与安全开发",
+      "depends_on": [
+        "B20"
+      ],
+      "skill": "pay-cryptography-key-lifecycle",
+      "order": 21
+    },
+    {
+      "id": "B22",
+      "title": "ASVS、API 与移动安全基线",
+      "goal": "把 OWASP ASVS、API Security、MASVS 和安全编码要求映射到代码规则与测试。",
+      "wave": "W02",
+      "wave_title": "身份、密码学与安全开发",
+      "depends_on": [
+        "B20"
+      ],
+      "skill": "pay-secure-coding-audit",
+      "order": 22
+    },
+    {
+      "id": "B23",
+      "title": "不可抵赖审计与防篡改日志",
+      "goal": "构建带主体、对象、理由、前后值、关联 ID、时间戳和完整性保护的审计链。",
+      "wave": "W02",
+      "wave_title": "身份、密码学与安全开发",
+      "depends_on": [
+        "B22",
+        "B21"
+      ],
+      "skill": "pay-secure-coding-audit",
+      "order": 23
+    },
+    {
+      "id": "B24",
+      "title": "租户与项目注册中心",
+      "goal": "支持公司、租户、项目、环境、区域和数据域隔离，并生成稳定的调用身份。",
+      "wave": "W03",
+      "wave_title": "租户、商户、渠道与路由配置",
+      "depends_on": [
+        "B23"
+      ],
+      "skill": "pay-tenant-merchant-registry",
+      "order": 24
+    },
+    {
+      "id": "B25",
+      "title": "商户资料与 KYB 元数据",
+      "goal": "管理法人与业务资料、经营地区、结算币种、风险等级和审批状态，但不替代持牌机构核验。",
+      "wave": "W03",
+      "wave_title": "租户、商户、渠道与路由配置",
+      "depends_on": [
+        "B24"
+      ],
+      "skill": "pay-tenant-merchant-registry",
+      "order": 25
+    },
+    {
+      "id": "B26",
+      "title": "商户渠道账户与凭证绑定",
+      "goal": "按租户、项目、环境和渠道隔离商户账户，禁止共享密钥与跨租户回调。",
+      "wave": "W03",
+      "wave_title": "租户、商户、渠道与路由配置",
+      "depends_on": [
+        "B24"
+      ],
+      "skill": "pay-provider-account-capabilities",
+      "order": 26
+    },
+    {
+      "id": "B27",
+      "title": "渠道能力与地区政策矩阵",
+      "goal": "表达支付方式、币种、地区、设备、授权捕获、退款、订阅、争议和可用性限制。",
+      "wave": "W03",
+      "wave_title": "租户、商户、渠道与路由配置",
+      "depends_on": [
+        "B26"
+      ],
+      "skill": "pay-provider-account-capabilities",
+      "order": 27
+    },
+    {
+      "id": "B28",
+      "title": "路由规则、灰度与配置版本",
+      "goal": "实现确定性优先级、成本/成功率/风险路由、配置审计、回滚和模拟评估。",
+      "wave": "W03",
+      "wave_title": "租户、商户、渠道与路由配置",
+      "depends_on": [
+        "B26"
+      ],
+      "skill": "pay-routing-pricing",
+      "order": 28
+    },
+    {
+      "id": "B29",
+      "title": "费率、成本、佣金与计量模型",
+      "goal": "区分渠道成本、平台服务费、税费和内部成本，不得以账面模型替代真实资金结算。",
+      "wave": "W03",
+      "wave_title": "租户、商户、渠道与路由配置",
+      "depends_on": [
+        "B28"
+      ],
+      "skill": "pay-routing-pricing",
+      "order": 29
+    },
+    {
+      "id": "B30",
+      "title": "商户接入与四眼审批",
+      "goal": "将凭证导入、域名验证、回调验证、限额、上线和停用做成可恢复审批工作流。",
+      "wave": "W03",
+      "wave_title": "租户、商户、渠道与路由配置",
+      "depends_on": [
+        "B28"
+      ],
+      "skill": "pay-onboarding-tenant-isolation",
+      "order": 30
+    },
+    {
+      "id": "B31",
+      "title": "租户隔离验证",
+      "goal": "用行级安全、对象授权、缓存键、消息主题、日志与导出测试证明无跨租户泄漏。",
+      "wave": "W03",
+      "wave_title": "租户、商户、渠道与路由配置",
+      "depends_on": [
+        "B30",
+        "B29"
+      ],
+      "skill": "pay-onboarding-tenant-isolation",
+      "order": 31
+    },
+    {
+      "id": "B32",
+      "title": "Payment Intent 服务",
+      "goal": "创建不可变金额快照、过期时间、确认策略、支付方法约束和业务订单关联。",
+      "wave": "W04",
+      "wave_title": "支付核心与 Webhook",
+      "depends_on": [
+        "B31"
+      ],
+      "skill": "pay-payment-intents-attempts",
+      "order": 32
+    },
+    {
+      "id": "B33",
+      "title": "支付尝试与渠道交易",
+      "goal": "每次渠道调用形成独立 attempt，保留请求摘要、响应、错误分类、重试与最终性。",
+      "wave": "W04",
+      "wave_title": "支付核心与 Webhook",
+      "depends_on": [
+        "B32"
+      ],
+      "skill": "pay-payment-intents-attempts",
+      "order": 33
+    },
+    {
+      "id": "B34",
+      "title": "授权、捕获、撤销与关闭",
+      "goal": "支持即时捕获、延迟捕获、部分捕获、撤销、关闭和不确定结果查询。",
+      "wave": "W04",
+      "wave_title": "支付核心与 Webhook",
+      "depends_on": [
+        "B32"
+      ],
+      "skill": "pay-auth-capture-payment-methods",
+      "order": 34
+    },
+    {
+      "id": "B35",
+      "title": "支付方式抽象与令牌引用",
+      "goal": "只保存 PSP/钱包令牌和非敏感指纹，禁止进入原始 PAN、CVV、磁道或完整 Apple Pay 明文令牌。",
+      "wave": "W04",
+      "wave_title": "支付核心与 Webhook",
+      "depends_on": [
+        "B34"
+      ],
+      "skill": "pay-auth-capture-payment-methods",
+      "order": 35
+    },
+    {
+      "id": "B36",
+      "title": "幂等、去重与并发控制",
+      "goal": "覆盖客户端重试、服务重试、回调重放、并发确认、重复退款和分布式竞态。",
+      "wave": "W04",
+      "wave_title": "支付核心与 Webhook",
+      "depends_on": [
+        "B34"
+      ],
+      "skill": "pay-idempotency-webhook-ingress",
+      "order": 36
+    },
+    {
+      "id": "B37",
+      "title": "渠道 Webhook 入口",
+      "goal": "先验证来源与签名，再持久化原始事件摘要，随后快速应答并异步执行业务效果。",
+      "wave": "W04",
+      "wave_title": "支付核心与 Webhook",
+      "depends_on": [
+        "B36"
+      ],
+      "skill": "pay-idempotency-webhook-ingress",
+      "order": 37
+    },
+    {
+      "id": "B38",
+      "title": "业务项目 Webhook 与事件投递",
+      "goal": "向各业务项目可靠投递支付事实，提供签名、重试、死信、暂停、回放和端点轮换。",
+      "wave": "W04",
+      "wave_title": "支付核心与 Webhook",
+      "depends_on": [
+        "B36"
+      ],
+      "skill": "pay-business-webhooks-read-model",
+      "order": 38
+    },
+    {
+      "id": "B39",
+      "title": "查询模型与支付状态 API",
+      "goal": "构建一致的读模型、时间线、渠道详情、风险结果和面向业务项目的状态查询。",
+      "wave": "W04",
+      "wave_title": "支付核心与 Webhook",
+      "depends_on": [
+        "B38",
+        "B37"
+      ],
+      "skill": "pay-business-webhooks-read-model",
+      "order": 39
+    },
+    {
+      "id": "B40",
+      "title": "微信支付 APIv3 核心与凭证",
+      "goal": "使用官方 APIv3 SDK、商户证书/微信支付公钥、APIv3 密钥、自动验签和安全轮换。",
+      "wave": "W05",
+      "wave_title": "微信支付与支付宝优先接入",
+      "depends_on": [
+        "B39"
+      ],
+      "skill": "pay-wechat-core-jsapi",
+      "order": 40
+    },
+    {
+      "id": "B41",
+      "title": "微信 JSAPI 与小程序支付",
+      "goal": "实现 openid 绑定、预支付、前端调起、回调确认、订单查询和用户取消语义。",
+      "wave": "W05",
+      "wave_title": "微信支付与支付宝优先接入",
+      "depends_on": [
+        "B40"
+      ],
+      "skill": "pay-wechat-core-jsapi",
+      "order": 41
+    },
+    {
+      "id": "B42",
+      "title": "微信 Native、H5 与 App 支付",
+      "goal": "覆盖二维码、H5 域名、App 签名包、过期、重复扫码、回跳和端能力判断。",
+      "wave": "W05",
+      "wave_title": "微信支付与支付宝优先接入",
+      "depends_on": [
+        "B40"
+      ],
+      "skill": "pay-wechat-multichannel-operations",
+      "order": 42
+    },
+    {
+      "id": "B43",
+      "title": "微信退款、关单、查询与账单",
+      "goal": "实现全额/部分退款、退款查询、关单、交易/资金账单下载、哈希校验和对账输入。",
+      "wave": "W05",
+      "wave_title": "微信支付与支付宝优先接入",
+      "depends_on": [
+        "B42"
+      ],
+      "skill": "pay-wechat-multichannel-operations",
+      "order": 43
+    },
+    {
+      "id": "B44",
+      "title": "支付宝证书模式与核心 SDK",
+      "goal": "优先使用官方 SDK 和证书模式，严格校验支付宝公钥证书、应用证书和根证书。",
+      "wave": "W05",
+      "wave_title": "微信支付与支付宝优先接入",
+      "depends_on": [
+        "B42"
+      ],
+      "skill": "pay-alipay-core-online",
+      "order": 44
+    },
+    {
+      "id": "B45",
+      "title": "支付宝电脑、手机网站与 App 支付",
+      "goal": "实现网页/WAP/App 下单、同步回跳仅展示、异步通知定责和订单查询补偿。",
+      "wave": "W05",
+      "wave_title": "微信支付与支付宝优先接入",
+      "depends_on": [
+        "B44"
+      ],
+      "skill": "pay-alipay-core-online",
+      "order": 45
+    },
+    {
+      "id": "B46",
+      "title": "支付宝当面付与小程序支付",
+      "goal": "实现预创建二维码、条码场景控制、小程序支付、扫码过期与门店维度审计。",
+      "wave": "W05",
+      "wave_title": "微信支付与支付宝优先接入",
+      "depends_on": [
+        "B44"
+      ],
+      "skill": "pay-alipay-offline-operations",
+      "order": 46
+    },
+    {
+      "id": "B47",
+      "title": "支付宝退款、关闭、查询、账单与通知",
+      "goal": "实现通知验签、seller/app/order/amount 多重校验、退款、关闭、账单与差错处理。",
+      "wave": "W05",
+      "wave_title": "微信支付与支付宝优先接入",
+      "depends_on": [
+        "B46",
+        "B45"
+      ],
+      "skill": "pay-alipay-offline-operations",
+      "order": 47
+    },
+    {
+      "id": "B48",
+      "title": "Stripe PaymentIntents 与令牌化卡支付",
+      "goal": "使用 PaymentIntents、Elements/Payment Element、SetupIntents、3DS/SCA 和服务器端幂等。",
+      "wave": "W06",
+      "wave_title": "Stripe、PayPal 与 Apple Pay",
+      "depends_on": [
+        "B47"
+      ],
+      "skill": "pay-stripe-payments-operations",
+      "order": 48
+    },
+    {
+      "id": "B49",
+      "title": "Stripe Webhook、退款与争议",
+      "goal": "验证签名、处理重复/乱序事件、退款、争议、证据提交和最终状态同步。",
+      "wave": "W06",
+      "wave_title": "Stripe、PayPal 与 Apple Pay",
+      "depends_on": [
+        "B48"
+      ],
+      "skill": "pay-stripe-payments-operations",
+      "order": 49
+    },
+    {
+      "id": "B50",
+      "title": "Stripe 订阅、发票与客户门户",
+      "goal": "实现计划、价格、试用、按量计费、发票、税务接口边界、客户门户和 webhook 驱动状态。",
+      "wave": "W06",
+      "wave_title": "Stripe、PayPal 与 Apple Pay",
+      "depends_on": [
+        "B48"
+      ],
+      "skill": "pay-stripe-billing-paypal-orders",
+      "order": 50
+    },
+    {
+      "id": "B51",
+      "title": "PayPal Orders v2 授权与捕获",
+      "goal": "实现 create/approve/authorize/capture、PayPal-Request-Id、货币与金额校验及不确定结果查询。",
+      "wave": "W06",
+      "wave_title": "Stripe、PayPal 与 Apple Pay",
+      "depends_on": [
+        "B50"
+      ],
+      "skill": "pay-stripe-billing-paypal-orders",
+      "order": 51
+    },
+    {
+      "id": "B52",
+      "title": "PayPal Webhook、退款、争议与订阅",
+      "goal": "实现 webhook 验证、退款、争议、订阅生命周期和重复事件幂等处理。",
+      "wave": "W06",
+      "wave_title": "Stripe、PayPal 与 Apple Pay",
+      "depends_on": [
+        "B50"
+      ],
+      "skill": "pay-paypal-applepay",
+      "order": 52
+    },
+    {
+      "id": "B53",
+      "title": "Apple Pay Web 与 iOS",
+      "goal": "默认经 Stripe 等 PSP 处理令牌，支持网页和原生支付表、能力检测、商户标识与安全回传。",
+      "wave": "W06",
+      "wave_title": "Stripe、PayPal 与 Apple Pay",
+      "depends_on": [
+        "B52"
+      ],
+      "skill": "pay-paypal-applepay",
+      "order": 53
+    },
+    {
+      "id": "B54",
+      "title": "Apple Pay 域名、证书与商户令牌",
+      "goal": "管理域名注册、验证文件、证书重叠轮换、merchant token 与周期扣款授权状态。",
+      "wave": "W06",
+      "wave_title": "Stripe、PayPal 与 Apple Pay",
+      "depends_on": [
+        "B52"
+      ],
+      "skill": "pay-applepay-provider-certification",
+      "order": 54
+    },
+    {
+      "id": "B55",
+      "title": "全渠道沙箱、认证与契约测试",
+      "goal": "对微信、支付宝、Stripe、PayPal、Apple Pay 建立官方沙箱、模拟器、回放和上线检查矩阵。",
+      "wave": "W06",
+      "wave_title": "Stripe、PayPal 与 Apple Pay",
+      "depends_on": [
+        "B54",
+        "B53"
+      ],
+      "skill": "pay-applepay-provider-certification",
+      "order": 55
+    },
+    {
+      "id": "B56",
+      "title": "托管收银台服务",
+      "goal": "提供平台托管、品牌可配置、渠道自适应、会话隔离和严格 CSP 的支付页面。",
+      "wave": "W07",
+      "wave_title": "托管收银台、支付链接与 SDK",
+      "depends_on": [
+        "B55"
+      ],
+      "skill": "pay-hosted-checkout-links",
+      "order": 56
+    },
+    {
+      "id": "B57",
+      "title": "支付链接与二维码服务",
+      "goal": "生成短期、一次性、签名绑定金额/商户/订单的链接和二维码，拒绝任意跳转。",
+      "wave": "W07",
+      "wave_title": "托管收银台、支付链接与 SDK",
+      "depends_on": [
+        "B56"
+      ],
+      "skill": "pay-hosted-checkout-links",
+      "order": 57
+    },
+    {
+      "id": "B58",
+      "title": "防篡改 Checkout Session",
+      "goal": "将金额、币种、项目、回跳白名单、设备上下文和过期时间绑定到签名会话。",
+      "wave": "W07",
+      "wave_title": "托管收银台、支付链接与 SDK",
+      "depends_on": [
+        "B56"
+      ],
+      "skill": "pay-signed-session-web-checkout",
+      "order": 58
+    },
+    {
+      "id": "B59",
+      "title": "Web 收银台 UI",
+      "goal": "实现支付方法选择、状态恢复、异步等待、无障碍、错误解释和无敏感数据日志。",
+      "wave": "W07",
+      "wave_title": "托管收银台、支付链接与 SDK",
+      "depends_on": [
+        "B58"
+      ],
+      "skill": "pay-signed-session-web-checkout",
+      "order": 59
+    },
+    {
+      "id": "B60",
+      "title": "iOS、Android 与 Flutter SDK",
+      "goal": "封装会话创建、渠道调起、深链回传、设备证明接口、重试和安全日志。",
+      "wave": "W07",
+      "wave_title": "托管收银台、支付链接与 SDK",
+      "depends_on": [
+        "B58"
+      ],
+      "skill": "pay-mobile-server-sdks",
+      "order": 60
+    },
+    {
+      "id": "B61",
+      "title": "Java、Go、Node、Python 与 .NET SDK",
+      "goal": "提供强类型客户端、幂等默认值、重试边界、签名验证和版本兼容测试。",
+      "wave": "W07",
+      "wave_title": "托管收银台、支付链接与 SDK",
+      "depends_on": [
+        "B60"
+      ],
+      "skill": "pay-mobile-server-sdks",
+      "order": 61
+    },
+    {
+      "id": "B62",
+      "title": "能力检测、降级与回退",
+      "goal": "按设备、浏览器、地区、币种、钱包配置和渠道健康选择可用支付方法。",
+      "wave": "W07",
+      "wave_title": "托管收银台、支付链接与 SDK",
+      "depends_on": [
+        "B60"
+      ],
+      "skill": "pay-client-fallback-localization",
+      "order": 62
+    },
+    {
+      "id": "B63",
+      "title": "国际化、本地化与无障碍",
+      "goal": "覆盖语言、时区、金额格式、RTL、屏幕阅读器、键盘操作和支付品牌规范。",
+      "wave": "W07",
+      "wave_title": "托管收银台、支付链接与 SDK",
+      "depends_on": [
+        "B62",
+        "B61"
+      ],
+      "skill": "pay-client-fallback-localization",
+      "order": 63
+    },
+    {
+      "id": "B64",
+      "title": "退款编排",
+      "goal": "支持全额/部分/多次退款、剩余额度、渠道约束、状态追踪和不确定结果恢复。",
+      "wave": "W08",
+      "wave_title": "退款、争议与订阅",
+      "depends_on": [
+        "B63"
+      ],
+      "skill": "pay-refunds-approval",
+      "order": 64
+    },
+    {
+      "id": "B65",
+      "title": "退款风险与审批",
+      "goal": "按金额、时间、角色、设备、异常行为和商户规则决定自动、人工或拒绝。",
+      "wave": "W08",
+      "wave_title": "退款、争议与订阅",
+      "depends_on": [
+        "B64"
+      ],
+      "skill": "pay-refunds-approval",
+      "order": 65
+    },
+    {
+      "id": "B66",
+      "title": "争议与拒付管理",
+      "goal": "统一争议事件、截止时间、证据、责任、财务影响和申诉操作。",
+      "wave": "W08",
+      "wave_title": "退款、争议与订阅",
+      "depends_on": [
+        "B64"
+      ],
+      "skill": "pay-disputes-subscriptions",
+      "order": 66
+    },
+    {
+      "id": "B67",
+      "title": "订阅与周期计费领域",
+      "goal": "实现计划、价格、试用、周期、用量、续费、升级降级和支付方法授权。",
+      "wave": "W08",
+      "wave_title": "退款、争议与订阅",
+      "depends_on": [
+        "B66"
+      ],
+      "skill": "pay-disputes-subscriptions",
+      "order": 67
+    },
+    {
+      "id": "B68",
+      "title": "Mandate 与支付令牌引用",
+      "goal": "记录用户授权范围、用途、渠道 mandate、撤销和 PSP 令牌，不保存卡号。",
+      "wave": "W08",
+      "wave_title": "退款、争议与订阅",
+      "depends_on": [
+        "B66"
+      ],
+      "skill": "pay-mandates-dunning",
+      "order": 68
+    },
+    {
+      "id": "B69",
+      "title": "失败重试、Dunning 与账户更新边界",
+      "goal": "实现风险感知重试、通知节奏、宽限期、暂停和 PSP 更新能力。",
+      "wave": "W08",
+      "wave_title": "退款、争议与订阅",
+      "depends_on": [
+        "B68"
+      ],
+      "skill": "pay-mandates-dunning",
+      "order": 69
+    },
+    {
+      "id": "B70",
+      "title": "取消、比例计费、余额抵扣与贷项",
+      "goal": "实现可解释且可追溯的订阅变更、信用余额和发票调整。",
+      "wave": "W08",
+      "wave_title": "退款、争议与订阅",
+      "depends_on": [
+        "B68"
+      ],
+      "skill": "pay-subscription-lifecycle-e2e",
+      "order": 70
+    },
+    {
+      "id": "B71",
+      "title": "退款争议订阅端到端认证",
+      "goal": "覆盖跨日、跨币种、部分退款、重复回调、失败续费、争议和账本一致性。",
+      "wave": "W08",
+      "wave_title": "退款、争议与订阅",
+      "depends_on": [
+        "B70",
+        "B69"
+      ],
+      "skill": "pay-subscription-lifecycle-e2e",
+      "order": 71
+    },
+    {
+      "id": "B72",
+      "title": "不可变复式账本",
+      "goal": "建立追加式双分录账本、科目、交易、分录、有效时间和不可修改规则。",
+      "wave": "W09",
+      "wave_title": "账本、结算视图与对账",
+      "depends_on": [
+        "B71"
+      ],
+      "skill": "pay-double-entry-ledger",
+      "order": 72
+    },
+    {
+      "id": "B73",
+      "title": "过账规则与账本不变量",
+      "goal": "确保每笔交易借贷平衡、币种一致、唯一业务来源、可逆但不可改写。",
+      "wave": "W09",
+      "wave_title": "账本、结算视图与对账",
+      "depends_on": [
+        "B72"
+      ],
+      "skill": "pay-double-entry-ledger",
+      "order": 73
+    },
+    {
+      "id": "B74",
+      "title": "手续费、税费、舍入与汇率",
+      "goal": "记录原币、结算币、汇率来源、费用组成、舍入差额和估算/最终值。",
+      "wave": "W09",
+      "wave_title": "账本、结算视图与对账",
+      "depends_on": [
+        "B72"
+      ],
+      "skill": "pay-fees-fx-settlement-view",
+      "order": 74
+    },
+    {
+      "id": "B75",
+      "title": "结算指令与到账视图",
+      "goal": "展示渠道结算批次和银行到账预期，但不建立自有资金池或代收代付。",
+      "wave": "W09",
+      "wave_title": "账本、结算视图与对账",
+      "depends_on": [
+        "B74"
+      ],
+      "skill": "pay-fees-fx-settlement-view",
+      "order": 75
+    },
+    {
+      "id": "B76",
+      "title": "渠道账单与银行文件摄取",
+      "goal": "下载、校验、解析、去重和版本化微信/支付宝/Stripe/PayPal 账单与银行文件。",
+      "wave": "W09",
+      "wave_title": "账本、结算视图与对账",
+      "depends_on": [
+        "B74"
+      ],
+      "skill": "pay-statement-reconciliation",
+      "order": 76
+    },
+    {
+      "id": "B77",
+      "title": "三方对账引擎",
+      "goal": "对业务订单、支付平台、渠道账单和银行到账进行逐笔与汇总核对。",
+      "wave": "W09",
+      "wave_title": "账本、结算视图与对账",
+      "depends_on": [
+        "B76"
+      ],
+      "skill": "pay-statement-reconciliation",
+      "order": 77
+    },
+    {
+      "id": "B78",
+      "title": "差错、人工调整与复核",
+      "goal": "将长短款、重复、丢失、金额不符和跨日差异形成可审计工单。",
+      "wave": "W09",
+      "wave_title": "账本、结算视图与对账",
+      "depends_on": [
+        "B76"
+      ],
+      "skill": "pay-exceptions-financial-reporting",
+      "order": 78
+    },
+    {
+      "id": "B79",
+      "title": "财务报告、导出与审计追踪",
+      "goal": "提供 GMV、净收入、费用、退款、拒付、结算、差错和不可篡改导出。",
+      "wave": "W09",
+      "wave_title": "账本、结算视图与对账",
+      "depends_on": [
+        "B78",
+        "B77"
+      ],
+      "skill": "pay-exceptions-financial-reporting",
+      "order": 79
+    },
+    {
+      "id": "B80",
+      "title": "实时支付风控引擎",
+      "goal": "在创建、确认、捕获、退款、改密、加支付方式和提权时返回可解释决策。",
+      "wave": "W10",
+      "wave_title": "实时风控、反钓鱼与抗攻击",
+      "depends_on": [
+        "B79"
+      ],
+      "skill": "pay-risk-engine-signals",
+      "order": 80
+    },
+    {
+      "id": "B81",
+      "title": "速度、设备、网络与账户信号",
+      "goal": "构建时间窗计数、设备信誉、IP/ASN、地理异常、账户年龄和行为序列。",
+      "wave": "W10",
+      "wave_title": "实时风控、反钓鱼与抗攻击",
+      "depends_on": [
+        "B80"
+      ],
+      "skill": "pay-risk-engine-signals",
+      "order": 81
+    },
+    {
+      "id": "B82",
+      "title": "规则引擎、版本与解释",
+      "goal": "实现确定性规则、优先级、冲突策略、影子评估、回滚和命中理由。",
+      "wave": "W10",
+      "wave_title": "实时风控、反钓鱼与抗攻击",
+      "depends_on": [
+        "B80"
+      ],
+      "skill": "pay-risk-rules-ml",
+      "order": 82
+    },
+    {
+      "id": "B83",
+      "title": "机器学习评分接口与特征边界",
+      "goal": "定义在线特征、离线训练、模型签名、漂移、降级和人工可覆盖边界。",
+      "wave": "W10",
+      "wave_title": "实时风控、反钓鱼与抗攻击",
+      "depends_on": [
+        "B82"
+      ],
+      "skill": "pay-risk-rules-ml",
+      "order": 83
+    },
+    {
+      "id": "B84",
+      "title": "反钓鱼、域名与品牌保护",
+      "goal": "实现统一支付域名、IDN 同形检测、证书透明度监控、DNS/注册商保护和仿冒告警。",
+      "wave": "W10",
+      "wave_title": "实时风控、反钓鱼与抗攻击",
+      "depends_on": [
+        "B82"
+      ],
+      "skill": "pay-anti-phishing-eskimming",
+      "order": 84
+    },
+    {
+      "id": "B85",
+      "title": "E-skimming、脚本供应链与浏览器完整性",
+      "goal": "实施脚本清单、授权、完整性、CSP、Trusted Types、页面变更检测和第三方隔离。",
+      "wave": "W10",
+      "wave_title": "实时风控、反钓鱼与抗攻击",
+      "depends_on": [
+        "B84"
+      ],
+      "skill": "pay-anti-phishing-eskimming",
+      "order": 85
+    },
+    {
+      "id": "B86",
+      "title": "DDoS、机器人、撞库与账户接管",
+      "goal": "在 CDN/WAF/API/身份层实施速率、挑战、信誉、凭证泄漏检测和会话撤销。",
+      "wave": "W10",
+      "wave_title": "实时风控、反钓鱼与抗攻击",
+      "depends_on": [
+        "B84"
+      ],
+      "skill": "pay-abuse-risk-operations",
+      "order": 86
+    },
+    {
+      "id": "B87",
+      "title": "风险运营、案件与名单管理",
+      "goal": "提供案件、证据、处置、申诉、白名单/黑名单、过期和双人审批。",
+      "wave": "W10",
+      "wave_title": "实时风控、反钓鱼与抗攻击",
+      "depends_on": [
+        "B86",
+        "B85"
+      ],
+      "skill": "pay-abuse-risk-operations",
+      "order": 87
+    },
+    {
+      "id": "B88",
+      "title": "API Gateway、WAF 与限流",
+      "goal": "实现统一鉴权、请求大小、Schema 校验、限流、签名、CORS、WAF 和审计。",
+      "wave": "W11",
+      "wave_title": "平台可靠性与灾难恢复",
+      "depends_on": [
+        "B87"
+      ],
+      "skill": "pay-edge-service-mesh",
+      "order": 88
+    },
+    {
+      "id": "B89",
+      "title": "服务网格、mTLS 与网络策略",
+      "goal": "为东西向流量启用工作负载身份、mTLS、最小可达性和出口控制。",
+      "wave": "W11",
+      "wave_title": "平台可靠性与灾难恢复",
+      "depends_on": [
+        "B88"
+      ],
+      "skill": "pay-edge-service-mesh",
+      "order": 89
+    },
+    {
+      "id": "B90",
+      "title": "PostgreSQL 高可用、备份与 PITR",
+      "goal": "实现多可用区、加密、故障转移、PITR、恢复演练和迁移安全。",
+      "wave": "W11",
+      "wave_title": "平台可靠性与灾难恢复",
+      "depends_on": [
+        "B88"
+      ],
+      "skill": "pay-data-event-resilience",
+      "order": 90
+    },
+    {
+      "id": "B91",
+      "title": "Kafka 事件耐久性与业务幂等",
+      "goal": "明确至少一次传递，使用 Outbox/Inbox 保证业务效果，处理乱序、重平衡和毒消息。",
+      "wave": "W11",
+      "wave_title": "平台可靠性与灾难恢复",
+      "depends_on": [
+        "B90"
+      ],
+      "skill": "pay-data-event-resilience",
+      "order": 91
+    },
+    {
+      "id": "B92",
+      "title": "Redis 安全缓存、锁与限速",
+      "goal": "限制 Redis 为可重建状态，锁带 fencing token，禁止以缓存作为支付真相。",
+      "wave": "W11",
+      "wave_title": "平台可靠性与灾难恢复",
+      "depends_on": [
+        "B90"
+      ],
+      "skill": "pay-cache-kubernetes-gitops",
+      "order": 92
+    },
+    {
+      "id": "B93",
+      "title": "Kubernetes、GitOps 与策略即代码",
+      "goal": "实现最小镜像、只读根、非 root、准入策略、网络策略、密钥挂载和可审计发布。",
+      "wave": "W11",
+      "wave_title": "平台可靠性与灾难恢复",
+      "depends_on": [
+        "B92"
+      ],
+      "skill": "pay-cache-kubernetes-gitops",
+      "order": 93
+    },
+    {
+      "id": "B94",
+      "title": "多区域架构与数据主权",
+      "goal": "选择主动-被动或受控主动-主动，明确写入归属、数据驻留、RPO/RTO 和回切。",
+      "wave": "W11",
+      "wave_title": "平台可靠性与灾难恢复",
+      "depends_on": [
+        "B92"
+      ],
+      "skill": "pay-multiregion-dr",
+      "order": 94
+    },
+    {
+      "id": "B95",
+      "title": "业务连续性、混沌与恢复演练",
+      "goal": "验证渠道故障、数据库故障、消息堆积、KMS 不可用、域名劫持和区域中断。",
+      "wave": "W11",
+      "wave_title": "平台可靠性与灾难恢复",
+      "depends_on": [
+        "B94",
+        "B93"
+      ],
+      "skill": "pay-multiregion-dr",
+      "order": 95
+    },
+    {
+      "id": "B96",
+      "title": "OpenTelemetry 日志指标追踪",
+      "goal": "统一 trace、metric、log、baggage、关联 ID 和敏感字段脱敏。",
+      "wave": "W12",
+      "wave_title": "可观测性与生产运营",
+      "depends_on": [
+        "B95"
+      ],
+      "skill": "pay-observability-slo",
+      "order": 96
+    },
+    {
+      "id": "B97",
+      "title": "SLI、SLO、错误预算与告警",
+      "goal": "定义支付成功率、确认延迟、回调延迟、对账差错、风险误杀和恢复指标。",
+      "wave": "W12",
+      "wave_title": "可观测性与生产运营",
+      "depends_on": [
+        "B96"
+      ],
+      "skill": "pay-observability-slo",
+      "order": 97
+    },
+    {
+      "id": "B98",
+      "title": "支付漏斗与商业仪表盘",
+      "goal": "按项目、渠道、地区、设备、金额、失败原因和版本观察转化与异常。",
+      "wave": "W12",
+      "wave_title": "可观测性与生产运营",
+      "depends_on": [
+        "B96"
+      ],
+      "skill": "pay-business-security-monitoring",
+      "order": 98
+    },
+    {
+      "id": "B99",
+      "title": "SIEM、SOC 与安全检测",
+      "goal": "接入身份、网关、KMS、数据库、容器、代码供应链和支付风险检测。",
+      "wave": "W12",
+      "wave_title": "可观测性与生产运营",
+      "depends_on": [
+        "B98"
+      ],
+      "skill": "pay-business-security-monitoring",
+      "order": 99
+    },
+    {
+      "id": "B100",
+      "title": "渠道健康、熔断与故障转移",
+      "goal": "基于错误分类、成功率、延迟和渠道公告执行熔断、探测与安全路由。",
+      "wave": "W12",
+      "wave_title": "可观测性与生产运营",
+      "depends_on": [
+        "B98"
+      ],
+      "skill": "pay-provider-resilience-ops-console",
+      "order": 100
+    },
+    {
+      "id": "B101",
+      "title": "运营控制台与安全回放",
+      "goal": "提供只读诊断、受控重试、Webhook 回放、状态修复建议和双人审批。",
+      "wave": "W12",
+      "wave_title": "可观测性与生产运营",
+      "depends_on": [
+        "B100"
+      ],
+      "skill": "pay-provider-resilience-ops-console",
+      "order": 101
+    },
+    {
+      "id": "B102",
+      "title": "事件响应、运行手册与状态页",
+      "goal": "覆盖资金风险、数据泄漏、密钥泄漏、渠道故障、钓鱼和大规模攻击。",
+      "wave": "W12",
+      "wave_title": "可观测性与生产运营",
+      "depends_on": [
+        "B100"
+      ],
+      "skill": "pay-incidents-capacity-cost",
+      "order": 102
+    },
+    {
+      "id": "B103",
+      "title": "容量、性能、成本与限额",
+      "goal": "建模峰值 TPS、队列、数据库、渠道限额、成本上限和自动扩缩容保护。",
+      "wave": "W12",
+      "wave_title": "可观测性与生产运营",
+      "depends_on": [
+        "B102",
+        "B101"
+      ],
+      "skill": "pay-incidents-capacity-cost",
+      "order": 103
+    },
+    {
+      "id": "B104",
+      "title": "PCI DSS 4.0.1 范围与控制映射",
+      "goal": "通过托管字段/令牌化缩小卡数据环境，并建立控制责任、证据和评估路径。",
+      "wave": "W13",
+      "wave_title": "合规、隐私与供应链治理",
+      "depends_on": [
+        "B103"
+      ],
+      "skill": "pay-pci-china-compliance",
+      "order": 104
+    },
+    {
+      "id": "B105",
+      "title": "中国支付与数据合规配置",
+      "goal": "映射非银行支付业务边界、个人信息保护、数据安全、网络安全与数据驻留要求。",
+      "wave": "W13",
+      "wave_title": "合规、隐私与供应链治理",
+      "depends_on": [
+        "B104"
+      ],
+      "skill": "pay-pci-china-compliance",
+      "order": 105
+    },
+    {
+      "id": "B106",
+      "title": "GDPR、PSD2/SCA 与全球隐私",
+      "goal": "实现合法基础、数据主体权利、DPIA、跨境机制、SCA/3DS 和地区化策略。",
+      "wave": "W13",
+      "wave_title": "合规、隐私与供应链治理",
+      "depends_on": [
+        "B104"
+      ],
+      "skill": "pay-global-compliance-aml-boundaries",
+      "order": 106
+    },
+    {
+      "id": "B107",
+      "title": "AML、KYC、KYB、制裁与监管边界",
+      "goal": "把身份核验和制裁能力作为持牌 PSP/专业服务集成，禁止无牌资金中介功能。",
+      "wave": "W13",
+      "wave_title": "合规、隐私与供应链治理",
+      "depends_on": [
+        "B106"
+      ],
+      "skill": "pay-global-compliance-aml-boundaries",
+      "order": 107
+    },
+    {
+      "id": "B108",
+      "title": "数据分类、保留、删除与令牌化",
+      "goal": "建立字段级分类、最少化、用途限制、保留计划、法律保留和可证明删除。",
+      "wave": "W13",
+      "wave_title": "合规、隐私与供应链治理",
+      "depends_on": [
+        "B106"
+      ],
+      "skill": "pay-data-lifecycle-supply-chain",
+      "order": 108
+    },
+    {
+      "id": "B109",
+      "title": "安全 SDLC、SBOM、SLSA 与制品签名",
+      "goal": "生成依赖锁、SBOM、构建来源、签名、验证和部署准入证据。",
+      "wave": "W13",
+      "wave_title": "合规、隐私与供应链治理",
+      "depends_on": [
+        "B108"
+      ],
+      "skill": "pay-data-lifecycle-supply-chain",
+      "order": 109
+    },
+    {
+      "id": "B110",
+      "title": "漏洞管理、渗透测试与红队",
+      "goal": "定义扫描频率、严重度 SLA、例外、复测、外部渗透和支付专项红队。",
+      "wave": "W13",
+      "wave_title": "合规、隐私与供应链治理",
+      "depends_on": [
+        "B108"
+      ],
+      "skill": "pay-vulnerability-vendor-risk",
+      "order": 110
+    },
+    {
+      "id": "B111",
+      "title": "第三方风险、合同与供应商退出",
+      "goal": "评估 PSP、云、短信、邮件、风控、监控和开源依赖的责任与退出方案。",
+      "wave": "W13",
+      "wave_title": "合规、隐私与供应链治理",
+      "depends_on": [
+        "B110",
+        "B109"
+      ],
+      "skill": "pay-vulnerability-vendor-risk",
+      "order": 111
+    },
+    {
+      "id": "B112",
+      "title": "单元、属性与模型化测试",
+      "goal": "对金额、状态机、账本、路由、授权和日期边界实施属性与状态模型测试。",
+      "wave": "W14",
+      "wave_title": "测试、认证与独立审查",
+      "depends_on": [
+        "B111"
+      ],
+      "skill": "pay-unit-contract-testing",
+      "order": 112
+    },
+    {
+      "id": "B113",
+      "title": "渠道契约测试与模拟器",
+      "goal": "为各渠道构建可版本化请求/响应、错误、超时、签名和 webhook 模拟。",
+      "wave": "W14",
+      "wave_title": "测试、认证与独立审查",
+      "depends_on": [
+        "B112"
+      ],
+      "skill": "pay-unit-contract-testing",
+      "order": 113
+    },
+    {
+      "id": "B114",
+      "title": "Webhook 回放、模糊与故障注入",
+      "goal": "覆盖伪造、重放、乱序、重复、延迟、截断、错误签名、证书轮换和时间漂移。",
+      "wave": "W14",
+      "wave_title": "测试、认证与独立审查",
+      "depends_on": [
+        "B112"
+      ],
+      "skill": "pay-webhook-concurrency-fault-testing",
+      "order": 114
+    },
+    {
+      "id": "B115",
+      "title": "并发、重复、乱序与时钟测试",
+      "goal": "验证双击、网络重试、多实例竞态、锁失效、回调先于响应和跨日。",
+      "wave": "W14",
+      "wave_title": "测试、认证与独立审查",
+      "depends_on": [
+        "B114"
+      ],
+      "skill": "pay-webhook-concurrency-fault-testing",
+      "order": 115
+    },
+    {
+      "id": "B116",
+      "title": "SAST、DAST、IAST、密钥与依赖测试",
+      "goal": "构建 fail-closed 安全流水线并对支付入口、后台和 SDK 做专项测试。",
+      "wave": "W14",
+      "wave_title": "测试、认证与独立审查",
+      "depends_on": [
+        "B114"
+      ],
+      "skill": "pay-security-performance-testing",
+      "order": 116
+    },
+    {
+      "id": "B117",
+      "title": "性能、负载、耐久与容量测试",
+      "goal": "验证峰值、突发、长稳、队列堆积、数据库故障、渠道降级和恢复。",
+      "wave": "W14",
+      "wave_title": "测试、认证与独立审查",
+      "depends_on": [
+        "B116"
+      ],
+      "skill": "pay-security-performance-testing",
+      "order": 117
+    },
+    {
+      "id": "B118",
+      "title": "UAT、财务与运营验收",
+      "goal": "以真实业务场景验证下单、支付、退款、订阅、争议、对账、报表和客服流程。",
+      "wave": "W14",
+      "wave_title": "测试、认证与独立审查",
+      "depends_on": [
+        "B116"
+      ],
+      "skill": "pay-uat-compliance-evidence",
+      "order": 118
+    },
+    {
+      "id": "B119",
+      "title": "合规证据与独立评审门",
+      "goal": "由非实现者复核威胁模型、控制、渗透、恢复、账本和合规证据。",
+      "wave": "W14",
+      "wave_title": "测试、认证与独立审查",
+      "depends_on": [
+        "B118",
+        "B117"
+      ],
+      "skill": "pay-uat-compliance-evidence",
+      "order": 119
+    },
+    {
+      "id": "B120",
+      "title": "现有项目接入适配器",
+      "goal": "为每个旧项目实现订单映射、签名、幂等、Webhook 消费和回滚。",
+      "wave": "W15",
+      "wave_title": "迁移、上线与商业运营",
+      "depends_on": [
+        "B119"
+      ],
+      "skill": "pay-project-migration-shadow",
+      "order": 120
+    },
+    {
+      "id": "B121",
+      "title": "影子流量、双运行与差异验证",
+      "goal": "不扣款地对比路由与请求，随后小流量双轨验证状态和对账一致性。",
+      "wave": "W15",
+      "wave_title": "迁移、上线与商业运营",
+      "depends_on": [
+        "B120"
+      ],
+      "skill": "pay-project-migration-shadow",
+      "order": 121
+    },
+    {
+      "id": "B122",
+      "title": "生产商户配置与渠道上线",
+      "goal": "完成正式商户号、域名、证书、Webhook、限额、告警、账单和应急联系人。",
+      "wave": "W15",
+      "wave_title": "迁移、上线与商业运营",
+      "depends_on": [
+        "B120"
+      ],
+      "skill": "pay-production-onboarding-readiness",
+      "order": 122
+    },
+    {
+      "id": "B123",
+      "title": "上线准备与 Go/No-Go",
+      "goal": "逐项检查安全、可靠性、财务、合规、运营、支持、回滚和外部依赖。",
+      "wave": "W15",
+      "wave_title": "迁移、上线与商业运营",
+      "depends_on": [
+        "B122"
+      ],
+      "skill": "pay-production-onboarding-readiness",
+      "order": 123
+    },
+    {
+      "id": "B124",
+      "title": "分阶段发布、灰度与回滚",
+      "goal": "按租户、项目、渠道和地区灰度，使用自动停机线和可验证回滚。",
+      "wave": "W15",
+      "wave_title": "迁移、上线与商业运营",
+      "depends_on": [
+        "B122"
+      ],
+      "skill": "pay-rollout-postlaunch",
+      "order": 124
+    },
+    {
+      "id": "B125",
+      "title": "上线后监控与日终对账",
+      "goal": "首日、首周和首月强化监控，逐日完成交易、资金和银行三方核对。",
+      "wave": "W15",
+      "wave_title": "迁移、上线与商业运营",
+      "depends_on": [
+        "B124"
+      ],
+      "skill": "pay-rollout-postlaunch",
+      "order": 125
+    },
+    {
+      "id": "B126",
+      "title": "商业定价、SLA、支持与用量计费",
+      "goal": "提供内部成本、服务等级、支持分级、审计导出和平台自身计费。",
+      "wave": "W15",
+      "wave_title": "迁移、上线与商业运营",
+      "depends_on": [
+        "B124"
+      ],
+      "skill": "pay-commercial-release-certification",
+      "order": 126
+    },
+    {
+      "id": "B127",
+      "title": "最终生产认证与发布签署",
+      "goal": "只有全部批次、控制、测试、恢复、对账和独立评审通过后才允许生产认证。",
+      "wave": "W15",
+      "wave_title": "迁移、上线与商业运营",
+      "depends_on": [
+        "B126",
+        "B125"
+      ],
+      "skill": "pay-commercial-release-certification",
+      "order": 127
+    }
+  ]
+}

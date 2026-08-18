@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "transaction_id",
+    "source_type",
+    "source_id",
+    "currency",
+    "entries"
+  ],
+  "properties": {
+    "transaction_id": {
+      "type": "string"
+    },
+    "source_type": {
+      "type": "string"
+    },
+    "source_id": {
+      "type": "string"
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "side",
+          "amount_minor"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string"
+          },
+          "side": {
+            "enum": [
+              "debit",
+              "credit"
+            ]
+          },
+          "amount_minor": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

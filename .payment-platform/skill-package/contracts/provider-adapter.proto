@@ -1,0 +1,47 @@
+syntax = "proto3";
+package payment.provider.v1;
+
+service PaymentProviderAdapter {
+  rpc CreatePayment(CreatePaymentRequest) returns (CreatePaymentResponse);
+  rpc QueryPayment(QueryPaymentRequest) returns (PaymentState);
+  rpc Capture(CaptureRequest) returns (PaymentState);
+  rpc Cancel(CancelRequest) returns (PaymentState);
+  rpc Refund(RefundRequest) returns (RefundState);
+  rpc QueryRefund(QueryRefundRequest) returns (RefundState);
+  rpc VerifyWebhook(VerifyWebhookRequest) returns (VerifiedProviderEvent);
+}
+
+message Money { int64 amount_minor = 1; string currency = 2; }
+message RequestContext {
+  string tenant_id = 1;
+  string project_id = 2;
+  string merchant_account_id = 3;
+  string idempotency_key = 4;
+  string correlation_id = 5;
+  string credential_version = 6;
+}
+message CreatePaymentRequest {
+  RequestContext context = 1;
+  string payment_intent_id = 2;
+  string business_order_no = 3;
+  Money amount = 4;
+  string method = 5;
+  string approved_return_route_id = 6;
+  map<string,string> provider_parameters = 7;
+}
+message CreatePaymentResponse {
+  string provider_request_id = 1;
+  string provider_payment_id = 2;
+  string state = 3;
+  bytes client_action_json = 4;
+  bool final = 5;
+}
+message QueryPaymentRequest { RequestContext context = 1; string provider_payment_id = 2; string business_order_no = 3; }
+message CaptureRequest { RequestContext context = 1; string provider_payment_id = 2; Money amount = 3; }
+message CancelRequest { RequestContext context = 1; string provider_payment_id = 2; string reason = 3; }
+message RefundRequest { RequestContext context = 1; string refund_id = 2; string provider_payment_id = 3; Money amount = 4; string reason = 5; }
+message QueryRefundRequest { RequestContext context = 1; string provider_refund_id = 2; string refund_id = 3; }
+message PaymentState { string state = 1; bool final = 2; Money authorized = 3; Money captured = 4; string provider_payment_id = 5; string raw_reference = 6; }
+message RefundState { string state = 1; bool final = 2; Money refunded = 3; string provider_refund_id = 4; }
+message VerifyWebhookRequest { string merchant_account_id = 1; map<string,string> headers = 2; bytes raw_body = 3; string received_at = 4; }
+message VerifiedProviderEvent { string provider_event_id = 1; string event_type = 2; string provider_payment_id = 3; string business_order_no = 4; bytes canonical_payload_json = 5; string signature_key_id = 6; }

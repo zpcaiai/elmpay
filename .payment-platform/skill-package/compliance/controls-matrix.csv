@@ -1,0 +1,21 @@
+control_id,domain,internal_control,batches,evidence
+CTRL-001,Card data minimization,No PAN/CVV; PSP hosted fields and tokens,"B35,B48,B53,B104",architecture + runtime + scan
+CTRL-002,Webhook authenticity,"Provider signature, timestamp, nonce and merchant/order/amount verification","B37,B40-B55,B114",negative fixtures + logs
+CTRL-003,Idempotent side effects,"Unique key, payload hash, inbox/outbox and concurrency protection","B12,B36,B115",property and race tests
+CTRL-004,Phishing-resistant admin access,"WebAuthn/hardware key, secure recovery and step-up","B18,B19,B84",auth policy + ceremony tests
+CTRL-005,Tenant isolation,"Object authorization, RLS, cache/message/storage namespace",B24-B31,cross-tenant attack tests
+CTRL-006,Key management,"KMS/HSM, envelope encryption, rotation, revocation","B20,B21",rotation and outage drill
+CTRL-007,Immutable audit,"Append-only audit with actor, reason, before/after and integrity",B23,tamper detection
+CTRL-008,Ledger integrity,"Double-entry, source uniqueness, no mutation","B72,B73",database and property tests
+CTRL-009,Reconciliation,Order-platform-provider-bank matching,B76-B79,daily recon evidence
+CTRL-010,Payment page integrity,"CSP, SRI, Trusted Types, script inventory and change detection","B56-B59,B85,B104",header/script scans
+CTRL-011,Secure SDLC,SAST/DAST/SCA/secrets/SBOM/provenance/signing,"B05,B109,B116",CI artifacts
+CTRL-012,Incident response,"Runbooks for fraud, key leak, data breach, provider outage and phishing","B99,B102",tabletop and drill
+CTRL-013,Backup and recovery,"PITR, cross-region backup, restore test","B90,B94,B95",restore evidence
+CTRL-014,Least privilege,"RBAC/ABAC/SoD/JIT, service identity and network policy","B16-B19,B89",access review
+CTRL-015,Privacy lifecycle,"Classification, minimization, retention, deletion, legal hold","B105,B106,B108",deletion proof
+CTRL-016,Provider account isolation,Per-tenant/project/environment credential and callback binding,"B26,B31",configuration tests
+CTRL-017,DDoS and abuse,"Layered rate limit, WAF, bot, queue and graceful degradation","B86,B88,B100",load/attack tests
+CTRL-018,Secure changes,"Signed immutable artifacts, GitOps, admission policy and rollback","B93,B109,B124",deployment provenance
+CTRL-019,Third-party risk,"Due diligence, data flows, SLA, security clauses and exit",B111,vendor review
+CTRL-020,Independent release review,Non-implementer review and fail-closed final gate,"B119,B123,B127",signed review

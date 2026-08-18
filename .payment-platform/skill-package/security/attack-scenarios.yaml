@@ -1,0 +1,255 @@
+version: 1.0.0
+generated_at: '2026-08-18'
+scenarios:
+- id: PHISH-001
+  attack: 注册与官方域名 visually confusable 的 IDN 域名
+  expected_control: 阻断品牌误用并产生高优先级告警
+  evidence: evidence/security/attack-scenarios/PHISH-001.json
+- id: PHISH-002
+  attack: DNS 账户被盗后尝试修改 A/NS/TXT
+  expected_control: 硬件密钥、双人审批、registry lock 和告警阻断
+  evidence: evidence/security/attack-scenarios/PHISH-002.json
+- id: PHISH-003
+  attack: 支付短链跳转到未登记域名
+  expected_control: 拒绝解析并记录攻击事件
+  evidence: evidence/security/attack-scenarios/PHISH-003.json
+- id: PHISH-004
+  attack: 二维码金额与服务器 Payment Intent 不一致
+  expected_control: 服务器金额为准并拒绝旧会话
+  evidence: evidence/security/attack-scenarios/PHISH-004.json
+- id: PHISH-005
+  attack: 仿冒邮件通过相似 From 域发送
+  expected_control: DMARC reject 和品牌监控发现
+  evidence: evidence/security/attack-scenarios/PHISH-005.json
+- id: WEBHOOK-001
+  attack: 伪造微信成功回调
+  expected_control: 验签失败、无状态变化、返回失败
+  evidence: evidence/security/attack-scenarios/WEBHOOK-001.json
+- id: WEBHOOK-002
+  attack: 重放真实支付宝通知
+  expected_control: Inbox 去重且不重复履约/过账
+  evidence: evidence/security/attack-scenarios/WEBHOOK-002.json
+- id: WEBHOOK-003
+  attack: Stripe 事件乱序
+  expected_control: 状态机拒绝非法回退并查询最终状态
+  evidence: evidence/security/attack-scenarios/WEBHOOK-003.json
+- id: WEBHOOK-004
+  attack: PayPal webhook 事件 ID 重复
+  expected_control: 单次业务效果
+  evidence: evidence/security/attack-scenarios/WEBHOOK-004.json
+- id: WEBHOOK-005
+  attack: 回调时间戳严重漂移
+  expected_control: 隔离并告警，不处理
+  evidence: evidence/security/attack-scenarios/WEBHOOK-005.json
+- id: PAY-001
+  attack: 客户端双击确认
+  expected_control: 相同幂等键只产生一次渠道副作用
+  evidence: evidence/security/attack-scenarios/PAY-001.json
+- id: PAY-002
+  attack: 确认请求超时但渠道已扣款
+  expected_control: Attempt=UNKNOWN，查询后收敛，不盲重试
+  evidence: evidence/security/attack-scenarios/PAY-002.json
+- id: PAY-003
+  attack: 并发部分捕获超过授权额
+  expected_control: 数据库约束阻断超额
+  evidence: evidence/security/attack-scenarios/PAY-003.json
+- id: PAY-004
+  attack: 并发退款超过可退额
+  expected_control: 仅合法退款成功，账本平衡
+  evidence: evidence/security/attack-scenarios/PAY-004.json
+- id: PAY-005
+  attack: 客户端篡改金额或币种
+  expected_control: 与不可变 Intent 不符即拒绝
+  evidence: evidence/security/attack-scenarios/PAY-005.json
+- id: TENANT-001
+  attack: 项目 A 查询项目 B payment_id
+  expected_control: 对象级授权拒绝且审计
+  evidence: evidence/security/attack-scenarios/TENANT-001.json
+- id: TENANT-002
+  attack: 缓存键缺 tenant_id
+  expected_control: 测试失败并阻断发布
+  evidence: evidence/security/attack-scenarios/TENANT-002.json
+- id: TENANT-003
+  attack: Webhook secret 跨项目复用
+  expected_control: 配置验证拒绝
+  evidence: evidence/security/attack-scenarios/TENANT-003.json
+- id: TENANT-004
+  attack: 导出任务越权包含其他租户
+  expected_control: 行级隔离与导出范围检查阻断
+  evidence: evidence/security/attack-scenarios/TENANT-004.json
+- id: AUTH-001
+  attack: 管理员密码被钓鱼
+  expected_control: 无 WebAuthn 不能登录
+  evidence: evidence/security/attack-scenarios/AUTH-001.json
+- id: AUTH-002
+  attack: 攻击者尝试用账户恢复绕过硬件密钥
+  expected_control: 冷静期、二次核验和双人审批
+  evidence: evidence/security/attack-scenarios/AUTH-002.json
+- id: AUTH-003
+  attack: 财务人员自批大额退款
+  expected_control: 职责分离阻断
+  evidence: evidence/security/attack-scenarios/AUTH-003.json
+- id: AUTH-004
+  attack: 过期 JIT 权限继续调用
+  expected_control: 即时撤销并告警
+  evidence: evidence/security/attack-scenarios/AUTH-004.json
+- id: CRYPTO-001
+  attack: 渠道私钥出现在日志
+  expected_control: 自动脱敏测试和密钥扫描失败
+  evidence: evidence/security/attack-scenarios/CRYPTO-001.json
+- id: CRYPTO-002
+  attack: 证书到期前未轮换
+  expected_control: 分级告警和上线阻断
+  evidence: evidence/security/attack-scenarios/CRYPTO-002.json
+- id: CRYPTO-003
+  attack: KMS 不可用
+  expected_control: 安全降级，拒绝新支付，不泄露密钥
+  evidence: evidence/security/attack-scenarios/CRYPTO-003.json
+- id: CRYPTO-004
+  attack: 旧密钥重放签名
+  expected_control: 版本/时间窗/nonce 拒绝
+  evidence: evidence/security/attack-scenarios/CRYPTO-004.json
+- id: WEB-001
+  attack: 第三方脚本被篡改
+  expected_control: CSP/SRI/完整性监控阻断
+  evidence: evidence/security/attack-scenarios/WEB-001.json
+- id: WEB-002
+  attack: XSS 读取 checkout session
+  expected_control: 严格 CSP/Trusted Types/HttpOnly 限制
+  evidence: evidence/security/attack-scenarios/WEB-002.json
+- id: WEB-003
+  attack: 点击劫持收银台
+  expected_control: frame-ancestors none 阻断
+  evidence: evidence/security/attack-scenarios/WEB-003.json
+- id: WEB-004
+  attack: 开放重定向参数
+  expected_control: 仅 route_id allowlist，拒绝 raw URL
+  evidence: evidence/security/attack-scenarios/WEB-004.json
+- id: API-001
+  attack: BOLA 访问他人退款
+  expected_control: 对象与租户授权拒绝
+  evidence: evidence/security/attack-scenarios/API-001.json
+- id: API-002
+  attack: Mass assignment 修改 status
+  expected_control: Schema additionalProperties=false
+  evidence: evidence/security/attack-scenarios/API-002.json
+- id: API-003
+  attack: 超大 JSON 或压缩炸弹
+  expected_control: 边缘大小和解压限制
+  evidence: evidence/security/attack-scenarios/API-003.json
+- id: API-004
+  attack: SSRF 指向云元数据
+  expected_control: 解析后 IP/域名 allowlist 和出口策略阻断
+  evidence: evidence/security/attack-scenarios/API-004.json
+- id: API-005
+  attack: SQL 注入修改支付状态
+  expected_control: 参数化、最小 DB 权限、测试阻断
+  evidence: evidence/security/attack-scenarios/API-005.json
+- id: DDOS-001
+  attack: 支付创建洪泛
+  expected_control: 分层限流、信誉、排队和降级
+  evidence: evidence/security/attack-scenarios/DDOS-001.json
+- id: DDOS-002
+  attack: Webhook endpoint 洪泛
+  expected_control: 签名前资源限制、速率和异步持久化
+  evidence: evidence/security/attack-scenarios/DDOS-002.json
+- id: BOT-001
+  attack: 撞库管理员账户
+  expected_control: WebAuthn、信誉、限速和告警
+  evidence: evidence/security/attack-scenarios/BOT-001.json
+- id: BOT-002
+  attack: 批量验证盗卡
+  expected_control: 速度规则、3DS、设备信号和 PSP 风控
+  evidence: evidence/security/attack-scenarios/BOT-002.json
+- id: FRAUD-001
+  attack: 新账户高额多次失败后成功
+  expected_control: 挑战或人工审核
+  evidence: evidence/security/attack-scenarios/FRAUD-001.json
+- id: FRAUD-002
+  attack: 退款到原支付之外账户
+  expected_control: 默认禁止，退款原路返回
+  evidence: evidence/security/attack-scenarios/FRAUD-002.json
+- id: FRAUD-003
+  attack: 客服批量人工补单
+  expected_control: 只读诊断、双人审批和限额
+  evidence: evidence/security/attack-scenarios/FRAUD-003.json
+- id: LEDGER-001
+  attack: 重复 provider event 重复过账
+  expected_control: 来源唯一约束阻断
+  evidence: evidence/security/attack-scenarios/LEDGER-001.json
+- id: LEDGER-002
+  attack: 借贷不平交易
+  expected_control: 延迟约束拒绝提交
+  evidence: evidence/security/attack-scenarios/LEDGER-002.json
+- id: LEDGER-003
+  attack: 修改历史分录
+  expected_control: 权限和 append-only 控制拒绝
+  evidence: evidence/security/attack-scenarios/LEDGER-003.json
+- id: RECON-001
+  attack: 渠道成功本地缺单
+  expected_control: 账单导入形成差错并主动查询
+  evidence: evidence/security/attack-scenarios/RECON-001.json
+- id: RECON-002
+  attack: 本地成功渠道无交易
+  expected_control: 阻止履约扩散并调查
+  evidence: evidence/security/attack-scenarios/RECON-002.json
+- id: RECON-003
+  attack: 账单文件被截断或篡改
+  expected_control: 哈希/长度校验拒绝
+  evidence: evidence/security/attack-scenarios/RECON-003.json
+- id: SUPPLY-001
+  attack: 恶意依赖进入构建
+  expected_control: 锁定、SBOM、签名和策略阻断
+  evidence: evidence/security/attack-scenarios/SUPPLY-001.json
+- id: SUPPLY-002
+  attack: CI token 被盗后推送镜像
+  expected_control: 短期 OIDC、签名验证和准入拒绝
+  evidence: evidence/security/attack-scenarios/SUPPLY-002.json
+- id: SUPPLY-003
+  attack: 生产镜像与审查提交不一致
+  expected_control: provenance 和 digest 校验阻断
+  evidence: evidence/security/attack-scenarios/SUPPLY-003.json
+- id: INFRA-001
+  attack: Pod 以 root 运行并可写根目录
+  expected_control: 准入策略拒绝
+  evidence: evidence/security/attack-scenarios/INFRA-001.json
+- id: INFRA-002
+  attack: 连接器访问非必要数据库
+  expected_control: 网络策略和 DB 角色阻断
+  evidence: evidence/security/attack-scenarios/INFRA-002.json
+- id: INFRA-003
+  attack: Redis 丢失
+  expected_control: 可重建且支付真相不受影响
+  evidence: evidence/security/attack-scenarios/INFRA-003.json
+- id: INFRA-004
+  attack: Kafka 重平衡导致重复消费
+  expected_control: Inbox 去重
+  evidence: evidence/security/attack-scenarios/INFRA-004.json
+- id: DR-001
+  attack: 主数据库区域中断
+  expected_control: 按 RTO 切换并证明 RPO
+  evidence: evidence/security/attack-scenarios/DR-001.json
+- id: DR-002
+  attack: 备份不可恢复
+  expected_control: 演练失败并阻断发布
+  evidence: evidence/security/attack-scenarios/DR-002.json
+- id: DR-003
+  attack: 区域回切产生双主写入
+  expected_control: fencing/写入租约阻断
+  evidence: evidence/security/attack-scenarios/DR-003.json
+- id: INSIDER-001
+  attack: 内部人员导出敏感数据
+  expected_control: 最小权限、审批、水印和审计
+  evidence: evidence/security/attack-scenarios/INSIDER-001.json
+- id: INSIDER-002
+  attack: 运维绕过 API 改数据库
+  expected_control: 生产 DB 无直接写权限和告警
+  evidence: evidence/security/attack-scenarios/INSIDER-002.json
+- id: PRIV-001
+  attack: 删除请求遗漏日志/对象存储
+  expected_control: 数据地图与删除证明发现
+  evidence: evidence/security/attack-scenarios/PRIV-001.json
+- id: PRIV-002
+  attack: 跨境复制不符合地区策略
+  expected_control: 部署策略和数据路由阻断
+  evidence: evidence/security/attack-scenarios/PRIV-002.json

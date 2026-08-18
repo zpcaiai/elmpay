@@ -1,0 +1,49 @@
+project:
+  name: my-payment-platform
+  profile: full-multi-project
+  primary_region: cn-east
+  data_residency:
+  - CN
+  - EU
+providers:
+  wechat:
+    enabled: true
+    modes:
+    - jsapi
+    - mini_program
+    - native
+    - h5
+    - app
+    credentials: kms://wechat/merchant/main
+  alipay:
+    enabled: true
+    certificate_mode: true
+    modes:
+    - web
+    - wap
+    - app
+    - precreate
+    - mini_program
+    credentials: kms://alipay/app/main
+  stripe:
+    enabled: true
+    card_data_mode: hosted_fields_only
+    apple_pay: true
+    credentials: vault://stripe/live
+  paypal:
+    enabled: true
+    orders_v2: true
+    credentials: vault://paypal/live
+  apple_pay:
+    enabled: true
+    processing: via_stripe
+    direct_token_decryption: false
+security:
+  admin_mfa: webauthn_required
+  raw_card_data: prohibited
+  high_risk_four_eyes: true
+regulated_features:
+  stored_value: false
+  fund_pool: false
+  cross_merchant_clearing: false
+  unlicensed_payouts: false
