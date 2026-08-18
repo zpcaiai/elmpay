@@ -18,27 +18,27 @@ BANNER_SLASH = ("// GENERATED FILE — do not edit by hand.\n"
                 "// Source of truth: governance/version-catalog.json\n"
                 "// Regenerate with: python3 scripts/render-build.py\n")
 
-# catalogue id -> (gradle library coordinate, version-ref alias)
+# catalogue id -> gradle library coordinate. The version-reference alias is
+# derived from the id instead of being kept in a second lookup table: the
+# previous hand-maintained table drifted the moment B04 added catalogue
+# entries, and a crashing generator is a governance outage.
 LIBRARIES = {
-    "spring-boot": ("org.springframework.boot:spring-boot-starter", "springBoot"),
-    "spring-cloud": ("org.springframework.cloud:spring-cloud-dependencies", "springCloud"),
-    "grpc-java": ("io.grpc:grpc-stub", "grpc"),
-    "protobuf": ("com.google.protobuf:protobuf-java", "protobuf"),
-    "flyway": ("org.flywaydb:flyway-core", "flyway"),
-    "junit": ("org.junit.jupiter:junit-jupiter", "junit"),
-    "testcontainers": ("org.testcontainers:postgresql", "testcontainers"),
-    "jqwik": ("net.jqwik:jqwik", "jqwik"),
-    "opentelemetry-java": ("io.opentelemetry.javaagent:opentelemetry-javaagent", "otel"),
+    "spring-boot": "org.springframework.boot:spring-boot-starter",
+    "spring-cloud": "org.springframework.cloud:spring-cloud-dependencies",
+    "grpc-java": "io.grpc:grpc-stub",
+    "protobuf": "com.google.protobuf:protobuf-java",
+    "flyway": "org.flywaydb:flyway-core",
+    "junit": "org.junit.jupiter:junit-jupiter",
+    "testcontainers": "org.testcontainers:postgresql",
+    "jqwik": "net.jqwik:jqwik",
+    "opentelemetry-java": "io.opentelemetry.javaagent:opentelemetry-javaagent",
 }
-ALIAS = {
-    "spring-boot": "springBoot", "spring-cloud": "springCloud", "grpc-java": "grpc",
-    "protobuf": "protobuf", "flyway": "flyway", "junit": "junit",
-    "testcontainers": "testcontainers", "jqwik": "jqwik", "opentelemetry-java": "otel",
-    "jdk": "jdk", "gradle": "gradle", "kotlin": "kotlin", "postgresql": "postgresql",
-    "kafka": "kafka", "redis": "redis", "kubernetes": "kubernetes", "node": "node",
-    "pnpm": "pnpm", "postgres-image": "postgresImage", "redis-image": "redisImage",
-    "kafka-image": "kafkaImage",
-}
+
+
+def alias(entry_id: str) -> str:
+    """kebab-case catalogue id -> camelCase Gradle version alias."""
+    head, *rest = entry_id.split("-")
+    return head + "".join(part.capitalize() for part in rest)
 
 
 def _catalog(root: Path, budget: Budget) -> dict:
@@ -59,11 +59,10 @@ def libs_versions_toml(root: Path, budget: Budget | None = None) -> str:
     entries = _entries(doc)
     lines = [BANNER_HASH, "[versions]"]
     for eid in sorted(entries):
-        lines.append(f'{ALIAS[eid]} = "{entries[eid]["version"]}"')
+        lines.append(f'{alias(eid)} = "{entries[eid]["version"]}"')
     lines += ["", "[libraries]"]
     for eid in sorted(LIBRARIES):
-        module, ref = LIBRARIES[eid]
-        lines.append(f'{eid} = {{ module = "{module}", version.ref = "{ref}" }}')
+        lines.append(f'{eid} = {{ module = "{LIBRARIES[eid]}", version.ref = "{alias(eid)}" }}')
     lines += ["", "[plugins]",
               'spring-boot = { id = "org.springframework.boot", version.ref = "springBoot" }']
     return "\n".join(lines).rstrip() + "\n"

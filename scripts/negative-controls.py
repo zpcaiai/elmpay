@@ -26,11 +26,20 @@ COPIED = (
     "governance/service-boundaries.json",
     "governance/threat-model.json",
     "governance/version-catalog.json",
+    "governance/dev-platform.json",
     "gradle/libs.versions.toml",
     "settings.gradle.kts",
     "build.gradle.kts",
     ".tool-versions",
     "platform/toolchain/versions.env",
+    "platform/dev/compose.yaml",
+    "platform/dev/.env.example",
+    "platform/dev/README.md",
+    "platform/dev/simulators/wechat/Dockerfile",
+    "platform/dev/simulators/alipay/Dockerfile",
+    "platform/dev/simulators/stripe/Dockerfile",
+    "platform/dev/simulators/paypal/Dockerfile",
+    "platform/dev/simulators/apple-pay/Dockerfile",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",
@@ -62,6 +71,9 @@ def build(tmp: Path) -> Path:
     registry = json.loads((root / "governance/module-registry.json").read_text("utf-8"))
     for module in registry["modules"]:
         (root / module["path"]).mkdir(parents=True, exist_ok=True)
+    dev = json.loads((root / "governance/dev-platform.json").read_text("utf-8"))
+    for simulator in dev["simulators"]:
+        (root / simulator["build_context"]).mkdir(parents=True, exist_ok=True)
     return root
 
 
@@ -128,6 +140,23 @@ SCENARIOS = [
     ("B03 Java baseline silently downgraded", "governance/version-catalog.json",
      lambda d: next(e for e in d["entries"] if e["id"] == "jdk")
         .__setitem__("version", "21.0.10"), EXIT_PROBLEMS),
+    ("B04 inline password in the local platform", "governance/dev-platform.json",
+     lambda d: d["services"][0]["environment"].__setitem__("POSTGRES_PASSWORD", "hunter2hunter2"),
+     EXIT_PROBLEMS),
+    ("B04 local service points at a production value", "governance/dev-platform.json",
+     lambda d: d["services"][3]["environment"].__setitem__("KC_BOOTSTRAP_ADMIN_USERNAME",
+                                                           "production-admin"), EXIT_PROBLEMS),
+    ("B04 local data declared non-synthetic", "governance/dev-platform.json",
+     lambda d: d["services"][0].__setitem__("data_classification", "real"), EXIT_PROBLEMS),
+    ("B04 enabled provider loses its offline simulator", "governance/dev-platform.json",
+     lambda d: d["simulators"].pop(0), EXIT_PROBLEMS),
+    ("B04 required service removed", "governance/dev-platform.json",
+     lambda d: d["services"].pop(2), EXIT_PROBLEMS),
+    ("B04 host port collision", "governance/dev-platform.json",
+     lambda d: d["simulators"][1]["ports"].__setitem__(
+         0, {"host": d["simulators"][0]["ports"][0]["host"], "container": "8080"}), EXIT_PROBLEMS),
+    ("B04 service health check removed", "governance/dev-platform.json",
+     lambda d: d["services"][1].__setitem__("healthcheck", ""), EXIT_PROBLEMS),
 ]
 
 TEXT_SCENARIOS = [

@@ -59,6 +59,9 @@ def load_all() -> None:
     from . import toolchain  # noqa: F401
     _register_once("toolchain", "B03", toolchain.validate)
 
+    from . import devplatform  # noqa: F401
+    _register_once("dev-platform", "B04", devplatform.validate)
+
 
 def _register_once(name: str, batch: str, fn: Validator) -> None:
     if name not in _REGISTRY:

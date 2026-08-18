@@ -248,6 +248,39 @@
       "source": "registry.example.internal/apache/kafka",
       "owner": "payment-platform-sre",
       "upgrade_policy": "摘要待 B04 锁定"
+    },
+    {
+      "id": "keycloak-image",
+      "name": "Keycloak 容器镜像（本地 OIDC）",
+      "category": "container",
+      "version": "27.0.2",
+      "pin_type": "digest",
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "source": "registry.example.internal/keycloak/keycloak",
+      "owner": "payment-platform-security",
+      "upgrade_policy": "仅用于 local/integration 的 OIDC 提供方；摘要待 B04 在联网构建代理上锁定"
+    },
+    {
+      "id": "minio-image",
+      "name": "MinIO 容器镜像（本地对象存储）",
+      "category": "container",
+      "version": "2026-07-11T00-00-00Z",
+      "pin_type": "digest",
+      "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "source": "registry.example.internal/minio/minio",
+      "owner": "payment-platform-sre",
+      "upgrade_policy": "仅用于 local/integration 的对象存储；摘要待 B04 锁定"
+    },
+    {
+      "id": "python-sim",
+      "name": "Python（渠道模拟器运行时）",
+      "category": "runtime-platform",
+      "version": "3.12.7",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://www.python.org/downloads/",
+      "owner": "payment-platform-platform-eng",
+      "upgrade_policy": "模拟器仅使用标准库，保持离线可运行"
     }
   ],
   "modules_by_build_system": {

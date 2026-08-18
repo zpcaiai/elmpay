@@ -24,6 +24,7 @@ COPIED_FILES = (
     "governance/service-boundaries.json",
     "governance/threat-model.json",
     "governance/version-catalog.json",
+    "governance/dev-platform.json",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",
@@ -49,6 +50,14 @@ GENERATED_BUILD_FILES = (
     "build.gradle.kts",
     ".tool-versions",
     "platform/toolchain/versions.env",
+    "platform/dev/compose.yaml",
+    "platform/dev/.env.example",
+    "platform/dev/README.md",
+    "platform/dev/simulators/wechat/Dockerfile",
+    "platform/dev/simulators/alipay/Dockerfile",
+    "platform/dev/simulators/stripe/Dockerfile",
+    "platform/dev/simulators/paypal/Dockerfile",
+    "platform/dev/simulators/apple-pay/Dockerfile",
 )
 
 
@@ -75,6 +84,9 @@ _SNAPSHOT = _snapshot()
 _MODULE_PATHS = tuple(
     m["path"] for m in json.loads(
         (REAL_ROOT / "governance" / "module-registry.json").read_text("utf-8"))["modules"])
+_SIMULATOR_PATHS = tuple(
+    s["build_context"] for s in json.loads(
+        (REAL_ROOT / "governance" / "dev-platform.json").read_text("utf-8"))["simulators"])
 
 
 class FixtureRepo:
@@ -90,7 +102,7 @@ class FixtureRepo:
             dst.parent.mkdir(parents=True, exist_ok=True)
             dst.write_bytes(blob)
         # Mirror declared module directories so MODULE_PATH checks pass.
-        for path in _MODULE_PATHS:
+        for path in _MODULE_PATHS + _SIMULATOR_PATHS:
             (self.root / path).mkdir(parents=True, exist_ok=True)
 
     def read(self, rel: str):

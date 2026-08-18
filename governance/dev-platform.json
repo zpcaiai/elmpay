@@ -1,0 +1,207 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B04",
+  "environments": [
+    "local",
+    "integration"
+  ],
+  "forbidden_in_environments": {
+    "production_credentials": false,
+    "real_card_data": false,
+    "real_personal_data": false
+  },
+  "required_services": [
+    "postgres",
+    "kafka",
+    "redis",
+    "keycloak",
+    "minio"
+  ],
+  "services": [
+    {
+      "id": "postgres",
+      "purpose": "关系型事实源",
+      "image_ref": "postgres-image",
+      "ports": [
+        {
+          "host": "5432",
+          "container": "5432"
+        }
+      ],
+      "healthcheck": "pg_isready -U elmpay -d elmpay",
+      "environment": {
+        "POSTGRES_DB": "elmpay",
+        "POSTGRES_USER": "elmpay",
+        "POSTGRES_PASSWORD": "${LOCAL_DEV_PG_PASSWORD:?set in .env}"
+      },
+      "volumes": [
+        "pgdata:/var/lib/postgresql/data"
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "id": "kafka",
+      "purpose": "可重放事件日志",
+      "image_ref": "kafka-image",
+      "ports": [
+        {
+          "host": "9092",
+          "container": "9092"
+        }
+      ],
+      "healthcheck": "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list",
+      "environment": {
+        "KAFKA_PROCESS_ROLES": "broker,controller",
+        "KAFKA_NODE_ID": "1",
+        "KAFKA_LISTENERS": "PLAINTEXT://:9092,CONTROLLER://:9093",
+        "KAFKA_CONTROLLER_QUORUM_VOTERS": "1@localhost:9093"
+      },
+      "volumes": [
+        "kafkadata:/var/lib/kafka/data"
+      ],
+      "data_classification": "synthetic"
+    },
+    {
+      "id": "redis",
+      "purpose": "限流与可丢失缓存",
+      "image_ref": "redis-image",
+      "ports": [
+        {
+          "host": "6379",
+          "container": "6379"
+        }
+      ],
+      "healthcheck": "redis-cli ping",
+      "environment": {
+        "REDIS_ARGS": "--save '' --appendonly no"
+      },
+      "volumes": [],
+      "data_classification": "synthetic"
+    },
+    {
+      "id": "keycloak",
+      "purpose": "本地 OIDC 提供方",
+      "image_ref": "keycloak-image",
+      "ports": [
+        {
+          "host": "8180",
+          "container": "8080"
+        }
+      ],
+      "healthcheck": "curl -fsS http://localhost:8080/health/ready",
+      "environment": {
+        "KC_BOOTSTRAP_ADMIN_USERNAME": "local-admin",
+        "KC_BOOTSTRAP_ADMIN_PASSWORD": "${LOCAL_DEV_OIDC_PASSWORD:?set in .env}",
+        "KC_HEALTH_ENABLED": "true"
+      },
+      "volumes": [],
+      "data_classification": "synthetic"
+    },
+    {
+      "id": "minio",
+      "purpose": "本地对象存储（账单与导出）",
+      "image_ref": "minio-image",
+      "ports": [
+        {
+          "host": "9000",
+          "container": "9000"
+        },
+        {
+          "host": "9001",
+          "container": "9001"
+        }
+      ],
+      "healthcheck": "curl -fsS http://localhost:9000/minio/health/live",
+      "environment": {
+        "MINIO_ROOT_USER": "local-dev-minio",
+        "MINIO_ROOT_PASSWORD": "${LOCAL_DEV_MINIO_PASSWORD:?set in .env}"
+      },
+      "volumes": [
+        "miniodata:/data"
+      ],
+      "data_classification": "synthetic"
+    }
+  ],
+  "simulators": [
+    {
+      "id": "wechat-sim",
+      "purpose": "微信支付 APIv3 模拟器",
+      "provider": "wechat",
+      "build_context": "platform/dev/simulators/wechat",
+      "ports": [
+        {
+          "host": "18081",
+          "container": "8080"
+        }
+      ],
+      "healthcheck": "python3 -c \"import urllib.request;urllib.request.urlopen('http://localhost:8080/healthz')\"",
+      "data_classification": "synthetic"
+    },
+    {
+      "id": "alipay-sim",
+      "purpose": "支付宝开放平台模拟器",
+      "provider": "alipay",
+      "build_context": "platform/dev/simulators/alipay",
+      "ports": [
+        {
+          "host": "18082",
+          "container": "8080"
+        }
+      ],
+      "healthcheck": "python3 -c \"import urllib.request;urllib.request.urlopen('http://localhost:8080/healthz')\"",
+      "data_classification": "synthetic"
+    },
+    {
+      "id": "stripe-sim",
+      "purpose": "Stripe 模拟器",
+      "provider": "stripe",
+      "build_context": "platform/dev/simulators/stripe",
+      "ports": [
+        {
+          "host": "18083",
+          "container": "8080"
+        }
+      ],
+      "healthcheck": "python3 -c \"import urllib.request;urllib.request.urlopen('http://localhost:8080/healthz')\"",
+      "data_classification": "synthetic"
+    },
+    {
+      "id": "paypal-sim",
+      "purpose": "PayPal Orders v2 模拟器",
+      "provider": "paypal",
+      "build_context": "platform/dev/simulators/paypal",
+      "ports": [
+        {
+          "host": "18084",
+          "container": "8080"
+        }
+      ],
+      "healthcheck": "python3 -c \"import urllib.request;urllib.request.urlopen('http://localhost:8080/healthz')\"",
+      "data_classification": "synthetic"
+    },
+    {
+      "id": "applepay-sim",
+      "purpose": "Apple Pay 商户验证模拟器",
+      "provider": "apple_pay",
+      "build_context": "platform/dev/simulators/apple-pay",
+      "ports": [
+        {
+          "host": "18085",
+          "container": "8080"
+        }
+      ],
+      "healthcheck": "python3 -c \"import urllib.request;urllib.request.urlopen('http://localhost:8080/healthz')\"",
+      "data_classification": "synthetic"
+    }
+  ],
+  "volumes": [
+    "pgdata",
+    "kafkadata",
+    "miniodata"
+  ],
+  "secret_env_vars": [
+    "LOCAL_DEV_PG_PASSWORD",
+    "LOCAL_DEV_OIDC_PASSWORD",
+    "LOCAL_DEV_MINIO_PASSWORD"
+  ]
+}

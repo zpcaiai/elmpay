@@ -1,0 +1,20 @@
+[
+  "governance/dev-platform.json",
+  "platform/dev/.env.example",
+  "platform/dev/README.md",
+  "platform/dev/compose.yaml",
+  "platform/dev/simulators/alipay/Dockerfile",
+  "platform/dev/simulators/apple-pay/Dockerfile",
+  "platform/dev/simulators/paypal/Dockerfile",
+  "platform/dev/simulators/stripe/Dockerfile",
+  "platform/dev/simulators/wechat/Dockerfile",
+  "scripts/dev-up.sh",
+  "scripts/render-dev-platform.py",
+  "scripts/simulator-smoke.py",
+  "tools/paygov/devgen.py",
+  "tools/paygov/devplatform.py",
+  "tools/simulator/__init__.py",
+  "tools/simulator/provider_sim.py",
+  "tools/tests/test_b04_dev_platform.py",
+  "tools/tests/test_b04_simulator.py"
+]

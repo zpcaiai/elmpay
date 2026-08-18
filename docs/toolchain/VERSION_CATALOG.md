@@ -31,6 +31,9 @@
 | postgres-image | postgres 容器镜像 | container | 18.2-bookworm | digest | payment-platform-sre | 摘要待 B04 在可联网构建代理上锁定 |
 | redis-image | redis 容器镜像 | container | 8.2.1-bookworm | digest | payment-platform-sre | 摘要待 B04 锁定 |
 | kafka-image | kafka 容器镜像 | container | 4.2.0 | digest | payment-platform-sre | 摘要待 B04 锁定 |
+| keycloak-image | Keycloak 容器镜像（本地 OIDC） | container | 27.0.2 | digest | payment-platform-security | 仅用于 local/integration 的 OIDC 提供方；摘要待 B04 在联网构建代理上锁定 |
+| minio-image | MinIO 容器镜像（本地对象存储） | container | 2026-07-11T00-00-00Z | digest | payment-platform-sre | 仅用于 local/integration 的对象存储；摘要待 B04 锁定 |
+| python-sim | Python（渠道模拟器运行时） | runtime-platform | 3.12.7 | exact | payment-platform-platform-eng | 模拟器仅使用标准库，保持离线可运行 |
 
 ## 构建系统归属
 

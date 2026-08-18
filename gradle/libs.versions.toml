@@ -5,20 +5,23 @@
 [versions]
 flyway = "11.9.0"
 gradle = "9.2.1"
-grpc = "1.72.0"
+grpcJava = "1.72.0"
 jdk = "25.0.4+7"
 jqwik = "1.9.4"
 junit = "5.13.2"
 kafka = "4.2.0"
 kafkaImage = "4.2.0"
+keycloakImage = "27.0.2"
 kotlin = "2.3.0"
 kubernetes = "1.36.2"
+minioImage = "2026-07-11T00-00-00Z"
 node = "24.9.0"
-otel = "2.20.0"
+opentelemetryJava = "2.20.0"
 pnpm = "10.14.0"
 postgresImage = "18.2-bookworm"
 postgresql = "18.2"
 protobuf = "4.30.1"
+pythonSim = "3.12.7"
 redis = "8.2.1"
 redisImage = "8.2.1-bookworm"
 springBoot = "4.1.3"
@@ -27,10 +30,10 @@ testcontainers = "1.22.0"
 
 [libraries]
 flyway = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
-grpc-java = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
+grpc-java = { module = "io.grpc:grpc-stub", version.ref = "grpcJava" }
 jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }
 junit = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
-opentelemetry-java = { module = "io.opentelemetry.javaagent:opentelemetry-javaagent", version.ref = "otel" }
+opentelemetry-java = { module = "io.opentelemetry.javaagent:opentelemetry-javaagent", version.ref = "opentelemetryJava" }
 protobuf = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
 spring-boot = { module = "org.springframework.boot:spring-boot-starter", version.ref = "springBoot" }
 spring-cloud = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "springCloud" }

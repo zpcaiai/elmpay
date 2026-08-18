@@ -38,6 +38,10 @@ def run(names: list[str], root: Path, budget_seconds: float) -> tuple[int, str]:
             problems.extend(registry.get(name)(root, budget))
         except GovernanceError as exc:
             return EXIT_ERROR, render([Problem("VALIDATOR_ABORTED", name, str(exc), "NN-12")])
+        except Exception as exc:  # noqa: BLE001 - a crashing validator must fail closed
+            return EXIT_ERROR, render([Problem(
+                "VALIDATOR_CRASHED", name,
+                f"{type(exc).__name__}: {exc}", "NN-12")])
     return (EXIT_PROBLEMS if problems else EXIT_OK), render(problems)
 
 

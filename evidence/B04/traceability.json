@@ -1,0 +1,222 @@
+{
+  "batch_id": "B04",
+  "requirements": [
+    {
+      "id": "B04-R1",
+      "statement": "提供离线可重复的 PostgreSQL、Kafka、Redis、OIDC、对象存储与渠道模拟环境",
+      "source": "batches/B04.md 目标"
+    },
+    {
+      "id": "B04-R2",
+      "statement": "测试环境不得使用生产凭证或真实卡数据，所有测试数据必须合成",
+      "source": "batches/B04.md 实施要求#4"
+    },
+    {
+      "id": "B04-R3",
+      "statement": "每个启用渠道都必须有离线模拟器",
+      "source": "batches/B04.md 目标"
+    },
+    {
+      "id": "B04-R4",
+      "statement": "平台文件由声明生成，端口仅绑定回环，容器不提权",
+      "source": "policies/non-negotiables.md#9"
+    },
+    {
+      "id": "B04-R5",
+      "statement": "模拟器必须演示幂等与验签行为，含并发重放",
+      "source": "policies/non-negotiables.md#4 + #8"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/dev-platform.json",
+      "requirements": [
+        "B04-R1",
+        "B04-R2",
+        "B04-R3"
+      ]
+    },
+    {
+      "ref": "tools/paygov/devplatform.py",
+      "requirements": [
+        "B04-R2",
+        "B04-R3",
+        "B04-R4"
+      ]
+    },
+    {
+      "ref": "tools/paygov/devgen.py",
+      "requirements": [
+        "B04-R1",
+        "B04-R4"
+      ]
+    },
+    {
+      "ref": "tools/simulator/provider_sim.py",
+      "requirements": [
+        "B04-R3",
+        "B04-R5"
+      ]
+    },
+    {
+      "ref": "platform/dev/compose.yaml",
+      "requirements": [
+        "B04-R1",
+        "B04-R4"
+      ]
+    },
+    {
+      "ref": "platform/dev/.env.example",
+      "requirements": [
+        "B04-R2"
+      ]
+    },
+    {
+      "ref": "platform/dev/README.md",
+      "requirements": [
+        "B04-R1"
+      ]
+    },
+    {
+      "ref": "scripts/dev-up.sh",
+      "requirements": [
+        "B04-R1"
+      ]
+    },
+    {
+      "ref": "scripts/render-dev-platform.py",
+      "requirements": [
+        "B04-R4"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b04_simulator.py",
+      "requirements": [
+        "B04-R3",
+        "B04-R5"
+      ],
+      "cases": 18
+    },
+    {
+      "ref": "tools/tests/test_b04_dev_platform.py",
+      "requirements": [
+        "B04-R1",
+        "B04-R2",
+        "B04-R4"
+      ],
+      "cases": 25
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-02",
+      "implemented_by": [
+        "tools/simulator/provider_sim.py",
+        "tools/paygov/devplatform.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b04_simulator.py",
+        "tools/tests/test_b04_dev_platform.py"
+      ]
+    },
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "tools/simulator/provider_sim.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b04_simulator.py"
+      ]
+    },
+    {
+      "id": "NN-07",
+      "implemented_by": [
+        "tools/paygov/devplatform.py",
+        "tools/simulator/provider_sim.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b04_dev_platform.py"
+      ]
+    },
+    {
+      "id": "NN-08",
+      "implemented_by": [
+        "tools/simulator/provider_sim.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b04_simulator.py"
+      ]
+    },
+    {
+      "id": "NN-09",
+      "implemented_by": [
+        "tools/paygov/devgen.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b04_dev_platform.py"
+      ]
+    },
+    {
+      "id": "CTRL-003",
+      "implemented_by": [
+        "tools/simulator/provider_sim.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b04_simulator.py"
+      ]
+    },
+    {
+      "id": "CTRL-016",
+      "implemented_by": [
+        "governance/dev-platform.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b04_dev_platform.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B04/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B04/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B04/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B04/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B04/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B04/runtime/dev-platform-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B04/runtime/simulator-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B04/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B04/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B04.json",
+      "kind": "completion"
+    }
+  ]
+}
