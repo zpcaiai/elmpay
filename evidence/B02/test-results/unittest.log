@@ -141,6 +141,6 @@ test_rejects_risk_without_compensating_controls (tools.tests.test_b02_threat_mod
 test_rejects_unknown_review_batch (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
 
 ----------------------------------------------------------------------
-Ran 141 tests in 6.615s
+Ran 141 tests in 14.659s
 
 OK

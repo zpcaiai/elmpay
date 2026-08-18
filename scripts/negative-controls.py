@@ -9,6 +9,7 @@ through with exit code 0 the batch must not be marked passed.
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 import shutil
 import subprocess
 import sys
@@ -119,6 +120,23 @@ TEXT_SCENARIOS = [
 ]
 
 
+def _json_case(tmp: Path, index: int, spec) -> tuple[str, int, int]:
+    name, rel, mutate, expected = spec
+    root = build(tmp / f"case{index}")
+    patch(root, rel, mutate)
+    code, _ = gate(root)
+    return name, code, expected
+
+
+def _text_case(tmp: Path, index: int, spec) -> tuple[str, int, int]:
+    name, rel, find, replace, expected = spec
+    root = build(tmp / f"text{index}")
+    path = root / rel
+    path.write_text(path.read_text(encoding="utf-8").replace(find, replace), encoding="utf-8")
+    code, _ = gate(root)
+    return name, code, expected
+
+
 def main() -> int:
     failures = []
     with tempfile.TemporaryDirectory(prefix="paygov-negative-") as tmpdir:
@@ -130,21 +148,16 @@ def main() -> int:
         if code != EXIT_OK:
             failures.append("baseline fixture is not clean")
 
-        for index, (name, rel, mutate, expected) in enumerate(SCENARIOS):
-            root = build(tmp / f"case{index}")
-            patch(root, rel, mutate)
-            code, _ = gate(root)
-            status = "OK " if code == expected else "FAIL"
-            print(f"[{status}] {name}: exit={code} expected={expected}")
-            if code != expected:
-                failures.append(name)
+        # Scenarios are independent; running them concurrently keeps the proof
+        # affordable enough to execute on every batch. Results are printed in
+        # declaration order so the log stays deterministic.
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            json_results = list(pool.map(lambda item: _json_case(tmp, item[0], item[1]),
+                                         list(enumerate(SCENARIOS))))
+            text_results = list(pool.map(lambda item: _text_case(tmp, item[0], item[1]),
+                                         list(enumerate(TEXT_SCENARIOS))))
 
-        for index, (name, rel, find, replace, expected) in enumerate(TEXT_SCENARIOS):
-            root = build(tmp / f"text{index}")
-            path = root / rel
-            path.write_text(path.read_text(encoding="utf-8").replace(find, replace),
-                            encoding="utf-8")
-            code, _ = gate(root)
+        for name, code, expected in json_results + text_results:
             status = "OK " if code == expected else "FAIL"
             print(f"[{status}] {name}: exit={code} expected={expected}")
             if code != expected:
