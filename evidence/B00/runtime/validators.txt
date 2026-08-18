@@ -1,0 +1,5 @@
+B00	charter
+B00	module-registry
+B00	non-negotiables
+B00	project-config
+B00	repo-hygiene
