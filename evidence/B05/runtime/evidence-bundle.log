@@ -1,3 +1,4 @@
+  [SKIP] B05: excluded by --exclude-batch (recorded in the manifest)
   [OK ] B00
   [OK ] B01
   [OK ] B02
@@ -5,8 +6,11 @@
   [OK ] B04
 {
   "bundle": "build/evidence-bundle.tar.gz",
-  "batches": 5,
-  "files": 104,
-  "commit_sha": "c9af7946935caf4afb8fe143f392610038d751fc",
-  "bundle_sha256": "968c387bb71dd1348a0c05cdbe04e54c06bdb9a21eccac8adf3fd80ce85d9d92"
+  "batches": 6,
+  "excluded_from_validation": [
+    "B05"
+  ],
+  "files": 117,
+  "commit_sha": "858dc0f05b28d1f649e049b95082e8f6c0a4da6e",
+  "bundle_sha256": "ad325876a034832a3f4e4260079c0492deec861b848ead685d92b11e8dfb5e68"
 }

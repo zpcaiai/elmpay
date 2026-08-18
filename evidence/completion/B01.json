@@ -1,10 +1,10 @@
 {
   "batch_id": "B01",
   "status": "passed",
-  "commit_sha": "c9af7946935caf4afb8fe143f392610038d751fc",
+  "commit_sha": "858dc0f05b28d1f649e049b95082e8f6c0a4da6e",
   "environment": "integration",
-  "started_at": "2026-08-18T12:28:05Z",
-  "completed_at": "2026-08-18T12:28:28Z",
+  "started_at": "2026-08-18T12:37:51Z",
+  "completed_at": "2026-08-18T12:38:24Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -66,7 +66,7 @@
     }
   ],
   "tests": {
-    "passed": 236,
+    "passed": 278,
     "failed": 0,
     "skipped_critical": 0
   },
@@ -75,6 +75,6 @@
     "accepted_findings": 0
   },
   "dependency_hashes": {
-    "B00": "17103107494c482dccbaaa557fcfe98217487ad8adad5322d894cb685ed75d81"
+    "B00": "02849b6d6b3451d990258366f866f1cc80f7a51d5994154593e519e7595dcc2a"
   }
 }

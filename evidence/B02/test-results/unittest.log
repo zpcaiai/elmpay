@@ -234,8 +234,50 @@ test_rejects_unbounded_stage_timeout (tools.tests.test_b05_ci.PipelineRejects) .
 test_rejects_unknown_stage_dependency (tools.tests.test_b05_ci.PipelineRejects) ... ok
 test_rejects_write_access_to_contents (tools.tests.test_b05_ci.PipelineRejects) ... ok
 test_rejects_write_all_permission (tools.tests.test_b05_ci.PipelineRejects) ... ok
+test_b06_validator_is_registered (tools.tests.test_b06_evidence.EvidenceHappyPath) ... ok
+test_every_completed_batch_declares_the_required_command_classes (tools.tests.test_b06_evidence.EvidenceHappyPath) ... ok
+test_every_completion_uses_distinct_principals (tools.tests.test_b06_evidence.EvidenceHappyPath) ... ok
+test_real_evidence_tree_passes (tools.tests.test_b06_evidence.EvidenceHappyPath) ... ok
+test_baseline_copy_passes (tools.tests.test_b06_evidence.EvidenceRejects) ... ok
+test_rejects_artifact_list_out_of_sync_with_completion (tools.tests.test_b06_evidence.EvidenceRejects) ... ok
+test_rejects_completion_for_a_batch_outside_the_manifest (tools.tests.test_b06_evidence.EvidenceRejects) ... ok
+test_rejects_dangling_traceability_reference (tools.tests.test_b06_evidence.EvidenceRejects) ... ok
+test_rejects_missing_evidence_directory (tools.tests.test_b06_evidence.EvidenceRejects) ... ok
+test_rejects_missing_required_evidence_file (tools.tests.test_b06_evidence.EvidenceRejects) ... ok
+test_rejects_plan_without_rollback_section (tools.tests.test_b06_evidence.EvidenceRejects) ... ok
+test_rejects_spec_without_negative_controls (tools.tests.test_b06_evidence.EvidenceRejects) ... ok
+test_rejects_spec_without_timeout_proof (tools.tests.test_b06_evidence.EvidenceRejects) ... ok
+test_rejects_wrong_reviewer (tools.tests.test_b06_evidence.EvidenceRejects) ... ok
+test_accepted_findings_require_a_recorded_decision (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_artifact_path_escaping_the_repository (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_blocking_security_findings (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_command_record_without_exit_code (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_deleted_artifact (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_dependency_hash_mismatch (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_empty_commands_log (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_empty_evidence_directory (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_empty_traceability_section (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_failed_tests (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_invalid_commit_sha (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_missing_field (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_modified_artifact (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_reversed_timestamps (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_same_executor_and_reviewer (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_skipped_critical_tests (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_status_not_passed (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_detects_stub_plan (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_invalid_dependency_invalidates_the_dependent (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_ready_set_reflects_only_valid_evidence (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_release_gate_blocks_while_batches_are_incomplete (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_untouched_synthetic_evidence_is_valid (tools.tests.test_b06_orchestration.CompletionTamperDetection) ... ok
+test_crosscheck_reports_no_mismatch (tools.tests.test_b06_orchestration.DifferentialAgreement) ... ok
+test_status_matches_upstream (tools.tests.test_b06_orchestration.DifferentialAgreement) ... ok
+test_every_batch_except_the_first_has_a_dependency (tools.tests.test_b06_orchestration.GraphProperties) ... ok
+test_first_batch_has_no_dependencies (tools.tests.test_b06_orchestration.GraphProperties) ... ok
+test_manifest_graph_is_acyclic_and_complete (tools.tests.test_b06_orchestration.GraphProperties) ... ok
+test_manifest_is_topologically_sorted (tools.tests.test_b06_orchestration.GraphProperties) ... ok
 
 ----------------------------------------------------------------------
-Ran 236 tests in 17.772s
+Ran 278 tests in 21.823s
 
 OK

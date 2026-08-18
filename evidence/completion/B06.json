@@ -1,0 +1,49 @@
+{
+  "batch_id": "B06",
+  "status": "passed",
+  "commit_sha": "858dc0f05b28d1f649e049b95082e8f6c0a4da6e",
+  "environment": "integration",
+  "started_at": "2026-08-18T12:42:14Z",
+  "completed_at": "2026-08-18T12:42:42Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "governance/evidence-policy.json",
+      "sha256": "39727f04fb92aa3e89ff9ec253ac6530fddc140cea2778523656e653d3ee94b0"
+    },
+    {
+      "path": "scripts/batch.py",
+      "sha256": "b9ad46e3c809018d23d2b523be8b2f9f24f339193ce8a97f184a095af1760da7"
+    },
+    {
+      "path": "tools/paygov/evidence.py",
+      "sha256": "f2ee3e12af48146c3b79289b07e4bea76bab9e02c993e3577110c63c6b665021"
+    },
+    {
+      "path": "tools/paygov/orchestration.py",
+      "sha256": "3cf287141865c145d99e8836c0c68ef9e05a23a2df0c951153948723777863c8"
+    },
+    {
+      "path": "tools/tests/test_b06_evidence.py",
+      "sha256": "93ecc3a354366da4866f7879d55f04330c268749b2de7130dbb48fa3f7c41342"
+    },
+    {
+      "path": "tools/tests/test_b06_orchestration.py",
+      "sha256": "3419ebcc39007661dd5f755e591c169fcae1e802861a207c2b03b1dc7c3fdd67"
+    }
+  ],
+  "tests": {
+    "passed": 278,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B02": "aaf8c3b1d7139c0a67a28e0704d4f6a36fcd38b59933983f4bba7906ec6cfb03",
+    "B05": "798ece51e3e2d0f9e990ad5cf959b6421835108cd159d553479b8a4123db84d6"
+  }
+}

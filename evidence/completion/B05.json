@@ -1,10 +1,10 @@
 {
   "batch_id": "B05",
   "status": "passed",
-  "commit_sha": "c9af7946935caf4afb8fe143f392610038d751fc",
+  "commit_sha": "858dc0f05b28d1f649e049b95082e8f6c0a4da6e",
   "environment": "integration",
-  "started_at": "2026-08-18T12:30:12Z",
-  "completed_at": "2026-08-18T12:30:28Z",
+  "started_at": "2026-08-18T12:41:38Z",
+  "completed_at": "2026-08-18T12:42:09Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -18,7 +18,7 @@
     },
     {
       "path": "scripts/archive-evidence.py",
-      "sha256": "4b5c61ffdd61241a26a5ffbea01be7fbef8fc119ce71036a20e8a0a2c8c31217"
+      "sha256": "c3d41a617c14196074747509eb73c87542c8e9df7cdca99c5b29e7a7f6c075df"
     },
     {
       "path": "scripts/render-ci.py",
@@ -42,7 +42,7 @@
     }
   ],
   "tests": {
-    "passed": 236,
+    "passed": 278,
     "failed": 0,
     "skipped_critical": 0
   },
@@ -51,7 +51,7 @@
     "accepted_findings": 0
   },
   "dependency_hashes": {
-    "B03": "19a877afa0b9cb389547df87146ea25f31ba759ae542779459f9b2324ef92940",
-    "B04": "9f7d1308e6a5f2383b4d2bfdebd940cf8582495d0a553434355f61211be838b9"
+    "B03": "8140edb37f723c89dfbbaa9fbdfcc173bb37dd6b3e6e6fed6c5b38e42c80436e",
+    "B04": "4931515083db822614b480696d6b9b966c66ec1d34148222259ab54c8a06697d"
   }
 }

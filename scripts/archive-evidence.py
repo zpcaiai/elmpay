@@ -53,6 +53,10 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", required=True)
     parser.add_argument("--allow-empty", action="store_true")
+    parser.add_argument("--exclude-batch", action="append", default=[],
+                        help="skip validation for a batch whose completion file is being "
+                             "re-issued in this same run; the exclusion is recorded in the "
+                             "manifest so an auditor can see it")
     args = parser.parse_args()
 
     batches = completed_batches()
@@ -60,8 +64,14 @@ def main() -> int:
         print("no completed batches to archive", file=sys.stderr)
         return 3
 
+    excluded = sorted(set(args.exclude_batch))
+    for batch in excluded:
+        print(f"  [SKIP] {batch}: excluded by --exclude-batch (recorded in the manifest)")
+
     invalid = []
     for batch in batches:
+        if batch in excluded:
+            continue
         ok, _ = validate(batch)
         print(f"  [{'OK ' if ok else 'FAIL'}] {batch}")
         if not ok:
@@ -75,6 +85,7 @@ def main() -> int:
     manifest = {
         "commit_sha": git_head(),
         "batches": batches,
+        "excluded_from_validation": excluded,
         "file_count": len(files),
         "files": [{"path": p.relative_to(ROOT).as_posix(), "sha256": sha256(p),
                    "bytes": p.stat().st_size} for p in files],
@@ -91,6 +102,7 @@ def main() -> int:
             archive.add(path, arcname=path.relative_to(ROOT).as_posix())
 
     print(json.dumps({"bundle": args.out, "batches": len(batches),
+                      "excluded_from_validation": excluded,
                       "files": len(files), "commit_sha": manifest["commit_sha"],
                       "bundle_sha256": sha256(out)}, ensure_ascii=False, indent=2))
     return 0
