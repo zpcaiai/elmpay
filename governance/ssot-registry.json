@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B07",
+  "note": "每个治理事实源都必须登记：谁拥有它、哪个校验器强制它、它生成了什么。未登记的治理文件会使门禁失败。",
+  "sources": [
+    {
+      "id": "project-config",
+      "path": "governance/project-config.json",
+      "batch": "B00",
+      "owner": "payment-platform-architecture",
+      "validator": "project-config",
+      "generates": []
+    },
+    {
+      "id": "non-negotiables",
+      "path": "governance/non-negotiables.json",
+      "batch": "B00",
+      "owner": "payment-platform-security",
+      "validator": "non-negotiables",
+      "generates": []
+    },
+    {
+      "id": "module-registry",
+      "path": "governance/module-registry.json",
+      "batch": "B00",
+      "owner": "payment-platform-architecture",
+      "validator": "module-registry",
+      "generates": [
+        "settings.gradle.kts"
+      ]
+    },
+    {
+      "id": "requirements",
+      "path": "governance/requirements.json",
+      "batch": "B01",
+      "owner": "payment-platform-architecture",
+      "validator": "requirements",
+      "generates": [
+        "docs/requirements/REQUIREMENTS_BASELINE.md",
+        "docs/traceability/MATRIX.md"
+      ],
+      "note": "追踪矩阵的主输入是需求基线；服务边界、ADR 与证据为次输入，任一输入变化都会使矩阵漂移并被 generated-docs 校验器检出。"
+    },
+    {
+      "id": "service-boundaries",
+      "path": "governance/service-boundaries.json",
+      "batch": "B01",
+      "owner": "payment-platform-architecture",
+      "validator": "service-boundaries",
+      "generates": [
+        "docs/requirements/SERVICE_BOUNDARIES.md"
+      ]
+    },
+    {
+      "id": "threat-model",
+      "path": "governance/threat-model.json",
+      "batch": "B02",
+      "owner": "payment-platform-security",
+      "validator": "threat-model",
+      "generates": [
+        "docs/security/THREAT_MODEL.md"
+      ]
+    },
+    {
+      "id": "version-catalog",
+      "path": "governance/version-catalog.json",
+      "batch": "B03",
+      "owner": "payment-platform-platform-eng",
+      "validator": "toolchain",
+      "generates": [
+        "gradle/libs.versions.toml",
+        "build.gradle.kts",
+        ".tool-versions",
+        "platform/toolchain/versions.env",
+        "docs/toolchain/VERSION_CATALOG.md"
+      ]
+    },
+    {
+      "id": "dev-platform",
+      "path": "governance/dev-platform.json",
+      "batch": "B04",
+      "owner": "payment-platform-sre",
+      "validator": "dev-platform",
+      "generates": [
+        "platform/dev/compose.yaml",
+        "platform/dev/.env.example",
+        "platform/dev/README.md",
+        "platform/dev/simulators/wechat/Dockerfile",
+        "platform/dev/simulators/alipay/Dockerfile",
+        "platform/dev/simulators/stripe/Dockerfile",
+        "platform/dev/simulators/paypal/Dockerfile",
+        "platform/dev/simulators/apple-pay/Dockerfile"
+      ]
+    },
+    {
+      "id": "ci-pipeline",
+      "path": "governance/ci-pipeline.json",
+      "batch": "B05",
+      "owner": "payment-platform-platform-eng",
+      "validator": "ci-pipeline",
+      "generates": [
+        ".github/workflows/ci.yml",
+        "scripts/sign-artifacts.sh"
+      ]
+    },
+    {
+      "id": "evidence-policy",
+      "path": "governance/evidence-policy.json",
+      "batch": "B06",
+      "owner": "payment-platform-security",
+      "validator": "evidence",
+      "generates": []
+    },
+    {
+      "id": "ssot-registry",
+      "path": "governance/ssot-registry.json",
+      "batch": "B07",
+      "owner": "payment-platform-architecture",
+      "validator": "ssot",
+      "generates": []
+    }
+  ],
+  "adr_directory": "docs/adr",
+  "generated_banner": "GENERATED FILE"
+}

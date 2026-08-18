@@ -36,7 +36,8 @@
 | CAP-14 | 运营后台与权限 | admin-web | 2 | external:admin-operator | payment-core、risk-engine、ledger-service、reconciliation-service |
 | CAP-15 | 安全基础设施 | security | 3 | all-modules | external:kms-hsm |
 | CAP-16 | 可观测性与运维 | observability | 3 | all-modules | external:monitoring |
-| CAP-17 | 治理与合规边界 | merchant-config | 2 | external:admin-operator | all-modules |
+| CAP-17 | 治理与合规边界 | merchant-config | 4 | external:admin-operator | all-modules |
+| CAP-18 | 安全供应链与不可变发布 | edge-gateway | 1 | all-modules | external:monitoring |
 
 ### 能力到需求
 
@@ -56,7 +57,8 @@
 - **CAP-14 运营后台与权限** → PAY-REQ-0041, PAY-REQ-0042
 - **CAP-15 安全基础设施** → PAY-REQ-0043, PAY-REQ-0044, PAY-REQ-0045
 - **CAP-16 可观测性与运维** → PAY-REQ-0046, PAY-REQ-0047, PAY-REQ-0048
-- **CAP-17 治理与合规边界** → PAY-REQ-0049, PAY-REQ-0050
+- **CAP-17 治理与合规边界** → PAY-REQ-0049, PAY-REQ-0050, PAY-REQ-0051, PAY-REQ-0052
+- **CAP-18 安全供应链与不可变发布** → PAY-REQ-0053
 
 ## 禁止流
 

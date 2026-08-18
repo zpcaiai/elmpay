@@ -4,7 +4,7 @@
 
 # 需求基线（B01）
 
-共 50 条需求，17 个类别。
+共 53 条需求，17 个类别。
 每条需求都绑定至少一个控制与至少一个验证批次；未绑定的需求会使治理门禁失败。
 
 ## admin
@@ -33,6 +33,8 @@
 | --- | --- | --- | --- | --- | --- |
 | PAY-REQ-0049 | 证据与独立评审 | MUST | payment-core | NN-12 CTRL-020 | B06 B119 B127 |
 | PAY-REQ-0050 | 受监管能力边界 | MUST | merchant-config | NN-13 | B107 |
+| PAY-REQ-0051 | 安全例外与剩余风险台账 | MUST | security | NN-15 | B02 B110 |
+| PAY-REQ-0052 | 第三方与供应商风险 | MUST | merchant-config | CTRL-019 | B111 |
 
 ## integration
 
@@ -59,6 +61,7 @@
 | PAY-REQ-0046 | 可观测性与脱敏 | MUST | observability | NN-14 CTRL-015 | B96 B108 |
 | PAY-REQ-0047 | SLO 与错误预算 | MUST | observability | CTRL-012 | B97 |
 | PAY-REQ-0048 | 备份恢复与演练 | MUST | worker-scheduler | CTRL-013 | B90 B95 |
+| PAY-REQ-0053 | 安全 SDLC 与不可变发布 | MUST | edge-gateway | CTRL-011 CTRL-018 | B05 B109 B124 |
 
 ## orchestration
 
@@ -543,3 +546,27 @@
 - 验收：配置中开启任一受监管能力会使治理门禁失败。
 - 控制：NN-13
 - 验证批次：B107（AML、KYC、KYB、制裁与监管边界）
+
+### PAY-REQ-0051 安全例外与剩余风险台账
+
+- 类别：governance　优先级：MUST　责任模块：`security`
+- 陈述：每条被接受的风险必须登记风险所有者、补偿控制、到期日与复审批次，过期即阻断发布。
+- 验收：把任一剩余风险的到期日改到过去，治理门禁立即失败。
+- 控制：NN-15
+- 验证批次：B02（架构决策记录与初始威胁模型）, B110（漏洞管理、渗透测试与红队）
+
+### PAY-REQ-0052 第三方与供应商风险
+
+- 类别：governance　优先级：MUST　责任模块：`merchant-config`
+- 陈述：对渠道、云、监控与通知等第三方执行尽职调查、数据流登记、SLA、安全条款与退出方案。
+- 验收：缺少退出方案或数据流登记的供应商无法进入生产配置。
+- 控制：CTRL-019
+- 验证批次：B111（第三方风险、合同与供应商退出）
+
+### PAY-REQ-0053 安全 SDLC 与不可变发布
+
+- 类别：operations　优先级：MUST　责任模块：`edge-gateway`
+- 陈述：SAST/DAST/SCA/密钥扫描/SBOM/来源证明/签名纳入流水线，制品不可变且可回滚。
+- 验收：未签名或无 SBOM 的制品无法通过发布门禁。
+- 控制：CTRL-011, CTRL-018
+- 验证批次：B05（持续集成与质量基线）, B109（安全 SDLC、SBOM、SLSA 与制品签名）, B124（分阶段发布、灰度与回滚）

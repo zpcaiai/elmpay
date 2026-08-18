@@ -26,6 +26,8 @@ COPIED_FILES = (
     "governance/version-catalog.json",
     "governance/dev-platform.json",
     "governance/ci-pipeline.json",
+    "governance/evidence-policy.json",
+    "governance/ssot-registry.json",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",
@@ -41,6 +43,7 @@ COPIED_DIRS = (
     "docs/adr",
     "docs/security",
     "docs/toolchain",
+    "docs/traceability",
 )
 
 # Generated build files: the toolchain validator compares them against the

@@ -68,6 +68,10 @@ def load_all() -> None:
     from . import evidence  # noqa: F401
     _register_once("evidence", "B06", evidence.validate)
 
+    from . import ssot, traceability  # noqa: F401
+    _register_once("ssot", "B07", ssot.validate)
+    _register_once("traceability", "B07", traceability.validate)
+
 
 def _register_once(name: str, batch: str, fn: Validator) -> None:
     if name not in _REGISTRY:

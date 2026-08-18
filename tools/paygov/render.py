@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from . import adr as adr_mod
+from . import traceability as trace_mod
 from . import catalogue
 from .repo import Budget, load_json, read_text
 
@@ -159,6 +160,7 @@ def version_catalog_markdown(root: Path, budget: Budget | None = None) -> str:
 
 TARGETS: dict[str, callable] = {
     "docs/toolchain/VERSION_CATALOG.md": version_catalog_markdown,
+    "docs/traceability/MATRIX.md": trace_mod.matrix_markdown,
     "docs/requirements/REQUIREMENTS_BASELINE.md": requirements_markdown,
     "docs/requirements/SERVICE_BOUNDARIES.md": boundaries_markdown,
     "docs/adr/README.md": adr_index_markdown,

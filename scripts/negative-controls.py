@@ -29,6 +29,7 @@ COPIED = (
     "governance/dev-platform.json",
     "governance/ci-pipeline.json",
     "governance/evidence-policy.json",
+    "governance/ssot-registry.json",
     "gradle/libs.versions.toml",
     "settings.gradle.kts",
     "build.gradle.kts",
@@ -55,7 +56,8 @@ COPIED = (
     ".payment-platform/skill-package/compliance/controls-matrix.csv",
 )
 
-COPIED_DIRS = ("docs/adr", "docs/security", "docs/toolchain", "evidence")
+COPIED_DIRS = ("docs/adr", "docs/security", "docs/toolchain", "docs/traceability",
+               "evidence")
 
 EXIT_OK, EXIT_PROBLEMS, EXIT_ERROR = 0, 2, 3
 
@@ -214,6 +216,20 @@ SCENARIOS = [
      lambda d: d["principals"].__setitem__("reviewer", "someone-else"), EXIT_PROBLEMS),
     ("B06 evidence policy adds an unmet plan section", "governance/evidence-policy.json",
      lambda d: d["required_plan_sections"].append("容量模型"), EXIT_PROBLEMS),
+    ("B07 non-negotiable left unclaimed by any requirement", "governance/requirements.json",
+     lambda d: next(r for r in d["requirements"] if "NN-15" in r["controls"])
+        .__setitem__("controls", ["NN-12"]), EXIT_PROBLEMS),
+    ("B07 control left unclaimed by any requirement", "governance/requirements.json",
+     lambda d: next(r for r in d["requirements"] if "CTRL-019" in r["controls"])
+        .__setitem__("controls", ["NN-12"]), EXIT_PROBLEMS),
+    ("B07 governance file removed from the SSOT registry", "governance/ssot-registry.json",
+     lambda d: d["sources"].__setitem__(
+         slice(None), [s for s in d["sources"] if s["id"] != "threat-model"]), EXIT_PROBLEMS),
+    ("B07 SSOT source loses its validator", "governance/ssot-registry.json",
+     lambda d: d["sources"][0].__setitem__("validator", "does-not-exist"), EXIT_PROBLEMS),
+    ("B07 generated file claimed by two generators", "governance/ssot-registry.json",
+     lambda d: d["sources"][0].__setitem__(
+         "generates", ["docs/security/THREAT_MODEL.md"]), EXIT_PROBLEMS),
 ]
 
 TEXT_SCENARIOS = [

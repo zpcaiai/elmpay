@@ -1,0 +1,192 @@
+{
+  "batch_id": "B07",
+  "requirements": [
+    {
+      "id": "B07-R1",
+      "statement": "建立需求到架构、代码、测试、控制、运行证据与发布结论的双向追踪",
+      "source": "batches/B07.md 目标"
+    },
+    {
+      "id": "B07-R2",
+      "statement": "每个治理事实源必须登记所有者、校验器与生成物",
+      "source": "policies/definition-of-done.md"
+    },
+    {
+      "id": "B07-R3",
+      "statement": "每条红线与控制必须被至少一条需求反向覆盖",
+      "source": "policies/non-negotiables.md + compliance/controls-matrix.csv"
+    },
+    {
+      "id": "B07-R4",
+      "statement": "生成物必须携带 banner 且不得被手工编辑",
+      "source": "CTRL-018"
+    },
+    {
+      "id": "B07-R5",
+      "statement": "批次证据必须认领已知控制且引用的测试真实存在",
+      "source": "batches/B07.md 完成门#5"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/ssot-registry.json",
+      "requirements": [
+        "B07-R2",
+        "B07-R4"
+      ]
+    },
+    {
+      "ref": "tools/paygov/ssot.py",
+      "requirements": [
+        "B07-R2",
+        "B07-R4"
+      ]
+    },
+    {
+      "ref": "tools/paygov/traceability.py",
+      "requirements": [
+        "B07-R1",
+        "B07-R3",
+        "B07-R5"
+      ]
+    },
+    {
+      "ref": "governance/requirements.json",
+      "requirements": [
+        "B07-R3"
+      ]
+    },
+    {
+      "ref": "governance/service-boundaries.json",
+      "requirements": [
+        "B07-R1"
+      ]
+    },
+    {
+      "ref": "docs/traceability/MATRIX.md",
+      "requirements": [
+        "B07-R1",
+        "B07-R3"
+      ]
+    },
+    {
+      "ref": "scripts/traceability-matrix.py",
+      "requirements": [
+        "B07-R1",
+        "B07-R3"
+      ]
+    },
+    {
+      "ref": "tools/paygov/hygiene.py",
+      "requirements": [
+        "B07-R4"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b07_ssot.py",
+      "requirements": [
+        "B07-R2",
+        "B07-R4"
+      ],
+      "cases": 13
+    },
+    {
+      "ref": "tools/tests/test_b07_traceability.py",
+      "requirements": [
+        "B07-R1",
+        "B07-R3",
+        "B07-R5"
+      ],
+      "cases": 15
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/traceability.py",
+        "tools/paygov/ssot.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b07_traceability.py",
+        "tools/tests/test_b07_ssot.py"
+      ]
+    },
+    {
+      "id": "NN-15",
+      "implemented_by": [
+        "governance/requirements.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b07_traceability.py"
+      ]
+    },
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "governance/ssot-registry.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b07_ssot.py"
+      ]
+    },
+    {
+      "id": "CTRL-019",
+      "implemented_by": [
+        "governance/requirements.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b07_traceability.py"
+      ]
+    },
+    {
+      "id": "CTRL-020",
+      "implemented_by": [
+        "docs/traceability/MATRIX.md"
+      ],
+      "verified_by": [
+        "evidence/B07/runtime/trace-graph.json"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B07/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B07/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B07/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B07/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B07/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B07/runtime/trace-graph.json",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B07/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B07/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B07.json",
+      "kind": "completion"
+    }
+  ]
+}

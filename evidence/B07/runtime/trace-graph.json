@@ -1,0 +1,533 @@
+{
+  "adrs_total": 12,
+  "batches_with_evidence": [
+    "B00",
+    "B01",
+    "B02",
+    "B03",
+    "B04",
+    "B05",
+    "B06"
+  ],
+  "capabilities_total": 18,
+  "controls_total": 20,
+  "non_negotiables_total": 15,
+  "requirements_per_batch": {
+    "B02": [
+      "PAY-REQ-0051"
+    ],
+    "B05": [
+      "PAY-REQ-0053"
+    ],
+    "B06": [
+      "PAY-REQ-0049"
+    ],
+    "B09": [
+      "PAY-REQ-0028"
+    ],
+    "B10": [
+      "PAY-REQ-0012"
+    ],
+    "B100": [
+      "PAY-REQ-0011",
+      "PAY-REQ-0013"
+    ],
+    "B101": [
+      "PAY-REQ-0021"
+    ],
+    "B107": [
+      "PAY-REQ-0050"
+    ],
+    "B108": [
+      "PAY-REQ-0046"
+    ],
+    "B109": [
+      "PAY-REQ-0053"
+    ],
+    "B110": [
+      "PAY-REQ-0051"
+    ],
+    "B111": [
+      "PAY-REQ-0052"
+    ],
+    "B114": [
+      "PAY-REQ-0005",
+      "PAY-REQ-0019"
+    ],
+    "B115": [
+      "PAY-REQ-0003",
+      "PAY-REQ-0020"
+    ],
+    "B117": [
+      "PAY-REQ-0013"
+    ],
+    "B119": [
+      "PAY-REQ-0049"
+    ],
+    "B12": [
+      "PAY-REQ-0007",
+      "PAY-REQ-0020"
+    ],
+    "B120": [
+      "PAY-REQ-0001"
+    ],
+    "B124": [
+      "PAY-REQ-0053"
+    ],
+    "B125": [
+      "PAY-REQ-0033"
+    ],
+    "B127": [
+      "PAY-REQ-0049"
+    ],
+    "B15": [
+      "PAY-REQ-0001"
+    ],
+    "B17": [
+      "PAY-REQ-0042"
+    ],
+    "B18": [
+      "PAY-REQ-0041"
+    ],
+    "B19": [
+      "PAY-REQ-0041",
+      "PAY-REQ-0042"
+    ],
+    "B20": [
+      "PAY-REQ-0044"
+    ],
+    "B21": [
+      "PAY-REQ-0044"
+    ],
+    "B23": [
+      "PAY-REQ-0043"
+    ],
+    "B24": [
+      "PAY-REQ-0004"
+    ],
+    "B27": [
+      "PAY-REQ-0009"
+    ],
+    "B28": [
+      "PAY-REQ-0008"
+    ],
+    "B30": [
+      "PAY-REQ-0004",
+      "PAY-REQ-0008"
+    ],
+    "B31": [
+      "PAY-REQ-0045"
+    ],
+    "B32": [
+      "PAY-REQ-0001",
+      "PAY-REQ-0002"
+    ],
+    "B33": [
+      "PAY-REQ-0010",
+      "PAY-REQ-0011"
+    ],
+    "B36": [
+      "PAY-REQ-0002",
+      "PAY-REQ-0003"
+    ],
+    "B37": [
+      "PAY-REQ-0019",
+      "PAY-REQ-0020",
+      "PAY-REQ-0021"
+    ],
+    "B38": [
+      "PAY-REQ-0005",
+      "PAY-REQ-0006"
+    ],
+    "B40": [
+      "PAY-REQ-0014"
+    ],
+    "B41": [
+      "PAY-REQ-0014"
+    ],
+    "B42": [
+      "PAY-REQ-0014"
+    ],
+    "B43": [
+      "PAY-REQ-0014"
+    ],
+    "B44": [
+      "PAY-REQ-0015"
+    ],
+    "B45": [
+      "PAY-REQ-0015"
+    ],
+    "B46": [
+      "PAY-REQ-0015"
+    ],
+    "B47": [
+      "PAY-REQ-0015"
+    ],
+    "B48": [
+      "PAY-REQ-0016"
+    ],
+    "B49": [
+      "PAY-REQ-0016"
+    ],
+    "B51": [
+      "PAY-REQ-0017"
+    ],
+    "B52": [
+      "PAY-REQ-0017"
+    ],
+    "B53": [
+      "PAY-REQ-0018"
+    ],
+    "B54": [
+      "PAY-REQ-0018"
+    ],
+    "B56": [
+      "PAY-REQ-0006"
+    ],
+    "B57": [
+      "PAY-REQ-0039"
+    ],
+    "B58": [
+      "PAY-REQ-0006",
+      "PAY-REQ-0038",
+      "PAY-REQ-0039"
+    ],
+    "B59": [
+      "PAY-REQ-0038"
+    ],
+    "B62": [
+      "PAY-REQ-0009"
+    ],
+    "B64": [
+      "PAY-REQ-0022"
+    ],
+    "B65": [
+      "PAY-REQ-0023"
+    ],
+    "B66": [
+      "PAY-REQ-0024"
+    ],
+    "B67": [
+      "PAY-REQ-0025"
+    ],
+    "B68": [
+      "PAY-REQ-0026"
+    ],
+    "B70": [
+      "PAY-REQ-0025"
+    ],
+    "B71": [
+      "PAY-REQ-0025"
+    ],
+    "B72": [
+      "PAY-REQ-0027"
+    ],
+    "B73": [
+      "PAY-REQ-0027",
+      "PAY-REQ-0031"
+    ],
+    "B74": [
+      "PAY-REQ-0029"
+    ],
+    "B75": [
+      "PAY-REQ-0030"
+    ],
+    "B76": [
+      "PAY-REQ-0032"
+    ],
+    "B77": [
+      "PAY-REQ-0033"
+    ],
+    "B78": [
+      "PAY-REQ-0031",
+      "PAY-REQ-0034"
+    ],
+    "B80": [
+      "PAY-REQ-0035"
+    ],
+    "B81": [
+      "PAY-REQ-0036"
+    ],
+    "B82": [
+      "PAY-REQ-0035"
+    ],
+    "B85": [
+      "PAY-REQ-0038"
+    ],
+    "B87": [
+      "PAY-REQ-0037"
+    ],
+    "B88": [
+      "PAY-REQ-0040"
+    ],
+    "B89": [
+      "PAY-REQ-0040"
+    ],
+    "B90": [
+      "PAY-REQ-0048"
+    ],
+    "B91": [
+      "PAY-REQ-0007"
+    ],
+    "B95": [
+      "PAY-REQ-0048"
+    ],
+    "B96": [
+      "PAY-REQ-0046"
+    ],
+    "B97": [
+      "PAY-REQ-0047"
+    ]
+  },
+  "requirements_per_control": {
+    "CTRL-001": [
+      "PAY-REQ-0016",
+      "PAY-REQ-0018"
+    ],
+    "CTRL-002": [
+      "PAY-REQ-0005",
+      "PAY-REQ-0014",
+      "PAY-REQ-0015",
+      "PAY-REQ-0017",
+      "PAY-REQ-0019"
+    ],
+    "CTRL-003": [
+      "PAY-REQ-0002",
+      "PAY-REQ-0003",
+      "PAY-REQ-0020"
+    ],
+    "CTRL-004": [
+      "PAY-REQ-0041"
+    ],
+    "CTRL-005": [
+      "PAY-REQ-0045"
+    ],
+    "CTRL-006": [
+      "PAY-REQ-0044"
+    ],
+    "CTRL-007": [
+      "PAY-REQ-0010",
+      "PAY-REQ-0021",
+      "PAY-REQ-0034",
+      "PAY-REQ-0043"
+    ],
+    "CTRL-008": [
+      "PAY-REQ-0027",
+      "PAY-REQ-0029"
+    ],
+    "CTRL-009": [
+      "PAY-REQ-0024",
+      "PAY-REQ-0025",
+      "PAY-REQ-0032",
+      "PAY-REQ-0033"
+    ],
+    "CTRL-010": [
+      "PAY-REQ-0038",
+      "PAY-REQ-0039"
+    ],
+    "CTRL-011": [
+      "PAY-REQ-0053"
+    ],
+    "CTRL-012": [
+      "PAY-REQ-0047"
+    ],
+    "CTRL-013": [
+      "PAY-REQ-0048"
+    ],
+    "CTRL-014": [
+      "PAY-REQ-0037",
+      "PAY-REQ-0040",
+      "PAY-REQ-0042"
+    ],
+    "CTRL-015": [
+      "PAY-REQ-0036",
+      "PAY-REQ-0046"
+    ],
+    "CTRL-016": [
+      "PAY-REQ-0004",
+      "PAY-REQ-0008",
+      "PAY-REQ-0009"
+    ],
+    "CTRL-017": [
+      "PAY-REQ-0013",
+      "PAY-REQ-0035",
+      "PAY-REQ-0040"
+    ],
+    "CTRL-018": [
+      "PAY-REQ-0053"
+    ],
+    "CTRL-019": [
+      "PAY-REQ-0052"
+    ],
+    "CTRL-020": [
+      "PAY-REQ-0049"
+    ],
+    "NN-01": [
+      "PAY-REQ-0001"
+    ],
+    "NN-02": [
+      "PAY-REQ-0016",
+      "PAY-REQ-0018",
+      "PAY-REQ-0026"
+    ],
+    "NN-03": [
+      "PAY-REQ-0005",
+      "PAY-REQ-0011"
+    ],
+    "NN-04": [
+      "PAY-REQ-0002",
+      "PAY-REQ-0003",
+      "PAY-REQ-0007",
+      "PAY-REQ-0012",
+      "PAY-REQ-0020",
+      "PAY-REQ-0022",
+      "PAY-REQ-0032"
+    ],
+    "NN-05": [
+      "PAY-REQ-0028"
+    ],
+    "NN-06": [
+      "PAY-REQ-0027",
+      "PAY-REQ-0031"
+    ],
+    "NN-07": [
+      "PAY-REQ-0044"
+    ],
+    "NN-08": [
+      "PAY-REQ-0019"
+    ],
+    "NN-09": [
+      "PAY-REQ-0004",
+      "PAY-REQ-0045"
+    ],
+    "NN-10": [
+      "PAY-REQ-0006",
+      "PAY-REQ-0039"
+    ],
+    "NN-11": [
+      "PAY-REQ-0008",
+      "PAY-REQ-0021",
+      "PAY-REQ-0023",
+      "PAY-REQ-0031",
+      "PAY-REQ-0034",
+      "PAY-REQ-0041"
+    ],
+    "NN-12": [
+      "PAY-REQ-0049"
+    ],
+    "NN-13": [
+      "PAY-REQ-0030",
+      "PAY-REQ-0050"
+    ],
+    "NN-14": [
+      "PAY-REQ-0036",
+      "PAY-REQ-0046"
+    ],
+    "NN-15": [
+      "PAY-REQ-0051"
+    ]
+  },
+  "requirements_per_module": {
+    "admin-web": [
+      "PAY-REQ-0041",
+      "PAY-REQ-0042"
+    ],
+    "alipay": [
+      "PAY-REQ-0015"
+    ],
+    "apple-pay": [
+      "PAY-REQ-0018"
+    ],
+    "audit": [
+      "PAY-REQ-0043"
+    ],
+    "checkout-web": [
+      "PAY-REQ-0038",
+      "PAY-REQ-0039"
+    ],
+    "domain-events": [
+      "PAY-REQ-0007"
+    ],
+    "edge-gateway": [
+      "PAY-REQ-0040",
+      "PAY-REQ-0053"
+    ],
+    "idempotency": [
+      "PAY-REQ-0003"
+    ],
+    "ledger-service": [
+      "PAY-REQ-0027",
+      "PAY-REQ-0029",
+      "PAY-REQ-0030",
+      "PAY-REQ-0031"
+    ],
+    "merchant-config": [
+      "PAY-REQ-0004",
+      "PAY-REQ-0008",
+      "PAY-REQ-0009",
+      "PAY-REQ-0045",
+      "PAY-REQ-0050",
+      "PAY-REQ-0052"
+    ],
+    "money": [
+      "PAY-REQ-0028"
+    ],
+    "observability": [
+      "PAY-REQ-0046",
+      "PAY-REQ-0047"
+    ],
+    "payment-core": [
+      "PAY-REQ-0001",
+      "PAY-REQ-0002",
+      "PAY-REQ-0010",
+      "PAY-REQ-0011",
+      "PAY-REQ-0012",
+      "PAY-REQ-0013",
+      "PAY-REQ-0022",
+      "PAY-REQ-0023",
+      "PAY-REQ-0024",
+      "PAY-REQ-0025",
+      "PAY-REQ-0026",
+      "PAY-REQ-0049"
+    ],
+    "paypal": [
+      "PAY-REQ-0017"
+    ],
+    "reconciliation-service": [
+      "PAY-REQ-0032",
+      "PAY-REQ-0033",
+      "PAY-REQ-0034"
+    ],
+    "risk-engine": [
+      "PAY-REQ-0035",
+      "PAY-REQ-0036",
+      "PAY-REQ-0037"
+    ],
+    "security": [
+      "PAY-REQ-0044",
+      "PAY-REQ-0051"
+    ],
+    "stripe": [
+      "PAY-REQ-0016"
+    ],
+    "webhook-delivery": [
+      "PAY-REQ-0005",
+      "PAY-REQ-0006"
+    ],
+    "webhook-ingress": [
+      "PAY-REQ-0019",
+      "PAY-REQ-0020",
+      "PAY-REQ-0021"
+    ],
+    "wechat-pay": [
+      "PAY-REQ-0014"
+    ],
+    "worker-scheduler": [
+      "PAY-REQ-0048"
+    ]
+  },
+  "requirements_total": 53,
+  "unclaimed_requirements": [],
+  "uncovered_controls": [],
+  "uncovered_modules": []
+}

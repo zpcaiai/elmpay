@@ -366,13 +366,29 @@
       "owner_module": "merchant-config",
       "requirements": [
         "PAY-REQ-0049",
-        "PAY-REQ-0050"
+        "PAY-REQ-0050",
+        "PAY-REQ-0051",
+        "PAY-REQ-0052"
       ],
       "inbound_from": [
         "external:admin-operator"
       ],
       "outbound_to": [
         "all-modules"
+      ]
+    },
+    {
+      "id": "CAP-18",
+      "name": "安全供应链与不可变发布",
+      "owner_module": "edge-gateway",
+      "requirements": [
+        "PAY-REQ-0053"
+      ],
+      "inbound_from": [
+        "all-modules"
+      ],
+      "outbound_to": [
+        "external:monitoring"
       ]
     }
   ],

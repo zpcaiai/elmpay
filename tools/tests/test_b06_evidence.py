@@ -49,14 +49,23 @@ class EvidenceRejects(FixtureTestCase):
                 shutil.copytree(source, target, dirs_exist_ok=True)
             else:
                 shutil.copyfile(source, target)
-        # Artefact paths are repository-relative; mirror the files they name.
+        # Artefact and traceability paths are repository-relative; mirror the
+        # files they name so the fixture is a faithful copy rather than a
+        # truncated one that would fail for the wrong reason.
         for path in sorted((self.fixture.root / "evidence" / "completion").glob("*.json")):
             data = json.loads(path.read_text(encoding="utf-8"))
-            for artifact in data["artifacts"]:
-                dest = self.fixture.root / artifact["path"]
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                if not dest.exists():
-                    dest.write_bytes((REAL_ROOT / artifact["path"]).read_bytes())
+            referenced = [a["path"] for a in data["artifacts"]]
+            trace = self.fixture.root / "evidence" / path.stem / "traceability.json"
+            if trace.is_file():
+                doc = json.loads(trace.read_text(encoding="utf-8"))
+                referenced += [e["ref"] for e in doc.get("code", []) if "ref" in e]
+                referenced += [e["ref"] for e in doc.get("tests", []) if "ref" in e]
+                referenced += [e["path"] for e in doc.get("evidence", []) if "path" in e]
+            for rel in referenced:
+                source, dest = REAL_ROOT / rel, self.fixture.root / rel
+                if source.is_file() and not dest.exists():
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    dest.write_bytes(source.read_bytes())
 
     def _validate(self):
         return evidence.validate(self.fixture.root, Budget(seconds=180).start())

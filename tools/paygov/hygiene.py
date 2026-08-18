@@ -12,6 +12,7 @@ not first-party code.
 """
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -98,23 +99,36 @@ def _third_party_imports(root: Path, budget: Budget) -> list[Problem]:
         "argparse", "hashlib", "subprocess", "datetime", "collections", "itertools", "unittest",
         "tempfile", "shutil", "textwrap", "contextlib", "io", "string", "math", "copy",
         "threading", "concurrent", "uuid", "secrets", "statistics", "functools", "enum",
-        "csv", "abc", "operator", "difflib", "unicodedata",
+        "csv", "abc", "operator", "difflib", "unicodedata", "ast",
         "hmac", "hashlib", "http", "urllib", "socket", "socketserver", "base64",
     }
     problems: list[Problem] = []
-    import_re = re.compile(r"^\s*(?:from|import)\s+([A-Za-z_][\w]*)")
     for path in sorted((root / "tools").rglob("*.py")):
         budget.check(str(path))
         rel = path.relative_to(root).as_posix()
-        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            match = import_re.match(line)
-            if not match:
+        source = path.read_text(encoding="utf-8")
+        try:
+            tree = ast.parse(source, filename=rel)
+        except SyntaxError as exc:
+            problems.append(Problem("TOOLCHAIN_SYNTAX", f"{rel}:{exc.lineno or 0}",
+                                    f"file does not parse: {exc.msg}", "NN-12"))
+            continue
+        # Parse rather than grep: prose in a docstring can begin with "from"
+        # or "import", and a false positive in a fail-closed gate is an outage.
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name.split(".", 1)[0] for alias in node.names]
+            elif isinstance(node, ast.ImportFrom):
+                if node.level:  # relative import inside the package
+                    continue
+                names = [(node.module or "").split(".", 1)[0]]
+            else:
                 continue
-            module = match.group(1)
-            if module in {"tools", "paygov"} or line.lstrip().startswith("from ."):
-                continue
-            if module not in allowed_roots:
-                problems.append(Problem("TOOLCHAIN_THIRD_PARTY", f"{rel}:{lineno}",
-                                        f"paygov must be dependency free; '{module}' is not in the "
-                                        f"standard-library allow list", "NN-12"))
+            for module in names:
+                if module in {"tools", "paygov", ""}:
+                    continue
+                if module not in allowed_roots:
+                    problems.append(Problem("TOOLCHAIN_THIRD_PARTY", f"{rel}:{node.lineno}",
+                                            f"paygov must be dependency free; '{module}' is not "
+                                            f"in the standard-library allow list", "NN-12"))
     return problems

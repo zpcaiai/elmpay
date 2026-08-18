@@ -885,6 +885,58 @@
       ],
       "acceptance": "配置中开启任一受监管能力会使治理门禁失败。",
       "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0051",
+      "title": "安全例外与剩余风险台账",
+      "statement": "每条被接受的风险必须登记风险所有者、补偿控制、到期日与复审批次，过期即阻断发布。",
+      "category": "governance",
+      "priority": "MUST",
+      "owner_module": "security",
+      "controls": [
+        "NN-15"
+      ],
+      "verified_by_batches": [
+        "B02",
+        "B110"
+      ],
+      "acceptance": "把任一剩余风险的到期日改到过去，治理门禁立即失败。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0052",
+      "title": "第三方与供应商风险",
+      "statement": "对渠道、云、监控与通知等第三方执行尽职调查、数据流登记、SLA、安全条款与退出方案。",
+      "category": "governance",
+      "priority": "MUST",
+      "owner_module": "merchant-config",
+      "controls": [
+        "CTRL-019"
+      ],
+      "verified_by_batches": [
+        "B111"
+      ],
+      "acceptance": "缺少退出方案或数据流登记的供应商无法进入生产配置。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0053",
+      "title": "安全 SDLC 与不可变发布",
+      "statement": "SAST/DAST/SCA/密钥扫描/SBOM/来源证明/签名纳入流水线，制品不可变且可回滚。",
+      "category": "operations",
+      "priority": "MUST",
+      "owner_module": "edge-gateway",
+      "controls": [
+        "CTRL-011",
+        "CTRL-018"
+      ],
+      "verified_by_batches": [
+        "B05",
+        "B109",
+        "B124"
+      ],
+      "acceptance": "未签名或无 SBOM 的制品无法通过发布门禁。",
+      "status": "baselined"
     }
   ]
 }
