@@ -1,0 +1,72 @@
+{
+  "batch_id": "B03",
+  "status": "passed",
+  "commit_sha": "81779ace484ea2148b97af4ae383ace0fbff0628",
+  "environment": "integration",
+  "started_at": "2026-08-18T12:11:05Z",
+  "completed_at": "2026-08-18T12:11:25Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": ".tool-versions",
+      "sha256": "68cb12f1f63a6d438aa6002ec22cdb9ce4ce3dc3f8da8d9f1398bab9ab0726f3"
+    },
+    {
+      "path": "build.gradle.kts",
+      "sha256": "77f883bc0644db095ed817db686600b09e00f464625f58cc360aa054cb3acf26"
+    },
+    {
+      "path": "docs/adr/0012-pinned-toolchain-baseline.md",
+      "sha256": "cd43b1e9f0f585b1ca5a113942e068f58c21aaccec267c80c328293fc864d04f"
+    },
+    {
+      "path": "docs/toolchain/VERSION_CATALOG.md",
+      "sha256": "83fc4db7f45ea6ae274403d9e484d799757682a982f5c7df3006f80bbfcc08b0"
+    },
+    {
+      "path": "governance/version-catalog.json",
+      "sha256": "cee4843351ea56fdd67c15ef5736ca9b071d4c564ae8157d48b2aeae681ff3e1"
+    },
+    {
+      "path": "gradle/libs.versions.toml",
+      "sha256": "7a7782f45f8764fb5d7ac90d927cd59dbdcc8fb6a0a5b0102452e280b1080759"
+    },
+    {
+      "path": "platform/toolchain/versions.env",
+      "sha256": "41957d96958c0bb0a350cf71cf2b57a736cb2daeeead24ccd06cf6bff45776a4"
+    },
+    {
+      "path": "scripts/render-build.py",
+      "sha256": "16dc3b124bf4d0d7fa8e684a6f39c9ddef7d4de99d1ef3b9fe9ed74d080ea19b"
+    },
+    {
+      "path": "settings.gradle.kts",
+      "sha256": "98a4de1ab402d76bdd2f8b9858964ac09635ad20f154b514d15aab7f13ebb45d"
+    },
+    {
+      "path": "tools/paygov/buildgen.py",
+      "sha256": "08e9798cf97b98caf78d386d1f7b4a16b8da21fbb4d18d7b8c3775a1158f7669"
+    },
+    {
+      "path": "tools/paygov/toolchain.py",
+      "sha256": "2b27e0c0aacb8b600017e721bcb584c28e10f2454769701241ea6ed37f7d05ce"
+    },
+    {
+      "path": "tools/tests/test_b03_toolchain.py",
+      "sha256": "9354e3065ce9dc221afc079dcd9e011112e236c8347bee2252f958f1e2dbd41e"
+    }
+  ],
+  "tests": {
+    "passed": 166,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B01": "572da964a5e3713f6855c55f04b8c3bca14afbf6d63a85c1c19fe3ef037d431d"
+  }
+}

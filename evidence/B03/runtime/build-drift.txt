@@ -1,0 +1,5 @@
+up-to-date  .tool-versions
+up-to-date  build.gradle.kts
+up-to-date  gradle/libs.versions.toml
+up-to-date  platform/toolchain/versions.env
+up-to-date  settings.gradle.kts

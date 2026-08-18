@@ -157,7 +157,7 @@
       "AC-11"
     ]
   },
-  "adr_count": 11,
+  "adr_count": 12,
   "adrs": [
     {
       "controls": "NN-01",
@@ -224,6 +224,12 @@
       "file": "0011-evidence-bound-to-commit.md",
       "requirements": "PAY-REQ-0049",
       "status": "accepted"
+    },
+    {
+      "controls": "NN-12, CTRL-011, CTRL-018",
+      "file": "0012-pinned-toolchain-baseline.md",
+      "requirements": "PAY-REQ-0040, PAY-REQ-0049",
+      "status": "accepted"
     }
   ],
   "adversaries": 10,
@@ -275,6 +281,15 @@
       "owner": "payment-platform-security",
       "review_batch": "B119",
       "severity": "high"
+    },
+    {
+      "compensating_controls": 4,
+      "days_to_expiry": 120,
+      "due_date": "2026-12-16",
+      "id": "RR-06",
+      "owner": "payment-platform-platform-eng",
+      "review_batch": "B109",
+      "severity": "medium"
     }
   ],
   "trust_boundaries": 12,

@@ -1,10 +1,10 @@
 {
   "batch_id": "B00",
   "status": "passed",
-  "commit_sha": "d8a98355be7db5d71fa2bf816f9c5a07c50955d2",
+  "commit_sha": "81779ace484ea2148b97af4ae383ace0fbff0628",
   "environment": "integration",
-  "started_at": "2026-08-18T12:04:09Z",
-  "completed_at": "2026-08-18T12:04:29Z",
+  "started_at": "2026-08-18T12:10:04Z",
+  "completed_at": "2026-08-18T12:10:24Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -50,7 +50,7 @@
     },
     {
       "path": "tools/paygov/registry.py",
-      "sha256": "2a9a3e5b770bb156540fbccd81bd0b648bee0116b35e0e251712b88116568888"
+      "sha256": "b83ea8ee68ae47f7f62d4d4223ef59906c7d4d93cfda8fe8e0a6a328b54b1ee4"
     },
     {
       "path": "tools/paygov/charter.py",
@@ -78,7 +78,7 @@
     },
     {
       "path": "tools/tests/support.py",
-      "sha256": "944b2a17aa3b654252efafc6c9098c8256ce33e48136b12fe5bb6a09f00320f4"
+      "sha256": "342a82bc4800c7efcdde56490ebbfd7dd46bc3847884d150f833c0069d7c2761"
     },
     {
       "path": "tools/tests/test_b00_charter.py",
@@ -118,7 +118,7 @@
     },
     {
       "path": "scripts/negative-controls.py",
-      "sha256": "e1128f775ab6916ba28bf37f66a458b1dd931fc230604d7b373bd67db81d25fd"
+      "sha256": "c0eedd325241af1fdaa9b07ee99c3bf8c9e8f560b493fdf1847de66ad4dbc262"
     },
     {
       "path": "scripts/run-governance-tests.sh",
@@ -142,7 +142,7 @@
     }
   ],
   "tests": {
-    "passed": 141,
+    "passed": 166,
     "failed": 0,
     "skipped_critical": 0
   },

@@ -139,8 +139,33 @@ test_rejects_missing_upstream_threat_model (tools.tests.test_b02_threat_model.Th
 test_rejects_placeholder_owner (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
 test_rejects_risk_without_compensating_controls (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
 test_rejects_unknown_review_batch (tools.tests.test_b02_threat_model.ThreatModelRejects) ... ok
+test_b03_validator_is_registered (tools.tests.test_b03_toolchain.ToolchainHappyPath) ... ok
+test_container_images_are_digest_pinned (tools.tests.test_b03_toolchain.ToolchainHappyPath) ... ok
+test_every_module_has_exactly_one_build_system (tools.tests.test_b03_toolchain.ToolchainHappyPath) ... ok
+test_generated_build_files_carry_the_banner (tools.tests.test_b03_toolchain.ToolchainHappyPath) ... ok
+test_generation_is_deterministic (tools.tests.test_b03_toolchain.ToolchainHappyPath) ... ok
+test_java_baseline_is_25 (tools.tests.test_b03_toolchain.ToolchainHappyPath) ... ok
+test_real_catalogue_passes (tools.tests.test_b03_toolchain.ToolchainHappyPath) ... ok
+test_settings_includes_every_gradle_module (tools.tests.test_b03_toolchain.ToolchainHappyPath) ... ok
+test_spring_boot_baseline_is_4_1 (tools.tests.test_b03_toolchain.ToolchainHappyPath) ... ok
+test_accepts_semver_build_metadata (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_container_pinned_by_tag_only (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_container_without_digest (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_entry_without_owner (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_entry_without_upgrade_policy (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_gradle_dynamic_version (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_hand_edited_build_file (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_java_downgrade (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_latest_tag (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_maven_range (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_missing_generated_build_file (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_missing_required_category (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_module_claimed_twice (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_module_without_build_system (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_snapshot (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
+test_rejects_unverified_catalogue_without_a_note (tools.tests.test_b03_toolchain.ToolchainRejects) ... ok
 
 ----------------------------------------------------------------------
-Ran 141 tests in 9.011s
+Ran 166 tests in 9.305s
 
 OK

@@ -1,10 +1,10 @@
 {
   "batch_id": "B02",
   "status": "passed",
-  "commit_sha": "d8a98355be7db5d71fa2bf816f9c5a07c50955d2",
+  "commit_sha": "81779ace484ea2148b97af4ae383ace0fbff0628",
   "environment": "integration",
-  "started_at": "2026-08-18T12:04:48Z",
-  "completed_at": "2026-08-18T12:04:58Z",
+  "started_at": "2026-08-18T12:10:47Z",
+  "completed_at": "2026-08-18T12:10:59Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -54,15 +54,15 @@
     },
     {
       "path": "docs/adr/README.md",
-      "sha256": "7cace602df63962da83a141c4ba2e764cf96c176d03ac9bdde3213b92aacc76a"
+      "sha256": "f9b3dbea424ad38ca054098ff7afdcfb6bdaed793ef892cc5b80ee9697aa79ec"
     },
     {
       "path": "docs/security/THREAT_MODEL.md",
-      "sha256": "414d6ebf8808bb7fc92c1250ff4c895062b1a7856e281cc676418a2d37fb1bce"
+      "sha256": "835080f4a4c71fdf7a436e514543a87b254247528fbcc7cd1dc10320791410e6"
     },
     {
       "path": "governance/threat-model.json",
-      "sha256": "347fc6b63ccbccd21b58e4f3c59a5e9785863d2d0299b1ad12d6a6639cb2be1f"
+      "sha256": "3fa49ead1ef6b5fda8316757447b686fba60bca6f953b105206b9977e5008fee"
     },
     {
       "path": "scripts/threat-summary.py",
@@ -86,7 +86,7 @@
     }
   ],
   "tests": {
-    "passed": 141,
+    "passed": 166,
     "failed": 0,
     "skipped_critical": 0
   },
@@ -95,6 +95,6 @@
     "accepted_findings": 0
   },
   "dependency_hashes": {
-    "B01": "8f0ecd385ba05a79d9849272dfa827bdbc6f204e6981c680c22bd5b51f703537"
+    "B01": "572da964a5e3713f6855c55f04b8c3bca14afbf6d63a85c1c19fe3ef037d431d"
   }
 }

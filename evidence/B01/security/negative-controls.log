@@ -16,8 +16,13 @@
 [OK ] B02 critical risk accepted instead of fixed: exit=2 expected=2
 [OK ] B02 residual risk loses its owner: exit=2 expected=2
 [OK ] B02 abuse case dropped from the model: exit=2 expected=2
+[OK ] B03 dependency floats to a dynamic version: exit=2 expected=2
+[OK ] B03 container image pinned by tag only: exit=2 expected=2
+[OK ] B03 dependency loses its owner: exit=2 expected=2
+[OK ] B03 module left without a build system: exit=2 expected=2
+[OK ] B03 Java baseline silently downgraded: exit=2 expected=2
 [OK ] B02 ADR loses its alternatives section: exit=2 expected=2
 [OK ] B02 ADR points at a non-existent requirement: exit=2 expected=2
 [OK ] exhausted budget fails closed: exit=3 expected=3
 
-scenarios=21 failures=0
+scenarios=26 failures=0

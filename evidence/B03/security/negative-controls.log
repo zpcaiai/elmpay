@@ -1,0 +1,28 @@
+[baseline    ] exit=0 expected=0
+[OK ] NN-13 fund pool enabled: exit=2 expected=2
+[OK ] NN-02 raw card data allowed: exit=2 expected=2
+[OK ] NN-05 float money model: exit=2 expected=2
+[OK ] NN-07 literal provider secret: exit=2 expected=2
+[OK ] NN-11 executor equals reviewer: exit=2 expected=2
+[OK ] NN-01 connector reaches a service: exit=2 expected=2
+[OK ] NN-01 business order table claimed: exit=2 expected=2
+[OK ] red line silently removed: exit=2 expected=2
+[OK ] B01 requirement loses its verifying batch: exit=2 expected=2
+[OK ] B01 requirement points at a non-existent control: exit=2 expected=2
+[OK ] B01 requirement becomes an orphan: exit=2 expected=2
+[OK ] B01 forbidden flow loses its enforcement: exit=2 expected=2
+[OK ] B01 generated document drifts from source: exit=2 expected=2
+[OK ] B02 security exception silently expires: exit=2 expected=2
+[OK ] B02 critical risk accepted instead of fixed: exit=2 expected=2
+[OK ] B02 residual risk loses its owner: exit=2 expected=2
+[OK ] B02 abuse case dropped from the model: exit=2 expected=2
+[OK ] B03 dependency floats to a dynamic version: exit=2 expected=2
+[OK ] B03 container image pinned by tag only: exit=2 expected=2
+[OK ] B03 dependency loses its owner: exit=2 expected=2
+[OK ] B03 module left without a build system: exit=2 expected=2
+[OK ] B03 Java baseline silently downgraded: exit=2 expected=2
+[OK ] B02 ADR loses its alternatives section: exit=2 expected=2
+[OK ] B02 ADR points at a non-existent requirement: exit=2 expected=2
+[OK ] exhausted budget fails closed: exit=3 expected=3
+
+scenarios=26 failures=0
