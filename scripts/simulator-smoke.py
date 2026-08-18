@@ -44,7 +44,8 @@ def smoke(provider: str) -> list[str]:
     failures: list[str] = []
     server = make_server(SimulatorConfig(provider=provider, secret=SECRET))
     port = server.server_address[1]
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread = threading.Thread(target=server.serve_forever,
+                              kwargs={"poll_interval": 0.02}, daemon=True)
     thread.start()
     base = f"http://127.0.0.1:{port}"
     try:

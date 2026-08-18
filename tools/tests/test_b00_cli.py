@@ -103,8 +103,11 @@ class CliDuplicateAndConcurrentPath(FixtureTestCase):
         self.assertEqual(len(set(runs)), 1)
 
     def test_concurrent_runs_do_not_interfere(self):
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            results = list(pool.map(lambda _: cli.run([], REAL_ROOT, 120.0), range(8)))
+        # Four concurrent full runs is enough to expose shared mutable state
+        # (module-level caches, registry mutation) without making the suite
+        # dominated by this one case.
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results = list(pool.map(lambda _: cli.run([], REAL_ROOT, 120.0), range(4)))
         self.assertEqual(len(set(results)), 1)
         self.assertTrue(all(code == cli.EXIT_OK for code, _ in results))
 

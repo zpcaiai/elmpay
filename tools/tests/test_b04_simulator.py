@@ -26,7 +26,10 @@ class RunningSimulator:
     def __init__(self, provider: str = "wechat", secret: str = "sim-secret-test") -> None:
         self.server = make_server(SimulatorConfig(provider=provider, secret=secret))
         self.port = self.server.server_address[1]
-        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        # A small poll interval keeps shutdown() from costing half a second per test.
+        self.thread = threading.Thread(
+            target=self.server.serve_forever, kwargs={"poll_interval": 0.02},
+            daemon=True)
         self.thread.start()
 
     def url(self, path: str) -> str:
