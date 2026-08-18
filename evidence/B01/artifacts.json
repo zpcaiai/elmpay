@@ -1,0 +1,16 @@
+[
+  "governance/requirements.json",
+  "governance/service-boundaries.json",
+  "docs/requirements/REQUIREMENTS_BASELINE.md",
+  "docs/requirements/SERVICE_BOUNDARIES.md",
+  "tools/paygov/requirements.py",
+  "tools/paygov/boundaries.py",
+  "tools/paygov/catalogue.py",
+  "tools/paygov/render.py",
+  "tools/paygov/docs.py",
+  "tools/tests/test_b01_requirements.py",
+  "tools/tests/test_b01_boundaries.py",
+  "tools/tests/test_b01_docs_drift.py",
+  "scripts/render-docs.py",
+  "scripts/trace-coverage.py"
+]

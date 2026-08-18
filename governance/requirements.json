@@ -1,0 +1,890 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B01",
+  "categories": [
+    "admin",
+    "checkout",
+    "dispute",
+    "governance",
+    "integration",
+    "ledger",
+    "operations",
+    "orchestration",
+    "order-intake",
+    "platform",
+    "provider",
+    "reconciliation",
+    "refund",
+    "risk",
+    "security",
+    "subscription",
+    "webhook"
+  ],
+  "requirements": [
+    {
+      "id": "PAY-REQ-0001",
+      "title": "多项目 Payment Intent 接入",
+      "statement": "业务项目通过 Payment Intent API 发起支付，平台不接收商品、库存与履约明细。",
+      "category": "order-intake",
+      "priority": "MUST",
+      "owner_module": "payment-core",
+      "controls": [
+        "NN-01"
+      ],
+      "verified_by_batches": [
+        "B15",
+        "B32",
+        "B120"
+      ],
+      "acceptance": "以业务订单明细字段提交的请求被拒绝，且拒绝原因可机读。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0002",
+      "title": "外部引用唯一绑定",
+      "statement": "每个 Payment Intent 以 (project_id, business_order_no) 唯一绑定业务订单，重复绑定被数据库唯一约束拒绝。",
+      "category": "order-intake",
+      "priority": "MUST",
+      "owner_module": "payment-core",
+      "controls": [
+        "NN-04",
+        "CTRL-003"
+      ],
+      "verified_by_batches": [
+        "B32",
+        "B36"
+      ],
+      "acceptance": "并发重复创建只产生一条 Intent，其余返回同一资源。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0003",
+      "title": "创建幂等键必填",
+      "statement": "创建、确认、捕获、退款请求必须携带幂等键；相同键与相同载荷返回首次结果，载荷不同返回冲突。",
+      "category": "order-intake",
+      "priority": "MUST",
+      "owner_module": "idempotency",
+      "controls": [
+        "NN-04",
+        "CTRL-003"
+      ],
+      "verified_by_batches": [
+        "B36",
+        "B115"
+      ],
+      "acceptance": "64 并发写者下无重复副作用；载荷哈希不一致返回 409。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0004",
+      "title": "项目注册与凭证签发",
+      "statement": "业务项目必须先在平台注册并获得独立密钥与回调配置，未注册项目的请求一律拒绝。",
+      "category": "order-intake",
+      "priority": "MUST",
+      "owner_module": "merchant-config",
+      "controls": [
+        "NN-09",
+        "CTRL-016"
+      ],
+      "verified_by_batches": [
+        "B24",
+        "B30"
+      ],
+      "acceptance": "跨项目使用他人密钥的请求被拒绝并记录审计。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0005",
+      "title": "支付事实签名投递",
+      "statement": "平台通过签名 Webhook 把支付事实投递回业务项目，至少一次投递，消费侧幂等。",
+      "category": "integration",
+      "priority": "MUST",
+      "owner_module": "webhook-delivery",
+      "controls": [
+        "NN-03",
+        "CTRL-002"
+      ],
+      "verified_by_batches": [
+        "B38",
+        "B114"
+      ],
+      "acceptance": "重复投递不产生重复履约；签名错误的投递被消费方拒绝。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0006",
+      "title": "回调地址白名单",
+      "statement": "业务项目回调地址、return_url、支付链接域名只接受登记域名或不可变内部路径。",
+      "category": "integration",
+      "priority": "MUST",
+      "owner_module": "webhook-delivery",
+      "controls": [
+        "NN-10"
+      ],
+      "verified_by_batches": [
+        "B38",
+        "B56",
+        "B58"
+      ],
+      "acceptance": "任意外部域名与内网地址（SSRF 载荷）均被拒绝。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0007",
+      "title": "事件目录与版本化",
+      "statement": "所有领域事件登记在事件目录中，采用相加式演进；破坏性变更必须新版本主题。",
+      "category": "integration",
+      "priority": "MUST",
+      "owner_module": "domain-events",
+      "controls": [
+        "NN-04"
+      ],
+      "verified_by_batches": [
+        "B12",
+        "B91"
+      ],
+      "acceptance": "删除或改变既有字段语义的事件 schema 变更在 CI 中被阻断。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0008",
+      "title": "路由规则版本化",
+      "statement": "渠道路由与灰度规则受版本控制，变更需四眼复核并可即时回滚。",
+      "category": "orchestration",
+      "priority": "MUST",
+      "owner_module": "merchant-config",
+      "controls": [
+        "NN-11",
+        "CTRL-016"
+      ],
+      "verified_by_batches": [
+        "B28",
+        "B30"
+      ],
+      "acceptance": "未复核的路由变更无法生效；回滚可在一次操作内完成。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0009",
+      "title": "渠道能力矩阵",
+      "statement": "可用支付方式由渠道能力与地区政策矩阵计算，而不是硬编码在客户端。",
+      "category": "orchestration",
+      "priority": "MUST",
+      "owner_module": "merchant-config",
+      "controls": [
+        "CTRL-016"
+      ],
+      "verified_by_batches": [
+        "B27",
+        "B62"
+      ],
+      "acceptance": "关闭某渠道能力后收银台立即不再展示该方式。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0010",
+      "title": "支付尝试可追溯",
+      "statement": "每次渠道交互产生一条 Payment Attempt，含请求摘要、响应、耗时、错误分类与追踪 ID。",
+      "category": "orchestration",
+      "priority": "MUST",
+      "owner_module": "payment-core",
+      "controls": [
+        "CTRL-007"
+      ],
+      "verified_by_batches": [
+        "B33"
+      ],
+      "acceptance": "任一支付可完整重建其渠道交互时间线。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0011",
+      "title": "不确定状态主动查询",
+      "statement": "渠道超时或返回不确定结果时，必须通过主动查询或对账确认最终状态，不得默认失败或成功。",
+      "category": "orchestration",
+      "priority": "MUST",
+      "owner_module": "payment-core",
+      "controls": [
+        "NN-03"
+      ],
+      "verified_by_batches": [
+        "B33",
+        "B100"
+      ],
+      "acceptance": "注入超时故障后状态最终收敛且无重复扣款。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0012",
+      "title": "状态机单向转换",
+      "statement": "支付、退款、订阅、争议状态机只允许声明的单向或补偿式转换，非法转换被拒绝并告警。",
+      "category": "orchestration",
+      "priority": "MUST",
+      "owner_module": "payment-core",
+      "controls": [
+        "NN-04"
+      ],
+      "verified_by_batches": [
+        "B10"
+      ],
+      "acceptance": "属性测试穷举非法转换全部被拒绝。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0013",
+      "title": "外部调用弹性",
+      "statement": "所有渠道调用设置超时、有限重试、熔断与降级，且重试不放大副作用。",
+      "category": "orchestration",
+      "priority": "MUST",
+      "owner_module": "payment-core",
+      "controls": [
+        "CTRL-017"
+      ],
+      "verified_by_batches": [
+        "B100",
+        "B117"
+      ],
+      "acceptance": "渠道故障注入下核心接口不超过 SLO 且不产生重复请求副作用。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0014",
+      "title": "微信支付 APIv3 全模式",
+      "statement": "支持 JSAPI、小程序、Native、H5 与 App 支付，含退款、关单、查询与账单。",
+      "category": "provider",
+      "priority": "MUST",
+      "owner_module": "wechat-pay",
+      "controls": [
+        "CTRL-002"
+      ],
+      "verified_by_batches": [
+        "B40",
+        "B41",
+        "B42",
+        "B43"
+      ],
+      "acceptance": "官方沙箱全模式契约测试通过。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0015",
+      "title": "支付宝证书模式全模式",
+      "statement": "以证书模式支持电脑网站、手机网站、App、当面付与小程序支付及退款、关闭、查询、账单。",
+      "category": "provider",
+      "priority": "MUST",
+      "owner_module": "alipay",
+      "controls": [
+        "CTRL-002"
+      ],
+      "verified_by_batches": [
+        "B44",
+        "B45",
+        "B46",
+        "B47"
+      ],
+      "acceptance": "证书轮换后交易与验签仍然成功。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0016",
+      "title": "Stripe 托管字段",
+      "statement": "Stripe 卡支付只经 Elements/PaymentSheet 与令牌化，服务端不接触 PAN/CVV。",
+      "category": "provider",
+      "priority": "MUST",
+      "owner_module": "stripe",
+      "controls": [
+        "NN-02",
+        "CTRL-001"
+      ],
+      "verified_by_batches": [
+        "B48",
+        "B49"
+      ],
+      "acceptance": "服务端请求体扫描无卡号字段；PCI 范围证据留存。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0017",
+      "title": "PayPal Orders v2",
+      "statement": "支持 PayPal 授权、捕获、退款、争议与订阅，Webhook 证书链校验。",
+      "category": "provider",
+      "priority": "MUST",
+      "owner_module": "paypal",
+      "controls": [
+        "CTRL-002"
+      ],
+      "verified_by_batches": [
+        "B51",
+        "B52"
+      ],
+      "acceptance": "沙箱授权-捕获-退款闭环与验签负向用例通过。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0018",
+      "title": "Apple Pay 经 PSP",
+      "statement": "Apple Pay token 直接转交 PSP，平台不解密，域名验证文件受完整性监控。",
+      "category": "provider",
+      "priority": "MUST",
+      "owner_module": "apple-pay",
+      "controls": [
+        "NN-02",
+        "CTRL-001"
+      ],
+      "verified_by_batches": [
+        "B53",
+        "B54"
+      ],
+      "acceptance": "平台无解密密钥；域名验证文件变更触发告警。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0019",
+      "title": "回调先验签",
+      "statement": "渠道回调必须先验证签名、时间戳、nonce、序列号与商户/订单/金额绑定，再持久化与处理。",
+      "category": "webhook",
+      "priority": "MUST",
+      "owner_module": "webhook-ingress",
+      "controls": [
+        "NN-08",
+        "CTRL-002"
+      ],
+      "verified_by_batches": [
+        "B37",
+        "B114"
+      ],
+      "acceptance": "伪造与重放夹具全部被拒绝且不产生业务效果。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0020",
+      "title": "Inbox 去重",
+      "statement": "回调进入持久 Inbox，按渠道事件 ID 去重，容忍乱序与重复。",
+      "category": "webhook",
+      "priority": "MUST",
+      "owner_module": "webhook-ingress",
+      "controls": [
+        "NN-04",
+        "CTRL-003"
+      ],
+      "verified_by_batches": [
+        "B12",
+        "B37",
+        "B115"
+      ],
+      "acceptance": "乱序与重复回放后最终状态一致且只有一次业务效果。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0021",
+      "title": "原始回调留存",
+      "statement": "回调原始报文按保留策略留存并可回放，回放为高风险操作需四眼复核。",
+      "category": "webhook",
+      "priority": "MUST",
+      "owner_module": "webhook-ingress",
+      "controls": [
+        "NN-11",
+        "CTRL-007"
+      ],
+      "verified_by_batches": [
+        "B37",
+        "B101"
+      ],
+      "acceptance": "回放操作留下主体、理由与工单的审计记录。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0022",
+      "title": "退款不超可退余额",
+      "statement": "退款金额不得超过该支付的可退余额，含手续费与部分退款场景。",
+      "category": "refund",
+      "priority": "MUST",
+      "owner_module": "payment-core",
+      "controls": [
+        "NN-04"
+      ],
+      "verified_by_batches": [
+        "B64"
+      ],
+      "acceptance": "属性测试下不存在任何可超额退款的路径。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0023",
+      "title": "退款阈值审批",
+      "statement": "超过阈值或高风险的退款必须四眼审批后执行。",
+      "category": "refund",
+      "priority": "MUST",
+      "owner_module": "payment-core",
+      "controls": [
+        "NN-11"
+      ],
+      "verified_by_batches": [
+        "B65"
+      ],
+      "acceptance": "未审批的高额退款请求被拒绝并进入待审队列。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0024",
+      "title": "争议与拒付管理",
+      "statement": "争议、拒付的证据提交、时限与结果同步到账本与业务项目。",
+      "category": "dispute",
+      "priority": "MUST",
+      "owner_module": "payment-core",
+      "controls": [
+        "CTRL-009"
+      ],
+      "verified_by_batches": [
+        "B66"
+      ],
+      "acceptance": "争议状态变化产生对应账本分录与业务通知。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0025",
+      "title": "订阅与周期计费",
+      "statement": "支持订阅创建、变更、取消、比例计费与余额抵扣，计费结果可对账。",
+      "category": "subscription",
+      "priority": "SHOULD",
+      "owner_module": "payment-core",
+      "controls": [
+        "CTRL-009"
+      ],
+      "verified_by_batches": [
+        "B67",
+        "B70",
+        "B71"
+      ],
+      "acceptance": "订阅生命周期端到端认证用例通过。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0026",
+      "title": "Mandate 与令牌引用",
+      "statement": "周期扣款依据 Mandate 与 PSP 令牌引用，平台不存储可复用明文令牌。",
+      "category": "subscription",
+      "priority": "MUST",
+      "owner_module": "payment-core",
+      "controls": [
+        "NN-02"
+      ],
+      "verified_by_batches": [
+        "B68"
+      ],
+      "acceptance": "数据库扫描无可复用明文支付令牌。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0027",
+      "title": "复式账本不可变",
+      "statement": "所有资金事实以复式分录记录，分录禁止 UPDATE/DELETE，借贷必平。",
+      "category": "ledger",
+      "priority": "MUST",
+      "owner_module": "ledger-service",
+      "controls": [
+        "NN-06",
+        "CTRL-008"
+      ],
+      "verified_by_batches": [
+        "B72",
+        "B73"
+      ],
+      "acceptance": "数据库层拒绝对分录的更新与删除；余额恒等式属性测试通过。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0028",
+      "title": "最小货币单位整数",
+      "statement": "所有金额以最小货币单位整数表示，币种小数位来自受版本控制的货币元数据。",
+      "category": "ledger",
+      "priority": "MUST",
+      "owner_module": "money",
+      "controls": [
+        "NN-05"
+      ],
+      "verified_by_batches": [
+        "B09"
+      ],
+      "acceptance": "代码扫描无浮点金额；零小数币种用例正确。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0029",
+      "title": "费用汇率记录",
+      "statement": "手续费、税费、汇率与舍入过程逐笔记录，可重算。",
+      "category": "ledger",
+      "priority": "MUST",
+      "owner_module": "ledger-service",
+      "controls": [
+        "CTRL-008"
+      ],
+      "verified_by_batches": [
+        "B74"
+      ],
+      "acceptance": "任一笔结算金额可由记录的输入重算得到相同结果。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0030",
+      "title": "结算到账视图",
+      "statement": "提供结算指令与到账视图，结算由持牌机构直达商户，不经平台资金池。",
+      "category": "ledger",
+      "priority": "MUST",
+      "owner_module": "ledger-service",
+      "controls": [
+        "NN-13"
+      ],
+      "verified_by_batches": [
+        "B75"
+      ],
+      "acceptance": "配置中不存在平台自有资金池账户类型。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0031",
+      "title": "财务修正反向分录",
+      "statement": "财务修正只能通过反向或调整分录完成，并记录理由与复核人。",
+      "category": "ledger",
+      "priority": "MUST",
+      "owner_module": "ledger-service",
+      "controls": [
+        "NN-06",
+        "NN-11"
+      ],
+      "verified_by_batches": [
+        "B73",
+        "B78"
+      ],
+      "acceptance": "直接修改历史分录的尝试在数据库与应用层均失败。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0032",
+      "title": "账单文件幂等摄取",
+      "statement": "渠道账单与银行文件按文件摘要幂等摄取，重复摄取不产生重复记录。",
+      "category": "reconciliation",
+      "priority": "MUST",
+      "owner_module": "reconciliation-service",
+      "controls": [
+        "NN-04",
+        "CTRL-009"
+      ],
+      "verified_by_batches": [
+        "B76"
+      ],
+      "acceptance": "同一文件重复导入后记录数不变。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0033",
+      "title": "三方对账",
+      "statement": "业务订单、平台支付、渠道账单与银行到账逐笔匹配，差异分类可解释。",
+      "category": "reconciliation",
+      "priority": "MUST",
+      "owner_module": "reconciliation-service",
+      "controls": [
+        "CTRL-009"
+      ],
+      "verified_by_batches": [
+        "B77",
+        "B125"
+      ],
+      "acceptance": "日终对账产出差异清单且每条差异有分类与处置。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0034",
+      "title": "差错处置复核",
+      "statement": "人工调整与差错处置必须四眼复核并写入不可变审计。",
+      "category": "reconciliation",
+      "priority": "MUST",
+      "owner_module": "reconciliation-service",
+      "controls": [
+        "NN-11",
+        "CTRL-007"
+      ],
+      "verified_by_batches": [
+        "B78"
+      ],
+      "acceptance": "单人无法完成任何人工资金调整。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0035",
+      "title": "实时风控决策",
+      "statement": "支付创建与确认前经过实时风控决策，决策结果可解释并可回溯到规则版本。",
+      "category": "risk",
+      "priority": "MUST",
+      "owner_module": "risk-engine",
+      "controls": [
+        "CTRL-017"
+      ],
+      "verified_by_batches": [
+        "B80",
+        "B82"
+      ],
+      "acceptance": "任一拒绝决策可还原触发规则与输入特征摘要。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0036",
+      "title": "风控信号采集",
+      "statement": "采集速度、设备、网络与账户信号，特征不包含不必要个人信息。",
+      "category": "risk",
+      "priority": "MUST",
+      "owner_module": "risk-engine",
+      "controls": [
+        "NN-14",
+        "CTRL-015"
+      ],
+      "verified_by_batches": [
+        "B81"
+      ],
+      "acceptance": "特征存储扫描无身份证件、完整卡号与完整地址。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0037",
+      "title": "名单与案件",
+      "statement": "支持名单管理与案件处置，名单变更受权限与审计约束。",
+      "category": "risk",
+      "priority": "SHOULD",
+      "owner_module": "risk-engine",
+      "controls": [
+        "CTRL-014"
+      ],
+      "verified_by_batches": [
+        "B87"
+      ],
+      "acceptance": "名单变更留下主体、理由与前后值。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0038",
+      "title": "收银台页面完整性",
+      "statement": "托管收银台强制 CSP、SRI、Trusted Types 与脚本清单，变更触发完整性告警。",
+      "category": "checkout",
+      "priority": "MUST",
+      "owner_module": "checkout-web",
+      "controls": [
+        "CTRL-010"
+      ],
+      "verified_by_batches": [
+        "B58",
+        "B59",
+        "B85"
+      ],
+      "acceptance": "注入外部脚本的尝试被 CSP 阻断并产生告警。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0039",
+      "title": "支付链接防篡改",
+      "statement": "支付链接与二维码经签名，金额、商户与过期时间不可篡改。",
+      "category": "checkout",
+      "priority": "MUST",
+      "owner_module": "checkout-web",
+      "controls": [
+        "NN-10",
+        "CTRL-010"
+      ],
+      "verified_by_batches": [
+        "B57",
+        "B58"
+      ],
+      "acceptance": "篡改链接参数导致签名校验失败。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0040",
+      "title": "边缘鉴权与限流",
+      "statement": "公共入口统一鉴权、请求规范化、限流与 WAF 上下文，内部调用强制 mTLS。",
+      "category": "platform",
+      "priority": "MUST",
+      "owner_module": "edge-gateway",
+      "controls": [
+        "CTRL-014",
+        "CTRL-017"
+      ],
+      "verified_by_batches": [
+        "B88",
+        "B89"
+      ],
+      "acceptance": "绕过网关直连内部服务的尝试被网络策略拒绝。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0041",
+      "title": "后台抗钓鱼认证",
+      "statement": "管理后台强制 WebAuthn/硬件密钥，高风险操作需要 step-up。",
+      "category": "admin",
+      "priority": "MUST",
+      "owner_module": "admin-web",
+      "controls": [
+        "NN-11",
+        "CTRL-004"
+      ],
+      "verified_by_batches": [
+        "B18",
+        "B19"
+      ],
+      "acceptance": "仅密码或短信 OTP 无法登录后台。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0042",
+      "title": "最小权限与职责分离",
+      "statement": "后台与服务身份采用 RBAC/ABAC、职责分离与临时授权，定期访问复核。",
+      "category": "admin",
+      "priority": "MUST",
+      "owner_module": "admin-web",
+      "controls": [
+        "CTRL-014"
+      ],
+      "verified_by_batches": [
+        "B19",
+        "B17"
+      ],
+      "acceptance": "同一主体无法同时具备发起与审批权限。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0043",
+      "title": "不可抵赖审计",
+      "statement": "所有资金与权限操作写入防篡改审计，含主体、理由、工单、前后值与追踪。",
+      "category": "security",
+      "priority": "MUST",
+      "owner_module": "audit",
+      "controls": [
+        "CTRL-007"
+      ],
+      "verified_by_batches": [
+        "B23"
+      ],
+      "acceptance": "审计篡改可被完整性校验检出。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0044",
+      "title": "密钥生命周期",
+      "statement": "私钥与 API 密钥由 KMS/HSM/Vault 管理，轮换具备重叠窗口、审计与演练。",
+      "category": "security",
+      "priority": "MUST",
+      "owner_module": "security",
+      "controls": [
+        "NN-07",
+        "CTRL-006"
+      ],
+      "verified_by_batches": [
+        "B20",
+        "B21"
+      ],
+      "acceptance": "密钥轮换演练在不中断交易的前提下完成。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0045",
+      "title": "租户隔离全链路",
+      "statement": "API、数据库、缓存、消息、对象存储、日志与导出均校验租户上下文。",
+      "category": "security",
+      "priority": "MUST",
+      "owner_module": "merchant-config",
+      "controls": [
+        "NN-09",
+        "CTRL-005"
+      ],
+      "verified_by_batches": [
+        "B31"
+      ],
+      "acceptance": "跨租户读取与导出攻击用例全部失败。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0046",
+      "title": "可观测性与脱敏",
+      "statement": "日志、指标与追踪遵循 OpenTelemetry，且默认拒绝记录凭证、卡数据与不必要个人信息。",
+      "category": "operations",
+      "priority": "MUST",
+      "owner_module": "observability",
+      "controls": [
+        "NN-14",
+        "CTRL-015"
+      ],
+      "verified_by_batches": [
+        "B96",
+        "B108"
+      ],
+      "acceptance": "日志脱敏过滤器针对凭证语料测试通过。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0047",
+      "title": "SLO 与错误预算",
+      "statement": "核心支付、回调与查询各自定义 SLI/SLO、错误预算与告警。",
+      "category": "operations",
+      "priority": "MUST",
+      "owner_module": "observability",
+      "controls": [
+        "CTRL-012"
+      ],
+      "verified_by_batches": [
+        "B97"
+      ],
+      "acceptance": "错误预算耗尽触发发布冻结流程。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0048",
+      "title": "备份恢复与演练",
+      "statement": "PostgreSQL PITR、跨区域备份与恢复演练满足 RPO≤5min、RTO≤30min。",
+      "category": "operations",
+      "priority": "MUST",
+      "owner_module": "worker-scheduler",
+      "controls": [
+        "CTRL-013"
+      ],
+      "verified_by_batches": [
+        "B90",
+        "B95"
+      ],
+      "acceptance": "恢复演练产出可验证的恢复时间与数据完整性证据。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0049",
+      "title": "证据与独立评审",
+      "statement": "每个批次的完成必须有自动化测试、运行证据、追踪关系与非唯一实现者的独立评审。",
+      "category": "governance",
+      "priority": "MUST",
+      "owner_module": "payment-core",
+      "controls": [
+        "NN-12",
+        "CTRL-020"
+      ],
+      "verified_by_batches": [
+        "B06",
+        "B119",
+        "B127"
+      ],
+      "acceptance": "缺任一证据时编排器 validate 失败并阻断发布。",
+      "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0050",
+      "title": "受监管能力边界",
+      "statement": "不提供储值、资金池、跨商户清分与无牌代收代付；边界变更需牌照与合规批次。",
+      "category": "governance",
+      "priority": "MUST",
+      "owner_module": "merchant-config",
+      "controls": [
+        "NN-13"
+      ],
+      "verified_by_batches": [
+        "B107"
+      ],
+      "acceptance": "配置中开启任一受监管能力会使治理门禁失败。",
+      "status": "baselined"
+    }
+  ]
+}

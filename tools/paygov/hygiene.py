@@ -98,6 +98,7 @@ def _third_party_imports(root: Path, budget: Budget) -> list[Problem]:
         "argparse", "hashlib", "subprocess", "datetime", "collections", "itertools", "unittest",
         "tempfile", "shutil", "textwrap", "contextlib", "io", "string", "math", "copy",
         "threading", "concurrent", "uuid", "secrets", "statistics", "functools", "enum",
+        "csv", "abc", "operator", "difflib", "unicodedata",
     }
     problems: list[Problem] = []
     import_re = re.compile(r"^\s*(?:from|import)\s+([A-Za-z_][\w]*)")

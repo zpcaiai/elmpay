@@ -1,0 +1,198 @@
+{
+  "batch_id": "B01",
+  "requirements": [
+    {
+      "id": "B01-R1",
+      "statement": "把多项目订单接入、支付编排、退款、对账、风控、后台与渠道能力转化为可追踪需求",
+      "source": "batches/B01.md 目标"
+    },
+    {
+      "id": "B01-R2",
+      "statement": "每条需求必须绑定责任模块、控制与验证批次，否则不可基线化",
+      "source": "policies/definition-of-done.md"
+    },
+    {
+      "id": "B01-R3",
+      "statement": "服务边界必须明确外部参与者所有权与禁止流",
+      "source": "architecture/REFERENCE_ARCHITECTURE.md + policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B01-R4",
+      "statement": "需求与能力之间双向可追踪，无孤儿需求、无悬空引用",
+      "source": "batches/B01.md 完成门#5"
+    },
+    {
+      "id": "B01-R5",
+      "statement": "评审文档由单一事实源生成，漂移即失败",
+      "source": "batches/B07.md 目标（前置对齐）"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/requirements.json",
+      "requirements": [
+        "B01-R1",
+        "B01-R2"
+      ]
+    },
+    {
+      "ref": "governance/service-boundaries.json",
+      "requirements": [
+        "B01-R3",
+        "B01-R4"
+      ]
+    },
+    {
+      "ref": "tools/paygov/requirements.py",
+      "requirements": [
+        "B01-R2"
+      ]
+    },
+    {
+      "ref": "tools/paygov/boundaries.py",
+      "requirements": [
+        "B01-R3",
+        "B01-R4"
+      ]
+    },
+    {
+      "ref": "tools/paygov/catalogue.py",
+      "requirements": [
+        "B01-R2"
+      ]
+    },
+    {
+      "ref": "tools/paygov/render.py",
+      "requirements": [
+        "B01-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/docs.py",
+      "requirements": [
+        "B01-R5"
+      ]
+    },
+    {
+      "ref": "scripts/render-docs.py",
+      "requirements": [
+        "B01-R5"
+      ]
+    },
+    {
+      "ref": "docs/requirements/REQUIREMENTS_BASELINE.md",
+      "requirements": [
+        "B01-R1"
+      ]
+    },
+    {
+      "ref": "docs/requirements/SERVICE_BOUNDARIES.md",
+      "requirements": [
+        "B01-R3"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b01_requirements.py",
+      "requirements": [
+        "B01-R1",
+        "B01-R2"
+      ],
+      "cases": 15
+    },
+    {
+      "ref": "tools/tests/test_b01_boundaries.py",
+      "requirements": [
+        "B01-R3",
+        "B01-R4"
+      ],
+      "cases": 12
+    },
+    {
+      "ref": "tools/tests/test_b01_docs_drift.py",
+      "requirements": [
+        "B01-R5"
+      ],
+      "cases": 5
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/service-boundaries.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b01_boundaries.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/requirements.py",
+        "tools/paygov/docs.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b01_requirements.py",
+        "tools/tests/test_b01_docs_drift.py"
+      ]
+    },
+    {
+      "id": "CTRL-016",
+      "implemented_by": [
+        "governance/requirements.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b01_requirements.py"
+      ]
+    },
+    {
+      "id": "CTRL-020",
+      "implemented_by": [
+        "governance/requirements.json"
+      ],
+      "verified_by": [
+        "evidence/completion/B01.json"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B01/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B01/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B01/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B01/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B01/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B01/runtime/coverage.json",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B01/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B01/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B01.json",
+      "kind": "completion"
+    }
+  ]
+}

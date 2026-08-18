@@ -47,6 +47,11 @@ def load_all() -> None:
     from . import nonneg  # noqa: F401
     _register_once("non-negotiables", "B00", nonneg.validate)
 
+    from . import boundaries, docs, requirements  # noqa: F401
+    _register_once("requirements", "B01", requirements.validate)
+    _register_once("service-boundaries", "B01", boundaries.validate)
+    _register_once("generated-docs", "B01", docs.validate)
+
 
 def _register_once(name: str, batch: str, fn: Validator) -> None:
     if name not in _REGISTRY:

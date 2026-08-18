@@ -1,0 +1,470 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B01",
+  "external_actors": [
+    {
+      "id": "external:business-project",
+      "name": "业务项目",
+      "owns": [
+        "商品",
+        "库存",
+        "价格",
+        "促销",
+        "业务订单",
+        "履约",
+        "发票"
+      ],
+      "must_not": [
+        "直接访问支付平台数据库",
+        "以客户端回跳作为履约依据",
+        "持有其他项目的平台密钥"
+      ]
+    },
+    {
+      "id": "external:end-customer",
+      "name": "付款人",
+      "owns": [
+        "支付授权行为"
+      ],
+      "must_not": [
+        "直接调用内部服务",
+        "决定支付最终状态"
+      ]
+    },
+    {
+      "id": "external:payment-provider",
+      "name": "支付渠道",
+      "owns": [
+        "渠道交易最终状态",
+        "渠道账单"
+      ],
+      "must_not": [
+        "直接写入平台数据库",
+        "绕过验签影响平台状态"
+      ]
+    },
+    {
+      "id": "external:acquirer-bank",
+      "name": "收单/银行",
+      "owns": [
+        "结算与到账"
+      ],
+      "must_not": [
+        "经由平台资金池结算"
+      ]
+    },
+    {
+      "id": "external:admin-operator",
+      "name": "运营/财务/风控人员",
+      "owns": [
+        "经审批的运营决策"
+      ],
+      "must_not": [
+        "单人完成高风险资金或权限操作",
+        "绕过领域服务直接改支付状态"
+      ]
+    },
+    {
+      "id": "external:kms-hsm",
+      "name": "KMS/HSM/Vault",
+      "owns": [
+        "密钥材料"
+      ],
+      "must_not": [
+        "把私钥导出到应用进程持久化存储"
+      ]
+    },
+    {
+      "id": "external:monitoring",
+      "name": "监控与 SIEM",
+      "owns": [
+        "遥测存储"
+      ],
+      "must_not": [
+        "接收未脱敏的凭证、卡数据或不必要个人信息"
+      ]
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "CAP-01",
+      "name": "多项目支付接入",
+      "owner_module": "payment-core",
+      "requirements": [
+        "PAY-REQ-0001",
+        "PAY-REQ-0002",
+        "PAY-REQ-0003",
+        "PAY-REQ-0004"
+      ],
+      "inbound_from": [
+        "external:business-project"
+      ],
+      "outbound_to": [
+        "merchant-config",
+        "risk-engine"
+      ]
+    },
+    {
+      "id": "CAP-02",
+      "name": "支付事实回传",
+      "owner_module": "webhook-delivery",
+      "requirements": [
+        "PAY-REQ-0005",
+        "PAY-REQ-0006",
+        "PAY-REQ-0007"
+      ],
+      "inbound_from": [
+        "payment-core"
+      ],
+      "outbound_to": [
+        "external:business-project"
+      ]
+    },
+    {
+      "id": "CAP-03",
+      "name": "路由与渠道能力",
+      "owner_module": "merchant-config",
+      "requirements": [
+        "PAY-REQ-0008",
+        "PAY-REQ-0009"
+      ],
+      "inbound_from": [
+        "payment-core",
+        "apps"
+      ],
+      "outbound_to": [
+        "payment-core"
+      ]
+    },
+    {
+      "id": "CAP-04",
+      "name": "支付编排核心",
+      "owner_module": "payment-core",
+      "requirements": [
+        "PAY-REQ-0010",
+        "PAY-REQ-0011",
+        "PAY-REQ-0012",
+        "PAY-REQ-0013"
+      ],
+      "inbound_from": [
+        "edge-gateway",
+        "checkout-web"
+      ],
+      "outbound_to": [
+        "connectors",
+        "ledger-service",
+        "risk-engine"
+      ]
+    },
+    {
+      "id": "CAP-05",
+      "name": "渠道适配",
+      "owner_module": "payment-core",
+      "requirements": [
+        "PAY-REQ-0014",
+        "PAY-REQ-0015",
+        "PAY-REQ-0016",
+        "PAY-REQ-0017",
+        "PAY-REQ-0018"
+      ],
+      "inbound_from": [
+        "payment-core"
+      ],
+      "outbound_to": [
+        "external:payment-provider"
+      ]
+    },
+    {
+      "id": "CAP-06",
+      "name": "渠道回调入口",
+      "owner_module": "webhook-ingress",
+      "requirements": [
+        "PAY-REQ-0019",
+        "PAY-REQ-0020",
+        "PAY-REQ-0021"
+      ],
+      "inbound_from": [
+        "external:payment-provider"
+      ],
+      "outbound_to": [
+        "payment-core"
+      ]
+    },
+    {
+      "id": "CAP-07",
+      "name": "退款编排与审批",
+      "owner_module": "payment-core",
+      "requirements": [
+        "PAY-REQ-0022",
+        "PAY-REQ-0023"
+      ],
+      "inbound_from": [
+        "admin-web",
+        "external:business-project"
+      ],
+      "outbound_to": [
+        "connectors",
+        "ledger-service"
+      ]
+    },
+    {
+      "id": "CAP-08",
+      "name": "争议与订阅",
+      "owner_module": "payment-core",
+      "requirements": [
+        "PAY-REQ-0024",
+        "PAY-REQ-0025",
+        "PAY-REQ-0026"
+      ],
+      "inbound_from": [
+        "webhook-ingress",
+        "worker-scheduler"
+      ],
+      "outbound_to": [
+        "ledger-service",
+        "webhook-delivery"
+      ]
+    },
+    {
+      "id": "CAP-09",
+      "name": "账本与结算",
+      "owner_module": "ledger-service",
+      "requirements": [
+        "PAY-REQ-0027",
+        "PAY-REQ-0028",
+        "PAY-REQ-0029",
+        "PAY-REQ-0030",
+        "PAY-REQ-0031"
+      ],
+      "inbound_from": [
+        "payment-core"
+      ],
+      "outbound_to": [
+        "reconciliation-service",
+        "admin-web"
+      ]
+    },
+    {
+      "id": "CAP-10",
+      "name": "对账与差错",
+      "owner_module": "reconciliation-service",
+      "requirements": [
+        "PAY-REQ-0032",
+        "PAY-REQ-0033",
+        "PAY-REQ-0034"
+      ],
+      "inbound_from": [
+        "worker-scheduler",
+        "external:acquirer-bank"
+      ],
+      "outbound_to": [
+        "ledger-service",
+        "admin-web"
+      ]
+    },
+    {
+      "id": "CAP-11",
+      "name": "风险控制",
+      "owner_module": "risk-engine",
+      "requirements": [
+        "PAY-REQ-0035",
+        "PAY-REQ-0036",
+        "PAY-REQ-0037"
+      ],
+      "inbound_from": [
+        "payment-core"
+      ],
+      "outbound_to": [
+        "payment-core",
+        "admin-web"
+      ]
+    },
+    {
+      "id": "CAP-12",
+      "name": "托管收银台与支付链接",
+      "owner_module": "checkout-web",
+      "requirements": [
+        "PAY-REQ-0038",
+        "PAY-REQ-0039"
+      ],
+      "inbound_from": [
+        "external:end-customer"
+      ],
+      "outbound_to": [
+        "payment-core"
+      ]
+    },
+    {
+      "id": "CAP-13",
+      "name": "边缘与网络安全",
+      "owner_module": "edge-gateway",
+      "requirements": [
+        "PAY-REQ-0040"
+      ],
+      "inbound_from": [
+        "external:business-project",
+        "external:end-customer"
+      ],
+      "outbound_to": [
+        "payment-core",
+        "merchant-config"
+      ]
+    },
+    {
+      "id": "CAP-14",
+      "name": "运营后台与权限",
+      "owner_module": "admin-web",
+      "requirements": [
+        "PAY-REQ-0041",
+        "PAY-REQ-0042"
+      ],
+      "inbound_from": [
+        "external:admin-operator"
+      ],
+      "outbound_to": [
+        "payment-core",
+        "risk-engine",
+        "ledger-service",
+        "reconciliation-service"
+      ]
+    },
+    {
+      "id": "CAP-15",
+      "name": "安全基础设施",
+      "owner_module": "security",
+      "requirements": [
+        "PAY-REQ-0043",
+        "PAY-REQ-0044",
+        "PAY-REQ-0045"
+      ],
+      "inbound_from": [
+        "all-modules"
+      ],
+      "outbound_to": [
+        "external:kms-hsm"
+      ]
+    },
+    {
+      "id": "CAP-16",
+      "name": "可观测性与运维",
+      "owner_module": "observability",
+      "requirements": [
+        "PAY-REQ-0046",
+        "PAY-REQ-0047",
+        "PAY-REQ-0048"
+      ],
+      "inbound_from": [
+        "all-modules"
+      ],
+      "outbound_to": [
+        "external:monitoring"
+      ]
+    },
+    {
+      "id": "CAP-17",
+      "name": "治理与合规边界",
+      "owner_module": "merchant-config",
+      "requirements": [
+        "PAY-REQ-0049",
+        "PAY-REQ-0050"
+      ],
+      "inbound_from": [
+        "external:admin-operator"
+      ],
+      "outbound_to": [
+        "all-modules"
+      ]
+    }
+  ],
+  "forbidden_flows": [
+    {
+      "id": "FF-01",
+      "description": "连接器直接访问业务项目数据库或平台业务表",
+      "enforced_by": [
+        "NN-01",
+        "test:test_b00_module_registry",
+        "batch:B14"
+      ]
+    },
+    {
+      "id": "FF-02",
+      "description": "后台绕过公开领域服务直接修改支付状态",
+      "enforced_by": [
+        "NN-11",
+        "batch:B19",
+        "batch:B101"
+      ]
+    },
+    {
+      "id": "FF-03",
+      "description": "业务订单明细（商品、库存、履约）落入支付平台数据表",
+      "enforced_by": [
+        "NN-01",
+        "test:test_b01_requirements",
+        "batch:B13"
+      ]
+    },
+    {
+      "id": "FF-04",
+      "description": "以同步回跳、SDK 回调或页面状态作为履约依据",
+      "enforced_by": [
+        "NN-03",
+        "batch:B37",
+        "batch:B39"
+      ]
+    },
+    {
+      "id": "FF-05",
+      "description": "原始 PAN/CVV/磁道数据进入平台任何服务、日志或存储",
+      "enforced_by": [
+        "NN-02",
+        "test:test_b00_repo_hygiene",
+        "batch:B104"
+      ]
+    },
+    {
+      "id": "FF-06",
+      "description": "跨租户读取支付、账本、对账或导出数据",
+      "enforced_by": [
+        "NN-09",
+        "batch:B31"
+      ]
+    },
+    {
+      "id": "FF-07",
+      "description": "未验签或未绑定商户/订单/金额即处理渠道通知",
+      "enforced_by": [
+        "NN-08",
+        "batch:B37",
+        "batch:B114"
+      ]
+    },
+    {
+      "id": "FF-08",
+      "description": "平台持有资金池、储值余额或进行跨商户清分",
+      "enforced_by": [
+        "NN-13",
+        "test:test_b00_project_config",
+        "batch:B107"
+      ]
+    },
+    {
+      "id": "FF-09",
+      "description": "return_url / notify_url / 支付链接指向未登记域名或内网地址",
+      "enforced_by": [
+        "NN-10",
+        "batch:B56",
+        "batch:B58"
+      ]
+    },
+    {
+      "id": "FF-10",
+      "description": "以人工口头确认替代自动化测试与运行证据",
+      "enforced_by": [
+        "NN-12",
+        "test:test_b00_cli",
+        "batch:B119"
+      ]
+    }
+  ]
+}

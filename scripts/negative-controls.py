@@ -21,10 +21,16 @@ COPIED = (
     "governance/project-config.json",
     "governance/non-negotiables.json",
     "governance/module-registry.json",
+    "governance/requirements.json",
+    "governance/service-boundaries.json",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",
+    "docs/requirements/REQUIREMENTS_BASELINE.md",
+    "docs/requirements/SERVICE_BOUNDARIES.md",
     ".payment-platform/skill-package/policies/non-negotiables.md",
+    ".payment-platform/skill-package/manifest.json",
+    ".payment-platform/skill-package/compliance/controls-matrix.csv",
 )
 
 EXIT_OK, EXIT_PROBLEMS, EXIT_ERROR = 0, 2, 3
@@ -79,6 +85,16 @@ SCENARIOS = [
      EXIT_PROBLEMS),
     ("red line silently removed", "governance/non-negotiables.json",
      lambda d: d["rules"].pop(7), EXIT_PROBLEMS),
+    ("B01 requirement loses its verifying batch", "governance/requirements.json",
+     lambda d: d["requirements"][0].__setitem__("verified_by_batches", []), EXIT_PROBLEMS),
+    ("B01 requirement points at a non-existent control", "governance/requirements.json",
+     lambda d: d["requirements"][1].__setitem__("controls", ["CTRL-999"]), EXIT_PROBLEMS),
+    ("B01 requirement becomes an orphan", "governance/service-boundaries.json",
+     lambda d: d["capabilities"][0]["requirements"].clear(), EXIT_PROBLEMS),
+    ("B01 forbidden flow loses its enforcement", "governance/service-boundaries.json",
+     lambda d: d["forbidden_flows"][4].__setitem__("enforced_by", []), EXIT_PROBLEMS),
+    ("B01 generated document drifts from source", "governance/requirements.json",
+     lambda d: d["requirements"][2].__setitem__("title", "被悄悄改掉的标题"), EXIT_PROBLEMS),
 ]
 
 

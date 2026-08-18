@@ -12,6 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tools.paygov import catalogue
 from tools.paygov.repo import repo_root
 
 REAL_ROOT = repo_root(Path(__file__).resolve())
@@ -20,10 +21,16 @@ COPIED_FILES = (
     "governance/project-config.json",
     "governance/non-negotiables.json",
     "governance/module-registry.json",
+    "governance/requirements.json",
+    "governance/service-boundaries.json",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",
+    "docs/requirements/REQUIREMENTS_BASELINE.md",
+    "docs/requirements/SERVICE_BOUNDARIES.md",
     ".payment-platform/skill-package/policies/non-negotiables.md",
+    ".payment-platform/skill-package/manifest.json",
+    ".payment-platform/skill-package/compliance/controls-matrix.csv",
 )
 
 
@@ -72,6 +79,10 @@ class FixtureTestCase(unittest.TestCase):
     """Base class giving each test an isolated fixture repository."""
 
     def setUp(self) -> None:
+        # Catalogue lookups are cached per repository root; fixtures rewrite
+        # those files, so the cache must be dropped around every test.
+        catalogue.reset_cache()
+        self.addCleanup(catalogue.reset_cache)
         self.fixture = FixtureRepo()
         self.addCleanup(self.fixture.close)
 

@@ -28,12 +28,20 @@ class CliNormalPath(FixtureTestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["problem_count"], 0)
 
-    def test_every_registered_validator_runs(self):
+    def test_registry_is_well_formed(self):
+        from tools.paygov import catalogue
         registry.load_all()
-        self.assertEqual(
-            registry.names(),
-            ["charter", "module-registry", "non-negotiables", "project-config", "repo-hygiene"],
-        )
+        names = registry.names()
+        self.assertEqual(names, sorted(set(names)), "validator names must be unique and sorted")
+        known = catalogue.batch_ids(str(REAL_ROOT))
+        for name in names:
+            self.assertIn(registry.batch_of(name), known, name)
+
+    def test_b00_validators_are_registered(self):
+        registry.load_all()
+        self.assertTrue(
+            {"charter", "module-registry", "non-negotiables", "project-config", "repo-hygiene"}
+            <= set(registry.names()))
 
     def test_list_validators_exits_zero(self):
         buffer = io.StringIO()
