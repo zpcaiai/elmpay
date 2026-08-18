@@ -38,8 +38,13 @@
 [OK ] B06 evidence policy demands an uncovered command class: exit=2 expected=2
 [OK ] B06 evidence policy renames the reviewer: exit=2 expected=2
 [OK ] B06 evidence policy adds an unmet plan section: exit=2 expected=2
+[OK ] B07 non-negotiable left unclaimed by any requirement: exit=2 expected=2
+[OK ] B07 control left unclaimed by any requirement: exit=2 expected=2
+[OK ] B07 governance file removed from the SSOT registry: exit=2 expected=2
+[OK ] B07 SSOT source loses its validator: exit=2 expected=2
+[OK ] B07 generated file claimed by two generators: exit=2 expected=2
 [OK ] B02 ADR loses its alternatives section: exit=2 expected=2
 [OK ] B02 ADR points at a non-existent requirement: exit=2 expected=2
 [OK ] exhausted budget fails closed: exit=3 expected=3
 
-scenarios=43 failures=0
+scenarios=48 failures=0

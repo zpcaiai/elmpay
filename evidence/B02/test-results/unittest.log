@@ -276,8 +276,36 @@ test_every_batch_except_the_first_has_a_dependency (tools.tests.test_b06_orchest
 test_first_batch_has_no_dependencies (tools.tests.test_b06_orchestration.GraphProperties) ... ok
 test_manifest_graph_is_acyclic_and_complete (tools.tests.test_b06_orchestration.GraphProperties) ... ok
 test_manifest_is_topologically_sorted (tools.tests.test_b06_orchestration.GraphProperties) ... ok
+test_b07_validators_are_registered (tools.tests.test_b07_ssot.SsotHappyPath) ... ok
+test_every_governance_file_is_registered (tools.tests.test_b07_ssot.SsotHappyPath) ... ok
+test_every_source_names_an_owner_and_a_validator (tools.tests.test_b07_ssot.SsotHappyPath) ... ok
+test_no_generated_file_has_two_generators (tools.tests.test_b07_ssot.SsotHappyPath) ... ok
+test_real_registry_passes (tools.tests.test_b07_ssot.SsotHappyPath) ... ok
+test_rejects_generated_file_registered_as_a_source (tools.tests.test_b07_ssot.SsotRejects) ... ok
+test_rejects_generated_file_without_banner (tools.tests.test_b07_ssot.SsotRejects) ... ok
+test_rejects_invalid_batch_reference (tools.tests.test_b07_ssot.SsotRejects) ... ok
+test_rejects_missing_registered_file (tools.tests.test_b07_ssot.SsotRejects) ... ok
+test_rejects_source_without_owner (tools.tests.test_b07_ssot.SsotRejects) ... ok
+test_rejects_two_generators_for_one_file (tools.tests.test_b07_ssot.SsotRejects) ... ok
+test_rejects_unknown_validator (tools.tests.test_b07_ssot.SsotRejects) ... ok
+test_rejects_unregistered_governance_file (tools.tests.test_b07_ssot.SsotRejects) ... ok
+test_every_adr_constrains_a_real_requirement (tools.tests.test_b07_traceability.TraceHappyPath) ... ok
+test_every_batch_with_evidence_claims_known_controls (tools.tests.test_b07_traceability.TraceHappyPath) ... ok
+test_every_control_is_claimed_by_a_requirement (tools.tests.test_b07_traceability.TraceHappyPath) ... ok
+test_every_non_negotiable_is_claimed_by_a_requirement (tools.tests.test_b07_traceability.TraceHappyPath) ... ok
+test_every_requirement_belongs_to_a_capability (tools.tests.test_b07_traceability.TraceHappyPath) ... ok
+test_graph_construction_is_deterministic (tools.tests.test_b07_traceability.TraceHappyPath) ... ok
+test_matrix_contains_reverse_coverage_section (tools.tests.test_b07_traceability.TraceHappyPath) ... ok
+test_real_graph_passes (tools.tests.test_b07_traceability.TraceHappyPath) ... ok
+test_rejects_adr_referencing_unknown_requirement (tools.tests.test_b07_traceability.TraceRejects) ... ok
+test_rejects_adr_without_any_requirement (tools.tests.test_b07_traceability.TraceRejects) ... ok
+test_rejects_module_without_requirement (tools.tests.test_b07_traceability.TraceRejects) ... ok
+test_rejects_requirement_outside_every_capability (tools.tests.test_b07_traceability.TraceRejects) ... ok
+test_rejects_requirement_pointing_at_unknown_batch (tools.tests.test_b07_traceability.TraceRejects) ... ok
+test_rejects_uncovered_control (tools.tests.test_b07_traceability.TraceRejects) ... ok
+test_rejects_uncovered_non_negotiable (tools.tests.test_b07_traceability.TraceRejects) ... ok
 
 ----------------------------------------------------------------------
-Ran 278 tests in 21.823s
+Ran 306 tests in 14.947s
 
 OK

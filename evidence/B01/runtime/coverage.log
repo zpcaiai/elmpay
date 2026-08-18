@@ -1,7 +1,7 @@
 {
-  "requirements_total": 50,
-  "requirements_must": 48,
-  "capabilities_total": 17,
+  "requirements_total": 53,
+  "requirements_must": 51,
+  "capabilities_total": 18,
   "forbidden_flows_total": 10,
   "modules_total": 22,
   "uncovered_modules": [],

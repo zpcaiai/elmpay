@@ -1,0 +1,16 @@
+B02	adr
+B00	charter
+B05	ci-pipeline
+B04	dev-platform
+B06	evidence
+B01	generated-docs
+B00	module-registry
+B00	non-negotiables
+B00	project-config
+B00	repo-hygiene
+B01	requirements
+B01	service-boundaries
+B07	ssot
+B02	threat-model
+B03	toolchain
+B07	traceability

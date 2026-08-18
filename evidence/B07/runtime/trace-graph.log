@@ -1,0 +1,19 @@
+{
+  "requirements_total": 53,
+  "capabilities_total": 18,
+  "adrs_total": 12,
+  "non_negotiables_total": 15,
+  "controls_total": 20,
+  "batches_with_evidence": [
+    "B00",
+    "B01",
+    "B02",
+    "B03",
+    "B04",
+    "B05",
+    "B06"
+  ],
+  "uncovered_controls": [],
+  "uncovered_modules": [],
+  "unclaimed_requirements": []
+}

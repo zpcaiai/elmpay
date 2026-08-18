@@ -1,10 +1,10 @@
 {
   "batch_id": "B04",
   "status": "passed",
-  "commit_sha": "858dc0f05b28d1f649e049b95082e8f6c0a4da6e",
+  "commit_sha": "e7a2c85b9a0253c0286d2c08ea9b37e24a01f6ab",
   "environment": "integration",
-  "started_at": "2026-08-18T12:39:54Z",
-  "completed_at": "2026-08-18T12:40:35Z",
+  "started_at": "2026-08-18T12:59:43Z",
+  "completed_at": "2026-08-18T13:00:10Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -54,7 +54,7 @@
     },
     {
       "path": "scripts/simulator-smoke.py",
-      "sha256": "6aa74f297b3b3450bcc28e30c695ba67f1b3adaf832f5f965872a8775d368bc7"
+      "sha256": "9998a22a3383fb61828fd5ddc067c11d32a257e101a34afb9bd5649d0b696784"
     },
     {
       "path": "tools/paygov/devgen.py",
@@ -78,11 +78,11 @@
     },
     {
       "path": "tools/tests/test_b04_simulator.py",
-      "sha256": "fd88787f7e3ca59dc7cc9d7553953bb43689ab9f25c2955300e247d7e8a1e64f"
+      "sha256": "69141c163f7c2c568becdb4008fd1e10885797b59e356bcfc542c8c19b7a0fcd"
     }
   ],
   "tests": {
-    "passed": 278,
+    "passed": 306,
     "failed": 0,
     "skipped_critical": 0
   },
@@ -91,6 +91,6 @@
     "accepted_findings": 0
   },
   "dependency_hashes": {
-    "B03": "8140edb37f723c89dfbbaa9fbdfcc173bb37dd6b3e6e6fed6c5b38e42c80436e"
+    "B03": "a971562728f91ac7449e353e0b8db7077d3e30a2bcaca20552f4b6582a61db8c"
   }
 }

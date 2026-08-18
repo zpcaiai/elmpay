@@ -32,9 +32,9 @@
       "save_to": "runtime/ci-drift.txt"
     },
     {
-      "purpose": "evidence bundle is produced only when every completed batch validates (B05 itself is excluded: its completion file is written after this step)",
+      "purpose": "evidence bundle covers every batch completed before B05 and is produced only if all of them validate",
       "expect": 0,
-      "command": "python3 scripts/archive-evidence.py --out build/evidence-bundle.tar.gz --exclude-batch B05",
+      "command": "python3 scripts/archive-evidence.py --out build/evidence-bundle.tar.gz --up-to B05",
       "save_to": "runtime/evidence-bundle.log"
     },
     {

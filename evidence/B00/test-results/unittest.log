@@ -306,6 +306,6 @@ test_rejects_uncovered_control (tools.tests.test_b07_traceability.TraceRejects) 
 test_rejects_uncovered_non_negotiable (tools.tests.test_b07_traceability.TraceRejects) ... ok
 
 ----------------------------------------------------------------------
-Ran 306 tests in 25.138s
+Ran 306 tests in 11.154s
 
 OK

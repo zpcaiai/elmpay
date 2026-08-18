@@ -1,28 +1,28 @@
 {
   "batch_id": "B01",
   "status": "passed",
-  "commit_sha": "858dc0f05b28d1f649e049b95082e8f6c0a4da6e",
+  "commit_sha": "e7a2c85b9a0253c0286d2c08ea9b37e24a01f6ab",
   "environment": "integration",
-  "started_at": "2026-08-18T12:37:51Z",
-  "completed_at": "2026-08-18T12:38:24Z",
+  "started_at": "2026-08-18T12:56:43Z",
+  "completed_at": "2026-08-18T12:57:09Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
     {
       "path": "governance/requirements.json",
-      "sha256": "b743452a714836fac764176a214999d7102ac373e33dc70d422ff00e9d609efa"
+      "sha256": "8859cbaf9403751696768f6cf544bc8fd501a1b114d2043bca140a6632339790"
     },
     {
       "path": "governance/service-boundaries.json",
-      "sha256": "70e1b29350672f8045fdaab40a9526f5beb49f040d5257d13154cf08eda778ac"
+      "sha256": "3321bed5911e02bb0a1795339f59d8c94281b5dc68c553d768f22994600c1a7c"
     },
     {
       "path": "docs/requirements/REQUIREMENTS_BASELINE.md",
-      "sha256": "e7aeff05fa4ba08be9840f44f3fc8d85371a7834f728b80849c7a4b9b5af83fb"
+      "sha256": "25530179669347b2206f925674dd7acc519e88eef1db628a80f20bc2dbfdf43d"
     },
     {
       "path": "docs/requirements/SERVICE_BOUNDARIES.md",
-      "sha256": "fada330d7241e0afe373a2deeed817808e85357574de9f5c2b45dc22bf939b1a"
+      "sha256": "7de067fb710e4b9023a47336f9a35c125e4ee9ecde74e3ef9bf305ca6437a237"
     },
     {
       "path": "tools/paygov/requirements.py",
@@ -38,7 +38,7 @@
     },
     {
       "path": "tools/paygov/render.py",
-      "sha256": "4ea55e2166781b9fd7df95982e28540b931909e6b4ecf9c12db22ec7ea6d30e4"
+      "sha256": "1367eeb70f7bd38589d37b05003ef1a00cb18de49a855b80da9566706eef404a"
     },
     {
       "path": "tools/paygov/docs.py",
@@ -66,7 +66,7 @@
     }
   ],
   "tests": {
-    "passed": 278,
+    "passed": 306,
     "failed": 0,
     "skipped_critical": 0
   },
@@ -75,6 +75,6 @@
     "accepted_findings": 0
   },
   "dependency_hashes": {
-    "B00": "02849b6d6b3451d990258366f866f1cc80f7a51d5994154593e519e7595dcc2a"
+    "B00": "44b228a1a7067cf693967341abbc9ab6f0ebf2b94c8d8731ccfdf183b480d01c"
   }
 }
