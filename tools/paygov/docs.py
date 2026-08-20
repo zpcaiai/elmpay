@@ -12,6 +12,11 @@ from .render import render_all
 from .repo import Budget
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("generated-docs", "B01")
+
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     problems: list[Problem] = []

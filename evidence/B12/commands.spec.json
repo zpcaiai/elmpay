@@ -1,0 +1,125 @@
+{
+  "batch": "B12",
+  "commands": [
+    {
+      "purpose": "environment fingerprint",
+      "expect": 0,
+      "command": "python3 -VV && uname -a && git --version && echo repo=$(git rev-parse --short HEAD)",
+      "save_to": "runtime/environment.txt"
+    },
+    {
+      "purpose": "dependency B10 evidence still validates",
+      "expect": 0,
+      "command": "python3 .payment-platform/skill-package/scripts/orchestrate.py validate B10 --repo .",
+      "save_to": "runtime/dependency-b10.json"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary)",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --out evidence/B12/test-results/summary.json --log evidence/B12/test-results/unittest.log",
+      "save_to": "test-results/summary.log"
+    },
+    {
+      "purpose": "generated event artefacts match the catalogue",
+      "expect": 0,
+      "command": "python3 scripts/render-events.py --check",
+      "save_to": "runtime/events-drift.txt"
+    },
+    {
+      "purpose": "generated API artefacts still match the contract (B11 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-api.py --check",
+      "save_to": "runtime/api-drift.txt"
+    },
+    {
+      "purpose": "generated state-machine document still matches the model (B10 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-states.py --check",
+      "save_to": "runtime/state-doc-drift.txt"
+    },
+    {
+      "purpose": "generated money vectors still match the reference (B09 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-money-vectors.py --check",
+      "save_to": "runtime/money-vectors-drift.txt"
+    },
+    {
+      "purpose": "generated PostgreSQL schema still matches the domain model (B08 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-domain.py --check",
+      "save_to": "runtime/domain-drift.txt"
+    },
+    {
+      "purpose": "generated review documents match their source of truth",
+      "expect": 0,
+      "command": "python3 scripts/render-docs.py --check",
+      "save_to": "runtime/docs-drift.txt"
+    },
+    {
+      "purpose": "fault injection: crash, outage, dead letter, duplicate, reorder, contradiction",
+      "expect": 0,
+      "command": "python3 scripts/events-smoke.py",
+      "save_to": "runtime/events-smoke.log"
+    },
+    {
+      "purpose": "API transition vectors still replay (B11 regression)",
+      "expect": 0,
+      "command": "python3 scripts/api-smoke.py",
+      "save_to": "runtime/api-smoke.log"
+    },
+    {
+      "purpose": "state machines still replay (B10 regression)",
+      "expect": 0,
+      "command": "python3 scripts/state-smoke.py",
+      "save_to": "runtime/state-smoke.log"
+    },
+    {
+      "purpose": "money reference still exercised end to end (B09 regression)",
+      "expect": 0,
+      "command": "python3 scripts/money-smoke.py",
+      "save_to": "runtime/money-smoke.log"
+    },
+    {
+      "purpose": "local orchestration still agrees with the vendored orchestrator",
+      "expect": 0,
+      "command": "python3 scripts/batch.py crosscheck",
+      "save_to": "runtime/crosscheck.log"
+    },
+    {
+      "purpose": "governance gate on the real repository",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo .",
+      "save_to": "security/governance-report.json"
+    },
+    {
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py",
+      "save_to": "security/negative-controls.log"
+    },
+    {
+      "purpose": "every new rule code remains load-bearing (deletion knockout)",
+      "expect": 0,
+      "command": "python3 scripts/rule-knockout.py --codes OUTBOX_NOT_TRANSACTIONAL,OUTBOX_UNIQUE_KEY,OUTBOX_DEAD_LETTER,INBOX_UNIQUE_KEY,INBOX_PAYLOAD_HASH,INBOX_RETENTION,EVENT_ORDERING,EVENT_DELIVERY,EVENT_FORBIDDEN_FIELD,EVENT_SUCCESS_UNPUBLISHED,EVENT_MONEY_TYPE,EVENT_ORDER_TOLERANCE,EVENT_GENERATED_DRIFT,EVENT_TRANSITION_AGGREGATE --out evidence/B12/security/rule-knockout.json",
+      "save_to": "security/rule-knockout.log"
+    },
+    {
+      "purpose": "exhausted budget must exit 3, never 0 (timeout path)",
+      "expect": 3,
+      "command": "python3 -m tools.paygov.cli verify event-catalog --repo . --budget-seconds 0",
+      "save_to": "runtime/timeout-fail-closed.log"
+    },
+    {
+      "purpose": "duplicate invocation is byte-identical (idempotency)",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo . > /tmp/B12-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B12-2.json && diff /tmp/B12-1.json /tmp/B12-2.json && echo IDENTICAL",
+      "save_to": "runtime/idempotency.txt"
+    },
+    {
+      "purpose": "registered validators",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli list-validators --repo .",
+      "save_to": "runtime/validators.txt"
+    }
+  ]
+}

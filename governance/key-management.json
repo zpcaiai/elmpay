@@ -1,0 +1,236 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B20",
+  "principle": "密钥不是配置，是**能力**。应用进程从来不「拥有」根密钥或 KEK，它只是在很短的时间里借到一次解密能力。信封加密的意义也不在于「多包了一层」，而在于：数据密钥一条一条独立，密文与它所属的租户、用途、密钥版本**绑定在认证数据里**——把一条密文搬到另一个租户的行上，解密必须失败，而不是解出别人的明文。",
+  "hsm": {
+    "required_for_root": true,
+    "fips_140_level": 3,
+    "root_key_exportable": false,
+    "quorum_m_of_n": [
+      2,
+      3
+    ],
+    "attestation_required": true,
+    "notes": "根密钥只在 HSM 内部存在，不可导出；根密钥操作需要 2/3 法定人数，避免任何单人（包括平台运营）独自动用最高密钥。"
+  },
+  "envelope": {
+    "data_key_algorithm": "AES-256-GCM",
+    "key_wrapping_algorithm": "AES-256-GCM",
+    "data_key_per": "record",
+    "nonce_bytes": 12,
+    "nonce_reuse_forbidden": true,
+    "aad_required": true,
+    "aad_fields": [
+      "tenant_id",
+      "purpose",
+      "key_id"
+    ],
+    "plaintext_data_key_ttl_seconds": 300,
+    "store_unwrapped_data_key": false,
+    "notes": "每条记录一把数据密钥；数据密钥由 KEK 包裹后与密文同存，明文数据密钥只在内存里存活 300 秒。AAD 绑定租户、用途与密钥版本——**这是防止密文在租户之间搬家的唯一机制**。GCM 的 nonce 一旦重用，同一把密钥下的两条密文可以互相抵消出明文，因此 nonce 重用被明确禁止。"
+  },
+  "keys": [
+    {
+      "id": "root-hsm",
+      "class": "root",
+      "purpose": "key_wrapping",
+      "storage": "hsm",
+      "algorithm": "AES-256",
+      "exportable": false,
+      "tenant_scoped": false,
+      "rotation_days": 730,
+      "dual_control": true,
+      "protects_fields": [],
+      "notes": "根密钥，只包裹 KEK，不直接加密任何业务数据。"
+    },
+    {
+      "id": "kek-provider-credentials",
+      "class": "kek",
+      "purpose": "provider_credential",
+      "storage": "kms",
+      "algorithm": "AES-256",
+      "exportable": false,
+      "tenant_scoped": false,
+      "rotation_days": 90,
+      "dual_control": true,
+      "protects_fields": [],
+      "notes": "包裹所有渠道私钥与 API 凭据的数据密钥。"
+    },
+    {
+      "id": "kek-tenant-data",
+      "class": "kek",
+      "purpose": "tenant_data",
+      "storage": "kms",
+      "algorithm": "AES-256",
+      "exportable": false,
+      "tenant_scoped": true,
+      "rotation_days": 90,
+      "dual_control": false,
+      "protects_fields": [],
+      "notes": "每租户一把 KEK：销毁它就等于**密码学销毁**该租户的全部数据，这是租户下线时唯一可验证的删除方式。"
+    },
+    {
+      "id": "kek-pii",
+      "class": "kek",
+      "purpose": "pii",
+      "storage": "kms",
+      "algorithm": "AES-256",
+      "exportable": false,
+      "tenant_scoped": true,
+      "rotation_days": 90,
+      "dual_control": false,
+      "protects_fields": [],
+      "notes": "个人信息字段的 KEK，与业务数据 KEK 分开，便于单独轮换与单独审计。"
+    },
+    {
+      "id": "dek-provider-credential",
+      "class": "dek",
+      "purpose": "provider_credential",
+      "storage": "envelope",
+      "algorithm": "AES-256-GCM",
+      "exportable": false,
+      "tenant_scoped": false,
+      "rotation_days": 1,
+      "dual_control": false,
+      "wrapped_by": "kek-provider-credentials",
+      "protects_fields": [],
+      "notes": "渠道凭据的数据密钥，一条凭据一把。"
+    },
+    {
+      "id": "dek-pii",
+      "class": "dek",
+      "purpose": "pii",
+      "storage": "envelope",
+      "algorithm": "AES-256-GCM",
+      "exportable": false,
+      "tenant_scoped": true,
+      "rotation_days": 1,
+      "dual_control": false,
+      "wrapped_by": "kek-pii",
+      "protects_fields": [
+        "customer_email",
+        "customer_phone"
+      ],
+      "notes": "个人信息字段的数据密钥。"
+    },
+    {
+      "id": "dek-financial",
+      "class": "dek",
+      "purpose": "tenant_data",
+      "storage": "envelope",
+      "algorithm": "AES-256-GCM",
+      "exportable": false,
+      "tenant_scoped": true,
+      "rotation_days": 1,
+      "dual_control": false,
+      "wrapped_by": "kek-tenant-data",
+      "protects_fields": [
+        "bank_account_number"
+      ],
+      "notes": "收款账号等资金相关字段的数据密钥。"
+    }
+  ],
+  "provider_keys": [
+    {
+      "provider": "wechat",
+      "key_id": "kek-provider-credentials",
+      "material": "hsm_backed",
+      "signing_algorithm": "RSA-2048-PSS",
+      "notes": "微信支付商户私钥由 HSM 托管，应用只能请求签名，拿不到私钥本身。"
+    },
+    {
+      "provider": "alipay",
+      "key_id": "kek-provider-credentials",
+      "material": "hsm_backed",
+      "signing_algorithm": "RSA-2048-PSS",
+      "notes": "支付宝应用私钥同上。"
+    },
+    {
+      "provider": "stripe",
+      "key_id": "kek-provider-credentials",
+      "material": "envelope_encrypted",
+      "signing_algorithm": "none",
+      "notes": "Stripe 使用 API 密钥而非签名私钥，凭据以信封加密存储，用完即弃。"
+    },
+    {
+      "provider": "paypal",
+      "key_id": "kek-provider-credentials",
+      "material": "envelope_encrypted",
+      "signing_algorithm": "none",
+      "notes": "PayPal 同上。"
+    },
+    {
+      "provider": "apple_pay",
+      "key_id": "kek-provider-credentials",
+      "material": "hsm_backed",
+      "signing_algorithm": "ECDSA-P256",
+      "notes": "Apple Pay 支付处理私钥由 HSM 托管，用于解密支付令牌。"
+    },
+    {
+      "provider": "customer-idp",
+      "key_id": "kek-provider-credentials",
+      "material": "external_jwks",
+      "signing_algorithm": "RS256",
+      "notes": "外部身份提供方的验签公钥来自 JWKS，本平台不持有其私钥。"
+    },
+    {
+      "provider": "corporate-idp",
+      "key_id": "kek-provider-credentials",
+      "material": "external_jwks",
+      "signing_algorithm": "RS256",
+      "notes": "企业身份提供方的验签公钥同样来自 JWKS；本平台不持有其私钥，也就无从泄露。"
+    },
+    {
+      "provider": "workload-ca",
+      "key_id": "kek-provider-credentials",
+      "material": "hsm_backed",
+      "signing_algorithm": "ECDSA-P256",
+      "notes": "工作负载身份 CA 的签发私钥必须在 HSM 内：它能签出任何服务身份。"
+    },
+    {
+      "provider": "ci-oidc",
+      "key_id": "kek-provider-credentials",
+      "material": "external_jwks",
+      "signing_algorithm": "RS256",
+      "notes": "CI 的 OIDC 令牌由外部签发。"
+    }
+  ],
+  "rotation": {
+    "root_days": 730,
+    "kek_days": 90,
+    "dek_per_record": true,
+    "overlap_window_days": 7,
+    "re_encrypt_strategy": "rewrap_data_keys",
+    "emergency_rotation_hours": 4,
+    "notes": "KEK 轮换只需重新包裹数据密钥，不必重写业务数据——这也是信封加密真正的运维价值。轮换有 7 天重叠期，旧版本仍可解密；泄露时必须在 4 小时内完成紧急轮换。"
+  },
+  "access": {
+    "application_holds_key_material": false,
+    "decrypt_only_through_broker": true,
+    "key_use_audited": true,
+    "audit_includes_key_version": true,
+    "dual_control_for_root_operations": true,
+    "notes": "应用不持有密钥材料，只能通过密钥代理换取一次性的、限时的解密能力，且每一次使用都被记录（含密钥版本）。"
+  },
+  "destruction": {
+    "crypto_shredding": true,
+    "tenant_offboarding_destroys_kek": true,
+    "destroyed_key_is_unrecoverable": true,
+    "notes": "租户下线时销毁其 KEK：备份里的密文从此不可解，这是唯一能在有备份的系统里被验证的删除。"
+  },
+  "forbidden": {
+    "algorithms": [
+      "DES",
+      "3DES",
+      "RC4",
+      "AES-ECB",
+      "MD5",
+      "SHA1",
+      "none"
+    ],
+    "minimum_rsa_bits": 2048,
+    "hardcoded_key_material": false,
+    "plaintext_key_in_logs": false,
+    "notes": "ECB 模式泄露明文结构；MD5/SHA1 已不具备抗碰撞性；任何硬编码密钥材料都等同于公开。"
+  }
+}

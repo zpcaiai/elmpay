@@ -1,0 +1,221 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-attempt.py; do not edit by hand",
+  "attempt": {
+    "immutable": true,
+    "one_per_provider_call": true,
+    "required_fields": [
+      "tenant_id",
+      "intent_id",
+      "provider",
+      "sequence",
+      "request_digest",
+      "response_digest",
+      "provider_request_id",
+      "provider_transaction_id",
+      "outcome_class",
+      "provider_code_namespace",
+      "provider_code",
+      "started_at",
+      "finished_at"
+    ],
+    "reuse_on_retry_forbidden": true,
+    "sequence_monotonic_per_intent": true
+  },
+  "audit_event_class": "money.movement",
+  "concurrency": {
+    "atomic_start": true,
+    "concurrent_duplicate_policy": "reject_without_provider_call",
+    "conflict_key": [
+      "tenant_id",
+      "intent_id"
+    ]
+  },
+  "error_taxonomy": [
+    {
+      "code_namespace": "alipay.sub_code",
+      "outcome_class": "failed_final",
+      "provider": "alipay",
+      "provider_code": "ACQ.BUYER_BALANCE_NOT_ENOUGH"
+    },
+    {
+      "code_namespace": "alipay.sub_code",
+      "outcome_class": "unknown",
+      "provider": "alipay",
+      "provider_code": "ACQ.SYSTEM_ERROR"
+    },
+    {
+      "code_namespace": "adapter.normalized",
+      "outcome_class": "failed_final",
+      "provider": "apple_pay",
+      "provider_code": "DECRYPT_FAILED"
+    },
+    {
+      "code_namespace": "paypal.details.issue",
+      "outcome_class": "failed_final",
+      "provider": "paypal",
+      "provider_code": "INSTRUMENT_DECLINED"
+    },
+    {
+      "code_namespace": "stripe.error.code",
+      "outcome_class": "failed_final",
+      "provider": "stripe",
+      "provider_code": "card_declined"
+    },
+    {
+      "code_namespace": "stripe.error.code",
+      "outcome_class": "failed_retryable",
+      "provider": "stripe",
+      "provider_code": "processing_error"
+    },
+    {
+      "code_namespace": "stripe.error.code",
+      "outcome_class": "failed_retryable",
+      "provider": "stripe",
+      "provider_code": "rate_limit"
+    },
+    {
+      "code_namespace": "wechat.api_v3.code",
+      "outcome_class": "succeeded",
+      "provider": "wechat",
+      "provider_code": "ORDERPAID"
+    },
+    {
+      "code_namespace": "wechat.api_v3.code",
+      "outcome_class": "unknown",
+      "provider": "wechat",
+      "provider_code": "SYSTEMERROR"
+    }
+  ],
+  "finality": {
+    "contradicting_later_event_opens_reconciliation": true,
+    "contradicting_later_event_overwrites": false,
+    "failed_attempt_does_not_settle_intent": true,
+    "final_attempt_immutable": true,
+    "intent_outcome_from_final_attempt": true
+  },
+  "lifecycle": {
+    "initial": "initiated",
+    "source": "governance/state-machines.json#payment-attempt",
+    "states": [
+      "initiated",
+      "pending",
+      "succeeded",
+      "failed",
+      "unknown"
+    ],
+    "success_states": [
+      "succeeded"
+    ],
+    "terminal": [
+      "succeeded",
+      "failed"
+    ]
+  },
+  "outcome_classes": [
+    {
+      "final": true,
+      "id": "failed_final",
+      "requires_resolution": false,
+      "retry_allowed": false,
+      "settles_intent": false
+    },
+    {
+      "final": true,
+      "id": "failed_retryable",
+      "requires_resolution": false,
+      "retry_allowed": true,
+      "settles_intent": false
+    },
+    {
+      "final": true,
+      "id": "succeeded",
+      "requires_resolution": false,
+      "retry_allowed": false,
+      "settles_intent": true
+    },
+    {
+      "final": false,
+      "id": "unknown",
+      "requires_resolution": true,
+      "retry_allowed": false,
+      "settles_intent": false
+    }
+  ],
+  "reference_runtime": {
+    "b32_replacement_confirmation_integrated": false,
+    "database_unique_constraint": false,
+    "durable_storage": false,
+    "process_local_lock": true,
+    "production_ready": false,
+    "runtime_audit_sink": false
+  },
+  "request_record": {
+    "digest_algorithm": "sha256",
+    "payload_replayable": false,
+    "redacted_fields": [
+      "pan",
+      "cvv",
+      "credential",
+      "token"
+    ],
+    "store_digest_not_payload": true
+  },
+  "response_record": {
+    "digest_algorithm": "sha256",
+    "forbidden_fields": [
+      "raw_response",
+      "response_body",
+      "headers",
+      "authorization",
+      "credential",
+      "token",
+      "pan",
+      "cvv"
+    ],
+    "payload_replayable": false,
+    "required_evidence_fields": [
+      "provider_code",
+      "provider_request_id",
+      "provider_transaction_id",
+      "outcome_class",
+      "provider_code_namespace",
+      "response_digest"
+    ],
+    "store_summary_not_payload": true
+  },
+  "retry": {
+    "backoff_seconds": [
+      1,
+      5,
+      25
+    ],
+    "max_attempts_per_intent": 3,
+    "new_attempt_required": true,
+    "only_for_retryable": true,
+    "replacement_request_allowed_after": [
+      "failed_final"
+    ],
+    "replacement_request_requires_customer_action": true,
+    "replacement_request_requires_new_idempotency_key": true,
+    "reuse_idempotency_key": true
+  },
+  "schema_version": "1.0.0",
+  "tenant_scope": {
+    "external_ids_never_used_as_internal_ids": true,
+    "lookup_key": [
+      "tenant_id",
+      "intent_id"
+    ],
+    "tenant_id_required": true
+  },
+  "timeout": {
+    "classified_as": "unknown",
+    "max_resolution_hours": 24,
+    "resolution_methods": [
+      "provider_query",
+      "reconciliation_file"
+    ],
+    "retry_before_resolution_allowed": false
+  },
+  "unmapped_code_class": "unknown"
+}

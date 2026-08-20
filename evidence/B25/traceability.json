@@ -1,0 +1,271 @@
+{
+  "batch_id": "B25",
+  "requirements": [
+    {
+      "id": "B25-R1",
+      "statement": "管理法人与业务资料、经营地区、结算币种、风险等级与审批状态",
+      "source": "batches/B25.md 目标"
+    },
+    {
+      "id": "B25-R2",
+      "statement": "平台不替代持牌机构核验：核验状态必须引用外部机构决定、编号、日期与有效期",
+      "source": "batches/B25.md 目标"
+    },
+    {
+      "id": "B25-R3",
+      "statement": "KYB 材料有有效期并需持续复核；收款账户证明有效期最短",
+      "source": "batches/B25.md 实施要求 1"
+    },
+    {
+      "id": "B25-R4",
+      "statement": "实际控制人需穿透股权并接受名单筛查；命中必须转人工，不得自动放行",
+      "source": "policies/non-negotiables.md#15"
+    },
+    {
+      "id": "B25-R5",
+      "statement": "重大变更（改收款账户、变更实际控制人等）必须重新开启核验；改收款账户必须暂停结算",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B25-R6",
+      "statement": "结算币种来自受版本控制的货币元数据；风险等级决定限额与结算延迟",
+      "source": "policies/non-negotiables.md#2"
+    },
+    {
+      "id": "B25-R7",
+      "statement": "高风险商户的批准需要两人；拒绝必须说明理由并可由他人复核申诉",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B25-R8",
+      "statement": "KYB 材料加密留存、最小化收集，且不得超出数据模型声明的生命周期",
+      "source": "policies/non-negotiables.md#6"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/merchant-profile.json",
+      "requirements": [
+        "B25-R1",
+        "B25-R2",
+        "B25-R3",
+        "B25-R4",
+        "B25-R5",
+        "B25-R6",
+        "B25-R7",
+        "B25-R8"
+      ]
+    },
+    {
+      "ref": "tools/paygov/merchant.py",
+      "requirements": [
+        "B25-R1",
+        "B25-R2",
+        "B25-R3",
+        "B25-R4",
+        "B25-R5",
+        "B25-R6",
+        "B25-R7",
+        "B25-R8"
+      ]
+    },
+    {
+      "ref": "libs/merchant/reference/profile.py",
+      "requirements": [
+        "B25-R2",
+        "B25-R3",
+        "B25-R4",
+        "B25-R5",
+        "B25-R6",
+        "B25-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/merchantgen.py",
+      "requirements": [
+        "B25-R1",
+        "B25-R2"
+      ]
+    },
+    {
+      "ref": "scripts/render-merchant.py",
+      "requirements": [
+        "B25-R1"
+      ]
+    },
+    {
+      "ref": "scripts/merchant-smoke.py",
+      "requirements": [
+        "B25-R2",
+        "B25-R3",
+        "B25-R4",
+        "B25-R5",
+        "B25-R6",
+        "B25-R7"
+      ]
+    },
+    {
+      "ref": "contracts/merchant/profile-model.json",
+      "requirements": [
+        "B25-R1",
+        "B25-R6"
+      ]
+    },
+    {
+      "ref": "docs/merchant/MERCHANT_PROFILE.md",
+      "requirements": [
+        "B25-R1",
+        "B25-R2"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b25_merchant.py",
+      "requirements": [
+        "B25-R1",
+        "B25-R2",
+        "B25-R3",
+        "B25-R4",
+        "B25-R5",
+        "B25-R6",
+        "B25-R7",
+        "B25-R8"
+      ],
+      "cases": 151
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-14",
+      "implemented_by": [
+        "governance/merchant-profile.json",
+        "tools/paygov/merchant.py",
+        "libs/merchant/reference/profile.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b25_merchant.py",
+        "scripts/merchant-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/merchant-profile.json",
+        "libs/merchant/reference/profile.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b25_merchant.py",
+        "scripts/merchant-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/merchant-profile.json",
+        "libs/merchant/reference/profile.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b25_merchant.py",
+        "scripts/merchant-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "governance/merchant-profile.json",
+        "tools/paygov/merchant.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b25_merchant.py"
+      ]
+    },
+    {
+      "id": "NN-06",
+      "implemented_by": [
+        "governance/merchant-profile.json",
+        "tools/paygov/merchant.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b25_merchant.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/merchant-profile.json",
+        "tools/paygov/merchant.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b25_merchant.py"
+      ]
+    },
+    {
+      "id": "NN-15",
+      "implemented_by": [
+        "governance/merchant-profile.json",
+        "libs/merchant/reference/profile.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b25_merchant.py",
+        "scripts/merchant-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/merchant-profile.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b25_merchant.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B25/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B25/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B25/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B25/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B25/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B25/runtime/merchant-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B25/runtime/merchant-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B25/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B25/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B25/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B25.json",
+      "kind": "completion"
+    }
+  ]
+}

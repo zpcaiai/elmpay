@@ -1,0 +1,187 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-tenants.py; do not edit by hand",
+  "capability_matrix": [
+    {
+      "accept_payments": false,
+      "issue_refunds": false,
+      "read_data": true,
+      "receive_webhooks": false,
+      "settle": false,
+      "state": "draft"
+    },
+    {
+      "accept_payments": true,
+      "issue_refunds": true,
+      "read_data": true,
+      "receive_webhooks": true,
+      "settle": true,
+      "state": "active"
+    },
+    {
+      "accept_payments": false,
+      "issue_refunds": true,
+      "read_data": true,
+      "receive_webhooks": true,
+      "settle": true,
+      "state": "suspended"
+    },
+    {
+      "accept_payments": false,
+      "issue_refunds": true,
+      "read_data": true,
+      "receive_webhooks": true,
+      "settle": true,
+      "state": "offboarding"
+    },
+    {
+      "accept_payments": false,
+      "issue_refunds": false,
+      "read_data": false,
+      "receive_webhooks": false,
+      "settle": false,
+      "state": "closed"
+    }
+  ],
+  "environments": [
+    {
+      "handles_real_money": true,
+      "id": "live"
+    },
+    {
+      "handles_real_money": false,
+      "id": "test"
+    }
+  ],
+  "hierarchy": [
+    {
+      "id_prefix": "org",
+      "level": "organisation",
+      "parent": null
+    },
+    {
+      "id_prefix": "ten",
+      "level": "tenant",
+      "parent": "organisation"
+    },
+    {
+      "id_prefix": "prj",
+      "level": "project",
+      "parent": "tenant"
+    },
+    {
+      "id_prefix": "env",
+      "level": "environment",
+      "parent": "project"
+    }
+  ],
+  "identifier": {
+    "alphabet": "crockford_base32_lowercase_without_ilou",
+    "case_sensitive": true,
+    "immutable": true,
+    "notes": "标识符不透明且不可变：把租户名、国家或序号编进 ID，等于把商业信息发给每一个能看到 URL 的人，也让「改名」变成「改主键」。字母表去掉 i/l/o/u，避免人工转录出错与生成脏话。",
+    "opaque": true,
+    "pattern": "^(org|ten|prj|env)_[0-9a-hjkmnp-tv-z]{16}$"
+  },
+  "lifecycle": {
+    "initial": "draft",
+    "states": [
+      "draft",
+      "active",
+      "suspended",
+      "offboarding",
+      "closed"
+    ],
+    "terminal": [
+      "closed"
+    ],
+    "transitions": [
+      {
+        "from": "draft",
+        "requires": [
+          "contract_signed",
+          "kyb_verified"
+        ],
+        "to": "active"
+      },
+      {
+        "from": "active",
+        "requires": [
+          "actor",
+          "reason"
+        ],
+        "to": "suspended"
+      },
+      {
+        "from": "suspended",
+        "requires": [
+          "actor",
+          "reason",
+          "second_approver"
+        ],
+        "to": "active"
+      },
+      {
+        "from": "suspended",
+        "requires": [
+          "actor",
+          "reason",
+          "second_approver"
+        ],
+        "to": "offboarding"
+      },
+      {
+        "from": "active",
+        "requires": [
+          "actor",
+          "reason",
+          "second_approver"
+        ],
+        "to": "offboarding"
+      },
+      {
+        "from": "offboarding",
+        "requires": [
+          "kek_destroyed",
+          "retention_period_started",
+          "settlement_complete"
+        ],
+        "to": "closed"
+      }
+    ]
+  },
+  "offboarding": {
+    "audit_retained": true,
+    "grace_period_days": 30,
+    "kek_destruction_required": true,
+    "ledger_retained": true,
+    "notes": "注销顺序是不可交换的：结算完成 → 冷静期 → 销毁 KEK → 关闭。账本与审计记录不随租户消失，因为它们记录的是**平台做过什么**，不只是租户的数据。",
+    "settlement_must_complete_first": true
+  },
+  "quotas": [
+    {
+      "default": 10,
+      "hard_ceiling": 50,
+      "id": "api_keys_per_environment",
+      "scope": "environment"
+    },
+    {
+      "default": 600,
+      "hard_ceiling": 60000,
+      "id": "payments_per_minute",
+      "scope": "project"
+    },
+    {
+      "default": 20,
+      "hard_ceiling": 200,
+      "id": "projects_per_tenant",
+      "scope": "tenant"
+    },
+    {
+      "default": 5,
+      "hard_ceiling": 20,
+      "id": "webhook_endpoints_per_project",
+      "scope": "project"
+    }
+  ],
+  "schema_version": "1.0.0"
+}

@@ -1,0 +1,13 @@
+[
+  "contracts/provider/account-binding.json",
+  "docs/provider/PROVIDER_ACCOUNTS.md",
+  "governance/provider-accounts.json",
+  "libs/provider/reference/__init__.py",
+  "libs/provider/reference/binding.py",
+  "scripts/accounts-smoke.py",
+  "scripts/render-accounts.py",
+  "tools/negative/b26.py",
+  "tools/paygov/accounts.py",
+  "tools/paygov/accountsgen.py",
+  "tools/tests/test_b26_accounts.py"
+]

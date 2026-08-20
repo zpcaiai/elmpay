@@ -1,0 +1,12 @@
+[
+  "contracts/events/catalog.json",
+  "docs/events/EVENT_CATALOG.md",
+  "governance/event-catalog.json",
+  "libs/eventing/reference/__init__.py",
+  "libs/eventing/reference/eventing.py",
+  "scripts/events-smoke.py",
+  "scripts/render-events.py",
+  "tools/paygov/eventgen.py",
+  "tools/paygov/events.py",
+  "tools/tests/test_b12_events.py"
+]

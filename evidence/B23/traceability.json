@@ -1,0 +1,236 @@
+{
+  "batch_id": "B23",
+  "requirements": [
+    {
+      "id": "B23-R1",
+      "statement": "审计记录进入按租户的哈希链，改动、删除、乱序均可被发现",
+      "source": "batches/B23.md 目标"
+    },
+    {
+      "id": "B23-R2",
+      "statement": "链头定期签名锚定并交外部见证方，尾部截断可被发现",
+      "source": "batches/B23.md 目标"
+    },
+    {
+      "id": "B23-R3",
+      "statement": "记录含规则版本与请求摘要；拒绝也要记录；禁止卡号等字段",
+      "source": "policies/non-negotiables.md#13"
+    },
+    {
+      "id": "B23-R4",
+      "statement": "存储只允许追加且为 WORM；应用凭据不得删除审计记录",
+      "source": "policies/non-negotiables.md#13"
+    },
+    {
+      "id": "B23-R5",
+      "statement": "负载可密码学删除，同时保留内容哈希与链完整性",
+      "source": "policies/non-negotiables.md#6"
+    },
+    {
+      "id": "B23-R6",
+      "statement": "B19 中需双人复核或需提权的动作必须全部留痕",
+      "source": "governance/authorization.json"
+    },
+    {
+      "id": "B23-R7",
+      "statement": "审计读取角色不可写、不可提权，且读取本身被审计",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B23-R8",
+      "statement": "验证流程被演练，且可由独立方运行",
+      "source": "batches/B23.md 目标"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/audit-log.json",
+      "requirements": [
+        "B23-R1",
+        "B23-R2",
+        "B23-R3",
+        "B23-R4",
+        "B23-R5",
+        "B23-R6",
+        "B23-R7",
+        "B23-R8"
+      ]
+    },
+    {
+      "ref": "tools/paygov/audit.py",
+      "requirements": [
+        "B23-R1",
+        "B23-R2",
+        "B23-R3",
+        "B23-R4",
+        "B23-R5",
+        "B23-R6",
+        "B23-R7",
+        "B23-R8"
+      ]
+    },
+    {
+      "ref": "libs/audit/reference/chain.py",
+      "requirements": [
+        "B23-R1",
+        "B23-R2",
+        "B23-R3",
+        "B23-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/auditgen.py",
+      "requirements": [
+        "B23-R1",
+        "B23-R2"
+      ]
+    },
+    {
+      "ref": "scripts/render-audit.py",
+      "requirements": [
+        "B23-R1"
+      ]
+    },
+    {
+      "ref": "scripts/audit-smoke.py",
+      "requirements": [
+        "B23-R1",
+        "B23-R2",
+        "B23-R3",
+        "B23-R5"
+      ]
+    },
+    {
+      "ref": "contracts/security/audit-contract.json",
+      "requirements": [
+        "B23-R1",
+        "B23-R3"
+      ]
+    },
+    {
+      "ref": "docs/security/AUDIT_LOG.md",
+      "requirements": [
+        "B23-R1",
+        "B23-R2",
+        "B23-R5"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b23_audit.py",
+      "requirements": [
+        "B23-R1",
+        "B23-R2",
+        "B23-R3",
+        "B23-R4",
+        "B23-R5",
+        "B23-R6",
+        "B23-R7",
+        "B23-R8"
+      ],
+      "cases": 87
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/audit-log.json",
+        "tools/paygov/audit.py",
+        "libs/audit/reference/chain.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b23_audit.py",
+        "scripts/audit-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-06",
+      "implemented_by": [
+        "governance/audit-log.json",
+        "libs/audit/reference/chain.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b23_audit.py",
+        "scripts/audit-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "libs/audit/reference/chain.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b23_audit.py"
+      ]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/audit-log.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b23_audit.py"
+      ]
+    },
+    {
+      "id": "CTRL-014",
+      "implemented_by": [
+        "governance/audit-log.json",
+        "tools/paygov/audit.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b23_audit.py",
+        "scripts/audit-smoke.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B23/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B23/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B23/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B23/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B23/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B23/runtime/audit-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B23/runtime/audit-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B23/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B23/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B23/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B23.json",
+      "kind": "completion"
+    }
+  ]
+}

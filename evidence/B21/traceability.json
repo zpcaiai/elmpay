@@ -1,0 +1,229 @@
+{
+  "batch_id": "B21",
+  "requirements": [
+    {
+      "id": "B21-R1",
+      "statement": "实现生成、分发、激活、重叠、轮换、撤销、恢复的完整生命周期",
+      "source": "batches/B21.md 目标"
+    },
+    {
+      "id": "B21-R2",
+      "statement": "轮换必须有重叠期：切换期间新旧材料同时可验证",
+      "source": "batches/B21.md 目标"
+    },
+    {
+      "id": "B21-R3",
+      "statement": "到期告警提前量足够，且连续自动续期失败必须升级人工",
+      "source": "batches/B21.md 目标"
+    },
+    {
+      "id": "B21-R4",
+      "statement": "撤销立即生效，不受重叠期保护",
+      "source": "policies/non-negotiables.md#7"
+    },
+    {
+      "id": "B21-R5",
+      "statement": "域名有注册商锁、DNSSEC 与 CAA，并监控 CT 日志",
+      "source": "security/THREAT_MODEL.md"
+    },
+    {
+      "id": "B21-R6",
+      "statement": "灾难恢复被演练过、有时限、需法定人数、CA 有离线备份",
+      "source": "batches/B21.md 目标"
+    },
+    {
+      "id": "B21-R7",
+      "statement": "每一份材料都归属 B20 管理的密钥，HSM 托管的渠道密钥都有到期日",
+      "source": "governance/key-management.json"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/certificates.json",
+      "requirements": [
+        "B21-R1",
+        "B21-R2",
+        "B21-R3",
+        "B21-R4",
+        "B21-R5",
+        "B21-R6",
+        "B21-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/certs.py",
+      "requirements": [
+        "B21-R1",
+        "B21-R2",
+        "B21-R3",
+        "B21-R4",
+        "B21-R5",
+        "B21-R6",
+        "B21-R7"
+      ]
+    },
+    {
+      "ref": "libs/pki/reference/lifecycle.py",
+      "requirements": [
+        "B21-R1",
+        "B21-R2",
+        "B21-R3",
+        "B21-R4",
+        "B21-R6"
+      ]
+    },
+    {
+      "ref": "tools/paygov/certsgen.py",
+      "requirements": [
+        "B21-R1"
+      ]
+    },
+    {
+      "ref": "scripts/render-certs.py",
+      "requirements": [
+        "B21-R1"
+      ]
+    },
+    {
+      "ref": "scripts/certs-smoke.py",
+      "requirements": [
+        "B21-R2",
+        "B21-R3",
+        "B21-R4",
+        "B21-R5",
+        "B21-R6"
+      ]
+    },
+    {
+      "ref": "contracts/security/certificate-inventory.json",
+      "requirements": [
+        "B21-R1",
+        "B21-R5"
+      ]
+    },
+    {
+      "ref": "docs/security/CERTIFICATE_LIFECYCLE.md",
+      "requirements": [
+        "B21-R1",
+        "B21-R3",
+        "B21-R6"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b21_certs.py",
+      "requirements": [
+        "B21-R1",
+        "B21-R2",
+        "B21-R3",
+        "B21-R4",
+        "B21-R5",
+        "B21-R6",
+        "B21-R7"
+      ],
+      "cases": 84
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-07",
+      "implemented_by": [
+        "governance/certificates.json",
+        "tools/paygov/certs.py",
+        "libs/pki/reference/lifecycle.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b21_certs.py",
+        "scripts/certs-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/certificates.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b21_certs.py",
+        "scripts/certs-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/certificates.json",
+        "tools/paygov/certs.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b21_certs.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/certificates.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b21_certs.py"
+      ]
+    },
+    {
+      "id": "CTRL-014",
+      "implemented_by": [
+        "governance/certificates.json",
+        "tools/paygov/certs.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b21_certs.py",
+        "scripts/certs-smoke.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B21/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B21/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B21/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B21/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B21/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B21/runtime/certs-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B21/runtime/certs-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B21/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B21/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B21/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B21.json",
+      "kind": "completion"
+    }
+  ]
+}

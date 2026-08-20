@@ -1,0 +1,591 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B11",
+  "api_version": "v1",
+  "base_path": "/v1",
+  "versioning": {
+    "scheme": "path_major",
+    "current_major": 1,
+    "policy": "同一大版本内只允许向后兼容的加法；破坏性变更必须开新的大版本。",
+    "minimum_parallel_support_months": 12,
+    "deprecation": {
+      "header": "Sunset",
+      "notice_days": 180,
+      "policy": "弃用必须同时给出替代操作与不早于 180 天的 Sunset 日期。"
+    }
+  },
+  "trace": {
+    "required_headers": [
+      "traceparent",
+      "X-Request-Id"
+    ],
+    "response_headers": [
+      "X-Request-Id",
+      "X-Trace-Id"
+    ],
+    "standard": "W3C Trace Context",
+    "policy": "trace 与日志中不得出现凭据、卡号、完整支付令牌或不必要个人信息（NN-14）。"
+  },
+  "idempotency": {
+    "header": "Idempotency-Key",
+    "min_retention_hours": 168,
+    "conflict_error": "idempotency_key_reuse",
+    "policy": "所有写操作必须携带幂等键；同键不同体必须冲突而不是覆盖。"
+  },
+  "pagination": {
+    "style": "cursor",
+    "forbidden_params": [
+      "offset",
+      "page",
+      "page_number",
+      "skip"
+    ],
+    "max_limit": 100,
+    "policy": "只允许游标分页。偏移分页在持续写入的支付数据上会漏记录或重复记录，这在对账场景里等于账不平。"
+  },
+  "money_shape": {
+    "amount_field": "amount_minor",
+    "currency_field": "currency",
+    "amount_type": "int64",
+    "policy": "API 上的金额一律是 {amount_minor:int64, currency:char(3)}；不存在小数金额字段（NN-05）。"
+  },
+  "auth_schemes": [
+    {
+      "id": "api_key",
+      "description": "租户 API 密钥，经 HTTP 签名后使用"
+    },
+    {
+      "id": "provider_signature",
+      "description": "渠道 HMAC 签名 + 时间戳 + 重放窗口"
+    }
+  ],
+  "errors": [
+    {
+      "code": "invalid_request",
+      "http_status": 400,
+      "retryable": false,
+      "category": "client",
+      "safe_message": "请求不符合契约；请检查字段类型与必填项。",
+      "remedy": "按 OpenAPI 契约修正请求后重试"
+    },
+    {
+      "code": "unauthenticated",
+      "http_status": 401,
+      "retryable": false,
+      "category": "auth",
+      "safe_message": "凭据缺失或无效。",
+      "remedy": "使用有效的 API 密钥重新签名请求"
+    },
+    {
+      "code": "permission_denied",
+      "http_status": 403,
+      "retryable": false,
+      "category": "auth",
+      "safe_message": "当前主体无权执行该操作。",
+      "remedy": "联系租户管理员申请对应角色"
+    },
+    {
+      "code": "tenant_mismatch",
+      "http_status": 403,
+      "retryable": false,
+      "category": "auth",
+      "safe_message": "该对象不属于当前租户。",
+      "remedy": "确认使用了正确租户的密钥；不要跨租户引用对象 ID"
+    },
+    {
+      "code": "resource_not_found",
+      "http_status": 404,
+      "retryable": false,
+      "category": "client",
+      "safe_message": "对象不存在，或不属于当前租户。",
+      "remedy": "确认对象 ID；注意本接口不区分不存在与无权访问"
+    },
+    {
+      "code": "idempotency_key_reuse",
+      "http_status": 409,
+      "retryable": false,
+      "category": "idempotency",
+      "safe_message": "同一幂等键曾用于不同的请求体。",
+      "remedy": "换一个幂等键，或使用与首次完全相同的请求体重放"
+    },
+    {
+      "code": "state_transition_not_allowed",
+      "http_status": 409,
+      "retryable": false,
+      "category": "state",
+      "safe_message": "对象当前状态不允许该操作。",
+      "remedy": "先读取对象当前状态；不要假设本地缓存的状态仍然有效"
+    },
+    {
+      "code": "amount_below_minimum",
+      "http_status": 422,
+      "retryable": false,
+      "category": "money",
+      "safe_message": "金额低于该币种的最小可交易金额。",
+      "remedy": "提高金额；金额单位是最小货币单位整数"
+    },
+    {
+      "code": "currency_not_supported",
+      "http_status": 422,
+      "retryable": false,
+      "category": "money",
+      "safe_message": "该币种不在受支持列表内。",
+      "remedy": "查询受支持币种列表后重试"
+    },
+    {
+      "code": "provider_signature_invalid",
+      "http_status": 401,
+      "retryable": false,
+      "category": "webhook",
+      "safe_message": "回调签名校验失败。",
+      "remedy": "不要重试；检查签名密钥与时间戳容忍窗口"
+    },
+    {
+      "code": "provider_event_replayed",
+      "http_status": 200,
+      "retryable": false,
+      "category": "webhook",
+      "safe_message": "该渠道事件此前已处理，本次为重放。",
+      "remedy": "无需处理；这是正常的重发去重结果"
+    },
+    {
+      "code": "provider_unavailable",
+      "http_status": 502,
+      "retryable": true,
+      "category": "provider",
+      "safe_message": "上游渠道暂时不可用。",
+      "remedy": "按指数退避重试；不要重新生成幂等键"
+    },
+    {
+      "code": "provider_timeout",
+      "http_status": 504,
+      "retryable": true,
+      "category": "provider",
+      "safe_message": "上游渠道超时，结果未定。",
+      "remedy": "**不要**当作失败；用同一幂等键重试或轮询对象状态"
+    },
+    {
+      "code": "rate_limited",
+      "http_status": 429,
+      "retryable": true,
+      "category": "throttle",
+      "safe_message": "请求过于频繁。",
+      "remedy": "读取 Retry-After 并退避重试"
+    },
+    {
+      "code": "internal_error",
+      "http_status": 500,
+      "retryable": true,
+      "category": "server",
+      "safe_message": "服务内部错误。",
+      "remedy": "按指数退避重试；如持续发生请携带 trace_id 联系支持"
+    }
+  ],
+  "operations": [
+    {
+      "id": "create_payment_intent",
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "summary": "创建一次付款意图",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "amount_below_minimum",
+        "currency_not_supported",
+        "tenant_mismatch"
+      ],
+      "idempotency": {
+        "required": true,
+        "header": "Idempotency-Key",
+        "scope": "idempotency_key",
+        "conflict_error": "idempotency_key_reuse",
+        "retention_hours": 168
+      },
+      "request": {
+        "amount": {
+          "amount_minor": "int64",
+          "currency": "currency"
+        },
+        "project_id": "uuid",
+        "external_reference": "string",
+        "capture_method": "enum[automatic,manual]"
+      },
+      "response": {
+        "id": "uuid",
+        "status": "enum",
+        "amount": {
+          "amount_minor": "int64",
+          "currency": "currency"
+        }
+      }
+    },
+    {
+      "id": "get_payment_intent",
+      "method": "GET",
+      "path": "/v1/payment_intents/{payment_intent_id}",
+      "summary": "读取付款意图",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "resource_not_found",
+        "tenant_mismatch"
+      ],
+      "response": {
+        "id": "uuid",
+        "status": "enum",
+        "amount": {
+          "amount_minor": "int64",
+          "currency": "currency"
+        }
+      }
+    },
+    {
+      "id": "list_payment_intents",
+      "method": "GET",
+      "path": "/v1/payment_intents",
+      "summary": "分页列出付款意图",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "tenant_mismatch"
+      ],
+      "pagination": {
+        "style": "cursor",
+        "cursor_param": "starting_after",
+        "limit_param": "limit",
+        "max_limit": 100,
+        "default_limit": 20,
+        "stable_sort": "created_at,id"
+      }
+    },
+    {
+      "id": "capture_payment_intent",
+      "method": "POST",
+      "path": "/v1/payment_intents/{payment_intent_id}/capture",
+      "summary": "对已授权的付款意图发起捕获",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "provider_timeout",
+        "provider_unavailable"
+      ],
+      "idempotency": {
+        "required": true,
+        "header": "Idempotency-Key",
+        "scope": "idempotency_key",
+        "conflict_error": "idempotency_key_reuse",
+        "retention_hours": 168
+      }
+    },
+    {
+      "id": "cancel_payment_intent",
+      "method": "POST",
+      "path": "/v1/payment_intents/{payment_intent_id}/cancel",
+      "summary": "取消尚未授权的付款意图",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "resource_not_found",
+        "state_transition_not_allowed"
+      ],
+      "idempotency": {
+        "required": true,
+        "header": "Idempotency-Key",
+        "scope": "idempotency_key",
+        "conflict_error": "idempotency_key_reuse",
+        "retention_hours": 168
+      },
+      "drives_transition": {
+        "machine": "payment-intent",
+        "event": "merchant.cancel"
+      }
+    },
+    {
+      "id": "void_payment_intent",
+      "method": "POST",
+      "path": "/v1/payment_intents/{payment_intent_id}/void",
+      "summary": "撤销已授权但未捕获的额度",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "provider_unavailable"
+      ],
+      "idempotency": {
+        "required": true,
+        "header": "Idempotency-Key",
+        "scope": "idempotency_key",
+        "conflict_error": "idempotency_key_reuse",
+        "retention_hours": 168
+      },
+      "drives_transition": {
+        "machine": "payment-intent",
+        "event": "merchant.void"
+      }
+    },
+    {
+      "id": "create_refund",
+      "method": "POST",
+      "path": "/v1/refunds",
+      "summary": "发起退款",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "amount_below_minimum",
+        "tenant_mismatch"
+      ],
+      "idempotency": {
+        "required": true,
+        "header": "Idempotency-Key",
+        "scope": "idempotency_key",
+        "conflict_error": "idempotency_key_reuse",
+        "retention_hours": 168
+      },
+      "request": {
+        "payment_intent_id": "uuid",
+        "amount": {
+          "amount_minor": "int64",
+          "currency": "currency"
+        },
+        "reason": "enum"
+      }
+    },
+    {
+      "id": "cancel_refund",
+      "method": "POST",
+      "path": "/v1/refunds/{refund_id}/cancel",
+      "summary": "撤回尚未提交渠道的退款",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "resource_not_found",
+        "state_transition_not_allowed"
+      ],
+      "idempotency": {
+        "required": true,
+        "header": "Idempotency-Key",
+        "scope": "idempotency_key",
+        "conflict_error": "idempotency_key_reuse",
+        "retention_hours": 168
+      },
+      "drives_transition": {
+        "machine": "refund",
+        "event": "merchant.cancel_refund"
+      }
+    },
+    {
+      "id": "get_refund",
+      "method": "GET",
+      "path": "/v1/refunds/{refund_id}",
+      "summary": "读取退款",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "resource_not_found",
+        "tenant_mismatch"
+      ]
+    },
+    {
+      "id": "list_refunds",
+      "method": "GET",
+      "path": "/v1/refunds",
+      "summary": "分页列出退款",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "tenant_mismatch"
+      ],
+      "pagination": {
+        "style": "cursor",
+        "cursor_param": "starting_after",
+        "limit_param": "limit",
+        "max_limit": 100,
+        "default_limit": 20,
+        "stable_sort": "created_at,id"
+      }
+    },
+    {
+      "id": "get_dispute",
+      "method": "GET",
+      "path": "/v1/disputes/{dispute_id}",
+      "summary": "读取争议",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "resource_not_found",
+        "tenant_mismatch"
+      ]
+    },
+    {
+      "id": "list_disputes",
+      "method": "GET",
+      "path": "/v1/disputes",
+      "summary": "分页列出争议",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "tenant_mismatch"
+      ],
+      "pagination": {
+        "style": "cursor",
+        "cursor_param": "starting_after",
+        "limit_param": "limit",
+        "max_limit": 100,
+        "default_limit": 20,
+        "stable_sort": "created_at,id"
+      }
+    },
+    {
+      "id": "submit_dispute_evidence",
+      "method": "POST",
+      "path": "/v1/disputes/{dispute_id}/evidence",
+      "summary": "提交争议举证材料",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "resource_not_found",
+        "state_transition_not_allowed"
+      ],
+      "idempotency": {
+        "required": true,
+        "header": "Idempotency-Key",
+        "scope": "dispute_id+evidence_revision",
+        "conflict_error": "idempotency_key_reuse",
+        "retention_hours": 168
+      },
+      "drives_transition": {
+        "machine": "dispute",
+        "event": "merchant.evidence_submitted"
+      }
+    },
+    {
+      "id": "cancel_subscription",
+      "method": "POST",
+      "path": "/v1/subscriptions/{subscription_id}/cancel",
+      "summary": "取消订阅",
+      "auth": "api_key",
+      "actor": "customer",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "resource_not_found",
+        "state_transition_not_allowed"
+      ],
+      "idempotency": {
+        "required": true,
+        "header": "Idempotency-Key",
+        "scope": "idempotency_key",
+        "conflict_error": "idempotency_key_reuse",
+        "retention_hours": 168
+      },
+      "drives_transition": {
+        "machine": "subscription",
+        "event": "customer.cancel"
+      }
+    },
+    {
+      "id": "receive_provider_event",
+      "method": "POST",
+      "path": "/v1/webhooks/providers/{provider}",
+      "summary": "接收渠道回调事件",
+      "auth": "provider_signature",
+      "actor": "provider-event",
+      "errors": [
+        "provider_signature_invalid",
+        "provider_event_replayed",
+        "invalid_request",
+        "rate_limited",
+        "internal_error"
+      ],
+      "idempotency": {
+        "required": true,
+        "header": "X-Payment-Event-Id",
+        "scope": "provider_event_id",
+        "conflict_error": "idempotency_key_reuse",
+        "retention_hours": 720
+      },
+      "signature": {
+        "required": true,
+        "header": "X-Payment-Signature",
+        "timestamp_header": "X-Payment-Timestamp",
+        "algorithm": "hmac-sha256",
+        "tolerance_seconds": 300,
+        "replay_window_hours": 24,
+        "failure_error": "provider_signature_invalid"
+      }
+    }
+  ]
+}

@@ -1,0 +1,255 @@
+{
+  "batch_id": "B15",
+  "requirements": [
+    {
+      "id": "B15-R1",
+      "statement": "业务订单保留在原项目，只迁移支付事实与支付动作",
+      "source": "batches/B15.md 目标"
+    },
+    {
+      "id": "B15-R2",
+      "statement": "提供适配层，两侧只通过业务订单引用绑定",
+      "source": "batches/B15.md 目标"
+    },
+    {
+      "id": "B15-R3",
+      "statement": "提供双写策略，且双写不得导致重复扣款",
+      "source": "policies/non-negotiables.md#4"
+    },
+    {
+      "id": "B15-R4",
+      "statement": "每一期都可回滚，且回滚不得丢失支付事实",
+      "source": "batches/B15.md 实施要求 2"
+    },
+    {
+      "id": "B15-R5",
+      "statement": "历史回填必须幂等、可续跑，且对旧系统只读",
+      "source": "batches/B15.md 实施要求 3"
+    },
+    {
+      "id": "B15-R6",
+      "statement": "平台不得访问旧系统数据库",
+      "source": "governance/service-boundaries.json FF-01"
+    },
+    {
+      "id": "B15-R7",
+      "statement": "阶段推进必须以证据为闸门，不得以信心为闸门",
+      "source": "policies/non-negotiables.md#12"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/migration-plan.json",
+      "requirements": [
+        "B15-R1",
+        "B15-R2",
+        "B15-R3",
+        "B15-R4",
+        "B15-R5",
+        "B15-R6",
+        "B15-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/migration.py",
+      "requirements": [
+        "B15-R1",
+        "B15-R2",
+        "B15-R3",
+        "B15-R4",
+        "B15-R5",
+        "B15-R6",
+        "B15-R7"
+      ]
+    },
+    {
+      "ref": "libs/migration/reference/dualwrite.py",
+      "requirements": [
+        "B15-R1",
+        "B15-R3",
+        "B15-R4",
+        "B15-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/miggen.py",
+      "requirements": [
+        "B15-R7"
+      ]
+    },
+    {
+      "ref": "scripts/render-migration.py",
+      "requirements": [
+        "B15-R7"
+      ]
+    },
+    {
+      "ref": "scripts/migration-smoke.py",
+      "requirements": [
+        "B15-R1",
+        "B15-R3",
+        "B15-R4",
+        "B15-R5"
+      ]
+    },
+    {
+      "ref": "contracts/migration/plan.json",
+      "requirements": [
+        "B15-R3",
+        "B15-R4"
+      ]
+    },
+    {
+      "ref": "docs/migration/MIGRATION_RUNBOOK.md",
+      "requirements": [
+        "B15-R2",
+        "B15-R7"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b15_migration.py",
+      "requirements": [
+        "B15-R1",
+        "B15-R2",
+        "B15-R3",
+        "B15-R4",
+        "B15-R5",
+        "B15-R6",
+        "B15-R7"
+      ],
+      "cases": 81
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/migration-plan.json",
+        "tools/paygov/migration.py",
+        "libs/migration/reference/dualwrite.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b15_migration.py",
+        "scripts/migration-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "governance/migration-plan.json",
+        "tools/paygov/migration.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b15_migration.py",
+        "scripts/migration-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "tools/paygov/migration.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b15_migration.py"
+      ]
+    },
+    {
+      "id": "NN-06",
+      "implemented_by": [
+        "governance/migration-plan.json",
+        "tools/paygov/migration.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b15_migration.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "governance/migration-plan.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b15_migration.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/migration.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b15_migration.py"
+      ]
+    },
+    {
+      "id": "CTRL-003",
+      "implemented_by": [
+        "governance/migration-plan.json",
+        "libs/migration/reference/dualwrite.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b15_migration.py",
+        "scripts/migration-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-013",
+      "implemented_by": [
+        "governance/migration-plan.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b15_migration.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B15/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B15/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B15/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B15/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B15/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B15/runtime/migration-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B15/runtime/migration-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B15/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B15/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B15/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B15.json",
+      "kind": "completion"
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "batch_id": "B33",
+  "requirements": [
+    {
+      "id": "B33-R1",
+      "statement": "每次渠道调用形成新的可排序 attempt，历史终态不可改写",
+      "source": "batches/B33.md 目标"
+    },
+    {
+      "id": "B33-R2",
+      "statement": "保留请求摘要和规范化响应证据，但不保存可重放或敏感的原始报文",
+      "source": "batches/B33.md 目标 + policies/non-negotiables.md#4"
+    },
+    {
+      "id": "B33-R3",
+      "statement": "渠道错误按 provider、码命名空间和渠道码分类，未登记结果一律 unknown",
+      "source": "batches/B33.md 实施要求#1"
+    },
+    {
+      "id": "B33-R4",
+      "statement": "同一请求重试新建 attempt 并复用幂等键；客户更换资金源需显式动作、新键与有限次数",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B33-R5",
+      "statement": "超时和断连归类为 unknown，落定前禁止再次触达渠道",
+      "source": "batches/B33.md 自动化验证"
+    },
+    {
+      "id": "B33-R6",
+      "statement": "矛盾的后到事件开对账项而不覆盖终态 attempt",
+      "source": "security/THREAT_MODEL.md + B29 finality boundary"
+    },
+    {
+      "id": "B33-R7",
+      "statement": "所有操作按 tenant_id 隔离，同一租户意图的并发 start 原子拒绝重复渠道调用",
+      "source": "SKILL.md code requirements + policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B33-R8",
+      "statement": "生命周期引用 B10，成功来源遵守 B32，审计事件绑定 B23 money.movement",
+      "source": "architecture/REFERENCE_ARCHITECTURE.md"
+    },
+    {
+      "id": "B33-R9",
+      "statement": "参考实现必须公开持久化、跨进程并发与审计 sink 的缺失，不得声称生产可用",
+      "source": "batches/B33.md 完成门 + policies/non-negotiables.md#12"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/payment-attempt.json",
+      "requirements": ["B33-R1", "B33-R2", "B33-R3", "B33-R4", "B33-R5", "B33-R6", "B33-R7", "B33-R8", "B33-R9"]
+    },
+    {
+      "ref": "tools/paygov/attempt.py",
+      "requirements": ["B33-R1", "B33-R2", "B33-R3", "B33-R4", "B33-R5", "B33-R6", "B33-R7", "B33-R8", "B33-R9"]
+    },
+    {
+      "ref": "libs/attempt/reference/attempt.py",
+      "requirements": ["B33-R1", "B33-R2", "B33-R3", "B33-R4", "B33-R5", "B33-R6", "B33-R7", "B33-R8", "B33-R9"]
+    },
+    {
+      "ref": "tools/paygov/attemptgen.py",
+      "requirements": ["B33-R1", "B33-R2", "B33-R3", "B33-R9"]
+    },
+    {
+      "ref": "scripts/render-attempt.py",
+      "requirements": ["B33-R1", "B33-R2", "B33-R3"]
+    },
+    {
+      "ref": "scripts/attempt-smoke.py",
+      "requirements": ["B33-R1", "B33-R2", "B33-R3", "B33-R4", "B33-R5", "B33-R6", "B33-R7", "B33-R8"]
+    },
+    {
+      "ref": "contracts/payment/attempt.json",
+      "requirements": ["B33-R1", "B33-R2", "B33-R3", "B33-R4", "B33-R5", "B33-R7", "B33-R9"]
+    },
+    {
+      "ref": "docs/payment/PAYMENT_ATTEMPT.md",
+      "requirements": ["B33-R1", "B33-R2", "B33-R3", "B33-R4", "B33-R5", "B33-R6", "B33-R7", "B33-R9"]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b33_attempt.py",
+      "requirements": ["B33-R1", "B33-R2", "B33-R3", "B33-R4", "B33-R5", "B33-R6", "B33-R7", "B33-R8", "B33-R9"]
+    },
+    {
+      "ref": "tools/negative/b33.py",
+      "requirements": ["B33-R1", "B33-R2", "B33-R3", "B33-R4", "B33-R5", "B33-R6", "B33-R7", "B33-R8", "B33-R9"]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-01",
+      "implemented_by": ["governance/payment-attempt.json", "libs/attempt/reference/attempt.py"],
+      "verified_by": ["tools/tests/test_b33_attempt.py", "scripts/attempt-smoke.py", "tools/negative/b33.py"]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": ["governance/payment-attempt.json", "libs/attempt/reference/attempt.py"],
+      "verified_by": ["tools/tests/test_b33_attempt.py", "scripts/attempt-smoke.py", "tools/negative/b33.py"]
+    },
+    {
+      "id": "NN-04",
+      "implemented_by": ["governance/payment-attempt.json", "libs/attempt/reference/attempt.py"],
+      "verified_by": ["tools/tests/test_b33_attempt.py", "tools/negative/b33.py"]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": ["tools/paygov/attempt.py", "tools/paygov/attemptgen.py"],
+      "verified_by": ["tools/tests/test_b33_attempt.py", "tools/negative/b33.py"]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": ["governance/payment-attempt.json", "libs/attempt/reference/attempt.py"],
+      "verified_by": ["tools/tests/test_b33_attempt.py", "scripts/attempt-smoke.py"]
+    },
+    {
+      "id": "NN-14",
+      "implemented_by": ["governance/payment-attempt.json", "tools/paygov/attempt.py"],
+      "verified_by": ["tools/tests/test_b33_attempt.py", "tools/negative/b33.py"]
+    }
+  ],
+  "evidence": [
+    {"path": "evidence/B33/plan.md", "kind": "plan"},
+    {"path": "evidence/B33/commands.spec.json", "kind": "command-spec"},
+    {"path": "evidence/B33/artifacts.json", "kind": "artifact-manifest"},
+    {"path": "evidence/B33/traceability.json", "kind": "traceability"}
+  ]
+}

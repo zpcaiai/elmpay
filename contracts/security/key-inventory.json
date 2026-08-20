@@ -1,0 +1,201 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-keys.py; do not edit by hand",
+  "destruction": {
+    "crypto_shredding": true,
+    "destroyed_key_is_unrecoverable": true,
+    "notes": "租户下线时销毁其 KEK：备份里的密文从此不可解，这是唯一能在有备份的系统里被验证的删除。",
+    "tenant_offboarding_destroys_kek": true
+  },
+  "envelope": {
+    "aad_fields": [
+      "tenant_id",
+      "purpose",
+      "key_id"
+    ],
+    "aad_required": true,
+    "data_key_algorithm": "AES-256-GCM",
+    "data_key_per": "record",
+    "key_wrapping_algorithm": "AES-256-GCM",
+    "nonce_bytes": 12,
+    "nonce_reuse_forbidden": true,
+    "notes": "每条记录一把数据密钥；数据密钥由 KEK 包裹后与密文同存，明文数据密钥只在内存里存活 300 秒。AAD 绑定租户、用途与密钥版本——**这是防止密文在租户之间搬家的唯一机制**。GCM 的 nonce 一旦重用，同一把密钥下的两条密文可以互相抵消出明文，因此 nonce 重用被明确禁止。",
+    "plaintext_data_key_ttl_seconds": 300,
+    "store_unwrapped_data_key": false
+  },
+  "forbidden": {
+    "algorithms": [
+      "DES",
+      "3DES",
+      "RC4",
+      "AES-ECB",
+      "MD5",
+      "SHA1",
+      "none"
+    ],
+    "hardcoded_key_material": false,
+    "minimum_rsa_bits": 2048,
+    "notes": "ECB 模式泄露明文结构；MD5/SHA1 已不具备抗碰撞性；任何硬编码密钥材料都等同于公开。",
+    "plaintext_key_in_logs": false
+  },
+  "hsm": {
+    "attestation_required": true,
+    "fips_140_level": 3,
+    "notes": "根密钥只在 HSM 内部存在，不可导出；根密钥操作需要 2/3 法定人数，避免任何单人（包括平台运营）独自动用最高密钥。",
+    "quorum_m_of_n": [
+      2,
+      3
+    ],
+    "required_for_root": true,
+    "root_key_exportable": false
+  },
+  "keys": [
+    {
+      "algorithm": "AES-256-GCM",
+      "class": "dek",
+      "id": "dek-financial",
+      "protects_fields": [
+        "bank_account_number"
+      ],
+      "purpose": "tenant_data",
+      "rotation_days": 1,
+      "storage": "envelope",
+      "tenant_scoped": true,
+      "wrapped_by": "kek-tenant-data"
+    },
+    {
+      "algorithm": "AES-256-GCM",
+      "class": "dek",
+      "id": "dek-pii",
+      "protects_fields": [
+        "customer_email",
+        "customer_phone"
+      ],
+      "purpose": "pii",
+      "rotation_days": 1,
+      "storage": "envelope",
+      "tenant_scoped": true,
+      "wrapped_by": "kek-pii"
+    },
+    {
+      "algorithm": "AES-256-GCM",
+      "class": "dek",
+      "id": "dek-provider-credential",
+      "protects_fields": [],
+      "purpose": "provider_credential",
+      "rotation_days": 1,
+      "storage": "envelope",
+      "tenant_scoped": false,
+      "wrapped_by": "kek-provider-credentials"
+    },
+    {
+      "algorithm": "AES-256",
+      "class": "kek",
+      "id": "kek-pii",
+      "protects_fields": [],
+      "purpose": "pii",
+      "rotation_days": 90,
+      "storage": "kms",
+      "tenant_scoped": true,
+      "wrapped_by": null
+    },
+    {
+      "algorithm": "AES-256",
+      "class": "kek",
+      "id": "kek-provider-credentials",
+      "protects_fields": [],
+      "purpose": "provider_credential",
+      "rotation_days": 90,
+      "storage": "kms",
+      "tenant_scoped": false,
+      "wrapped_by": null
+    },
+    {
+      "algorithm": "AES-256",
+      "class": "kek",
+      "id": "kek-tenant-data",
+      "protects_fields": [],
+      "purpose": "tenant_data",
+      "rotation_days": 90,
+      "storage": "kms",
+      "tenant_scoped": true,
+      "wrapped_by": null
+    },
+    {
+      "algorithm": "AES-256",
+      "class": "root",
+      "id": "root-hsm",
+      "protects_fields": [],
+      "purpose": "key_wrapping",
+      "rotation_days": 730,
+      "storage": "hsm",
+      "tenant_scoped": false,
+      "wrapped_by": null
+    }
+  ],
+  "provider_keys": [
+    {
+      "key_id": "kek-provider-credentials",
+      "material": "hsm_backed",
+      "provider": "alipay",
+      "signing_algorithm": "RSA-2048-PSS"
+    },
+    {
+      "key_id": "kek-provider-credentials",
+      "material": "hsm_backed",
+      "provider": "apple_pay",
+      "signing_algorithm": "ECDSA-P256"
+    },
+    {
+      "key_id": "kek-provider-credentials",
+      "material": "external_jwks",
+      "provider": "ci-oidc",
+      "signing_algorithm": "RS256"
+    },
+    {
+      "key_id": "kek-provider-credentials",
+      "material": "external_jwks",
+      "provider": "corporate-idp",
+      "signing_algorithm": "RS256"
+    },
+    {
+      "key_id": "kek-provider-credentials",
+      "material": "external_jwks",
+      "provider": "customer-idp",
+      "signing_algorithm": "RS256"
+    },
+    {
+      "key_id": "kek-provider-credentials",
+      "material": "envelope_encrypted",
+      "provider": "paypal",
+      "signing_algorithm": "none"
+    },
+    {
+      "key_id": "kek-provider-credentials",
+      "material": "envelope_encrypted",
+      "provider": "stripe",
+      "signing_algorithm": "none"
+    },
+    {
+      "key_id": "kek-provider-credentials",
+      "material": "hsm_backed",
+      "provider": "wechat",
+      "signing_algorithm": "RSA-2048-PSS"
+    },
+    {
+      "key_id": "kek-provider-credentials",
+      "material": "hsm_backed",
+      "provider": "workload-ca",
+      "signing_algorithm": "ECDSA-P256"
+    }
+  ],
+  "rotation": {
+    "dek_per_record": true,
+    "emergency_rotation_hours": 4,
+    "kek_days": 90,
+    "notes": "KEK 轮换只需重新包裹数据密钥，不必重写业务数据——这也是信封加密真正的运维价值。轮换有 7 天重叠期，旧版本仍可解密；泄露时必须在 4 小时内完成紧急轮换。",
+    "overlap_window_days": 7,
+    "re_encrypt_strategy": "rewrap_data_keys",
+    "root_days": 730
+  },
+  "schema_version": "1.0.0"
+}

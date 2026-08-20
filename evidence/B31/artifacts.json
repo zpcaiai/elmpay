@@ -1,0 +1,13 @@
+[
+  "contracts/tenancy/isolation.json",
+  "docs/tenancy/TENANT_ISOLATION.md",
+  "governance/tenant-isolation.json",
+  "libs/isolation/reference/__init__.py",
+  "libs/isolation/reference/probes.py",
+  "scripts/isolation-smoke.py",
+  "scripts/render-isolation.py",
+  "tools/negative/b31.py",
+  "tools/paygov/isolation.py",
+  "tools/paygov/isolationgen.py",
+  "tools/tests/test_b31_isolation.py"
+]

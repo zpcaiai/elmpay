@@ -28,5 +28,6 @@ enterprise-payment-platform-skills-*/
 # broken git dir left by a read-only mount; safe to delete manually
 _to_delete/
 .git.broken/
+.ai/.state/
 # offline git history export (see docs/REPO_HISTORY.md)
 *.bundle

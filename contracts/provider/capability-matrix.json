@@ -1,0 +1,310 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-capabilities.py; do not edit by hand",
+  "audit_event_class": "config.change",
+  "authorization": {
+    "capture_after_expiry_allowed": false,
+    "max_valid_hours": 168,
+    "over_capture_allowed": false,
+    "reauthorization_required": true
+  },
+  "availability": [
+    {
+      "degraded_behaviour": "reject",
+      "maintenance_window_utc": "18:00-18:30",
+      "provider": "alipay",
+      "scheduled_maintenance": true,
+      "silent_fallback_allowed": false
+    },
+    {
+      "degraded_behaviour": "reject",
+      "maintenance_window_utc": "",
+      "provider": "apple_pay",
+      "scheduled_maintenance": false,
+      "silent_fallback_allowed": false
+    },
+    {
+      "degraded_behaviour": "reject",
+      "maintenance_window_utc": "",
+      "provider": "paypal",
+      "scheduled_maintenance": false,
+      "silent_fallback_allowed": false
+    },
+    {
+      "degraded_behaviour": "reject",
+      "maintenance_window_utc": "",
+      "provider": "stripe",
+      "scheduled_maintenance": false,
+      "silent_fallback_allowed": false
+    },
+    {
+      "degraded_behaviour": "reject",
+      "maintenance_window_utc": "18:00-18:30",
+      "provider": "wechat",
+      "scheduled_maintenance": true,
+      "silent_fallback_allowed": false
+    }
+  ],
+  "capabilities": [
+    {
+      "authorization_valid_hours": 0,
+      "capture_max_percent": 100,
+      "currencies": [
+        "CNY",
+        "HKD"
+      ],
+      "devices": [
+        "android",
+        "in_app_webview",
+        "ios",
+        "web"
+      ],
+      "dispute_response_days": 15,
+      "dispute_window_days": 90,
+      "method": "alipay",
+      "partial_capture": false,
+      "partial_refund": true,
+      "provider": "alipay",
+      "refund_to_original_instrument_only": true,
+      "refund_window_days": 365,
+      "regions": [
+        "CN",
+        "HK"
+      ],
+      "supports_authorization_capture": false,
+      "supports_subscription": true
+    },
+    {
+      "authorization_valid_hours": 168,
+      "capture_max_percent": 100,
+      "currencies": [
+        "CNY"
+      ],
+      "devices": [
+        "ios"
+      ],
+      "dispute_response_days": 20,
+      "dispute_window_days": 120,
+      "method": "apple_pay",
+      "partial_capture": false,
+      "partial_refund": true,
+      "provider": "apple_pay",
+      "refund_to_original_instrument_only": true,
+      "refund_window_days": 180,
+      "regions": [
+        "CN"
+      ],
+      "supports_authorization_capture": true,
+      "supports_subscription": false
+    },
+    {
+      "authorization_valid_hours": 72,
+      "capture_max_percent": 100,
+      "currencies": [
+        "EUR",
+        "USD"
+      ],
+      "devices": [
+        "android",
+        "ios",
+        "web"
+      ],
+      "dispute_response_days": 10,
+      "dispute_window_days": 180,
+      "method": "paypal_wallet",
+      "partial_capture": true,
+      "partial_refund": true,
+      "provider": "paypal",
+      "refund_to_original_instrument_only": true,
+      "refund_window_days": 180,
+      "regions": [
+        "EU",
+        "HK",
+        "SG"
+      ],
+      "supports_authorization_capture": true,
+      "supports_subscription": true
+    },
+    {
+      "authorization_valid_hours": 168,
+      "capture_max_percent": 100,
+      "currencies": [
+        "EUR",
+        "HKD",
+        "SGD",
+        "USD"
+      ],
+      "devices": [
+        "ios",
+        "web"
+      ],
+      "dispute_response_days": 20,
+      "dispute_window_days": 120,
+      "method": "apple_pay",
+      "partial_capture": true,
+      "partial_refund": true,
+      "provider": "stripe",
+      "refund_to_original_instrument_only": true,
+      "refund_window_days": 180,
+      "regions": [
+        "EU",
+        "HK",
+        "SG"
+      ],
+      "supports_authorization_capture": true,
+      "supports_subscription": false
+    },
+    {
+      "authorization_valid_hours": 168,
+      "capture_max_percent": 100,
+      "currencies": [
+        "EUR",
+        "HKD",
+        "SGD",
+        "USD"
+      ],
+      "devices": [
+        "android",
+        "ios",
+        "web"
+      ],
+      "dispute_response_days": 20,
+      "dispute_window_days": 120,
+      "method": "card",
+      "partial_capture": true,
+      "partial_refund": true,
+      "provider": "stripe",
+      "refund_to_original_instrument_only": true,
+      "refund_window_days": 180,
+      "regions": [
+        "EU",
+        "HK",
+        "SG"
+      ],
+      "supports_authorization_capture": true,
+      "supports_subscription": true
+    },
+    {
+      "authorization_valid_hours": 0,
+      "capture_max_percent": 100,
+      "currencies": [
+        "CNY",
+        "HKD"
+      ],
+      "devices": [
+        "android",
+        "in_app_webview",
+        "ios",
+        "web"
+      ],
+      "dispute_response_days": 15,
+      "dispute_window_days": 90,
+      "method": "wechat_pay",
+      "partial_capture": false,
+      "partial_refund": true,
+      "provider": "wechat",
+      "refund_to_original_instrument_only": true,
+      "refund_window_days": 365,
+      "regions": [
+        "CN",
+        "HK"
+      ],
+      "supports_authorization_capture": false,
+      "supports_subscription": true
+    }
+  ],
+  "device_kinds": [
+    "web",
+    "ios",
+    "android",
+    "in_app_webview",
+    "pos"
+  ],
+  "dispute": {
+    "auto_accept_allowed": false,
+    "deadline_is_external": true,
+    "evidence_required": [
+      "authorization_record",
+      "delivery_proof",
+      "order_record"
+    ],
+    "missing_response_loses_by_default": true
+  },
+  "payment_methods": [
+    {
+      "id": "alipay",
+      "kind": "wallet"
+    },
+    {
+      "id": "apple_pay",
+      "kind": "device_wallet"
+    },
+    {
+      "id": "card",
+      "kind": "card"
+    },
+    {
+      "id": "paypal_wallet",
+      "kind": "wallet"
+    },
+    {
+      "id": "wechat_pay",
+      "kind": "wallet"
+    }
+  ],
+  "refund": {
+    "beyond_window_action": "manual_or_dispute",
+    "promise_beyond_window": false,
+    "refund_exceeding_capture_allowed": false
+  },
+  "region_policy": [
+    {
+      "allowed_methods": [
+        "alipay",
+        "apple_pay",
+        "wechat_pay"
+      ],
+      "region": "CN",
+      "requires_local_acquirer": true,
+      "strong_customer_authentication": false
+    },
+    {
+      "allowed_methods": [
+        "apple_pay",
+        "card",
+        "paypal_wallet"
+      ],
+      "region": "EU",
+      "requires_local_acquirer": true,
+      "strong_customer_authentication": true
+    },
+    {
+      "allowed_methods": [
+        "alipay",
+        "apple_pay",
+        "card",
+        "paypal_wallet",
+        "wechat_pay"
+      ],
+      "region": "HK",
+      "requires_local_acquirer": false,
+      "strong_customer_authentication": false
+    },
+    {
+      "allowed_methods": [
+        "apple_pay",
+        "card",
+        "paypal_wallet"
+      ],
+      "region": "SG",
+      "requires_local_acquirer": false,
+      "strong_customer_authentication": false
+    }
+  ],
+  "resolution": {
+    "default": "deny",
+    "silent_fallback_to_another_method": false,
+    "silent_fallback_to_another_provider": false,
+    "unknown_combination": "unsupported"
+  },
+  "schema_version": "1.0.0"
+}

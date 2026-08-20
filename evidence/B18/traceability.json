@@ -1,0 +1,222 @@
+{
+  "batch_id": "B18",
+  "requirements": [
+    {
+      "id": "B18-R1",
+      "statement": "管理员、财务、客服等特权角色强制 WebAuthn/硬件密钥或等价抗钓鱼认证",
+      "source": "batches/B18.md 目标"
+    },
+    {
+      "id": "B18-R2",
+      "statement": "高风险操作必须 step-up 重新验证，且断言绑定本次操作摘要",
+      "source": "batches/B18.md 实施要求 5"
+    },
+    {
+      "id": "B18-R3",
+      "statement": "不存在降级回退路径；短信/推送/TOTP 不得成为特权账号的唯一因素",
+      "source": "policies/non-negotiables.md#11"
+    },
+    {
+      "id": "B18-R4",
+      "statement": "WebAuthn 断言必须绑定 origin 与 RP ID，挑战一次性且限时",
+      "source": "batches/B18.md 目标"
+    },
+    {
+      "id": "B18-R5",
+      "statement": "签名计数器回退视为认证器被克隆，必须拒绝",
+      "source": "security/THREAT_MODEL.md"
+    },
+    {
+      "id": "B18-R6",
+      "statement": "账号恢复不得成为 MFA 的绕过路径（与 B17 恢复路径交叉校验）",
+      "source": "governance/identity.json"
+    },
+    {
+      "id": "B18-R7",
+      "statement": "零信任要求的 phishing_resistant_mfa 因素必须有真实认证器支撑",
+      "source": "governance/zero-trust.json"
+    },
+    {
+      "id": "B18-R8",
+      "statement": "特权账号注册至少两个认证器，且限制尝试次数与推送疲劳",
+      "source": "batches/B18.md 实施要求 4"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/mfa.json",
+      "requirements": [
+        "B18-R1",
+        "B18-R2",
+        "B18-R3",
+        "B18-R4",
+        "B18-R5",
+        "B18-R7",
+        "B18-R8"
+      ]
+    },
+    {
+      "ref": "tools/paygov/mfa.py",
+      "requirements": [
+        "B18-R1",
+        "B18-R2",
+        "B18-R3",
+        "B18-R4",
+        "B18-R5",
+        "B18-R6",
+        "B18-R7",
+        "B18-R8"
+      ]
+    },
+    {
+      "ref": "libs/mfa/reference/webauthn.py",
+      "requirements": [
+        "B18-R2",
+        "B18-R4",
+        "B18-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/mfagen.py",
+      "requirements": [
+        "B18-R1",
+        "B18-R4"
+      ]
+    },
+    {
+      "ref": "scripts/render-mfa.py",
+      "requirements": [
+        "B18-R1"
+      ]
+    },
+    {
+      "ref": "scripts/mfa-smoke.py",
+      "requirements": [
+        "B18-R2",
+        "B18-R4",
+        "B18-R5"
+      ]
+    },
+    {
+      "ref": "contracts/security/mfa-matrix.json",
+      "requirements": [
+        "B18-R1",
+        "B18-R3"
+      ]
+    },
+    {
+      "ref": "docs/security/MFA.md",
+      "requirements": [
+        "B18-R1",
+        "B18-R3",
+        "B18-R6"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b18_mfa.py",
+      "requirements": [
+        "B18-R1",
+        "B18-R2",
+        "B18-R3",
+        "B18-R4",
+        "B18-R5",
+        "B18-R6",
+        "B18-R7",
+        "B18-R8"
+      ],
+      "cases": 80
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "governance/mfa.json",
+        "tools/paygov/mfa.py",
+        "libs/mfa/reference/webauthn.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b18_mfa.py",
+        "scripts/mfa-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/mfa.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b18_mfa.py"
+      ]
+    },
+    {
+      "id": "CTRL-004",
+      "implemented_by": [
+        "governance/mfa.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b18_mfa.py"
+      ]
+    },
+    {
+      "id": "CTRL-014",
+      "implemented_by": [
+        "governance/mfa.json",
+        "tools/paygov/mfa.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b18_mfa.py",
+        "scripts/mfa-smoke.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B18/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B18/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B18/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B18/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B18/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B18/runtime/mfa-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B18/runtime/mfa-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B18/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B18/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B18/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B18.json",
+      "kind": "completion"
+    }
+  ]
+}

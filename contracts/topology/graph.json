@@ -1,0 +1,294 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-topology.py; do not edit by hand",
+  "edges": [
+    {
+      "degradation": "只读降级：展示缓存数据并禁用所有写操作",
+      "from": "admin-web",
+      "kind": "sync",
+      "retries": 0,
+      "timeout_ms": 4500,
+      "to": "payment-core"
+    },
+    {
+      "degradation": "展示「支付处理中」并轮询状态，**不得**自行判定成功",
+      "from": "checkout-web",
+      "kind": "sync",
+      "retries": 0,
+      "timeout_ms": 3000,
+      "to": "payment-core"
+    },
+    {
+      "degradation": "使用本地缓存的商户配置，缓存过期则拒绝请求",
+      "from": "edge-gateway",
+      "kind": "sync",
+      "retries": 1,
+      "timeout_ms": 150,
+      "to": "merchant-config"
+    },
+    {
+      "degradation": "返回 provider_unavailable(502)，不生成任何支付事实",
+      "from": "edge-gateway",
+      "kind": "sync",
+      "retries": 0,
+      "timeout_ms": 2500,
+      "to": "payment-core"
+    },
+    {
+      "degradation": "attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败**",
+      "from": "payment-core",
+      "kind": "sync",
+      "retries": 0,
+      "timeout_ms": 1500,
+      "to": "alipay"
+    },
+    {
+      "degradation": "attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败**",
+      "from": "payment-core",
+      "kind": "sync",
+      "retries": 0,
+      "timeout_ms": 1500,
+      "to": "apple-pay"
+    },
+    {
+      "degradation": "账本落后不阻塞支付；差异由对账兜底",
+      "from": "payment-core",
+      "kind": "async",
+      "retries": null,
+      "timeout_ms": null,
+      "to": "ledger-service"
+    },
+    {
+      "degradation": "使用本地缓存的渠道账户配置，缓存过期则拒绝",
+      "from": "payment-core",
+      "kind": "sync",
+      "retries": 1,
+      "timeout_ms": 150,
+      "to": "merchant-config"
+    },
+    {
+      "degradation": "attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败**",
+      "from": "payment-core",
+      "kind": "sync",
+      "retries": 0,
+      "timeout_ms": 1500,
+      "to": "paypal"
+    },
+    {
+      "degradation": "**失败关闭**：风控不可用时拒绝授权，不放行",
+      "from": "payment-core",
+      "kind": "sync",
+      "retries": 0,
+      "timeout_ms": 300,
+      "to": "risk-engine"
+    },
+    {
+      "degradation": "attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败**",
+      "from": "payment-core",
+      "kind": "sync",
+      "retries": 0,
+      "timeout_ms": 1500,
+      "to": "stripe"
+    },
+    {
+      "degradation": "attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败**",
+      "from": "payment-core",
+      "kind": "sync",
+      "retries": 0,
+      "timeout_ms": 1500,
+      "to": "wechat-pay"
+    },
+    {
+      "degradation": "账本数据缺失时产生对账例外，而不是静默跳过",
+      "from": "reconciliation-service",
+      "kind": "async",
+      "retries": null,
+      "timeout_ms": null,
+      "to": "ledger-service"
+    },
+    {
+      "degradation": "缓存的渠道账户配置；过期则跳过该渠道并产生对账例外",
+      "from": "reconciliation-service",
+      "kind": "sync",
+      "retries": 2,
+      "timeout_ms": 200,
+      "to": "merchant-config"
+    },
+    {
+      "degradation": "使用缓存的风控规则，缓存过期则返回拒绝",
+      "from": "risk-engine",
+      "kind": "sync",
+      "retries": 1,
+      "timeout_ms": 150,
+      "to": "merchant-config"
+    },
+    {
+      "degradation": "使用缓存的订阅配置；缓存过期则暂停投递而不是乱投",
+      "from": "webhook-delivery",
+      "kind": "sync",
+      "retries": 1,
+      "timeout_ms": 150,
+      "to": "merchant-config"
+    },
+    {
+      "degradation": "回调先落盘再定责；查询失败不影响回执",
+      "from": "webhook-ingress",
+      "kind": "sync",
+      "retries": 1,
+      "timeout_ms": 1200,
+      "to": "alipay"
+    },
+    {
+      "degradation": "回调先落盘再定责；查询失败不影响回执",
+      "from": "webhook-ingress",
+      "kind": "sync",
+      "retries": 1,
+      "timeout_ms": 1200,
+      "to": "stripe"
+    },
+    {
+      "degradation": "回调先落盘再定责；查询失败不影响回执",
+      "from": "webhook-ingress",
+      "kind": "sync",
+      "retries": 1,
+      "timeout_ms": 1200,
+      "to": "wechat-pay"
+    },
+    {
+      "degradation": "缓存的调度配置；过期则暂停该租户的调度",
+      "from": "worker-scheduler",
+      "kind": "sync",
+      "retries": 1,
+      "timeout_ms": 200,
+      "to": "merchant-config"
+    },
+    {
+      "degradation": "任务重排到下一个窗口，不重复发起支付",
+      "from": "worker-scheduler",
+      "kind": "sync",
+      "retries": 0,
+      "timeout_ms": 2500,
+      "to": "payment-core"
+    }
+  ],
+  "nodes": [
+    {
+      "criticality": "tier2",
+      "id": "admin-web",
+      "request_budget_ms": 5000,
+      "runtime": "app",
+      "slo": {
+        "availability": "99.5%",
+        "p99_ms": 2000
+      }
+    },
+    {
+      "criticality": "tier1",
+      "id": "checkout-web",
+      "request_budget_ms": 3200,
+      "runtime": "app",
+      "slo": {
+        "availability": "99.9%",
+        "p99_ms": 1500
+      }
+    },
+    {
+      "criticality": "tier1",
+      "id": "edge-gateway",
+      "request_budget_ms": 3000,
+      "runtime": "gateway",
+      "slo": {
+        "availability": "99.99%",
+        "p99_ms": 3000
+      }
+    },
+    {
+      "criticality": "tier1",
+      "id": "ledger-service",
+      "request_budget_ms": 10000,
+      "runtime": "worker",
+      "slo": {
+        "availability": "99.95%",
+        "p99_ms": 2000
+      }
+    },
+    {
+      "criticality": "tier1",
+      "id": "merchant-config",
+      "request_budget_ms": 150,
+      "runtime": "api",
+      "slo": {
+        "availability": "99.99%",
+        "p99_ms": 80
+      }
+    },
+    {
+      "criticality": "tier1",
+      "id": "payment-core",
+      "request_budget_ms": 2500,
+      "runtime": "api",
+      "slo": {
+        "availability": "99.95%",
+        "p99_ms": 500
+      }
+    },
+    {
+      "criticality": "tier2",
+      "id": "reconciliation-service",
+      "request_budget_ms": 600000,
+      "runtime": "worker",
+      "slo": {
+        "availability": "99.5%",
+        "p99_ms": 60000
+      }
+    },
+    {
+      "criticality": "tier1",
+      "id": "risk-engine",
+      "request_budget_ms": 300,
+      "runtime": "api",
+      "slo": {
+        "availability": "99.95%",
+        "p99_ms": 150
+      }
+    },
+    {
+      "criticality": "tier2",
+      "id": "webhook-delivery",
+      "request_budget_ms": 30000,
+      "runtime": "worker",
+      "slo": {
+        "availability": "99.9%",
+        "p99_ms": 5000
+      }
+    },
+    {
+      "criticality": "tier1",
+      "id": "webhook-ingress",
+      "request_budget_ms": 2000,
+      "runtime": "api",
+      "slo": {
+        "availability": "99.99%",
+        "p99_ms": 300
+      }
+    },
+    {
+      "criticality": "tier2",
+      "id": "worker-scheduler",
+      "request_budget_ms": 60000,
+      "runtime": "worker",
+      "slo": {
+        "availability": "99.9%",
+        "p99_ms": 10000
+      }
+    }
+  ],
+  "policy": {
+    "database_access": "exclusive_per_owner",
+    "database_note": "服务只能访问自己拥有的表。共享数据库表是分布式单体的定义。",
+    "max_sync_depth": 3,
+    "money_path_failure_mode": "fail_closed",
+    "money_path_note": "资金路径上的依赖不可用时必须拒绝，不得放行；唯一例外是渠道不可用——那时 attempt 进入 unknown 而不是 failed（AC-01）。",
+    "sync_budget_rule": "调用方的预算必须覆盖它所有同步依赖的超时之和；否则超时设置只是装饰，真正生效的是调用方自己先被上游掐断。"
+  },
+  "schema_version": "1.0.0"
+}

@@ -11,6 +11,8 @@ enforces that:
 * the blocking conditions demanded by the batch document — severe security
   finding, ledger imbalance, unrecoverable state, missing evidence — are each
   declared and attached to a stage that can actually detect them;
+* the vendored skill package and both installed skill mirrors are verified
+  before repository governance runs;
 * the generated workflow matches the declaration.
 """
 from __future__ import annotations
@@ -38,7 +40,17 @@ REQUIRED_BLOCKING_TOPICS = {
 }
 MAX_ZERO_GATES = ("unit_test_failed_max", "skipped_critical_max",
                   "blocking_security_findings_max", "governance_problems_max")
+REQUIRED_SKILL_COMMANDS = {
+    "python3 .payment-platform/skill-package/scripts/verify_package.py",
+    "diff -qr .payment-platform/skill-package/skills .agents/skills",
+    "diff -qr .payment-platform/skill-package/skills .claude/skills",
+}
 
+
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("ci-pipeline", "B05")
 
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
@@ -92,6 +104,7 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     problems += _permissions(doc, where)
     problems += _quality_gates(doc, where)
     problems += _blocking(doc, by_id, where)
+    problems += _skill_package(by_id, where)
     problems += _generated(root, budget)
     return problems
 
@@ -193,6 +206,20 @@ def _blocking(doc: dict, by_id: dict[str, dict], where: str) -> list[Problem]:
                                 f"the batch document requires a blocking condition for "
                                 f"'{REQUIRED_BLOCKING_TOPICS[cid]}' ({cid})", "NN-12"))
     return problems
+
+
+def _skill_package(by_id: dict[str, dict], where: str) -> list[Problem]:
+    """The workflow must validate both the package and what agents execute.
+
+    Verifying only the package leaves room for an installed mirror to drift;
+    comparing only mirrors can faithfully install a corrupted package.  All
+    three checks are therefore one fail-closed control.
+    """
+    commands = set(by_id.get("governance", {}).get("commands", []))
+    missing = sorted(REQUIRED_SKILL_COMMANDS - commands)
+    return [Problem("CI_SKILL_PACKAGE", f"{where}#governance",
+                    f"required skill integrity command is missing: {command}", "NN-12")
+            for command in missing]
 
 
 def _generated(root: Path, budget: Budget) -> list[Problem]:

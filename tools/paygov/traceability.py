@@ -37,7 +37,8 @@ def _refs(value: str) -> set[str]:
     return {part.strip() for part in SPLIT.split(value) if part.strip() and part.strip() != "无"}
 
 
-def build_graph(root: Path, budget: Budget | None = None) -> dict:
+def build_graph(root: Path, budget: Budget | None = None, *,
+                include_evidence: bool = True) -> dict:
     """Materialise the trace graph. Used by the validator and by the matrix renderer."""
     budget = budget or Budget(seconds=120).start()
     requirements = load_json(root / REQUIREMENTS, budget)["requirements"]
@@ -61,7 +62,7 @@ def build_graph(root: Path, budget: Budget | None = None) -> dict:
 
     batch_evidence: dict[str, dict] = {}
     completion_dir = root / EVIDENCE / "completion"
-    if completion_dir.is_dir():
+    if include_evidence and completion_dir.is_dir():
         for path in sorted(completion_dir.glob("*.json")):
             trace = root / EVIDENCE / path.stem / "traceability.json"
             if trace.is_file():
@@ -81,6 +82,11 @@ def build_graph(root: Path, budget: Budget | None = None) -> dict:
         "batch_evidence": batch_evidence,
     }
 
+
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("traceability", "B07")
 
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget(seconds=120).start()
@@ -150,12 +156,23 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
 
 
 def matrix_markdown(root: Path, budget: Budget | None = None) -> str:
+    """Render the review matrix.
+
+    IMPORTANT: this document is a pure function of the *governance* sources
+    (requirements, boundaries, ADRs). It deliberately does NOT read
+    ``evidence/``. An earlier version included a per-batch evidence table, which
+    made the document change every time a completion file was written — so the
+    act of completing a batch drifted a document that the same batch pinned by
+    hash, and no consistent state existed. Evidence-derived coverage belongs in
+    ``scripts/traceability-matrix.py`` output, which is runtime evidence and is
+    not hash-pinned.
+    """
     budget = budget or Budget(seconds=120).start()
-    graph = build_graph(root, budget)
+    graph = build_graph(root, budget, include_evidence=False)
     requirements = graph["requirements"]
     header = "<!-- GENERATED FILE — do not edit by hand.\n" \
-             "     Source of truth: governance/requirements.json + service-boundaries.json + " \
-             "docs/adr/ + evidence/\n" \
+             "     Source of truth: governance/requirements.json + " \
+             "governance/service-boundaries.json + docs/adr/\n" \
              "     Regenerate with: python3 scripts/render-docs.py -->\n"
 
     adr_by_requirement: dict[str, list[str]] = {}
@@ -166,7 +183,9 @@ def matrix_markdown(root: Path, budget: Budget | None = None) -> str:
     lines = [header, "# 双向追踪矩阵（B07）", "",
              f"需求 {len(requirements)} 条 · 能力 {len(set(graph['capability_of'].values()))} 项 · "
              f"ADR {len(graph['adrs'])} 条 · 红线 {len(graph['rules'])} 条 · "
-             f"控制 {len(graph['controls'])} 条 · 已出证据批次 {len(graph['batch_evidence'])} 个。", "",
+             f"控制 {len(graph['controls'])} 条。", "",
+             "批次证据到控制的映射不在本文档中——它随证据变化，放进受哈希固定的文档会造成",
+             "“完成一个批次即让该批次失效”的循环。见 `evidence/*/runtime/trace-graph.json`。", "",
              "## 需求 → 能力 → 模块 → 控制 → 验证批次 → ADR", ""]
     head = ["需求", "标题", "能力", "责任模块", "控制", "验证批次", "ADR"]
     lines.append("| " + " | ".join(head) + " |")
@@ -188,13 +207,4 @@ def matrix_markdown(root: Path, budget: Budget | None = None) -> str:
     lines.append("| " + " | ".join("---" for _ in head) + " |")
     for control in graph["rules"] + graph["controls"]:
         lines.append(f'| {control} | {" ".join(reverse.get(control, [])) or "**未覆盖**"} |')
-
-    lines += ["", "## 已出证据批次 → 控制 → 测试", ""]
-    head = ["批次", "控制", "测试"]
-    lines.append("| " + " | ".join(head) + " |")
-    lines.append("| " + " | ".join("---" for _ in head) + " |")
-    for batch, links in sorted(graph["batch_evidence"].items()):
-        lines.append("| " + " | ".join([
-            batch, " ".join(sorted(c for c in links["controls"] if c)),
-            " ".join(sorted(t.split("/")[-1] for t in links["tests"] if t))]) + " |")
     return "\n".join(lines).rstrip() + "\n"

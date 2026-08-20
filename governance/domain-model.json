@@ -1,0 +1,1298 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B08",
+  "type_system": [
+    "boolean",
+    "bytes",
+    "currency",
+    "enum",
+    "int32",
+    "int64",
+    "json",
+    "money_minor",
+    "reference",
+    "string",
+    "string_map",
+    "timestamp",
+    "uuid"
+  ],
+  "forbidden_types": [
+    "float",
+    "double",
+    "decimal",
+    "number",
+    "real"
+  ],
+  "entities": [
+    {
+      "name": "Tenant",
+      "module": "merchant-config",
+      "table": "tenant",
+      "tenant_scoped": false,
+      "purpose": "平台的顶层隔离单元；一个客户组织一个租户。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": "租户内部标识，全局唯一"
+        },
+        {
+          "name": "code",
+          "type": "string",
+          "nullable": false,
+          "semantics": "人类可读租户代码，创建后不可变"
+        },
+        {
+          "name": "display_name",
+          "type": "string",
+          "nullable": false,
+          "semantics": "展示名"
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "租户生命周期状态",
+          "enum": [
+            "active",
+            "suspended",
+            "closed"
+          ]
+        },
+        {
+          "name": "data_residency",
+          "type": "string",
+          "nullable": false,
+          "semantics": "ISO-3166 alpha-2 数据驻留地"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "code 创建后不可变",
+        "suspended 租户不得创建新的 PaymentIntent",
+        "closed 租户只允许只读查询与对账"
+      ],
+      "states": []
+    },
+    {
+      "name": "Project",
+      "module": "merchant-config",
+      "table": "project",
+      "tenant_scoped": true,
+      "purpose": "业务项目：接入平台的一个业务系统，拥有自己的业务订单。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "code",
+          "type": "string",
+          "nullable": false,
+          "semantics": "租户内唯一的项目代码"
+        },
+        {
+          "name": "display_name",
+          "type": "string",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "callback_domains",
+          "type": "json",
+          "nullable": false,
+          "semantics": "登记的回调域名白名单；不在其中的 notify_url 一律拒绝"
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "active",
+            "suspended"
+          ]
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "(tenant_id, code) 唯一",
+        "callback_domains 非空且必须是已登记域名",
+        "项目不得存储商品或库存信息"
+      ],
+      "states": []
+    },
+    {
+      "name": "Merchant",
+      "module": "merchant-config",
+      "table": "merchant",
+      "tenant_scoped": true,
+      "purpose": "商户：结算主体，与渠道商户号绑定。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "legal_name",
+          "type": "string",
+          "nullable": false,
+          "semantics": "法定名称；KYB 元数据在 B25 扩展"
+        },
+        {
+          "name": "settlement_mode",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "仅允许持牌机构直达商户结算；平台不持有资金",
+          "enum": [
+            "direct_to_merchant"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "onboarding",
+            "active",
+            "suspended",
+            "terminated"
+          ]
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "settlement_mode 只能是 direct_to_merchant（NN-13）",
+        "terminated 商户不得发起新支付"
+      ],
+      "states": []
+    },
+    {
+      "name": "ProviderAccount",
+      "module": "merchant-config",
+      "table": "provider_account",
+      "tenant_scoped": true,
+      "purpose": "商户在某渠道下的账户与凭证引用。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "merchant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Merchant"
+        },
+        {
+          "name": "provider",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "wechat",
+            "alipay",
+            "stripe",
+            "paypal",
+            "apple_pay"
+          ]
+        },
+        {
+          "name": "provider_merchant_id",
+          "type": "string",
+          "nullable": false,
+          "semantics": "渠道侧商户号"
+        },
+        {
+          "name": "credential_ref",
+          "type": "string",
+          "nullable": false,
+          "semantics": "kms:// 或 vault:// 引用；禁止明文"
+        },
+        {
+          "name": "environment",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "sandbox",
+            "production"
+          ]
+        },
+        {
+          "name": "status",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "pending",
+            "active",
+            "disabled"
+          ]
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "credential_ref 必须以 kms:// 或 vault:// 开头（NN-07）",
+        "(tenant_id, merchant_id, provider, environment) 唯一",
+        "sandbox 与 production 凭证不得共用记录"
+      ],
+      "states": []
+    },
+    {
+      "name": "PaymentIntent",
+      "module": "payment-core",
+      "table": "payment_intent",
+      "tenant_scoped": true,
+      "purpose": "一次付款意图；平台的支付事实入口。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "project_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Project"
+        },
+        {
+          "name": "merchant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Merchant"
+        },
+        {
+          "name": "external_reference",
+          "type": "string",
+          "nullable": false,
+          "semantics": "业务项目的业务订单号；与 project_id 组成唯一键"
+        },
+        {
+          "name": "amount_minor",
+          "type": "money_minor",
+          "nullable": false,
+          "semantics": "最小货币单位整数，禁止浮点（NN-05）"
+        },
+        {
+          "name": "currency",
+          "type": "currency",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "captured_amount_minor",
+          "type": "money_minor",
+          "nullable": false,
+          "semantics": "已捕获金额"
+        },
+        {
+          "name": "refunded_amount_minor",
+          "type": "money_minor",
+          "nullable": false,
+          "semantics": "已退款金额"
+        },
+        {
+          "name": "state",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "created",
+            "requires_action",
+            "authorized",
+            "captured",
+            "failed",
+            "canceled",
+            "expired"
+          ]
+        },
+        {
+          "name": "idempotency_key",
+          "type": "string",
+          "nullable": false,
+          "semantics": "创建幂等键；唯一约束"
+        },
+        {
+          "name": "client_secret_ref",
+          "type": "string",
+          "nullable": true,
+          "semantics": "面向客户端的短期引用，不含凭证"
+        },
+        {
+          "name": "expires_at",
+          "type": "timestamp",
+          "nullable": true,
+          "semantics": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "(project_id, external_reference) 唯一（NN-01）",
+        "amount_minor > 0",
+        "captured_amount_minor <= amount_minor",
+        "refunded_amount_minor <= captured_amount_minor",
+        "状态只允许声明的单向或补偿式转换",
+        "不得包含商品、库存或履约字段（NN-01）",
+        "成功状态只能由验签渠道事件或服务端查询写入（NN-03）"
+      ],
+      "states": [
+        "created",
+        "requires_action",
+        "authorized",
+        "captured",
+        "failed",
+        "canceled",
+        "expired"
+      ]
+    },
+    {
+      "name": "PaymentAttempt",
+      "module": "payment-core",
+      "table": "payment_attempt",
+      "tenant_scoped": true,
+      "purpose": "一次面向渠道的支付尝试。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "payment_intent_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "PaymentIntent"
+        },
+        {
+          "name": "provider_account_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "ProviderAccount"
+        },
+        {
+          "name": "provider",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "wechat",
+            "alipay",
+            "stripe",
+            "paypal",
+            "apple_pay"
+          ]
+        },
+        {
+          "name": "provider_transaction_id",
+          "type": "string",
+          "nullable": true,
+          "semantics": "渠道交易号"
+        },
+        {
+          "name": "state",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "initiated",
+            "pending",
+            "succeeded",
+            "failed",
+            "unknown"
+          ]
+        },
+        {
+          "name": "failure_category",
+          "type": "enum",
+          "nullable": true,
+          "semantics": "",
+          "enum": [
+            "network",
+            "timeout",
+            "declined",
+            "risk_blocked",
+            "config",
+            "provider_error"
+          ]
+        },
+        {
+          "name": "request_digest",
+          "type": "string",
+          "nullable": false,
+          "semantics": "请求体摘要，用于幂等与审计；不存原文凭证"
+        },
+        {
+          "name": "started_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "settled_at",
+          "type": "timestamp",
+          "nullable": true,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "unknown 状态必须触发主动查询直到收敛（NN-03）",
+        "(provider, provider_transaction_id) 在非空时唯一",
+        "request_digest 不得包含凭证或卡数据（NN-14）"
+      ],
+      "states": [
+        "initiated",
+        "pending",
+        "succeeded",
+        "failed",
+        "unknown"
+      ]
+    },
+    {
+      "name": "Refund",
+      "module": "payment-core",
+      "table": "refund",
+      "tenant_scoped": true,
+      "purpose": "针对已捕获金额的退款。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "payment_intent_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "PaymentIntent"
+        },
+        {
+          "name": "amount_minor",
+          "type": "money_minor",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "currency",
+          "type": "currency",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "reason",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "requested_by_customer",
+            "duplicate",
+            "fraudulent",
+            "dispute",
+            "other"
+          ]
+        },
+        {
+          "name": "state",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "requested",
+            "approved",
+            "processing",
+            "succeeded",
+            "failed",
+            "canceled"
+          ]
+        },
+        {
+          "name": "idempotency_key",
+          "type": "string",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "approved_by",
+          "type": "string",
+          "nullable": true,
+          "semantics": "四眼复核的审批人；与发起人不同"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "sum(refund.amount_minor) <= payment_intent.captured_amount_minor",
+        "amount_minor > 0",
+        "approved_by 必须不同于发起人（NN-11）",
+        "idempotency_key 唯一"
+      ],
+      "states": [
+        "requested",
+        "approved",
+        "processing",
+        "succeeded",
+        "failed",
+        "canceled"
+      ]
+    },
+    {
+      "name": "Dispute",
+      "module": "payment-core",
+      "table": "dispute",
+      "tenant_scoped": true,
+      "purpose": "争议或拒付：付款人通过渠道发起的资金争议，含举证时限与裁定结果。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "payment_intent_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "PaymentIntent"
+        },
+        {
+          "name": "provider_dispute_id",
+          "type": "string",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "amount_minor",
+          "type": "money_minor",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "currency",
+          "type": "currency",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "state",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "opened",
+            "evidence_required",
+            "under_review",
+            "won",
+            "lost",
+            "withdrawn"
+          ]
+        },
+        {
+          "name": "evidence_due_at",
+          "type": "timestamp",
+          "nullable": true,
+          "semantics": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "provider_dispute_id 唯一",
+        "状态变化必须产生账本分录"
+      ],
+      "states": [
+        "opened",
+        "evidence_required",
+        "under_review",
+        "won",
+        "lost",
+        "withdrawn"
+      ]
+    },
+    {
+      "name": "Subscription",
+      "module": "payment-core",
+      "table": "subscription",
+      "tenant_scoped": true,
+      "purpose": "周期计费订阅：依据 Mandate 或 PSP 令牌引用按周期扣款的计费关系。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "project_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Project"
+        },
+        {
+          "name": "merchant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Merchant"
+        },
+        {
+          "name": "mandate_ref",
+          "type": "string",
+          "nullable": false,
+          "semantics": "Mandate 或 PSP 令牌引用；不存可复用明文令牌（NN-02）"
+        },
+        {
+          "name": "amount_minor",
+          "type": "money_minor",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "currency",
+          "type": "currency",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "interval",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "day",
+            "week",
+            "month",
+            "year"
+          ]
+        },
+        {
+          "name": "interval_count",
+          "type": "int32",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "state",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "trialing",
+            "active",
+            "past_due",
+            "canceled",
+            "ended"
+          ]
+        },
+        {
+          "name": "next_billing_at",
+          "type": "timestamp",
+          "nullable": true,
+          "semantics": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "interval_count > 0",
+        "mandate_ref 不得是明文支付令牌（NN-02）",
+        "canceled/ended 订阅不得再产生扣款"
+      ],
+      "states": [
+        "trialing",
+        "active",
+        "past_due",
+        "canceled",
+        "ended"
+      ]
+    },
+    {
+      "name": "LedgerAccount",
+      "module": "ledger-service",
+      "table": "ledger_account",
+      "tenant_scoped": true,
+      "purpose": "复式账本科目：按租户与币种独立的记账科目。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "code",
+          "type": "string",
+          "nullable": false,
+          "semantics": "科目代码"
+        },
+        {
+          "name": "kind",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "asset",
+            "liability",
+            "revenue",
+            "expense",
+            "clearing"
+          ]
+        },
+        {
+          "name": "currency",
+          "type": "currency",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "(tenant_id, code, currency) 唯一",
+        "平台不得存在自有资金池类型科目（NN-13）"
+      ],
+      "states": []
+    },
+    {
+      "name": "LedgerTransaction",
+      "module": "ledger-service",
+      "table": "ledger_transaction",
+      "tenant_scoped": true,
+      "purpose": "一组必须借贷平衡的分录。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "source_kind",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "payment",
+            "refund",
+            "fee",
+            "fx",
+            "dispute",
+            "adjustment",
+            "settlement"
+          ]
+        },
+        {
+          "name": "source_id",
+          "type": "string",
+          "nullable": false,
+          "semantics": "来源事实的标识，用于唯一性与追溯"
+        },
+        {
+          "name": "posted_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "nullable": true,
+          "semantics": "人工调整必填理由"
+        },
+        {
+          "name": "approved_by",
+          "type": "string",
+          "nullable": true,
+          "semantics": "人工调整必填复核人（NN-11）"
+        }
+      ],
+      "invariants": [
+        "(tenant_id, source_kind, source_id) 唯一，防止重复过账（NN-04）",
+        "分录一经写入禁止 UPDATE/DELETE（NN-06）",
+        "adjustment 必须同时具备 reason 与 approved_by"
+      ],
+      "states": []
+    },
+    {
+      "name": "LedgerEntry",
+      "module": "ledger-service",
+      "table": "ledger_entry",
+      "tenant_scoped": true,
+      "purpose": "单条借或贷分录：账本中最小的不可变记账单位。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "transaction_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "LedgerTransaction"
+        },
+        {
+          "name": "account_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "LedgerAccount"
+        },
+        {
+          "name": "direction",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "debit",
+            "credit"
+          ]
+        },
+        {
+          "name": "amount_minor",
+          "type": "money_minor",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "currency",
+          "type": "currency",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "posted_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "amount_minor > 0",
+        "同一 transaction 内 sum(debit) == sum(credit)（按币种）",
+        "分录不可变（NN-06）",
+        "currency 必须等于 account.currency"
+      ],
+      "states": []
+    },
+    {
+      "name": "ReconciliationRun",
+      "module": "reconciliation-service",
+      "table": "recon_run",
+      "tenant_scoped": true,
+      "purpose": "一次对账运行：针对某渠道某业务日的账单摄取与逐笔匹配过程。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "business_date",
+          "type": "string",
+          "nullable": false,
+          "semantics": "对账业务日 YYYY-MM-DD"
+        },
+        {
+          "name": "provider",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "wechat",
+            "alipay",
+            "stripe",
+            "paypal",
+            "apple_pay"
+          ]
+        },
+        {
+          "name": "source_file_digest",
+          "type": "string",
+          "nullable": false,
+          "semantics": "账单文件 SHA-256，用于幂等摄取（NN-04）"
+        },
+        {
+          "name": "state",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "ingesting",
+            "matching",
+            "completed",
+            "failed"
+          ]
+        },
+        {
+          "name": "started_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "completed_at",
+          "type": "timestamp",
+          "nullable": true,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "(tenant_id, provider, business_date, source_file_digest) 唯一",
+        "同一文件重复摄取不得产生重复记录"
+      ],
+      "states": [
+        "ingesting",
+        "matching",
+        "completed",
+        "failed"
+      ]
+    },
+    {
+      "name": "ReconciliationException",
+      "module": "reconciliation-service",
+      "table": "recon_exception",
+      "tenant_scoped": true,
+      "purpose": "对账差异：三方对账中未匹配或金额、状态不一致的条目。",
+      "identity": [
+        "id"
+      ],
+      "fields": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "tenant_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "Tenant"
+        },
+        {
+          "name": "run_id",
+          "type": "reference",
+          "nullable": false,
+          "semantics": "",
+          "target": "ReconciliationRun"
+        },
+        {
+          "name": "category",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "missing_in_platform",
+            "missing_in_provider",
+            "amount_mismatch",
+            "status_mismatch",
+            "duplicate",
+            "fee_mismatch",
+            "timing"
+          ]
+        },
+        {
+          "name": "payment_intent_id",
+          "type": "reference",
+          "nullable": true,
+          "semantics": "",
+          "target": "PaymentIntent"
+        },
+        {
+          "name": "amount_minor",
+          "type": "money_minor",
+          "nullable": true,
+          "semantics": ""
+        },
+        {
+          "name": "currency",
+          "type": "currency",
+          "nullable": true,
+          "semantics": ""
+        },
+        {
+          "name": "state",
+          "type": "enum",
+          "nullable": false,
+          "semantics": "",
+          "enum": [
+            "open",
+            "investigating",
+            "resolved",
+            "written_off"
+          ]
+        },
+        {
+          "name": "resolution_reason",
+          "type": "string",
+          "nullable": true,
+          "semantics": ""
+        },
+        {
+          "name": "approved_by",
+          "type": "string",
+          "nullable": true,
+          "semantics": ""
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp",
+          "nullable": false,
+          "semantics": ""
+        }
+      ],
+      "invariants": [
+        "每条差异必须有分类，不允许 unknown",
+        "written_off 必须具备 resolution_reason 与 approved_by（NN-11）"
+      ],
+      "states": [
+        "open",
+        "investigating",
+        "resolved",
+        "written_off"
+      ]
+    }
+  ]
+}

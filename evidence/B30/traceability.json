@@ -1,0 +1,266 @@
+{
+  "batch_id": "B30",
+  "requirements": [
+    {
+      "id": "B30-R1",
+      "statement": "凭证导入、域名验证、回调验证、限额、上线、停用构成有序工作流",
+      "source": "batches/B30.md 目标"
+    },
+    {
+      "id": "B30-R2",
+      "statement": "工作流可恢复：状态落盘、从最后完成步骤继续、不重放副作用、无手工完成路径",
+      "source": "batches/B30.md 目标"
+    },
+    {
+      "id": "B30-R3",
+      "statement": "每一步幂等且产出证据",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B30-R4",
+      "statement": "四眼审批绑定内容摘要、会过期、内容变更即作废",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B30-R5",
+      "statement": "凭证导入不可回显且只导入一次，经由 B26 绑定存储",
+      "source": "policies/non-negotiables.md#4"
+    },
+    {
+      "id": "B30-R6",
+      "statement": "域名验证令牌一次性且有有效期，不接受通配符；回调必须 HTTPS 且不得指向内网",
+      "source": "security/THREAT_MODEL.md"
+    },
+    {
+      "id": "B30-R7",
+      "statement": "限额必须在上线前存在；停用一人立即生效，恢复需两人",
+      "source": "policies/non-negotiables.md#1"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/onboarding-workflow.json",
+      "requirements": [
+        "B30-R1",
+        "B30-R2",
+        "B30-R3",
+        "B30-R4",
+        "B30-R5",
+        "B30-R6",
+        "B30-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/onboarding.py",
+      "requirements": [
+        "B30-R1",
+        "B30-R2",
+        "B30-R3",
+        "B30-R4",
+        "B30-R5",
+        "B30-R6",
+        "B30-R7"
+      ]
+    },
+    {
+      "ref": "libs/onboarding/reference/workflow.py",
+      "requirements": [
+        "B30-R1",
+        "B30-R2",
+        "B30-R3",
+        "B30-R4",
+        "B30-R5",
+        "B30-R6",
+        "B30-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/onboardinggen.py",
+      "requirements": [
+        "B30-R1"
+      ]
+    },
+    {
+      "ref": "scripts/render-onboarding.py",
+      "requirements": [
+        "B30-R1"
+      ]
+    },
+    {
+      "ref": "scripts/onboarding-smoke.py",
+      "requirements": [
+        "B30-R2",
+        "B30-R3",
+        "B30-R4",
+        "B30-R5",
+        "B30-R6",
+        "B30-R7"
+      ]
+    },
+    {
+      "ref": "contracts/onboarding/workflow.json",
+      "requirements": [
+        "B30-R1",
+        "B30-R4"
+      ]
+    },
+    {
+      "ref": "docs/onboarding/ONBOARDING_WORKFLOW.md",
+      "requirements": [
+        "B30-R1",
+        "B30-R2"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b30_onboarding.py",
+      "requirements": [
+        "B30-R1",
+        "B30-R2",
+        "B30-R3",
+        "B30-R4",
+        "B30-R5",
+        "B30-R6",
+        "B30-R7"
+      ],
+      "cases": 107
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/onboarding-workflow.json",
+        "tools/paygov/onboarding.py",
+        "libs/onboarding/reference/workflow.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b30_onboarding.py",
+        "scripts/onboarding-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/onboarding-workflow.json",
+        "tools/paygov/onboarding.py",
+        "libs/onboarding/reference/workflow.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b30_onboarding.py",
+        "scripts/onboarding-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "governance/onboarding-workflow.json",
+        "tools/paygov/onboarding.py",
+        "libs/onboarding/reference/workflow.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b30_onboarding.py",
+        "scripts/onboarding-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-07",
+      "implemented_by": [
+        "governance/onboarding-workflow.json",
+        "tools/paygov/onboarding.py",
+        "libs/onboarding/reference/workflow.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b30_onboarding.py",
+        "scripts/onboarding-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/onboarding.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b30_onboarding.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/onboarding-workflow.json",
+        "tools/paygov/onboarding.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b30_onboarding.py"
+      ]
+    },
+    {
+      "id": "NN-14",
+      "implemented_by": [
+        "governance/onboarding-workflow.json",
+        "tools/paygov/onboarding.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b30_onboarding.py",
+        "scripts/onboarding-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/onboarding-workflow.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b30_onboarding.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B30/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B30/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B30/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B30/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B30/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B30/runtime/onboarding-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B30/runtime/onboarding-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B30/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B30/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B30/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B30.json",
+      "kind": "completion"
+    }
+  ]
+}

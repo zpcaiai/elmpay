@@ -34,38 +34,49 @@ class EvidenceHappyPath(FixtureTestCase):
             self.assertNotEqual(data["executor"], data["reviewer"], path.name)
 
 
+def _evidence_snapshot() -> dict[str, bytes]:
+    """Read the evidence tree once.
+
+    Each test needs its own mutable copy, but re-reading several hundred files
+    from the mount per test made the suite unusable.
+    """
+    blobs: dict[str, bytes] = {}
+    for rel in ("governance/evidence-policy.json", ".payment-platform/skill-package/manifest.json"):
+        blobs[rel] = (REAL_ROOT / rel).read_bytes()
+    for path in sorted((REAL_ROOT / "evidence").rglob("*")):
+        if path.is_file():
+            blobs[path.relative_to(REAL_ROOT).as_posix()] = path.read_bytes()
+    for completion in sorted((REAL_ROOT / "evidence" / "completion").glob("*.json")):
+        data = json.loads(completion.read_text(encoding="utf-8"))
+        referenced = [a["path"] for a in data["artifacts"]]
+        declared = REAL_ROOT / "evidence" / completion.stem / "artifacts.json"
+        if declared.is_file():
+            referenced += json.loads(declared.read_text(encoding="utf-8"))
+        trace = REAL_ROOT / "evidence" / completion.stem / "traceability.json"
+        if trace.is_file():
+            doc = json.loads(trace.read_text(encoding="utf-8"))
+            referenced += [e["ref"] for e in doc.get("code", []) if "ref" in e]
+            referenced += [e["ref"] for e in doc.get("tests", []) if "ref" in e]
+            referenced += [e["path"] for e in doc.get("evidence", []) if "path" in e]
+        for rel in referenced:
+            source = REAL_ROOT / rel
+            if source.is_file() and rel not in blobs:
+                blobs[rel] = source.read_bytes()
+    return blobs
+
+
+_EVIDENCE_SNAPSHOT = _evidence_snapshot()
+
+
 class EvidenceRejects(FixtureTestCase):
     """Mutations run against a copy of the real evidence tree."""
 
     def setUp(self) -> None:
         super().setUp()
-        import shutil
-        for rel in ("evidence", "governance/evidence-policy.json",
-                    ".payment-platform/skill-package/manifest.json"):
-            source = REAL_ROOT / rel
-            target = self.fixture.root / rel
-            target.parent.mkdir(parents=True, exist_ok=True)
-            if source.is_dir():
-                shutil.copytree(source, target, dirs_exist_ok=True)
-            else:
-                shutil.copyfile(source, target)
-        # Artefact and traceability paths are repository-relative; mirror the
-        # files they name so the fixture is a faithful copy rather than a
-        # truncated one that would fail for the wrong reason.
-        for path in sorted((self.fixture.root / "evidence" / "completion").glob("*.json")):
-            data = json.loads(path.read_text(encoding="utf-8"))
-            referenced = [a["path"] for a in data["artifacts"]]
-            trace = self.fixture.root / "evidence" / path.stem / "traceability.json"
-            if trace.is_file():
-                doc = json.loads(trace.read_text(encoding="utf-8"))
-                referenced += [e["ref"] for e in doc.get("code", []) if "ref" in e]
-                referenced += [e["ref"] for e in doc.get("tests", []) if "ref" in e]
-                referenced += [e["path"] for e in doc.get("evidence", []) if "path" in e]
-            for rel in referenced:
-                source, dest = REAL_ROOT / rel, self.fixture.root / rel
-                if source.is_file() and not dest.exists():
-                    dest.parent.mkdir(parents=True, exist_ok=True)
-                    dest.write_bytes(source.read_bytes())
+        for rel, blob in _EVIDENCE_SNAPSHOT.items():
+            dest = self.fixture.root / rel
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(blob)
 
     def _validate(self):
         return evidence.validate(self.fixture.root, Budget(seconds=180).start())
@@ -81,7 +92,7 @@ class EvidenceRejects(FixtureTestCase):
         self.assertIn("EVIDENCE_TRACE_DANGLING", self.codes(self._validate()))
 
     def test_rejects_missing_required_evidence_file(self):
-        (self.fixture.root / "evidence/B01/artifacts.json").unlink()
+        self.fixture.remove("evidence/B01/artifacts.json")
         self.assertIn("EVIDENCE_FILE", self.codes(self._validate()))
 
     def test_rejects_missing_evidence_directory(self):
@@ -111,10 +122,40 @@ class EvidenceRejects(FixtureTestCase):
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         self.assertIn("EVIDENCE_COMMAND_CLASS", self.codes(self._validate()))
 
-    def test_rejects_artifact_list_out_of_sync_with_completion(self):
+    def _respec(self, batch: str, shards: list[str]) -> None:
+        path = self.fixture.root / f"evidence/{batch}/commands.spec.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        data["commands"] = [c for c in data["commands"] if "--shard" not in c["command"]] + [
+            {"purpose": "runtime fail-closed proof", "expect": 0,
+             "command": f"python3 scripts/negative-controls.py --shard {label}",
+             "save_to": f"runtime/nc-{label.replace('/', '-')}.log"} for label in shards]
+        self.fixture.write(f"evidence/{batch}/commands.spec.json",
+                           json.dumps(data, ensure_ascii=False, indent=2))
+
+    def test_accepts_a_complete_shard_set(self):
+        # The rule must not fire on the legitimate case, otherwise the next two
+        # tests would pass no matter what the validator does.
+        self._respec("B04", ["1/3", "2/3", "3/3"])
+        codes = self.codes(self._validate())
+        self.assertNotIn("EVIDENCE_SHARD_INCOMPLETE", codes)
+        self.assertNotIn("EVIDENCE_SHARD_MIXED", codes)
+
+    def test_rejects_a_shard_set_with_a_hole(self):
+        self._respec("B04", ["1/3", "3/3"])
+        self.assertIn("EVIDENCE_SHARD_INCOMPLETE", self.codes(self._validate()))
+
+    def test_rejects_shards_from_different_partitions(self):
+        self._respec("B04", ["1/2", "2/3"])
+        self.assertIn("EVIDENCE_SHARD_MIXED", self.codes(self._validate()))
+
+    def test_rejects_a_declared_artefact_that_does_not_exist(self):
+        # Named for what it checks. The earlier name said "out of sync with
+        # completion", which is compared in Programme.problems(), not here —
+        # and it only passed because the file it used happened to be missing
+        # from the fixture.
         path = self.fixture.root / "evidence/B00/artifacts.json"
         data = json.loads(path.read_text(encoding="utf-8"))
-        data.append("docs/EVIDENCE.md")
+        data.append("docs/this-artefact-was-never-produced.md")
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         self.assertIn("EVIDENCE_ARTIFACT", self.codes(self._validate()))
 
@@ -131,3 +172,75 @@ class EvidenceRejects(FixtureTestCase):
         path = self.fixture.root / "evidence/completion/B999.json"
         path.write_text(json.dumps({"batch_id": "B999"}), encoding="utf-8")
         self.assertIn("EVIDENCE_UNKNOWN_BATCH", self.codes(self._validate()))
+
+
+class ShardFamilyRejects(FixtureTestCase):
+    """Command families are independent exact partitions, not pooled regex hits."""
+
+    SCOPE = "evidence/B06"
+
+    @staticmethod
+    def _entry(command: str) -> dict:
+        return {"command": command, "expect": 0, "save_to": "runtime/result.log"}
+
+    def _codes(self, commands: list[dict]) -> set[str]:
+        return self.codes(evidence._shards(commands, self.SCOPE))
+
+    def _families(self, negative_total: int, summary_total: int) -> list[dict]:
+        commands = [self._entry(
+            f"python3 scripts/negative-controls.py --shard {index}/{negative_total}")
+            for index in range(1, negative_total + 1)]
+        outputs = [f"evidence/B06/test-results/part-{index}.json"
+                   for index in range(1, summary_total + 1)]
+        commands += [self._entry(
+            f"python3 scripts/test-summary.py --shard {index}/{summary_total} "
+            f"--out {outputs[index - 1]}")
+            for index in range(1, summary_total + 1)]
+        commands.append(self._entry(
+            "python3 scripts/test-summary.py --merge " + " ".join(outputs)
+            + " --out evidence/B06/test-results/summary.json"))
+        return commands
+
+    def test_accepts_different_complete_denominators_for_independent_families(self):
+        self.assertEqual(self._codes(self._families(2, 3)), set())
+
+    def test_rejects_duplicate_indices_with_no_hole(self):
+        commands = self._families(2, 2)
+        commands.insert(1, self._entry(
+            "python3 scripts/negative-controls.py --shard 1/2"))
+        self.assertIn("EVIDENCE_SHARD_DUPLICATE", self._codes(commands))
+
+    def test_rejects_an_out_of_range_index(self):
+        commands = self._families(2, 2)
+        commands[1] = self._entry("python3 scripts/negative-controls.py --shard 3/2")
+        self.assertIn("EVIDENCE_SHARD_RANGE", self._codes(commands))
+
+    def test_rejects_a_malformed_shard_value(self):
+        commands = self._families(2, 2)
+        commands[1] = self._entry(
+            "python3 scripts/negative-controls.py --shard not-a-partition")
+        self.assertIn("EVIDENCE_SHARD_MALFORMED", self._codes(commands))
+
+    def test_rejects_mixed_unsharded_and_sharded_mode(self):
+        commands = self._families(2, 2)
+        commands.insert(0, self._entry("python3 scripts/negative-controls.py"))
+        self.assertIn("EVIDENCE_SHARD_MODE", self._codes(commands))
+
+    def test_rejects_merge_before_the_test_runs(self):
+        commands = self._families(2, 2)
+        merge = commands.pop()
+        commands.insert(2, merge)
+        self.assertIn("EVIDENCE_SHARD_MERGE", self._codes(commands))
+
+    def test_rejects_merge_with_an_extra_or_reordered_input(self):
+        commands = self._families(2, 2)
+        commands[-1] = self._entry(
+            "python3 scripts/test-summary.py --merge "
+            "evidence/B06/test-results/part-2.json "
+            "evidence/B06/test-results/part-1.json "
+            "--out evidence/B06/test-results/summary.json")
+        self.assertIn("EVIDENCE_SHARD_MERGE", self._codes(commands))
+
+    def test_rejects_sharded_test_run_without_one_exact_merge(self):
+        commands = self._families(2, 2)[:-1]
+        self.assertIn("EVIDENCE_SHARD_MERGE", self._codes(commands))

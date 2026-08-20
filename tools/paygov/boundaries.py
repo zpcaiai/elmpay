@@ -22,6 +22,11 @@ TESTS_DIR = Path("tools/tests")
 AGGREGATES = {"all-modules", "apps", "connectors", "services"}
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("service-boundaries", "B01")
+
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     where = str(PATH)

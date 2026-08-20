@@ -1,0 +1,704 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-events.py; do not edit by hand",
+  "delivery": {
+    "business_guarantee": "effectively_once",
+    "policy": "传输层只承诺至少一次。恰好一次的**业务效果**由 inbox 去重 + 消费方幂等达成，而不是靠一个声称 exactly-once 的中间件。任何声称传输层恰好一次的设计都要被拒绝。",
+    "transport_guarantee": "at_least_once"
+  },
+  "events": [
+    {
+      "aggregate": "Dispute",
+      "consumers": [
+        "ledger-service",
+        "risk-engine",
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "dispute.lost",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "dispute_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "decided_at",
+          "type": "timestamp"
+        },
+        {
+          "classification": "internal",
+          "name": "amount_minor",
+          "type": "int64"
+        },
+        {
+          "classification": "internal",
+          "name": "currency",
+          "type": "currency"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "Dispute",
+      "consumers": [
+        "ledger-service",
+        "risk-engine",
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "dispute.opened",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "dispute_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "payment_intent_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "evidence_due_at",
+          "type": "timestamp"
+        },
+        {
+          "classification": "internal",
+          "name": "amount_minor",
+          "type": "int64"
+        },
+        {
+          "classification": "internal",
+          "name": "currency",
+          "type": "currency"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "PaymentAttempt",
+      "consumers": [
+        "ledger-service",
+        "risk-engine",
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "payment_attempt.resolved",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "payment_attempt_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "payment_intent_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "resolved_by",
+          "type": "enum"
+        },
+        {
+          "classification": "internal",
+          "name": "resolved_at",
+          "type": "timestamp"
+        },
+        {
+          "classification": "internal",
+          "name": "amount_minor",
+          "type": "int64"
+        },
+        {
+          "classification": "internal",
+          "name": "currency",
+          "type": "currency"
+        }
+      ],
+      "producer": "reconciliation-service",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "PaymentAttempt",
+      "consumers": [
+        "ledger-service",
+        "reconciliation-service",
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "payment_attempt.succeeded",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "payment_attempt_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "payment_intent_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "provider",
+          "type": "string"
+        },
+        {
+          "classification": "internal",
+          "name": "succeeded_at",
+          "type": "timestamp"
+        },
+        {
+          "classification": "internal",
+          "name": "amount_minor",
+          "type": "int64"
+        },
+        {
+          "classification": "internal",
+          "name": "currency",
+          "type": "currency"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "PaymentAttempt",
+      "consumers": [
+        "reconciliation-service",
+        "worker-scheduler"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "payment_attempt.unresolved",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "payment_attempt_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "payment_intent_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "last_seen_at",
+          "type": "timestamp"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "PaymentIntent",
+      "consumers": [
+        "ledger-service",
+        "risk-engine",
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "payment_intent.authorized",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "payment_intent_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "project_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "provider",
+          "type": "string"
+        },
+        {
+          "classification": "internal",
+          "name": "authorized_at",
+          "type": "timestamp"
+        },
+        {
+          "classification": "internal",
+          "name": "amount_minor",
+          "type": "int64"
+        },
+        {
+          "classification": "internal",
+          "name": "currency",
+          "type": "currency"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "PaymentIntent",
+      "consumers": [
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "payment_intent.canceled",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "payment_intent_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "canceled_at",
+          "type": "timestamp"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "PaymentIntent",
+      "consumers": [
+        "ledger-service",
+        "reconciliation-service",
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "payment_intent.captured",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "payment_intent_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "project_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "provider",
+          "type": "string"
+        },
+        {
+          "classification": "internal",
+          "name": "captured_at",
+          "type": "timestamp"
+        },
+        {
+          "classification": "internal",
+          "name": "amount_minor",
+          "type": "int64"
+        },
+        {
+          "classification": "internal",
+          "name": "currency",
+          "type": "currency"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "PaymentIntent",
+      "consumers": [
+        "risk-engine",
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "payment_intent.failed",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "payment_intent_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "failure_code",
+          "type": "enum"
+        },
+        {
+          "classification": "internal",
+          "name": "failed_at",
+          "type": "timestamp"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "PaymentIntent",
+      "consumers": [
+        "ledger-service",
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "payment_intent.voided",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "payment_intent_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "voided_at",
+          "type": "timestamp"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "ReconciliationException",
+      "consumers": [
+        "risk-engine",
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "reconciliation.exception_opened",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "exception_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "run_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "difference_kind",
+          "type": "enum"
+        },
+        {
+          "classification": "internal",
+          "name": "amount_minor",
+          "type": "int64"
+        },
+        {
+          "classification": "internal",
+          "name": "currency",
+          "type": "currency"
+        }
+      ],
+      "producer": "reconciliation-service",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "Refund",
+      "consumers": [
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "refund.failed",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "refund_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "failure_code",
+          "type": "enum"
+        },
+        {
+          "classification": "internal",
+          "name": "failed_at",
+          "type": "timestamp"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "Refund",
+      "consumers": [
+        "ledger-service",
+        "reconciliation-service",
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "refund.succeeded",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "refund_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "payment_intent_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "refunded_at",
+          "type": "timestamp"
+        },
+        {
+          "classification": "internal",
+          "name": "amount_minor",
+          "type": "int64"
+        },
+        {
+          "classification": "internal",
+          "name": "currency",
+          "type": "currency"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "Subscription",
+      "consumers": [
+        "webhook-delivery",
+        "worker-scheduler"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
+      "name": "subscription.past_due",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "subscription_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "period",
+          "type": "string"
+        },
+        {
+          "classification": "internal",
+          "name": "failed_at",
+          "type": "timestamp"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    }
+  ],
+  "ordering": {
+    "key_field": "aggregate_id",
+    "policy": "乱序容忍以 revision 为准，不以 occurred_at 为准：时钟会漂移，序号不会。",
+    "revision_gap_limit": 100,
+    "sequence_field": "revision",
+    "tolerances": [
+      "idempotent_apply",
+      "revision_guarded",
+      "buffer_and_reorder"
+    ]
+  },
+  "schema_version": "1.0.0",
+  "versioning": {
+    "parallel_days": 180,
+    "policy": "事件版本只增不改。同一版本内只允许新增可选字段；删字段、改类型、改语义必须发新版本，并与旧版本并行至少 180 天。"
+  }
+}

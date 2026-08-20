@@ -1,0 +1,243 @@
+{
+  "batch_id": "B24",
+  "requirements": [
+    {
+      "id": "B24-R1",
+      "statement": "支持公司、租户、项目、环境四级隔离与稳定的调用身份",
+      "source": "batches/B24.md 目标"
+    },
+    {
+      "id": "B24-R2",
+      "statement": "标识符不透明、不可变、全局唯一",
+      "source": "batches/B24.md 目标"
+    },
+    {
+      "id": "B24-R3",
+      "statement": "环境之间不共享密钥与数据；测试凭据在 live 无效",
+      "source": "policies/non-negotiables.md#7"
+    },
+    {
+      "id": "B24-R4",
+      "statement": "生命周期状态机：草稿→活跃→停用→注销→关闭，转移有前置条件",
+      "source": "batches/B24.md 目标"
+    },
+    {
+      "id": "B24-R5",
+      "statement": "停用停止新支付但保留退款、回调与结算（在途资金必须能落地）",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B24-R6",
+      "statement": "关闭必须先完成结算再销毁租户 KEK；账本与审计独立留存",
+      "source": "policies/non-negotiables.md#6"
+    },
+    {
+      "id": "B24-R7",
+      "statement": "隔离由行级安全 + 每租户 KEK + 禁止跨租户引用共同保证",
+      "source": "governance/data-architecture.json"
+    },
+    {
+      "id": "B24-R8",
+      "statement": "配额按作用域设定，有默认值与硬上限",
+      "source": "batches/B24.md 实施要求"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/tenant-registry.json",
+      "requirements": [
+        "B24-R1",
+        "B24-R2",
+        "B24-R3",
+        "B24-R4",
+        "B24-R5",
+        "B24-R6",
+        "B24-R7",
+        "B24-R8"
+      ]
+    },
+    {
+      "ref": "tools/paygov/tenants.py",
+      "requirements": [
+        "B24-R1",
+        "B24-R2",
+        "B24-R3",
+        "B24-R4",
+        "B24-R5",
+        "B24-R6",
+        "B24-R7",
+        "B24-R8"
+      ]
+    },
+    {
+      "ref": "libs/registry/reference/tenants.py",
+      "requirements": [
+        "B24-R3",
+        "B24-R4",
+        "B24-R5",
+        "B24-R6",
+        "B24-R8"
+      ]
+    },
+    {
+      "ref": "tools/paygov/tenantsgen.py",
+      "requirements": [
+        "B24-R1",
+        "B24-R5"
+      ]
+    },
+    {
+      "ref": "scripts/render-tenants.py",
+      "requirements": [
+        "B24-R1"
+      ]
+    },
+    {
+      "ref": "scripts/tenants-smoke.py",
+      "requirements": [
+        "B24-R3",
+        "B24-R4",
+        "B24-R5",
+        "B24-R6",
+        "B24-R8"
+      ]
+    },
+    {
+      "ref": "contracts/tenancy/registry.json",
+      "requirements": [
+        "B24-R1",
+        "B24-R4"
+      ]
+    },
+    {
+      "ref": "docs/tenancy/TENANT_REGISTRY.md",
+      "requirements": [
+        "B24-R1",
+        "B24-R5"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b24_tenants.py",
+      "requirements": [
+        "B24-R1",
+        "B24-R2",
+        "B24-R3",
+        "B24-R4",
+        "B24-R5",
+        "B24-R6",
+        "B24-R7",
+        "B24-R8"
+      ],
+      "cases": 90
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-06",
+      "implemented_by": [
+        "governance/tenant-registry.json",
+        "tools/paygov/tenants.py",
+        "libs/registry/reference/tenants.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b24_tenants.py",
+        "scripts/tenants-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/tenant-registry.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b24_tenants.py",
+        "scripts/tenants-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-07",
+      "implemented_by": [
+        "governance/tenant-registry.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b24_tenants.py"
+      ]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/tenant-registry.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b24_tenants.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/tenant-registry.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b24_tenants.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/tenant-registry.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b24_tenants.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B24/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B24/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B24/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B24/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B24/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B24/runtime/tenants-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B24/runtime/tenants-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B24/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B24/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B24/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B24.json",
+      "kind": "completion"
+    }
+  ]
+}

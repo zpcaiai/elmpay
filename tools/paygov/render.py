@@ -158,7 +158,57 @@ def version_catalog_markdown(root: Path, budget: Budget | None = None) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def domain_model_markdown(root: Path, budget: Budget | None = None) -> str:
+    budget = budget or Budget(seconds=60).start()
+    model = load_json(root / "governance/domain-model.json", budget)
+    lines = [GENERATED_BANNER.format(source="governance/domain-model.json"),
+             "# 支付领域模型（B08）", "",
+             f"实体 {len(model['entities'])} 个 · "
+             f"字段 {sum(len(e['fields']) for e in model['entities'])} 个 · "
+             f"不变量 {sum(len(e['invariants']) for e in model['entities'])} 条。", "",
+             "本模型是**语言中立的规范定义**；PostgreSQL DDL 由它生成，",
+             "Java 类型与 API 契约在 B11 生成。禁止在生成物中手工新增字段。", ""]
+    lines.append(_table(["实体", "所属模块", "表", "租户隔离", "用途"],
+                        [[e["name"], f'`{e["module"]}`', f'`{e["table"]}`',
+                          "是" if e["tenant_scoped"] else "否", e["purpose"]]
+                         for e in model["entities"]]))
+    for entity in model["entities"]:
+        lines += ["", f'## {entity["name"]}　`{entity["table"]}`', "", entity["purpose"], ""]
+        rows = []
+        for field in entity["fields"]:
+            extra = ""
+            if field["type"] == "enum":
+                extra = " ".join(field["enum"])
+            elif field["type"] == "reference":
+                extra = f'→ {field["target"]}'
+            rows.append([f'`{field["name"]}`', f'`{field["type"]}`',
+                         "可空" if field.get("nullable") else "非空",
+                         extra, field.get("semantics", "")])
+        lines.append(_table(["字段", "类型", "可空", "取值/引用", "语义"], rows))
+        if entity["states"]:
+            lines += ["", "状态：" + "、".join(f'`{s}`' for s in entity["states"])]
+        lines += ["", "不变量："]
+        lines += [f"- {inv}" for inv in entity["invariants"]]
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def glossary_markdown(root: Path, budget: Budget | None = None) -> str:
+    budget = budget or Budget(seconds=60).start()
+    doc = load_json(root / "governance/glossary.json", budget)
+    lines = [GENERATED_BANNER.format(source="governance/glossary.json"),
+             "# 统一语言词表（B08）", "", doc.get("note", ""), ""]
+    for kind, title in (("entity", "实体"), ("state", "状态"), ("concept", "核心概念")):
+        rows = [[t["term_en"], t["term_cn"], t["definition"]]
+                for t in doc["terms"] if t["kind"] == kind]
+        lines += [f"## {title}", ""]
+        lines.append(_table(["English", "中文", "定义"], rows))
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 TARGETS: dict[str, callable] = {
+    "docs/domain/DOMAIN_MODEL.md": domain_model_markdown,
+    "docs/domain/GLOSSARY.md": glossary_markdown,
     "docs/toolchain/VERSION_CATALOG.md": version_catalog_markdown,
     "docs/traceability/MATRIX.md": trace_mod.matrix_markdown,
     "docs/requirements/REQUIREMENTS_BASELINE.md": requirements_markdown,

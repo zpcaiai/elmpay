@@ -118,6 +118,302 @@
       "owner": "payment-platform-architecture",
       "validator": "ssot",
       "generates": []
+    },
+    {
+      "id": "domain-model",
+      "path": "governance/domain-model.json",
+      "batch": "B08",
+      "owner": "payment-platform-architecture",
+      "validator": "domain-model",
+      "generates": [
+        "docs/domain/DOMAIN_MODEL.md",
+        "contracts/sql/schema.sql"
+      ]
+    },
+    {
+      "id": "glossary",
+      "path": "governance/glossary.json",
+      "batch": "B08",
+      "owner": "payment-platform-architecture",
+      "validator": "domain-model",
+      "generates": [
+        "docs/domain/GLOSSARY.md"
+      ]
+    },
+    {
+      "id": "currency-metadata",
+      "path": "governance/currency-metadata.json",
+      "batch": "B09",
+      "owner": "payment-platform-architecture",
+      "validator": "money-model",
+      "generates": [
+        "contracts/money/vectors.json"
+      ]
+    },
+    {
+      "id": "state-machines",
+      "path": "governance/state-machines.json",
+      "batch": "B10",
+      "owner": "payment-platform-architecture",
+      "validator": "state-machines",
+      "generates": [
+        "docs/domain/STATE_MACHINES.md"
+      ]
+    },
+    {
+      "id": "api-contract",
+      "path": "governance/api-contract.json",
+      "batch": "B11",
+      "owner": "payment-platform-architecture",
+      "validator": "api-contract",
+      "generates": [
+        "contracts/api/openapi.json",
+        "contracts/api/errors.json",
+        "docs/api/API_CONTRACT.md"
+      ]
+    },
+    {
+      "id": "event-catalog",
+      "path": "governance/event-catalog.json",
+      "batch": "B12",
+      "owner": "payment-platform-architecture",
+      "validator": "event-catalog",
+      "generates": [
+        "contracts/events/catalog.json",
+        "docs/events/EVENT_CATALOG.md"
+      ]
+    },
+    {
+      "id": "data-architecture",
+      "path": "governance/data-architecture.json",
+      "batch": "B13",
+      "owner": "payment-platform-architecture",
+      "validator": "data-architecture",
+      "generates": [
+        "contracts/sql/rls.sql",
+        "contracts/sql/partitions.sql",
+        "docs/data/DATA_ARCHITECTURE.md"
+      ]
+    },
+    {
+      "id": "service-topology",
+      "path": "governance/service-topology.json",
+      "batch": "B14",
+      "owner": "payment-platform-architecture",
+      "validator": "service-topology",
+      "generates": [
+        "contracts/topology/graph.json",
+        "docs/architecture/SERVICE_TOPOLOGY.md"
+      ]
+    },
+    {
+      "id": "migration-plan",
+      "path": "governance/migration-plan.json",
+      "batch": "B15",
+      "owner": "payment-platform-architecture",
+      "validator": "migration-plan",
+      "generates": [
+        "contracts/migration/plan.json",
+        "docs/migration/MIGRATION_RUNBOOK.md"
+      ]
+    },
+    {
+      "id": "zero-trust",
+      "path": "governance/zero-trust.json",
+      "batch": "B16",
+      "owner": "payment-platform-architecture",
+      "validator": "zero-trust",
+      "generates": [
+        "contracts/security/zero-trust-matrix.json",
+        "docs/security/ZERO_TRUST.md"
+      ]
+    },
+    {
+      "id": "identity",
+      "path": "governance/identity.json",
+      "batch": "B17",
+      "owner": "payment-platform-architecture",
+      "validator": "identity",
+      "generates": [
+        "contracts/security/identity.json",
+        "docs/security/IDENTITY.md"
+      ]
+    },
+    {
+      "id": "mfa",
+      "path": "governance/mfa.json",
+      "batch": "B18",
+      "owner": "payment-platform-architecture",
+      "validator": "mfa",
+      "generates": [
+        "contracts/security/mfa-matrix.json",
+        "docs/security/MFA.md"
+      ]
+    },
+    {
+      "id": "authorization",
+      "path": "governance/authorization.json",
+      "batch": "B19",
+      "owner": "payment-platform-architecture",
+      "validator": "authz",
+      "generates": [
+        "contracts/security/authorization-matrix.json",
+        "docs/security/AUTHORIZATION.md"
+      ]
+    },
+    {
+      "id": "key-management",
+      "path": "governance/key-management.json",
+      "batch": "B20",
+      "owner": "payment-platform-architecture",
+      "validator": "key-management",
+      "generates": [
+        "contracts/security/key-inventory.json",
+        "docs/security/KEY_MANAGEMENT.md"
+      ]
+    },
+    {
+      "id": "certificates",
+      "path": "governance/certificates.json",
+      "batch": "B21",
+      "owner": "platform-security",
+      "validator": "certificates",
+      "generates": [
+        "contracts/security/certificate-inventory.json",
+        "docs/security/CERTIFICATE_LIFECYCLE.md"
+      ]
+    },
+    {
+      "id": "security-baseline",
+      "path": "governance/security-baseline.json",
+      "batch": "B22",
+      "owner": "platform-security",
+      "validator": "security-baseline",
+      "generates": [
+        "contracts/security/baseline-matrix.json",
+        "docs/security/SECURITY_BASELINE.md"
+      ]
+    },
+    {
+      "id": "audit-log",
+      "path": "governance/audit-log.json",
+      "batch": "B23",
+      "owner": "platform-security",
+      "validator": "audit-log",
+      "generates": [
+        "contracts/security/audit-contract.json",
+        "docs/security/AUDIT_LOG.md"
+      ]
+    },
+    {
+      "id": "tenant-registry",
+      "path": "governance/tenant-registry.json",
+      "batch": "B24",
+      "owner": "payment-platform-architecture",
+      "validator": "tenant-registry",
+      "generates": [
+        "contracts/tenancy/registry.json",
+        "docs/tenancy/TENANT_REGISTRY.md"
+      ]
+    },
+    {
+      "id": "merchant-profile",
+      "path": "governance/merchant-profile.json",
+      "batch": "B25",
+      "owner": "payment-platform-architecture",
+      "validator": "merchant-profile",
+      "generates": [
+        "contracts/merchant/profile-model.json",
+        "docs/merchant/MERCHANT_PROFILE.md"
+      ]
+    },
+    {
+      "id": "provider-accounts",
+      "path": "governance/provider-accounts.json",
+      "batch": "B26",
+      "owner": "payment-platform-architecture",
+      "validator": "provider-accounts",
+      "generates": [
+        "contracts/provider/account-binding.json",
+        "docs/provider/PROVIDER_ACCOUNTS.md"
+      ]
+    },
+    {
+      "id": "provider-capabilities",
+      "path": "governance/provider-capabilities.json",
+      "batch": "B27",
+      "owner": "payment-platform-architecture",
+      "validator": "provider-capabilities",
+      "generates": [
+        "contracts/provider/capability-matrix.json",
+        "docs/provider/PROVIDER_CAPABILITIES.md"
+      ]
+    },
+    {
+      "id": "routing-policy",
+      "path": "governance/routing-policy.json",
+      "batch": "B28",
+      "owner": "payment-platform-architecture",
+      "validator": "routing-policy",
+      "generates": [
+        "contracts/routing/policy.json",
+        "docs/routing/ROUTING_POLICY.md"
+      ]
+    },
+    {
+      "id": "fee-model",
+      "path": "governance/fee-model.json",
+      "batch": "B29",
+      "owner": "payment-platform-architecture",
+      "validator": "fee-model",
+      "generates": [
+        "contracts/pricing/fee-model.json",
+        "docs/pricing/FEE_MODEL.md"
+      ]
+    },
+    {
+      "id": "onboarding-workflow",
+      "path": "governance/onboarding-workflow.json",
+      "batch": "B30",
+      "owner": "payment-platform-architecture",
+      "validator": "onboarding-workflow",
+      "generates": [
+        "contracts/onboarding/workflow.json",
+        "docs/onboarding/ONBOARDING_WORKFLOW.md"
+      ]
+    },
+    {
+      "id": "tenant-isolation",
+      "path": "governance/tenant-isolation.json",
+      "batch": "B31",
+      "owner": "platform-security",
+      "validator": "tenant-isolation",
+      "generates": [
+        "contracts/tenancy/isolation.json",
+        "docs/tenancy/TENANT_ISOLATION.md"
+      ]
+    },
+    {
+      "id": "payment-intent",
+      "path": "governance/payment-intent.json",
+      "batch": "B32",
+      "owner": "payment-platform-architecture",
+      "validator": "payment-intent",
+      "generates": [
+        "contracts/payment/intent.json",
+        "docs/payment/PAYMENT_INTENT.md"
+      ]
+    },
+    {
+      "id": "payment-attempt",
+      "path": "governance/payment-attempt.json",
+      "batch": "B33",
+      "owner": "payment-platform-architecture",
+      "validator": "payment-attempt",
+      "generates": [
+        "contracts/payment/attempt.json",
+        "docs/payment/PAYMENT_ATTEMPT.md"
+      ]
     }
   ],
   "adr_directory": "docs/adr",

@@ -1,0 +1,249 @@
+{
+  "batch_id": "B27",
+  "requirements": [
+    {
+      "id": "B27-R1",
+      "statement": "以渠道×支付方式×地区×币种×设备五维表达能力，未声明的组合默认拒绝",
+      "source": "batches/B27.md 目标"
+    },
+    {
+      "id": "B27-R2",
+      "statement": "不得静默切换渠道或支付方式；不可用时拒绝而不是改道",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B27-R3",
+      "statement": "授权有有效期，过期必须重新授权；捕获不得超过授权金额",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B27-R4",
+      "statement": "退款有窗口且必须原路返回；窗口外不得在产品上承诺退款",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B27-R5",
+      "statement": "争议窗口与答复时限由渠道设定，错过即判负，且不得自动认赔",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B27-R6",
+      "statement": "可收款的币种必须是可结算的币种，且来自受版本控制的货币元数据",
+      "source": "policies/non-negotiables.md#2"
+    },
+    {
+      "id": "B27-R7",
+      "statement": "地区政策不得承诺矩阵无法提供的方式；欧盟强客户认证为法定要求",
+      "source": "batches/B27.md 实施要求"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/provider-capabilities.json",
+      "requirements": [
+        "B27-R1",
+        "B27-R2",
+        "B27-R3",
+        "B27-R4",
+        "B27-R5",
+        "B27-R6",
+        "B27-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/capabilities.py",
+      "requirements": [
+        "B27-R1",
+        "B27-R2",
+        "B27-R3",
+        "B27-R4",
+        "B27-R5",
+        "B27-R6",
+        "B27-R7"
+      ]
+    },
+    {
+      "ref": "libs/capability/reference/matrix.py",
+      "requirements": [
+        "B27-R1",
+        "B27-R2",
+        "B27-R3",
+        "B27-R4",
+        "B27-R5",
+        "B27-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/capabilitiesgen.py",
+      "requirements": [
+        "B27-R1"
+      ]
+    },
+    {
+      "ref": "scripts/render-capabilities.py",
+      "requirements": [
+        "B27-R1"
+      ]
+    },
+    {
+      "ref": "scripts/capabilities-smoke.py",
+      "requirements": [
+        "B27-R1",
+        "B27-R2",
+        "B27-R3",
+        "B27-R4",
+        "B27-R5",
+        "B27-R7"
+      ]
+    },
+    {
+      "ref": "contracts/provider/capability-matrix.json",
+      "requirements": [
+        "B27-R1",
+        "B27-R6"
+      ]
+    },
+    {
+      "ref": "docs/provider/PROVIDER_CAPABILITIES.md",
+      "requirements": [
+        "B27-R1",
+        "B27-R5"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b27_capabilities.py",
+      "requirements": [
+        "B27-R1",
+        "B27-R2",
+        "B27-R3",
+        "B27-R4",
+        "B27-R5",
+        "B27-R6",
+        "B27-R7"
+      ],
+      "cases": 126
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/provider-capabilities.json",
+        "tools/paygov/capabilities.py",
+        "libs/capability/reference/matrix.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b27_capabilities.py",
+        "scripts/capabilities-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "governance/provider-capabilities.json",
+        "tools/paygov/capabilities.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b27_capabilities.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/capabilities.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b27_capabilities.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/provider-capabilities.json",
+        "tools/paygov/capabilities.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b27_capabilities.py"
+      ]
+    },
+    {
+      "id": "NN-14",
+      "implemented_by": [
+        "governance/provider-capabilities.json",
+        "tools/paygov/capabilities.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b27_capabilities.py"
+      ]
+    },
+    {
+      "id": "NN-15",
+      "implemented_by": [
+        "governance/provider-capabilities.json",
+        "tools/paygov/capabilities.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b27_capabilities.py",
+        "scripts/capabilities-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/provider-capabilities.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b27_capabilities.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B27/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B27/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B27/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B27/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B27/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B27/runtime/capabilities-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B27/runtime/capabilities-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B27/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B27/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B27/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B27.json",
+      "kind": "completion"
+    }
+  ]
+}

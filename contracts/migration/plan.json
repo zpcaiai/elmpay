@@ -1,0 +1,75 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-migration.py; do not edit by hand",
+  "binding": {
+    "field": "external_reference",
+    "policy": "平台与旧系统之间只通过 (project_id, external_reference) 绑定。平台不存业务订单号以外的任何订单信息，也不反向查询旧系统的库。",
+    "uniqueness": [
+      "project_id",
+      "external_reference"
+    ]
+  },
+  "phases": [
+    {
+      "authoritative_for_payment_facts": "legacy",
+      "entry_criteria": [
+        "平台已部署且可接收适配层调用",
+        "已完成一个项目的字段映射评审"
+      ],
+      "exit_criteria": [
+        "影子流量覆盖率 ≥ 95%",
+        "连续 7 天零字段映射错误"
+      ],
+      "id": "P0",
+      "rollback_preserves_payment_facts": true,
+      "write_mode": "legacy_only"
+    },
+    {
+      "authoritative_for_payment_facts": "legacy",
+      "entry_criteria": [
+        "P0 出口条件全部满足",
+        "分歧检测已上线",
+        "kill switch 已演练"
+      ],
+      "exit_criteria": [
+        "分歧率 < 0.1% 且连续 14 天无资金类分歧",
+        "对账连续 14 天平"
+      ],
+      "id": "P1",
+      "rollback_preserves_payment_facts": true,
+      "write_mode": "dual_write_legacy_authoritative"
+    },
+    {
+      "authoritative_for_payment_facts": "platform",
+      "entry_criteria": [
+        "P1 出口条件全部满足",
+        "平台已通过独立审查",
+        "回退演练成功"
+      ],
+      "exit_criteria": [
+        "平台连续 30 天 SLO 达标",
+        "分歧率 < 0.01%",
+        "全部渠道已在平台侧完成真实交易"
+      ],
+      "id": "P2",
+      "rollback_preserves_payment_facts": true,
+      "write_mode": "dual_write_platform_authoritative"
+    },
+    {
+      "authoritative_for_payment_facts": "platform",
+      "entry_criteria": [
+        "P2 出口条件全部满足",
+        "旧系统侧支付代码已标记弃用且不再接收新项目"
+      ],
+      "exit_criteria": [
+        "旧系统支付路径连续 90 天零流量",
+        "历史数据回填校验通过"
+      ],
+      "id": "P3",
+      "rollback_preserves_payment_facts": true,
+      "write_mode": "platform_only"
+    }
+  ],
+  "principle": "业务订单留在原项目，只迁移支付事实与支付动作。平台永远不知道商品、库存与履约，这是 NN-01 在迁移期的具体形态。",
+  "provider_calls_per_payment": 1,
+  "schema_version": "1.0.0"
+}

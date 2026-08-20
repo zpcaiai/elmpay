@@ -1,0 +1,194 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-api.py; do not edit by hand",
+  "accepted": [
+    {
+      "actor": "merchant",
+      "event": "merchant.cancel",
+      "expected_to": "canceled",
+      "from": "created",
+      "idempotency_scope": "idempotency_key",
+      "machine": "payment-intent",
+      "operation": "cancel_payment_intent",
+      "replay_is_no_op": true
+    },
+    {
+      "actor": "merchant",
+      "event": "merchant.cancel",
+      "expected_to": "canceled",
+      "from": "requires_action",
+      "idempotency_scope": "idempotency_key",
+      "machine": "payment-intent",
+      "operation": "cancel_payment_intent",
+      "replay_is_no_op": true
+    },
+    {
+      "actor": "merchant",
+      "event": "merchant.void",
+      "expected_to": "canceled",
+      "from": "authorized",
+      "idempotency_scope": "idempotency_key",
+      "machine": "payment-intent",
+      "operation": "void_payment_intent",
+      "replay_is_no_op": true
+    },
+    {
+      "actor": "merchant",
+      "event": "merchant.cancel_refund",
+      "expected_to": "canceled",
+      "from": "requested",
+      "idempotency_scope": "idempotency_key",
+      "machine": "refund",
+      "operation": "cancel_refund",
+      "replay_is_no_op": true
+    },
+    {
+      "actor": "merchant",
+      "event": "merchant.evidence_submitted",
+      "expected_to": "under_review",
+      "from": "evidence_required",
+      "idempotency_scope": "dispute_id+evidence_revision",
+      "machine": "dispute",
+      "operation": "submit_dispute_evidence",
+      "replay_is_no_op": true
+    },
+    {
+      "actor": "customer",
+      "event": "customer.cancel",
+      "expected_to": "canceled",
+      "from": "trialing",
+      "idempotency_scope": "idempotency_key",
+      "machine": "subscription",
+      "operation": "cancel_subscription",
+      "replay_is_no_op": true
+    },
+    {
+      "actor": "customer",
+      "event": "customer.cancel",
+      "expected_to": "canceled",
+      "from": "active",
+      "idempotency_scope": "idempotency_key",
+      "machine": "subscription",
+      "operation": "cancel_subscription",
+      "replay_is_no_op": true
+    },
+    {
+      "actor": "customer",
+      "event": "customer.cancel",
+      "expected_to": "canceled",
+      "from": "past_due",
+      "idempotency_scope": "idempotency_key",
+      "machine": "subscription",
+      "operation": "cancel_subscription",
+      "replay_is_no_op": true
+    }
+  ],
+  "api_version": "v1",
+  "note": "由 governance/{api-contract,state-machines}.json 生成。任何语言实现必须逐条复现这些结果。",
+  "rejected": [
+    {
+      "actor": "provider-event",
+      "event": "provider.nonexistent_event",
+      "expected_rejection": "EVENT_NOT_ALLOWED",
+      "from": "opened",
+      "machine": "dispute",
+      "reason": "未声明的事件不得被静默忽略，必须被拒绝"
+    },
+    {
+      "actor": "merchant",
+      "event": "provider.succeeded",
+      "expected_rejection": "WRONG_ACTOR",
+      "from": "pending",
+      "machine": "payment-attempt",
+      "reason": "只有已验签渠道事件或对账定责可以写入成功状态（NN-03）"
+    },
+    {
+      "actor": "merchant",
+      "event": "reconciliation.matched_success",
+      "expected_rejection": "WRONG_ACTOR",
+      "from": "unknown",
+      "machine": "payment-attempt",
+      "reason": "只有已验签渠道事件或对账定责可以写入成功状态（NN-03）"
+    },
+    {
+      "actor": "provider-event",
+      "event": "provider.nonexistent_event",
+      "expected_rejection": "EVENT_NOT_ALLOWED",
+      "from": "initiated",
+      "machine": "payment-attempt",
+      "reason": "未声明的事件不得被静默忽略，必须被拒绝"
+    },
+    {
+      "actor": "merchant",
+      "event": "provider.authorized",
+      "expected_rejection": "WRONG_ACTOR",
+      "from": "created",
+      "machine": "payment-intent",
+      "reason": "只有已验签渠道事件或对账定责可以写入成功状态（NN-03）"
+    },
+    {
+      "actor": "merchant",
+      "event": "provider.authorized",
+      "expected_rejection": "WRONG_ACTOR",
+      "from": "requires_action",
+      "machine": "payment-intent",
+      "reason": "只有已验签渠道事件或对账定责可以写入成功状态（NN-03）"
+    },
+    {
+      "actor": "merchant",
+      "event": "provider.captured",
+      "expected_rejection": "WRONG_ACTOR",
+      "from": "authorized",
+      "machine": "payment-intent",
+      "reason": "只有已验签渠道事件或对账定责可以写入成功状态（NN-03）"
+    },
+    {
+      "actor": "provider-event",
+      "event": "provider.nonexistent_event",
+      "expected_rejection": "EVENT_NOT_ALLOWED",
+      "from": "created",
+      "machine": "payment-intent",
+      "reason": "未声明的事件不得被静默忽略，必须被拒绝"
+    },
+    {
+      "actor": "provider-event",
+      "event": "provider.nonexistent_event",
+      "expected_rejection": "EVENT_NOT_ALLOWED",
+      "from": "open",
+      "machine": "reconciliation-exception",
+      "reason": "未声明的事件不得被静默忽略，必须被拒绝"
+    },
+    {
+      "actor": "provider-event",
+      "event": "provider.nonexistent_event",
+      "expected_rejection": "EVENT_NOT_ALLOWED",
+      "from": "ingesting",
+      "machine": "reconciliation-run",
+      "reason": "未声明的事件不得被静默忽略，必须被拒绝"
+    },
+    {
+      "actor": "merchant",
+      "event": "provider.refunded",
+      "expected_rejection": "WRONG_ACTOR",
+      "from": "processing",
+      "machine": "refund",
+      "reason": "只有已验签渠道事件或对账定责可以写入成功状态（NN-03）"
+    },
+    {
+      "actor": "provider-event",
+      "event": "provider.nonexistent_event",
+      "expected_rejection": "EVENT_NOT_ALLOWED",
+      "from": "requested",
+      "machine": "refund",
+      "reason": "未声明的事件不得被静默忽略，必须被拒绝"
+    },
+    {
+      "actor": "provider-event",
+      "event": "provider.nonexistent_event",
+      "expected_rejection": "EVENT_NOT_ALLOWED",
+      "from": "trialing",
+      "machine": "subscription",
+      "reason": "未声明的事件不得被静默忽略，必须被拒绝"
+    }
+  ],
+  "schema_version": "1.0.0"
+}

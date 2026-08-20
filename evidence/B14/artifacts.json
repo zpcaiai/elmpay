@@ -1,0 +1,12 @@
+[
+  "contracts/sql/schema.sql",
+  "contracts/topology/graph.json",
+  "docs/architecture/SERVICE_TOPOLOGY.md",
+  "governance/service-topology.json",
+  "scripts/render-topology.py",
+  "scripts/topology-smoke.py",
+  "tools/paygov/domaingen.py",
+  "tools/paygov/topogen.py",
+  "tools/paygov/topology.py",
+  "tools/tests/test_b14_topology.py"
+]

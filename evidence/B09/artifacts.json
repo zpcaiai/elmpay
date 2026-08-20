@@ -1,0 +1,11 @@
+[
+  "contracts/money/vectors.json",
+  "governance/currency-metadata.json",
+  "libs/money/reference/__init__.py",
+  "libs/money/reference/money.py",
+  "scripts/money-smoke.py",
+  "scripts/render-money-vectors.py",
+  "tools/paygov/money.py",
+  "tools/paygov/moneygen.py",
+  "tools/tests/test_b09_money.py"
+]

@@ -60,6 +60,11 @@ class PipelineHappyPath(FixtureTestCase):
     def test_generation_is_deterministic(self):
         self.assertEqual(cigen.render_all(REAL_ROOT), cigen.render_all(REAL_ROOT))
 
+    def test_governance_verifies_the_skill_package_and_installed_mirrors(self):
+        doc = self.fixture.read("governance/ci-pipeline.json")
+        commands = set(next(s for s in doc["stages"] if s["id"] == "governance")["commands"])
+        self.assertTrue(ci.REQUIRED_SKILL_COMMANDS <= commands)
+
     def test_sign_script_refuses_to_emit_unsigned_artifacts(self):
         text = cigen.sign_script(REAL_ROOT)
         self.assertIn("refusing to emit an unsigned artefact", text)
@@ -153,5 +158,13 @@ class PipelineRejects(FixtureTestCase):
         self.assertIn("CI_DRIFT", self.codes(self._validate()))
 
     def test_rejects_missing_workflow(self):
-        (self.fixture.root / ".github/workflows/ci.yml").unlink()
+        self.fixture.remove(".github/workflows/ci.yml")
         self.assertIn("CI_MISSING", self.codes(self._validate()))
+
+    def test_rejects_skipping_the_installed_skill_mirror_check(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda d: self._stage(d, "governance").__setitem__(
+                "commands", [command for command in self._stage(d, "governance")["commands"]
+                             if ".agents/skills" not in command]))
+        self.assertIn("CI_SKILL_PACKAGE", self.codes(self._validate()))

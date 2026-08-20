@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,7 +42,7 @@ def crosscheck(programme: Programme) -> int:
 
     _, raw_status = upstream("status")
     theirs = json.loads(raw_status)
-    ours = programme.status()
+    ours = programme.status(extended=False)
     for key in ("completed", "total", "remaining", "ready"):
         if theirs[key] != ours[key]:
             mismatches.append(f"status.{key}: upstream={theirs[key]!r} local={ours[key]!r}")
@@ -52,22 +54,38 @@ def crosscheck(programme: Programme) -> int:
         mismatches.append(f"ready: upstream={upstream_ready} local={ours['ready']}")
 
     cache: dict[str, bool] = {}
-    checked = 0
+    extra: list[str] = []
+    wanted: list[tuple[str, bool]] = []
     for batch in programme.order:
-        local_valid = programme.valid(batch, cache)
+        # Compare like with like: the differential uses only the checks the
+        # vendored orchestrator also performs. Local-only findings are reported
+        # separately rather than counted as disagreement.
+        local_valid = programme.valid(batch, cache, extended=False)
+        for finding in programme.extended_only_problems(batch):
+            extra.append(f"{batch}: {finding}")
         # Only batches with a completion file can plausibly be valid; validating
         # all 128 upstream would re-hash the tree 128 times for no information.
         if not programme.completion_path(batch).is_file() and not local_valid:
             continue
-        code, _ = upstream("validate", batch)
-        checked += 1
+        wanted.append((batch, local_valid))
+
+    # One upstream interpreter per batch, run concurrently. The loop is entirely
+    # subprocess wait time, so threads are the right tool and the GIL is not in
+    # the way; serially this grew ~0.5s per completed batch and was on course to
+    # exceed the environment's per-step ceiling on its own well before B128.
+    # Order is restored before reporting so the output stays deterministic.
+    with ThreadPoolExecutor(max_workers=int(os.environ.get("PAYGOV_CROSSCHECK_WORKERS") or min(4, os.cpu_count() or 2))) as pool:
+        codes = list(pool.map(lambda item: upstream("validate", item[0])[0], wanted))
+    for (batch, local_valid), code in zip(wanted, codes):
         if (code == 0) != local_valid:
             mismatches.append(f"validate {batch}: upstream_ok={code == 0} local_ok={local_valid}")
-    print(f"cross-checked {checked} batch(es) individually")
+    print(f"cross-checked {len(wanted)} batch(es) individually")
 
-    print(f"\nmismatches={len(mismatches)}")
+    print(f"\nmismatches={len(mismatches)} local_only_findings={len(extra)}")
     for mismatch in mismatches:
         print(f"  MISMATCH: {mismatch}")
+    for finding in extra:
+        print(f"  LOCAL-ONLY (stricter than upstream): {finding}")
     return 0 if not mismatches else 2
 
 

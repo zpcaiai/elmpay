@@ -1,0 +1,242 @@
+{
+  "batch_id": "B17",
+  "requirements": [
+    {
+      "id": "B17-R1",
+      "statement": "实现 OIDC/OAuth2，只允许授权码 + PKCE，禁止隐式与密码流",
+      "source": "batches/B17.md 目标"
+    },
+    {
+      "id": "B17-R2",
+      "statement": "实现工作负载身份，服务不得持有静态密钥",
+      "source": "policies/non-negotiables.md#7"
+    },
+    {
+      "id": "B17-R3",
+      "statement": "所有凭证短期有效且可撤销",
+      "source": "batches/B17.md 目标"
+    },
+    {
+      "id": "B17-R4",
+      "statement": "会话绑定到持有者密钥，被复制的令牌不可用",
+      "source": "batches/B17.md 目标"
+    },
+    {
+      "id": "B17-R5",
+      "statement": "账号恢复安全：不得降级、不得仅短信、高权限需冷静期与通知",
+      "source": "batches/B17.md 目标"
+    },
+    {
+      "id": "B17-R6",
+      "statement": "每个零信任主体都必须有可撤销的身份来源",
+      "source": "governance/zero-trust.json"
+    },
+    {
+      "id": "B17-R7",
+      "statement": "重定向 URI 精确匹配，防止开放重定向",
+      "source": "policies/non-negotiables.md#10"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/identity.json",
+      "requirements": [
+        "B17-R1",
+        "B17-R2",
+        "B17-R3",
+        "B17-R4",
+        "B17-R5",
+        "B17-R6",
+        "B17-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/identity.py",
+      "requirements": [
+        "B17-R1",
+        "B17-R2",
+        "B17-R3",
+        "B17-R4",
+        "B17-R5",
+        "B17-R6",
+        "B17-R7"
+      ]
+    },
+    {
+      "ref": "libs/identity/reference/tokens.py",
+      "requirements": [
+        "B17-R3",
+        "B17-R4"
+      ]
+    },
+    {
+      "ref": "tools/paygov/idgen.py",
+      "requirements": [
+        "B17-R1",
+        "B17-R3"
+      ]
+    },
+    {
+      "ref": "scripts/render-identity.py",
+      "requirements": [
+        "B17-R1"
+      ]
+    },
+    {
+      "ref": "scripts/identity-smoke.py",
+      "requirements": [
+        "B17-R3",
+        "B17-R4"
+      ]
+    },
+    {
+      "ref": "contracts/security/identity.json",
+      "requirements": [
+        "B17-R1",
+        "B17-R3"
+      ]
+    },
+    {
+      "ref": "docs/security/IDENTITY.md",
+      "requirements": [
+        "B17-R1",
+        "B17-R5"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b17_identity.py",
+      "requirements": [
+        "B17-R1",
+        "B17-R2",
+        "B17-R3",
+        "B17-R4",
+        "B17-R5",
+        "B17-R6",
+        "B17-R7"
+      ],
+      "cases": 87
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-07",
+      "implemented_by": [
+        "governance/identity.json",
+        "tools/paygov/identity.py",
+        "libs/identity/reference/tokens.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b17_identity.py",
+        "scripts/identity-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-10",
+      "implemented_by": [
+        "governance/identity.json",
+        "tools/paygov/identity.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b17_identity.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "governance/identity.json",
+        "tools/paygov/identity.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b17_identity.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/identity.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b17_identity.py"
+      ]
+    },
+    {
+      "id": "CTRL-004",
+      "implemented_by": [
+        "governance/identity.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b17_identity.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/identity.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b17_identity.py"
+      ]
+    },
+    {
+      "id": "CTRL-014",
+      "implemented_by": [
+        "governance/identity.json",
+        "tools/paygov/identity.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b17_identity.py",
+        "scripts/identity-smoke.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B17/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B17/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B17/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B17/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B17/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B17/runtime/identity-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B17/runtime/identity-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B17/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B17/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B17/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B17.json",
+      "kind": "completion"
+    }
+  ]
+}

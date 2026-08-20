@@ -27,6 +27,11 @@ SECRETISH_KEY = re.compile(r"(?i)(password|secret|token|key|credential)")
 REQUIRED_CLASSIFICATION = "synthetic"
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("dev-platform", "B04")
+
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     where = str(PATH)
@@ -133,6 +138,9 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     return problems
 
 
+LOOPBACK = "127.0.0.1"
+
+
 def _ports(service: dict, scope: str, used: dict[str, str]) -> list[Problem]:
     problems: list[Problem] = []
     for port in service.get("ports", []):
@@ -141,6 +149,11 @@ def _ports(service: dict, scope: str, used: dict[str, str]) -> list[Problem]:
             problems.append(Problem("DEV_PORT_CONFLICT", scope,
                                     f"host port {host} is already used by '{used[host]}'", "NN-12"))
         used[host] = scope
+        bind = str(port.get("bind", LOOPBACK))
+        if bind != LOOPBACK:
+            problems.append(Problem("DEV_PORT_EXPOSURE", scope,
+                                    f"port {host} binds to '{bind}'; the local platform must not "
+                                    f"be reachable beyond loopback", "NN-09"))
     return problems
 
 

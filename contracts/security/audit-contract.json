@@ -1,0 +1,117 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-audit.py; do not edit by hand",
+  "anchoring": {
+    "anchor_retention_days": 3650,
+    "interval_minutes": 60,
+    "notes": "哈希链自己**发现不了尾部被截断**：把最后 N 条连同链头一起删掉，剩下的链依然自洽。锚点是唯一的解法——每小时把链头签名并交给外部时间戳机构，于是可被否认的窗口最多一小时（残余风险见 §8）。",
+    "required": true,
+    "signed_by_key": "kek-provider-credentials",
+    "witness": "external_timestamp_authority"
+  },
+  "audited_actions": [
+    "config.write",
+    "cross_tenant_data.read",
+    "ledger.adjust",
+    "payout.approve",
+    "payout_account.write",
+    "reconciliation.approve",
+    "refund.approve",
+    "risk_decision.override",
+    "risk_rule.write"
+  ],
+  "clock": {
+    "max_skew_seconds": 60,
+    "monotonic_sequence_required": true,
+    "notes": "时间来自可信时间源；同一条链上的序号必须单调递增。允许时钟有偏差，但不允许顺序被时钟决定。",
+    "source": "trusted_time_authority"
+  },
+  "event_classes": [
+    {
+      "contains_pii": false,
+      "id": "authz.decision",
+      "retention_days": 2555,
+      "source": "authorization"
+    },
+    {
+      "contains_pii": false,
+      "id": "authz.elevation",
+      "retention_days": 2555,
+      "source": "authorization"
+    },
+    {
+      "contains_pii": false,
+      "id": "config.change",
+      "retention_days": 3650,
+      "source": "platform"
+    },
+    {
+      "contains_pii": true,
+      "id": "data.access",
+      "retention_days": 2555,
+      "source": "platform"
+    },
+    {
+      "contains_pii": true,
+      "id": "identity.authentication",
+      "retention_days": 1095,
+      "source": "identity"
+    },
+    {
+      "contains_pii": false,
+      "id": "key.use",
+      "retention_days": 2555,
+      "source": "kms"
+    },
+    {
+      "contains_pii": false,
+      "id": "money.movement",
+      "retention_days": 3650,
+      "source": "ledger"
+    }
+  ],
+  "hash_chain": {
+    "algorithm": "SHA-256",
+    "canonical_serialisation": "json_sorted_keys_utf8",
+    "includes_previous_hash": true,
+    "includes_sequence": true,
+    "notes": "哈希覆盖序号与前一条哈希：改一条会让它之后的每一条都对不上，删一条会让序号出现空洞。规范化序列化是必需的——同一条记录序列化成两种字节，哈希就不再是同一条记录的哈希。",
+    "per_tenant_chain": true
+  },
+  "records": {
+    "actor_must_be_resolvable": true,
+    "forbidden_fields": [
+      "card_pan",
+      "card_cvv",
+      "password",
+      "authorization_header"
+    ],
+    "notes": "五个 W 加两样东西：判定用的规则版本，以及这次请求的摘要。没有规则版本，事后只能回答「现在的规则会不会放行」，回答不了「当时为什么放行」。",
+    "records_denials": true,
+    "required_fields": [
+      "event_id",
+      "occurred_at",
+      "tenant_id",
+      "actor",
+      "actor_role",
+      "action",
+      "resource",
+      "decision",
+      "rule_version",
+      "request_digest"
+    ]
+  },
+  "redaction": {
+    "content_hash_retained": true,
+    "notes": "个人信息负载单独加密；删除时销毁负载密钥，保留内容哈希。于是「这条记录存在、内容未被改动」仍可证明，而内容本身已不可读——这是同时满足不可抵赖与被遗忘权的唯一做法。",
+    "payload_crypto_shredding": true,
+    "shredding_preserves_chain": true
+  },
+  "schema_version": "1.0.0",
+  "storage": {
+    "append_only": true,
+    "delete_requires_key_destruction": true,
+    "notes": "存储层只允许追加；应用的凭据不能删除审计记录——能删日志的人和被日志监督的人必须是两拨人。",
+    "separate_credentials_from_application": true,
+    "worm_backend": true
+  }
+}

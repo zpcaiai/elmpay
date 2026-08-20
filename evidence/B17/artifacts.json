@@ -1,0 +1,12 @@
+[
+  "contracts/security/identity.json",
+  "docs/security/IDENTITY.md",
+  "governance/identity.json",
+  "libs/identity/reference/__init__.py",
+  "libs/identity/reference/tokens.py",
+  "scripts/identity-smoke.py",
+  "scripts/render-identity.py",
+  "tools/paygov/identity.py",
+  "tools/paygov/idgen.py",
+  "tools/tests/test_b17_identity.py"
+]

@@ -25,6 +25,11 @@ VALID_STATUS = {"baselined", "deferred"}
 MIN_TEXT = {"title": 4, "statement": 16, "acceptance": 12}
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("requirements", "B01")
+
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     where = str(PATH)

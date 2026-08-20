@@ -36,41 +36,41 @@ def get(name: str) -> Validator:
 
 
 def load_all() -> None:
-    """Import every batch module so its validators self-register."""
-    from . import charter, config, hygiene, modules  # noqa: F401
+    """Discover every validator module in this package.
 
-    _register_once("charter", "B00", charter.validate)
-    _register_once("project-config", "B00", config.validate)
-    _register_once("module-registry", "B00", modules.validate)
-    _register_once("repo-hygiene", "B00", hygiene.validate)
+    This used to be a hand-written list, and that list was the single most
+    expensive line of code in the programme: it is an artefact of B00, so every
+    new batch that added a validator changed B00's artefact digest, invalidated
+    B00's evidence, and cascaded a full re-baseline through every batch that
+    depends on it — which is all of them.
 
-    from . import nonneg  # noqa: F401
-    _register_once("non-negotiables", "B00", nonneg.validate)
+    A module joins the registry by declaring ``VALIDATOR = (name, batch)`` next
+    to its ``validate`` function. Nothing shared is edited, so adding a batch
+    costs one new file. Import failures are deliberately not swallowed: a
+    validator that cannot be imported must break the gate, not quietly vanish
+    from it.
+    """
+    import importlib
+    import pkgutil
 
-    from . import boundaries, docs, requirements  # noqa: F401
-    _register_once("requirements", "B01", requirements.validate)
-    _register_once("service-boundaries", "B01", boundaries.validate)
-    _register_once("generated-docs", "B01", docs.validate)
-
-    from . import adr, threat  # noqa: F401
-    _register_once("adr", "B02", adr.validate)
-    _register_once("threat-model", "B02", threat.validate)
-
-    from . import toolchain  # noqa: F401
-    _register_once("toolchain", "B03", toolchain.validate)
-
-    from . import devplatform  # noqa: F401
-    _register_once("dev-platform", "B04", devplatform.validate)
-
-    from . import ci  # noqa: F401
-    _register_once("ci-pipeline", "B05", ci.validate)
-
-    from . import evidence  # noqa: F401
-    _register_once("evidence", "B06", evidence.validate)
-
-    from . import ssot, traceability  # noqa: F401
-    _register_once("ssot", "B07", ssot.validate)
-    _register_once("traceability", "B07", traceability.validate)
+    found: list[tuple[str, str, Validator]] = []
+    for info in sorted(pkgutil.iter_modules([str(Path(__file__).resolve().parent)]),
+                       key=lambda i: i.name):
+        if info.name in {"registry", "cli", "__main__"}:
+            continue
+        module = importlib.import_module(f"{__package__}.{info.name}")
+        declared = getattr(module, "VALIDATOR", None)
+        if declared is None:
+            continue
+        if (not isinstance(declared, tuple) or len(declared) != 2
+                or not all(isinstance(x, str) for x in declared)):
+            raise ValueError(f"{info.name}.VALIDATOR must be (name, batch), got {declared!r}")
+        fn = getattr(module, "validate", None)
+        if not callable(fn):
+            raise ValueError(f"{info.name} declares VALIDATOR but has no validate()")
+        found.append((declared[0], declared[1], fn))
+    for name, batch, fn in sorted(found):
+        _register_once(name, batch, fn)
 
 
 def _register_once(name: str, batch: str, fn: Validator) -> None:

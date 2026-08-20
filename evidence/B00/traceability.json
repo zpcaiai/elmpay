@@ -1,60 +1,340 @@
 {
   "batch_id": "B00",
   "requirements": [
-    {"id": "B00-R1", "statement": "明确平台拥有与不拥有的业务边界，业务订单留在原项目", "source": "batches/B00.md 目标 + policies/non-negotiables.md#1"},
-    {"id": "B00-R2", "statement": "定义交付目标 G1-G7 与衡量方式", "source": "batches/B00.md 目标"},
-    {"id": "B00-R3", "statement": "定义默认部署模式与模块可拆分约束", "source": "architecture/REFERENCE_ARCHITECTURE.md + PROJECT_LAYOUT.md"},
-    {"id": "B00-R4", "statement": "定义风险接受原则、分级、权限与例外期限", "source": "batches/B00.md 目标 + policies/non-negotiables.md#15"},
-    {"id": "B00-R5", "statement": "把 15 条不可绕过红线固化为机器可强制的形式", "source": "policies/non-negotiables.md"},
-    {"id": "B00-R6", "statement": "证据不足即失败：治理工具无“通过但有告警”状态", "source": "policies/non-negotiables.md#12 + policies/definition-of-done.md"},
-    {"id": "B00-R7", "statement": "执行者与独立审查者必须不同（四眼）", "source": "batches/B00.md 完成门#6"}
+    {
+      "id": "B00-R1",
+      "statement": "明确平台拥有与不拥有的业务边界，业务订单留在原项目",
+      "source": "batches/B00.md 目标 + policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B00-R2",
+      "statement": "定义交付目标 G1-G7 与衡量方式",
+      "source": "batches/B00.md 目标"
+    },
+    {
+      "id": "B00-R3",
+      "statement": "定义默认部署模式与模块可拆分约束",
+      "source": "architecture/REFERENCE_ARCHITECTURE.md + PROJECT_LAYOUT.md"
+    },
+    {
+      "id": "B00-R4",
+      "statement": "定义风险接受原则、分级、权限与例外期限",
+      "source": "batches/B00.md 目标 + policies/non-negotiables.md#15"
+    },
+    {
+      "id": "B00-R5",
+      "statement": "把 15 条不可绕过红线固化为机器可强制的形式",
+      "source": "policies/non-negotiables.md"
+    },
+    {
+      "id": "B00-R6",
+      "statement": "证据不足即失败：治理工具无“通过但有告警”状态",
+      "source": "policies/non-negotiables.md#12 + policies/definition-of-done.md"
+    },
+    {
+      "id": "B00-R7",
+      "statement": "执行者与独立审查者必须不同（四眼）",
+      "source": "batches/B00.md 完成门#6"
+    }
   ],
   "code": [
-    {"ref": "docs/charter/PROGRAM_CHARTER.md", "requirements": ["B00-R1", "B00-R2", "B00-R3", "B00-R5"]},
-    {"ref": "docs/charter/RISK_ACCEPTANCE_POLICY.md", "requirements": ["B00-R4"]},
-    {"ref": "docs/charter/DELIVERY_MODEL.md", "requirements": ["B00-R3"]},
-    {"ref": "governance/project-config.json", "requirements": ["B00-R1", "B00-R5", "B00-R7"]},
-    {"ref": "governance/non-negotiables.json", "requirements": ["B00-R5"]},
-    {"ref": "governance/module-registry.json", "requirements": ["B00-R1", "B00-R3"]},
-    {"ref": "tools/paygov/charter.py", "requirements": ["B00-R1", "B00-R2", "B00-R5"]},
-    {"ref": "tools/paygov/config.py", "requirements": ["B00-R1", "B00-R5", "B00-R7"]},
-    {"ref": "tools/paygov/nonneg.py", "requirements": ["B00-R5"]},
-    {"ref": "tools/paygov/modules.py", "requirements": ["B00-R1", "B00-R3"]},
-    {"ref": "tools/paygov/hygiene.py", "requirements": ["B00-R5"]},
-    {"ref": "tools/paygov/cli.py", "requirements": ["B00-R6"]},
-    {"ref": "tools/paygov/repo.py", "requirements": ["B00-R6"]},
-    {"ref": "scripts/record-commands.py", "requirements": ["B00-R6"]},
-    {"ref": "scripts/make-completion.py", "requirements": ["B00-R6", "B00-R7"]},
-    {"ref": "CODEOWNERS", "requirements": ["B00-R7"]}
+    {
+      "ref": "docs/charter/PROGRAM_CHARTER.md",
+      "requirements": [
+        "B00-R1",
+        "B00-R2",
+        "B00-R3",
+        "B00-R5"
+      ]
+    },
+    {
+      "ref": "docs/charter/RISK_ACCEPTANCE_POLICY.md",
+      "requirements": [
+        "B00-R4"
+      ]
+    },
+    {
+      "ref": "docs/charter/DELIVERY_MODEL.md",
+      "requirements": [
+        "B00-R3"
+      ]
+    },
+    {
+      "ref": "governance/project-config.json",
+      "requirements": [
+        "B00-R1",
+        "B00-R5",
+        "B00-R7"
+      ]
+    },
+    {
+      "ref": "governance/non-negotiables.json",
+      "requirements": [
+        "B00-R5"
+      ]
+    },
+    {
+      "ref": "governance/module-registry.json",
+      "requirements": [
+        "B00-R1",
+        "B00-R3"
+      ]
+    },
+    {
+      "ref": "tools/paygov/charter.py",
+      "requirements": [
+        "B00-R1",
+        "B00-R2",
+        "B00-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/config.py",
+      "requirements": [
+        "B00-R1",
+        "B00-R5",
+        "B00-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/nonneg.py",
+      "requirements": [
+        "B00-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/modules.py",
+      "requirements": [
+        "B00-R1",
+        "B00-R3"
+      ]
+    },
+    {
+      "ref": "tools/paygov/hygiene.py",
+      "requirements": [
+        "B00-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/cli.py",
+      "requirements": [
+        "B00-R6"
+      ]
+    },
+    {
+      "ref": "tools/paygov/repo.py",
+      "requirements": [
+        "B00-R6"
+      ]
+    },
+    {
+      "ref": "scripts/record-commands.py",
+      "requirements": [
+        "B00-R6"
+      ]
+    },
+    {
+      "ref": "scripts/make-completion.py",
+      "requirements": [
+        "B00-R6",
+        "B00-R7"
+      ]
+    },
+    {
+      "ref": "CODEOWNERS",
+      "requirements": [
+        "B00-R7"
+      ]
+    }
   ],
   "tests": [
-    {"ref": "tools/tests/test_b00_charter.py", "requirements": ["B00-R1", "B00-R2", "B00-R5"], "cases": 8},
-    {"ref": "tools/tests/test_b00_project_config.py", "requirements": ["B00-R1", "B00-R5", "B00-R7"], "cases": 18},
-    {"ref": "tools/tests/test_b00_nonnegotiables.py", "requirements": ["B00-R5"], "cases": 10},
-    {"ref": "tools/tests/test_b00_module_registry.py", "requirements": ["B00-R1", "B00-R3"], "cases": 17},
-    {"ref": "tools/tests/test_b00_repo_hygiene.py", "requirements": ["B00-R5"], "cases": 11},
-    {"ref": "tools/tests/test_b00_cli.py", "requirements": ["B00-R6"], "cases": 13}
+    {
+      "ref": "tools/tests/test_b00_charter.py",
+      "requirements": [
+        "B00-R1",
+        "B00-R2",
+        "B00-R5"
+      ],
+      "cases": 8
+    },
+    {
+      "ref": "tools/tests/test_b00_project_config.py",
+      "requirements": [
+        "B00-R1",
+        "B00-R5",
+        "B00-R7"
+      ],
+      "cases": 18
+    },
+    {
+      "ref": "tools/tests/test_b00_nonnegotiables.py",
+      "requirements": [
+        "B00-R5"
+      ],
+      "cases": 10
+    },
+    {
+      "ref": "tools/tests/test_b00_module_registry.py",
+      "requirements": [
+        "B00-R1",
+        "B00-R3"
+      ],
+      "cases": 17
+    },
+    {
+      "ref": "tools/tests/test_b00_repo_hygiene.py",
+      "requirements": [
+        "B00-R5"
+      ],
+      "cases": 11
+    },
+    {
+      "ref": "tools/tests/test_b00_cli.py",
+      "requirements": [
+        "B00-R6"
+      ],
+      "cases": 13
+    }
   ],
   "controls": [
-    {"id": "NN-01", "implemented_by": ["governance/module-registry.json", "tools/paygov/modules.py"], "verified_by": ["tools/tests/test_b00_module_registry.py"]},
-    {"id": "NN-02", "implemented_by": ["governance/project-config.json", "tools/paygov/config.py"], "verified_by": ["tools/tests/test_b00_project_config.py"]},
-    {"id": "NN-05", "implemented_by": ["tools/paygov/config.py", "tools/paygov/hygiene.py"], "verified_by": ["tools/tests/test_b00_project_config.py", "tools/tests/test_b00_repo_hygiene.py"]},
-    {"id": "NN-07", "implemented_by": ["tools/paygov/config.py", "tools/paygov/hygiene.py"], "verified_by": ["tools/tests/test_b00_repo_hygiene.py"]},
-    {"id": "NN-09", "implemented_by": ["governance/module-registry.json"], "verified_by": ["tools/tests/test_b00_module_registry.py"]},
-    {"id": "NN-11", "implemented_by": ["CODEOWNERS", "governance/project-config.json"], "verified_by": ["tools/tests/test_b00_project_config.py"]},
-    {"id": "NN-12", "implemented_by": ["tools/paygov/cli.py", "tools/paygov/repo.py"], "verified_by": ["tools/tests/test_b00_cli.py"]},
-    {"id": "NN-13", "implemented_by": ["governance/project-config.json"], "verified_by": ["tools/tests/test_b00_project_config.py"]},
-    {"id": "CTRL-011", "implemented_by": ["scripts/run-governance-tests.sh", "scripts/record-commands.py"], "verified_by": ["evidence/B00/commands.ndjson"]}
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/module-registry.json",
+        "tools/paygov/modules.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b00_module_registry.py"
+      ]
+    },
+    {
+      "id": "NN-02",
+      "implemented_by": [
+        "governance/project-config.json",
+        "tools/paygov/config.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b00_project_config.py"
+      ]
+    },
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "tools/paygov/config.py",
+        "tools/paygov/hygiene.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b00_project_config.py",
+        "tools/tests/test_b00_repo_hygiene.py"
+      ]
+    },
+    {
+      "id": "NN-07",
+      "implemented_by": [
+        "tools/paygov/config.py",
+        "tools/paygov/hygiene.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b00_repo_hygiene.py"
+      ]
+    },
+    {
+      "id": "NN-09",
+      "implemented_by": [
+        "governance/module-registry.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b00_module_registry.py"
+      ]
+    },
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "CODEOWNERS",
+        "governance/project-config.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b00_project_config.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/cli.py",
+        "tools/paygov/repo.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b00_cli.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/project-config.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b00_project_config.py"
+      ]
+    },
+    {
+      "id": "CTRL-011",
+      "implemented_by": [
+        "scripts/run-governance-tests.sh",
+        "scripts/record-commands.py"
+      ],
+      "verified_by": [
+        "evidence/B00/commands.ndjson"
+      ]
+    }
   ],
   "evidence": [
-    {"path": "evidence/B00/plan.md", "kind": "plan"},
-    {"path": "evidence/B00/commands.ndjson", "kind": "commands"},
-    {"path": "evidence/B00/test-results/unittest.log", "kind": "test-results"},
-    {"path": "evidence/B00/test-results/summary.json", "kind": "test-summary"},
-    {"path": "evidence/B00/runtime/validators.txt", "kind": "runtime"},
-    {"path": "evidence/B00/runtime/environment.txt", "kind": "runtime"},
-    {"path": "evidence/B00/security/governance-report.json", "kind": "security"},
-    {"path": "evidence/B00/security/negative-controls.log", "kind": "security"},
-    {"path": "evidence/completion/B00.json", "kind": "completion"}
+    {
+      "path": "evidence/B00/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B00/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B00/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B00/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B00/runtime/validators.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B00/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B00/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B00/security/negative-controls-1of4.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B00/security/negative-controls-2of4.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B00/security/negative-controls-3of4.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B00/security/negative-controls-4of4.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B00.json",
+      "kind": "completion"
+    }
   ]
 }

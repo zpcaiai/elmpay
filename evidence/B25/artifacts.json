@@ -1,0 +1,13 @@
+[
+  "contracts/merchant/profile-model.json",
+  "docs/merchant/MERCHANT_PROFILE.md",
+  "governance/merchant-profile.json",
+  "libs/merchant/reference/__init__.py",
+  "libs/merchant/reference/profile.py",
+  "scripts/merchant-smoke.py",
+  "scripts/render-merchant.py",
+  "tools/negative/b25.py",
+  "tools/paygov/merchant.py",
+  "tools/paygov/merchantgen.py",
+  "tools/tests/test_b25_merchant.py"
+]

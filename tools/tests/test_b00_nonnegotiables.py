@@ -46,6 +46,19 @@ class RegistryRejects(FixtureTestCase):
         self.fixture.mutate(self.REL, weaken)
         self.assertIn("NONNEG_ACTIVE_WITHOUT_TEST", self.codes(self._validate()))
 
+    def test_rejects_enforcement_test_that_is_an_empty_stub(self):
+        """Existence is not enforcement (NONNEG_ENFORCEMENT_EMPTY)."""
+        self.fixture.write("tools/tests/test_b00_module_registry.py", "", encoding="utf-8")
+        self.assertIn("NONNEG_ENFORCEMENT_EMPTY", self.codes(self._validate()))
+
+    def test_rejects_enforcement_test_that_never_names_the_rule(self):
+        """A test that never mentions the rule cannot be shown to enforce it
+        (NONNEG_ENFORCEMENT_UNNAMED)."""
+        path = self.fixture.root / "tools/tests/test_b00_module_registry.py"
+        body = path.read_text(encoding="utf-8").replace("NN-01", "NN-04")
+        path.write_text(body, encoding="utf-8")
+        self.assertIn("NONNEG_ENFORCEMENT_UNNAMED", self.codes(self._validate()))
+
     def test_rejects_enforcement_pointing_at_missing_test(self):
         self.fixture.mutate(self.REL,
                             lambda d: d["rules"][0]["enforced_by"].append("test:test_does_not_exist"))
@@ -60,5 +73,5 @@ class RegistryRejects(FixtureTestCase):
         self.assertIn("NONNEG_SEVERITY", self.codes(self._validate()))
 
     def test_rejects_missing_upstream_policy(self):
-        (self.fixture.root / ".payment-platform/skill-package/policies/non-negotiables.md").unlink()
+        self.fixture.remove(".payment-platform/skill-package/policies/non-negotiables.md")
         self.assertIn("NONNEG_POLICY_MISSING", self.codes(self._validate()))

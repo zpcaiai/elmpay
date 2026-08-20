@@ -1,0 +1,160 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-identity.py; do not edit by hand",
+  "bearer_tokens_allowed": false,
+  "forbidden_algorithms": [
+    "HS256",
+    "HS384",
+    "HS512",
+    "none"
+  ],
+  "oauth": {
+    "allowed_flows": [
+      "authorization_code"
+    ],
+    "forbidden_flows": [
+      "implicit",
+      "resource_owner_password",
+      "device_code_for_admin"
+    ],
+    "nonce_required": true,
+    "pkce_method": "S256",
+    "pkce_required": true,
+    "policy": "只允许授权码 + PKCE(S256)，重定向 URI 精确匹配。隐式流把令牌放进 URL，密码流让每个客户端都摸到用户密码——两者在支付场景里都不可接受。重定向 URI 前缀匹配等于开放重定向（NN-10）。",
+    "redirect_uri_matching": "exact",
+    "state_required": true
+  },
+  "providers": [
+    {
+      "algorithms": [
+        "RS256"
+      ],
+      "audiences": [
+        "artifact-registry",
+        "cloud-control-plane"
+      ],
+      "clock_skew_seconds": 60,
+      "id": "ci-oidc",
+      "issuer": "https://ci.example.invalid",
+      "max_token_minutes": 15
+    },
+    {
+      "algorithms": [
+        "ES256"
+      ],
+      "audiences": [
+        "admin-web"
+      ],
+      "clock_skew_seconds": 60,
+      "id": "corporate-idp",
+      "issuer": "https://idp.example.invalid/corp",
+      "max_token_minutes": 60
+    },
+    {
+      "algorithms": [
+        "ES256",
+        "RS256"
+      ],
+      "audiences": [
+        "checkout-web",
+        "merchant-portal"
+      ],
+      "clock_skew_seconds": 60,
+      "id": "customer-idp",
+      "issuer": "https://idp.example.invalid/customer",
+      "max_token_minutes": 30
+    },
+    {
+      "algorithms": [
+        "ES256"
+      ],
+      "audiences": [
+        "internal-api",
+        "provider-egress"
+      ],
+      "clock_skew_seconds": 60,
+      "id": "workload-ca",
+      "issuer": "spiffe://elmpay.invalid",
+      "max_token_minutes": 60
+    }
+  ],
+  "revocation": {
+    "check_on_every_request": true,
+    "mechanism": "short_lifetime_plus_revocation_list",
+    "policy": "撤销 60 秒内全局生效，且每次请求都要检查。一个「等它过期」的撤销不是撤销。",
+    "propagation_seconds": 60
+  },
+  "schema_version": "1.0.0",
+  "session_binding": {
+    "methods": [
+      "dpop",
+      "mtls"
+    ],
+    "policy": "所有令牌必须绑定到持有者的密钥。无绑定的 bearer 令牌只要被复制就完全可用，而日志、代理、浏览器扩展与错误上报都在复制它。",
+    "required": true
+  },
+  "tokens": [
+    {
+      "audience": "cloud-control-plane",
+      "binding": "mtls",
+      "id": "ci-cloud-token",
+      "kind": "access",
+      "lifetime_minutes": 15,
+      "provider": "ci-oidc",
+      "revocable": true
+    },
+    {
+      "audience": "artifact-registry",
+      "binding": "mtls",
+      "id": "ci-registry-token",
+      "kind": "access",
+      "lifetime_minutes": 15,
+      "provider": "ci-oidc",
+      "revocable": true
+    },
+    {
+      "audience": "provider-egress",
+      "binding": "mtls",
+      "id": "egress-cert",
+      "kind": "workload_certificate",
+      "lifetime_minutes": 60,
+      "provider": "workload-ca",
+      "revocable": true
+    },
+    {
+      "audience": "merchant-portal",
+      "binding": "dpop",
+      "id": "merchant-portal-session",
+      "kind": "access",
+      "lifetime_minutes": 30,
+      "provider": "customer-idp",
+      "revocable": true
+    },
+    {
+      "audience": "admin-web",
+      "binding": "dpop",
+      "id": "operator-session",
+      "kind": "access",
+      "lifetime_minutes": 60,
+      "provider": "corporate-idp",
+      "revocable": true
+    },
+    {
+      "audience": "checkout-web",
+      "binding": "dpop",
+      "id": "payer-session",
+      "kind": "access",
+      "lifetime_minutes": 30,
+      "provider": "customer-idp",
+      "revocable": true
+    },
+    {
+      "audience": "internal-api",
+      "binding": "mtls",
+      "id": "workload-cert",
+      "kind": "workload_certificate",
+      "lifetime_minutes": 60,
+      "provider": "workload-ca",
+      "revocable": true
+    }
+  ]
+}

@@ -1,0 +1,207 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B18",
+  "principle": "「抗钓鱼」不是一个形容词，而是一个可验证的性质：认证器的响应绑定到**它看到的 origin**。只要一个因素可以被中间人转发，它就不抗钓鱼，无论它有几位数字。",
+  "phishing_resistant_classes": [
+    "webauthn"
+  ],
+  "authenticator_kinds": [
+    "webauthn",
+    "otp",
+    "push"
+  ],
+  "webauthn": {
+    "relying_party_id": "pay.example.invalid",
+    "allowed_origins": [
+      "https://pay.example.invalid",
+      "https://admin.pay.example.invalid"
+    ],
+    "user_verification": "required",
+    "resident_key": "preferred",
+    "attestation": "direct",
+    "challenge_bytes": 32,
+    "challenge_ttl_seconds": 120,
+    "challenge_single_use": true,
+    "sign_count_regression_is_clone": true,
+    "allowed_algorithms": [
+      -7,
+      -257
+    ],
+    "policy": "断言必须绑定 origin 与 RP ID，挑战一次性且 120 秒过期，签名计数器回退视为认证器被克隆。user_verification=required 让「密钥被偷」不等于「账号被盗」。"
+  },
+  "step_up": {
+    "required_for_high_risk": true,
+    "max_age_seconds": 300,
+    "transaction_binding": true,
+    "policy": "高风险操作必须重新验证，且断言要绑定**这一次操作**的摘要。不绑定操作的 step-up 只证明「刚才有人验证过」，证明不了「验证的是这一笔退款」。"
+  },
+  "fallback": {
+    "downgrade_allowed": false,
+    "policy": "不存在「密钥不在手边就用短信」的回退。回退一旦允许降级，账号的真实安全级别就是那个最弱的回退。"
+  },
+  "enrolment": {
+    "minimum_authenticators_for_privileged": 2,
+    "verified_before_activation": true,
+    "notify_on_registration": true,
+    "policy": "特权账号必须注册至少两个认证器，注册必须当场验证一次并通知本人。只注册一个的结果不是更安全，而是丢了以后被迫走弱路径。"
+  },
+  "rate_limiting": {
+    "max_attempts_per_hour": 10,
+    "lockout_seconds": 900,
+    "push_fatigue_protection": true,
+    "policy": "限制尝试次数并防推送疲劳；推送批准在本平台本来就不是因素。"
+  },
+  "authenticators": [
+    {
+      "id": "webauthn-roaming",
+      "kind": "webauthn",
+      "phishing_resistant": true,
+      "origin_bound": true,
+      "allowed_as_sole_factor": true,
+      "notes": "外置安全密钥（USB/NFC）。断言绑定 origin 与 RP ID，钓鱼站点即使拿到用户的一切也拿不到一个能用的断言——这就是「抗钓鱼」的全部含义。"
+    },
+    {
+      "id": "webauthn-platform",
+      "kind": "webauthn",
+      "phishing_resistant": true,
+      "origin_bound": true,
+      "allowed_as_sole_factor": true,
+      "notes": "设备内置认证器（Touch ID / Windows Hello）。同样绑定 origin，但设备丢失即失去该认证器，所以不能是唯一一个。"
+    },
+    {
+      "id": "totp",
+      "kind": "otp",
+      "phishing_resistant": false,
+      "origin_bound": false,
+      "allowed_as_sole_factor": false,
+      "notes": "时间口令。**不抗钓鱼**：中间人站点可以实时转发用户念出来的六位数。只能作为附加因素，不能单独用于高权限。"
+    },
+    {
+      "id": "sms-otp",
+      "kind": "otp",
+      "phishing_resistant": false,
+      "origin_bound": false,
+      "allowed_as_sole_factor": false,
+      "notes": "短信口令。既不抗钓鱼，也扛不住 SIM 交换。在本平台**不允许**用于运营与紧急通道的任何环节，包括恢复。"
+    },
+    {
+      "id": "push-approval",
+      "kind": "push",
+      "phishing_resistant": false,
+      "origin_bound": false,
+      "allowed_as_sole_factor": false,
+      "notes": "推送批准。**不抗钓鱼**，且容易被推送疲劳攻破（连发直到用户点同意）。只能作为通知手段，不能作为因素。"
+    }
+  ],
+  "requirements": [
+    {
+      "role": "platform-operator",
+      "required_class": "phishing_resistant",
+      "minimum_registered_authenticators": 2,
+      "allowed_authenticators": [
+        "webauthn-roaming",
+        "webauthn-platform"
+      ],
+      "forbidden_authenticators": [
+        "sms-otp",
+        "totp",
+        "push-approval"
+      ],
+      "step_up_actions": [
+        "refund.approve",
+        "risk_rule.write",
+        "cross_tenant_data.read"
+      ],
+      "notes": "运营账号只接受抗钓鱼认证器，且必须注册至少两个——一个丢了不能变成「临时用短信」。"
+    },
+    {
+      "role": "break-glass",
+      "required_class": "phishing_resistant",
+      "minimum_registered_authenticators": 2,
+      "allowed_authenticators": [
+        "webauthn-roaming"
+      ],
+      "forbidden_authenticators": [
+        "webauthn-platform",
+        "sms-otp",
+        "totp",
+        "push-approval"
+      ],
+      "step_up_actions": [
+        "cross_tenant_data.read"
+      ],
+      "notes": "紧急通道只接受外置安全密钥：它必须能在设备被攻陷时仍然可信，而平台内置认证器与设备同生共死。"
+    },
+    {
+      "role": "merchant-admin",
+      "required_class": "phishing_resistant",
+      "minimum_registered_authenticators": 2,
+      "allowed_authenticators": [
+        "webauthn-roaming",
+        "webauthn-platform"
+      ],
+      "forbidden_authenticators": [
+        "sms-otp",
+        "push-approval"
+      ],
+      "step_up_actions": [
+        "api_key.rotate",
+        "payout_account.write"
+      ],
+      "notes": "商户管理员能改收款账户，属于资金操作，同样要求抗钓鱼。TOTP 未被禁止，但只能作为**附加**因素。"
+    },
+    {
+      "role": "payer",
+      "required_class": "any",
+      "minimum_registered_authenticators": 1,
+      "allowed_authenticators": [
+        "webauthn-platform",
+        "webauthn-roaming",
+        "totp"
+      ],
+      "forbidden_authenticators": [
+        "push-approval"
+      ],
+      "step_up_actions": [],
+      "notes": "付款人不强制 MFA：强制会把大量正常支付挡在门外，而付款人本身不持有平台权限。风险由风控与限额承担，不由 MFA 承担。"
+    },
+    {
+      "role": "merchant-finance",
+      "required_class": "phishing_resistant",
+      "minimum_registered_authenticators": 2,
+      "allowed_authenticators": [
+        "webauthn-roaming",
+        "webauthn-platform"
+      ],
+      "forbidden_authenticators": [
+        "sms-otp",
+        "totp",
+        "push-approval"
+      ],
+      "step_up_actions": [
+        "refund.approve",
+        "payout.approve",
+        "reconciliation.approve"
+      ],
+      "notes": "商户财务批准退款与出款，是资金真正离开平台的那一步，因此与商户管理员同级：只接受抗钓鱼认证器。"
+    },
+    {
+      "role": "risk-analyst",
+      "required_class": "phishing_resistant",
+      "minimum_registered_authenticators": 2,
+      "allowed_authenticators": [
+        "webauthn-roaming",
+        "webauthn-platform"
+      ],
+      "forbidden_authenticators": [
+        "sms-otp",
+        "totp",
+        "push-approval"
+      ],
+      "step_up_actions": [
+        "risk_rule.write"
+      ],
+      "notes": "风控分析师能改写「谁会被拦下」的规则；这个账号被钓走，等于攻击者可以给自己开一条绿色通道。"
+    }
+  ]
+}

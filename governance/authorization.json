@@ -1,0 +1,401 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B19",
+  "principle": "授权的默认答案是「拒绝」。一个主体能做什么，必须由**明确授予**的权限、**它自己的租户**、**这一个对象**和**这一个字段**四层共同决定；而资金类动作还要再加一层：**提出的人不能是批准的人**。角色清单在这里是唯一事实源——一个角色被标记为特权，它的 MFA 要求、恢复路径和零信任主体就必须真实存在，否则门禁不放行。",
+  "default_decision": "deny",
+  "roles": [
+    {
+      "id": "platform-operator",
+      "kind": "human",
+      "scope": "platform",
+      "privileged": true,
+      "zero_trust_principal": "platform-operator",
+      "permissions": [
+        "payment.read",
+        "audit_log.read",
+        "risk_decision.override"
+      ],
+      "notes": "平台运营。可以跨租户读支付事实，但**读不到卡号，也读不到未脱敏的个人信息**；改平台配置**不是常驻权限**，必须走限时提权。"
+    },
+    {
+      "id": "break-glass",
+      "kind": "human",
+      "scope": "platform",
+      "privileged": true,
+      "zero_trust_principal": "break-glass",
+      "permissions": [
+        "audit_log.read"
+      ],
+      "notes": "紧急通道账号。**平时几乎没有权限**——它的价值来自提权流程本身：每一次使用都有票据、有审批、有时限、有事后复核。常驻权限会让紧急通道变成一条日常后门。"
+    },
+    {
+      "id": "merchant-admin",
+      "kind": "human",
+      "scope": "tenant",
+      "privileged": true,
+      "zero_trust_principal": "merchant-api-client",
+      "permissions": [
+        "payment.read",
+        "payment.create",
+        "refund.request",
+        "payout_account.write",
+        "customer_pii.read"
+      ],
+      "notes": "商户管理员。可以改收款账户（资金去向），因此该权限必须双人复核；可以发起退款但**不能自己批准**。"
+    },
+    {
+      "id": "merchant-finance",
+      "kind": "human",
+      "scope": "tenant",
+      "privileged": true,
+      "zero_trust_principal": "merchant-api-client",
+      "permissions": [
+        "payment.read",
+        "refund.approve",
+        "payout.approve",
+        "reconciliation.approve",
+        "bank_account.read"
+      ],
+      "notes": "商户财务。批准退款与出款，是职责分离里的「复核方」；因此**不得**同时持有 refund.request 与 payout_account.write。"
+    },
+    {
+      "id": "risk-analyst",
+      "kind": "human",
+      "scope": "platform",
+      "privileged": true,
+      "zero_trust_principal": "platform-operator",
+      "permissions": [
+        "payment.read",
+        "risk_rule.write"
+      ],
+      "notes": "风控分析师。写规则的人不能同时是能推翻规则判定的人，否则「规则」只是他自己的一句话。"
+    },
+    {
+      "id": "support-agent",
+      "kind": "human",
+      "scope": "tenant",
+      "privileged": false,
+      "zero_trust_principal": "merchant-api-client",
+      "permissions": [
+        "payment.read",
+        "refund.request",
+        "customer_pii.read"
+      ],
+      "notes": "客服。可以发起退款、看脱敏后的联系方式；**看不到卡号、看不到银行账号全文**。客服席位是社会工程学最常见的入口，权限必须最小。"
+    },
+    {
+      "id": "auditor",
+      "kind": "human",
+      "scope": "platform",
+      "privileged": false,
+      "zero_trust_principal": "platform-operator",
+      "permissions": [
+        "audit_log.read",
+        "payment.read"
+      ],
+      "notes": "审计员。只读，且不可提权——审计的价值来自它**不能**改变被审计的东西。"
+    },
+    {
+      "id": "payer",
+      "kind": "human",
+      "scope": "self",
+      "privileged": false,
+      "zero_trust_principal": "payer",
+      "permissions": [
+        "payment.create"
+      ],
+      "notes": "付款人。只能创建属于自己的支付，看不到任何他人的数据。"
+    },
+    {
+      "id": "payment-core-service",
+      "kind": "service",
+      "scope": "platform",
+      "privileged": false,
+      "zero_trust_principal": "service-workload",
+      "permissions": [
+        "payment.read",
+        "payment.create"
+      ],
+      "notes": "服务身份。凭据由工作负载身份签发（B17），不持有任何资金审批权限——服务账号被攻陷时不应该能批钱。"
+    }
+  ],
+  "permissions": [
+    {
+      "id": "payment.read",
+      "resource": "payment",
+      "verb": "read",
+      "scope": "tenant",
+      "sensitivity": "normal",
+      "dual_control": false,
+      "elevation_required": false,
+      "notes": "读支付事实，受租户边界约束。"
+    },
+    {
+      "id": "payment.create",
+      "resource": "payment",
+      "verb": "create",
+      "scope": "tenant",
+      "sensitivity": "normal",
+      "dual_control": false,
+      "elevation_required": false,
+      "notes": "创建支付意图；只能创建属于自己租户的支付，跨租户创建在对象层就会被拒。"
+    },
+    {
+      "id": "refund.request",
+      "resource": "refund",
+      "verb": "request",
+      "scope": "object",
+      "sensitivity": "money",
+      "dual_control": false,
+      "elevation_required": false,
+      "notes": "发起退款（maker）。本身不动钱，但它是动钱流程的第一步。"
+    },
+    {
+      "id": "refund.approve",
+      "resource": "refund",
+      "verb": "approve",
+      "scope": "object",
+      "sensitivity": "money",
+      "dual_control": true,
+      "elevation_required": false,
+      "notes": "批准退款（checker）。必须与发起人不同，且审批绑定这一笔的摘要。"
+    },
+    {
+      "id": "payout_account.write",
+      "resource": "payout_account",
+      "verb": "write",
+      "scope": "object",
+      "sensitivity": "money",
+      "dual_control": true,
+      "elevation_required": false,
+      "notes": "改收款账户。**这是最直接的偷钱路径**：不动金额，只动钱的去向。"
+    },
+    {
+      "id": "payout.approve",
+      "resource": "payout",
+      "verb": "approve",
+      "scope": "object",
+      "sensitivity": "money",
+      "dual_control": true,
+      "elevation_required": false,
+      "notes": "批准出款，即真正把钱送出平台的那一步，必须由与改账户的人不同的人执行。"
+    },
+    {
+      "id": "ledger.adjust",
+      "resource": "ledger",
+      "verb": "adjust",
+      "scope": "object",
+      "sensitivity": "money",
+      "dual_control": true,
+      "elevation_required": true,
+      "notes": "账本调整。任何时候都不应该有人「常驻」持有这个权限。"
+    },
+    {
+      "id": "reconciliation.approve",
+      "resource": "reconciliation",
+      "verb": "approve",
+      "scope": "object",
+      "sensitivity": "money",
+      "dual_control": true,
+      "elevation_required": false,
+      "notes": "批准对账结果。能调账的人不能同时批准对账，否则差异可以被自己抹平。"
+    },
+    {
+      "id": "risk_rule.write",
+      "resource": "risk_rule",
+      "verb": "write",
+      "scope": "platform",
+      "sensitivity": "high",
+      "dual_control": true,
+      "elevation_required": false,
+      "notes": "写风控规则。规则决定谁被拦、谁放行，因此改规则本身必须双人复核。"
+    },
+    {
+      "id": "risk_decision.override",
+      "resource": "risk_decision",
+      "verb": "override",
+      "scope": "object",
+      "sensitivity": "high",
+      "dual_control": true,
+      "elevation_required": false,
+      "notes": "推翻风控判定，必须可解释、可复核、可撤销。"
+    },
+    {
+      "id": "cross_tenant_data.read",
+      "resource": "tenant_data",
+      "verb": "read",
+      "scope": "platform",
+      "sensitivity": "high",
+      "dual_control": true,
+      "elevation_required": true,
+      "notes": "跨租户读取。只能通过限时提权获得，且必须有票据与事后复核。"
+    },
+    {
+      "id": "customer_pii.read",
+      "resource": "customer",
+      "verb": "read_pii",
+      "scope": "field",
+      "sensitivity": "high",
+      "dual_control": false,
+      "elevation_required": false,
+      "notes": "读客户联系方式，默认脱敏。"
+    },
+    {
+      "id": "bank_account.read",
+      "resource": "payout_account",
+      "verb": "read",
+      "scope": "field",
+      "sensitivity": "high",
+      "dual_control": false,
+      "elevation_required": false,
+      "notes": "读收款账号全文，仅财务角色。"
+    },
+    {
+      "id": "audit_log.read",
+      "resource": "audit_log",
+      "verb": "read",
+      "scope": "platform",
+      "sensitivity": "normal",
+      "dual_control": false,
+      "elevation_required": false,
+      "notes": "读审计日志。审计日志只可追加，任何角色都没有删除权限。"
+    },
+    {
+      "id": "config.write",
+      "resource": "config",
+      "verb": "write",
+      "scope": "platform",
+      "sensitivity": "high",
+      "dual_control": true,
+      "elevation_required": true,
+      "notes": "改平台配置。配置能关掉其它所有控制，因此它自己必须是被控制最严的那个。"
+    }
+  ],
+  "field_rules": [
+    {
+      "field": "card_pan",
+      "classification": "pan",
+      "never_readable": true,
+      "masked_by_default": true,
+      "readable_by": [],
+      "notes": "卡号在本平台**任何角色都读不到**（NN-04）。它不是权限问题，是它根本不该以明文存在于可读路径上。"
+    },
+    {
+      "field": "card_cvv",
+      "classification": "cvv",
+      "never_readable": true,
+      "masked_by_default": true,
+      "readable_by": [],
+      "notes": "CVV 不存储、不可读、不入日志。"
+    },
+    {
+      "field": "bank_account_number",
+      "classification": "financial",
+      "never_readable": false,
+      "masked_by_default": true,
+      "readable_by": [
+        "merchant-finance"
+      ],
+      "notes": "默认只给后四位；只有财务角色能看全文，且每次读取都留审计。"
+    },
+    {
+      "field": "customer_email",
+      "classification": "pii",
+      "never_readable": false,
+      "masked_by_default": true,
+      "readable_by": [
+        "merchant-admin",
+        "support-agent"
+      ],
+      "notes": "默认脱敏。客服能看是为了办事，不是为了浏览。"
+    },
+    {
+      "field": "customer_phone",
+      "classification": "pii",
+      "never_readable": false,
+      "masked_by_default": true,
+      "readable_by": [
+        "merchant-admin",
+        "support-agent"
+      ],
+      "notes": "默认只给后四位。手机号是账号接管与社会工程学的入口，客服能看是为了办事，不是为了浏览。"
+    }
+  ],
+  "separation_of_duties": [
+    {
+      "id": "SOD-01",
+      "left": "refund.request",
+      "right": "refund.approve",
+      "notes": "发起退款的人不能批准自己的退款——这是最基本的一条，也是最常被「临时」破例的一条。"
+    },
+    {
+      "id": "SOD-02",
+      "left": "payout_account.write",
+      "right": "payout.approve",
+      "notes": "改钱的去向与放钱出去必须是两个人：一个人同时持有这两项，就等于可以把任意一笔款打到自己的账户。"
+    },
+    {
+      "id": "SOD-03",
+      "left": "ledger.adjust",
+      "right": "reconciliation.approve",
+      "notes": "能调账的人不能批准对账，否则差异可以被自己抹平，账实不符永远不会被发现。"
+    },
+    {
+      "id": "SOD-04",
+      "left": "risk_rule.write",
+      "right": "risk_decision.override",
+      "notes": "写规则与推翻规则判定必须分开。"
+    },
+    {
+      "id": "SOD-05",
+      "left": "risk_rule.write",
+      "right": "refund.approve",
+      "notes": "能写风控规则的人如果还能批退款，他可以先写一条让自己的退款自动通过的规则。"
+    }
+  ],
+  "dual_control": {
+    "minimum_approvals": 1,
+    "approver_must_differ_from_requester": true,
+    "approval_ttl_seconds": 900,
+    "approval_bound_to_request_digest": true,
+    "notes": "审批必须绑定**这一次请求的摘要**：不绑定的审批只能证明「有人批过某件事」，会被复用到另一笔上。这与 B18 的 step-up 交易绑定是同一个道理。"
+  },
+  "elevation": {
+    "standing_privileged_access": false,
+    "max_duration_minutes": 60,
+    "requires_approval": true,
+    "approver_must_differ_from_requester": true,
+    "requires_ticket_reference": true,
+    "auto_revoke": true,
+    "elevatable_permissions": [
+      "ledger.adjust",
+      "cross_tenant_data.read",
+      "config.write"
+    ],
+    "non_elevatable_roles": [
+      "auditor",
+      "payer",
+      "payment-core-service"
+    ],
+    "break_glass": {
+      "role": "break-glass",
+      "max_duration_minutes": 30,
+      "requires_approval": true,
+      "post_use_review_hours": 24,
+      "notify_channels": [
+        "security_team",
+        "on_call",
+        "audit_log"
+      ],
+      "notes": "紧急通道的时限比常规提权更短，且**每一次使用都必须在 24 小时内被人复核**。不复核的紧急通道等于常驻管理员。"
+    },
+    "notes": "不存在常驻特权。提权必须有审批人（且不是申请人自己）、有票据、有时限、到点自动收回。"
+  },
+  "audit": {
+    "record_every_decision": true,
+    "record_denials": true,
+    "include_rule_version": true,
+    "immutable": true,
+    "notes": "允许与拒绝都要记录，并带上规则版本——事后要能回答「当时为什么放行」，而不是「现在的规则会不会放行」。"
+  }
+}

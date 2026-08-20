@@ -1,0 +1,211 @@
+{
+  "batch_id": "B10",
+  "requirements": [
+    {
+      "id": "B10-R1",
+      "statement": "定义支付、退款、订阅、争议与对账状态机及全部允许的转移",
+      "source": "batches/B10.md 目标"
+    },
+    {
+      "id": "B10-R2",
+      "statement": "区分单向转移与补偿式转移，倒退必须显式声明并留下效果",
+      "source": "batches/B10.md 目标"
+    },
+    {
+      "id": "B10-R3",
+      "statement": "不得以客户端回跳或未验签通知作为支付成功依据；成功状态只能由验签渠道事件或主动查询写入",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B10-R4",
+      "statement": "每条状态转移都有幂等键，重放不产生第二次状态变更",
+      "source": "policies/non-negotiables.md#4"
+    },
+    {
+      "id": "B10-R5",
+      "statement": "超时不得被当作失败；歧义结果必须进入可定责的未知状态",
+      "source": "security/THREAT_MODEL.md AC-01"
+    },
+    {
+      "id": "B10-R6",
+      "statement": "正常、拒绝、超时与重复请求路径均有自动化测试与运行证据",
+      "source": "batches/B10.md 自动化验证"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/state-machines.json",
+      "requirements": [
+        "B10-R1",
+        "B10-R2",
+        "B10-R3",
+        "B10-R4",
+        "B10-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/states.py",
+      "requirements": [
+        "B10-R1",
+        "B10-R2",
+        "B10-R3",
+        "B10-R4",
+        "B10-R5"
+      ]
+    },
+    {
+      "ref": "libs/statemachine/reference/machine.py",
+      "requirements": [
+        "B10-R3",
+        "B10-R4",
+        "B10-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/stategen.py",
+      "requirements": [
+        "B10-R1"
+      ]
+    },
+    {
+      "ref": "scripts/render-states.py",
+      "requirements": [
+        "B10-R1"
+      ]
+    },
+    {
+      "ref": "scripts/state-smoke.py",
+      "requirements": [
+        "B10-R3",
+        "B10-R4",
+        "B10-R5",
+        "B10-R6"
+      ]
+    },
+    {
+      "ref": "docs/domain/STATE_MACHINES.md",
+      "requirements": [
+        "B10-R1",
+        "B10-R2",
+        "B10-R3"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b10_states.py",
+      "requirements": [
+        "B10-R1",
+        "B10-R2",
+        "B10-R3",
+        "B10-R4",
+        "B10-R5",
+        "B10-R6"
+      ],
+      "cases": 58
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/state-machines.json",
+        "tools/paygov/states.py",
+        "libs/statemachine/reference/machine.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b10_states.py",
+        "scripts/state-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "governance/state-machines.json",
+        "libs/statemachine/reference/machine.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b10_states.py",
+        "scripts/state-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-06",
+      "implemented_by": [
+        "tools/paygov/states.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b10_states.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/states.py",
+        "tools/paygov/stategen.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b10_states.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "CTRL-003",
+      "implemented_by": [
+        "governance/state-machines.json",
+        "libs/statemachine/reference/machine.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b10_states.py",
+        "scripts/state-smoke.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B10/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B10/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B10/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B10/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B10/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B10/runtime/state-doc-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B10/runtime/state-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B10/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B10/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B10/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B10.json",
+      "kind": "completion"
+    }
+  ]
+}

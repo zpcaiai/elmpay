@@ -1,0 +1,778 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B10",
+  "actors": [
+    {
+      "id": "provider-event",
+      "description": "已验签的渠道回调事件或服务端主动查询结果",
+      "trusted_for_success": true
+    },
+    {
+      "id": "merchant",
+      "description": "商户经由平台 API 发起的动作",
+      "trusted_for_success": false
+    },
+    {
+      "id": "customer",
+      "description": "终端用户动作",
+      "trusted_for_success": false
+    },
+    {
+      "id": "operator",
+      "description": "平台运营人员经后台发起的动作",
+      "trusted_for_success": false
+    },
+    {
+      "id": "scheduler",
+      "description": "平台调度器（超时、账期、催缴）",
+      "trusted_for_success": false
+    },
+    {
+      "id": "system",
+      "description": "平台内部技术事件（网络超时等）",
+      "trusted_for_success": false
+    },
+    {
+      "id": "reconciliation",
+      "description": "对账定责结果",
+      "trusted_for_success": true
+    }
+  ],
+  "transition_kinds": [
+    "forward",
+    "compensating"
+  ],
+  "success_states": {
+    "PaymentIntent": [
+      "authorized",
+      "captured"
+    ],
+    "PaymentAttempt": [
+      "succeeded"
+    ],
+    "Refund": [
+      "succeeded"
+    ]
+  },
+  "machines": [
+    {
+      "name": "payment-intent",
+      "entity": "PaymentIntent",
+      "initial": "created",
+      "terminal": [
+        "captured",
+        "failed",
+        "canceled",
+        "expired"
+      ],
+      "states": [
+        "created",
+        "requires_action",
+        "authorized",
+        "captured",
+        "failed",
+        "canceled",
+        "expired"
+      ],
+      "transitions": [
+        {
+          "from": "created",
+          "to": "requires_action",
+          "event": "provider.action_required",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "渠道返回需要持卡人完成 3DS/跳转等动作；仅凭已验签事件写入",
+          "effects": [
+            "记录 attempt",
+            "下发 action 参数"
+          ],
+          "idempotency": "provider_event_id",
+          "requirements": [
+            "PAY-REQ-0003"
+          ]
+        },
+        {
+          "from": "created",
+          "to": "authorized",
+          "event": "provider.authorized",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "已验签渠道事件或服务端主动查询确认授权成功（NN-03）",
+          "effects": [
+            "写入 authorized_at",
+            "登记授权账目"
+          ],
+          "idempotency": "provider_event_id",
+          "requirements": [
+            "PAY-REQ-0003"
+          ]
+        },
+        {
+          "from": "created",
+          "to": "failed",
+          "event": "provider.declined",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "仅当 B33 渠道结果分类明确 settles_intent=true 时才进入 failed；普通 card_declined/instrument_declined 只结束 attempt，PaymentIntent 保持可用",
+          "requires_outcome_property": {
+            "source": "governance/payment-attempt.json#outcome_classes",
+            "field": "settles_intent",
+            "equals": true
+          },
+          "effects": [
+            "记录失败原因码"
+          ],
+          "idempotency": "provider_event_id"
+        },
+        {
+          "from": "created",
+          "to": "canceled",
+          "event": "merchant.cancel",
+          "actor": "merchant",
+          "kind": "forward",
+          "guard": "商户在授权前主动取消；无资金影响",
+          "effects": [
+            "写入 canceled_at"
+          ],
+          "idempotency": "idempotency_key"
+        },
+        {
+          "from": "created",
+          "to": "expired",
+          "event": "clock.intent_ttl_elapsed",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "超过 intent TTL 仍未授权；由调度器而非用户请求触发",
+          "effects": [
+            "写入 expired_at"
+          ],
+          "idempotency": "intent_id+ttl_epoch"
+        },
+        {
+          "from": "requires_action",
+          "to": "authorized",
+          "event": "provider.authorized",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "持卡人完成动作后渠道确认授权（NN-03）",
+          "effects": [
+            "写入 authorized_at"
+          ],
+          "idempotency": "provider_event_id"
+        },
+        {
+          "from": "requires_action",
+          "to": "failed",
+          "event": "provider.declined",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "持卡人动作后的拒绝只有在 B33 分类明确 settles_intent=true 时才进入 failed；可更换资金源的拒绝只结束 attempt",
+          "requires_outcome_property": {
+            "source": "governance/payment-attempt.json#outcome_classes",
+            "field": "settles_intent",
+            "equals": true
+          },
+          "effects": [
+            "记录失败原因码"
+          ],
+          "idempotency": "provider_event_id"
+        },
+        {
+          "from": "requires_action",
+          "to": "canceled",
+          "event": "merchant.cancel",
+          "actor": "merchant",
+          "kind": "forward",
+          "guard": "商户放弃这笔意图",
+          "effects": [
+            "写入 canceled_at"
+          ],
+          "idempotency": "idempotency_key"
+        },
+        {
+          "from": "requires_action",
+          "to": "expired",
+          "event": "clock.action_ttl_elapsed",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "持卡人动作超过 action TTL 仍未完成，渠道不再受理",
+          "effects": [
+            "写入 expired_at"
+          ],
+          "idempotency": "intent_id+ttl_epoch"
+        },
+        {
+          "from": "authorized",
+          "to": "captured",
+          "event": "provider.captured",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "已验签捕获事件；captured_amount_minor <= amount_minor（NN-05）",
+          "effects": [
+            "写入 captured_at",
+            "记账：授权转已捕获"
+          ],
+          "idempotency": "provider_event_id",
+          "requirements": [
+            "PAY-REQ-0003"
+          ]
+        },
+        {
+          "from": "authorized",
+          "to": "canceled",
+          "event": "merchant.void",
+          "actor": "merchant",
+          "kind": "compensating",
+          "guard": "授权撤销（void）：补偿式回到无资金占用，不是把捕获退回",
+          "effects": [
+            "释放授权额度",
+            "记账：冲销授权"
+          ],
+          "idempotency": "idempotency_key"
+        },
+        {
+          "from": "authorized",
+          "to": "expired",
+          "event": "clock.authorization_elapsed",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "授权有效期到期而未捕获，渠道自动释放",
+          "effects": [
+            "记账：冲销授权"
+          ],
+          "idempotency": "intent_id+ttl_epoch"
+        },
+        {
+          "from": "authorized",
+          "to": "failed",
+          "event": "provider.capture_declined",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "捕获被渠道拒绝且不可重试",
+          "effects": [
+            "记录失败原因码"
+          ],
+          "idempotency": "provider_event_id"
+        }
+      ],
+      "notes": "退款不改变 PaymentIntent 状态：已捕获仍是已捕获，退款金额记在 refunded_amount_minor 上。这是刻意的——把「已退款」做成支付状态会让部分退款无法表达。"
+    },
+    {
+      "name": "payment-attempt",
+      "entity": "PaymentAttempt",
+      "initial": "initiated",
+      "terminal": [
+        "succeeded",
+        "failed"
+      ],
+      "states": [
+        "initiated",
+        "pending",
+        "succeeded",
+        "failed",
+        "unknown"
+      ],
+      "transitions": [
+        {
+          "from": "initiated",
+          "to": "pending",
+          "event": "provider.accepted",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "渠道受理请求但未定责",
+          "idempotency": "attempt_id"
+        },
+        {
+          "from": "initiated",
+          "to": "unknown",
+          "event": "network.timeout",
+          "actor": "system",
+          "kind": "forward",
+          "guard": "请求超时且无法判断渠道是否已受理——**不得**当作失败（AC-01）",
+          "effects": [
+            "排入主动查询队列"
+          ],
+          "idempotency": "attempt_id",
+          "requirements": [
+            "PAY-REQ-0003"
+          ]
+        },
+        {
+          "from": "pending",
+          "to": "succeeded",
+          "event": "provider.succeeded",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "已验签事件或服务端查询确认成功（NN-03）",
+          "idempotency": "provider_event_id"
+        },
+        {
+          "from": "pending",
+          "to": "failed",
+          "event": "provider.failed",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "渠道明确失败",
+          "idempotency": "provider_event_id"
+        },
+        {
+          "from": "pending",
+          "to": "unknown",
+          "event": "clock.poll_budget_exhausted",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "轮询预算耗尽仍未定责，转人工/对账",
+          "effects": [
+            "产生对账例外"
+          ],
+          "idempotency": "attempt_id+poll_epoch"
+        },
+        {
+          "from": "unknown",
+          "to": "succeeded",
+          "event": "reconciliation.matched_success",
+          "actor": "reconciliation",
+          "kind": "forward",
+          "guard": "对账或主动查询把未知定责为成功",
+          "effects": [
+            "回填 PaymentIntent"
+          ],
+          "idempotency": "provider_event_id"
+        },
+        {
+          "from": "unknown",
+          "to": "failed",
+          "event": "reconciliation.matched_failure",
+          "actor": "reconciliation",
+          "kind": "forward",
+          "guard": "对账或主动查询把未知定责为失败",
+          "idempotency": "provider_event_id"
+        }
+      ],
+      "notes": "`unknown` 是一等状态而不是错误，也不是终态——它必须被对账或主动查询定责。支付系统最危险的默认是把超时当失败，那正是重复扣款的来源（AC-01）。"
+    },
+    {
+      "name": "refund",
+      "entity": "Refund",
+      "initial": "requested",
+      "terminal": [
+        "succeeded",
+        "failed",
+        "canceled"
+      ],
+      "states": [
+        "requested",
+        "approved",
+        "processing",
+        "succeeded",
+        "failed",
+        "canceled"
+      ],
+      "transitions": [
+        {
+          "from": "requested",
+          "to": "approved",
+          "event": "operator.approve",
+          "actor": "operator",
+          "kind": "forward",
+          "guard": "退款审批；审批人不得是发起人（NN-11 职责分离）",
+          "effects": [
+            "写入审计事件"
+          ],
+          "idempotency": "refund_id",
+          "requirements": [
+            "PAY-REQ-0009"
+          ]
+        },
+        {
+          "from": "requested",
+          "to": "canceled",
+          "event": "merchant.cancel_refund",
+          "actor": "merchant",
+          "kind": "forward",
+          "guard": "退款在提交渠道前被撤回",
+          "idempotency": "idempotency_key"
+        },
+        {
+          "from": "approved",
+          "to": "processing",
+          "event": "provider.accepted",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "渠道受理退款请求并返回受理凭据",
+          "idempotency": "refund_id"
+        },
+        {
+          "from": "approved",
+          "to": "canceled",
+          "event": "operator.revoke_approval",
+          "actor": "operator",
+          "kind": "compensating",
+          "guard": "审批在提交渠道前被撤销",
+          "effects": [
+            "写入审计事件"
+          ],
+          "idempotency": "refund_id"
+        },
+        {
+          "from": "processing",
+          "to": "succeeded",
+          "event": "provider.refunded",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "已验签退款成功事件；累计退款 <= 已捕获金额（NN-05）",
+          "effects": [
+            "记账：退款出账",
+            "累加 refunded_amount_minor"
+          ],
+          "idempotency": "provider_event_id",
+          "requirements": [
+            "PAY-REQ-0009"
+          ]
+        },
+        {
+          "from": "processing",
+          "to": "failed",
+          "event": "provider.refund_failed",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "渠道退款失败；资金未离开，允许重新发起新的退款单",
+          "idempotency": "provider_event_id"
+        }
+      ],
+      "notes": "没有 succeeded→canceled：钱已经离开就不能靠改状态收回，必须走新的收款流程。"
+    },
+    {
+      "name": "dispute",
+      "entity": "Dispute",
+      "initial": "opened",
+      "terminal": [
+        "won",
+        "lost",
+        "withdrawn"
+      ],
+      "states": [
+        "opened",
+        "evidence_required",
+        "under_review",
+        "won",
+        "lost",
+        "withdrawn"
+      ],
+      "transitions": [
+        {
+          "from": "opened",
+          "to": "evidence_required",
+          "event": "provider.evidence_requested",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "渠道要求商户举证，带举证截止时间",
+          "effects": [
+            "冻结相关资金",
+            "创建举证任务"
+          ],
+          "idempotency": "provider_event_id"
+        },
+        {
+          "from": "opened",
+          "to": "withdrawn",
+          "event": "provider.dispute_withdrawn",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "持卡人主动撤回争议，渠道通知撤案",
+          "effects": [
+            "解冻资金"
+          ],
+          "idempotency": "provider_event_id"
+        },
+        {
+          "from": "evidence_required",
+          "to": "under_review",
+          "event": "merchant.evidence_submitted",
+          "actor": "merchant",
+          "kind": "forward",
+          "guard": "举证材料已提交渠道",
+          "effects": [
+            "写入审计事件"
+          ],
+          "idempotency": "dispute_id+evidence_revision"
+        },
+        {
+          "from": "evidence_required",
+          "to": "lost",
+          "event": "clock.evidence_deadline_elapsed",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "举证超时视同败诉——沉默不是中立（AC-06）",
+          "effects": [
+            "记账：争议扣款"
+          ],
+          "idempotency": "dispute_id+deadline_epoch"
+        },
+        {
+          "from": "under_review",
+          "to": "won",
+          "event": "provider.dispute_won",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "渠道裁定商户胜诉",
+          "effects": [
+            "解冻资金",
+            "记账：争议资金返还"
+          ],
+          "idempotency": "provider_event_id"
+        },
+        {
+          "from": "under_review",
+          "to": "lost",
+          "event": "provider.dispute_lost",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "渠道裁定商户败诉",
+          "effects": [
+            "记账：争议扣款"
+          ],
+          "idempotency": "provider_event_id"
+        },
+        {
+          "from": "under_review",
+          "to": "withdrawn",
+          "event": "provider.dispute_withdrawn",
+          "actor": "provider-event",
+          "kind": "forward",
+          "guard": "裁定前持卡人撤回",
+          "effects": [
+            "解冻资金"
+          ],
+          "idempotency": "provider_event_id"
+        }
+      ],
+      "notes": "争议状态一律由渠道事件驱动，平台没有自行裁定的转移——这是刻意的边界。"
+    },
+    {
+      "name": "subscription",
+      "entity": "Subscription",
+      "initial": "trialing",
+      "terminal": [
+        "canceled",
+        "ended"
+      ],
+      "states": [
+        "trialing",
+        "active",
+        "past_due",
+        "canceled",
+        "ended"
+      ],
+      "transitions": [
+        {
+          "from": "trialing",
+          "to": "active",
+          "event": "billing.trial_converted",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "试用期结束且首期扣款成功",
+          "effects": [
+            "创建 PaymentIntent"
+          ],
+          "idempotency": "subscription_id+period"
+        },
+        {
+          "from": "trialing",
+          "to": "canceled",
+          "event": "customer.cancel",
+          "actor": "customer",
+          "kind": "forward",
+          "guard": "用户在试用期内取消，尚未产生任何扣款",
+          "idempotency": "idempotency_key"
+        },
+        {
+          "from": "active",
+          "to": "past_due",
+          "event": "billing.charge_failed",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "周期扣款失败，进入宽限重试",
+          "effects": [
+            "排入重试计划"
+          ],
+          "idempotency": "subscription_id+period"
+        },
+        {
+          "from": "active",
+          "to": "canceled",
+          "event": "customer.cancel",
+          "actor": "customer",
+          "kind": "forward",
+          "guard": "用户主动取消，服务持续到本周期末",
+          "idempotency": "idempotency_key"
+        },
+        {
+          "from": "active",
+          "to": "ended",
+          "event": "billing.term_completed",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "固定期数订阅正常结束",
+          "idempotency": "subscription_id+period"
+        },
+        {
+          "from": "past_due",
+          "to": "active",
+          "event": "billing.charge_recovered",
+          "actor": "scheduler",
+          "kind": "compensating",
+          "guard": "宽限期内补扣成功，恢复正常——这是补偿式回边，必须显式声明",
+          "effects": [
+            "清除重试计划"
+          ],
+          "idempotency": "subscription_id+period"
+        },
+        {
+          "from": "past_due",
+          "to": "canceled",
+          "event": "billing.dunning_exhausted",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "催缴用尽仍未成功",
+          "effects": [
+            "写入审计事件"
+          ],
+          "idempotency": "subscription_id+period"
+        },
+        {
+          "from": "past_due",
+          "to": "canceled",
+          "event": "customer.cancel",
+          "actor": "customer",
+          "kind": "forward",
+          "guard": "用户在催缴期间主动取消",
+          "idempotency": "idempotency_key"
+        }
+      ],
+      "notes": "past_due→active 是本模型里唯一的补偿式回边，因为账期本身允许补救。"
+    },
+    {
+      "name": "reconciliation-run",
+      "entity": "ReconciliationRun",
+      "initial": "ingesting",
+      "terminal": [
+        "completed",
+        "failed"
+      ],
+      "states": [
+        "ingesting",
+        "matching",
+        "completed",
+        "failed"
+      ],
+      "transitions": [
+        {
+          "from": "ingesting",
+          "to": "matching",
+          "event": "recon.files_ingested",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "渠道对账文件全部落地且校验通过",
+          "idempotency": "run_id"
+        },
+        {
+          "from": "ingesting",
+          "to": "failed",
+          "event": "recon.ingest_failed",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "文件缺失或校验失败",
+          "effects": [
+            "告警"
+          ],
+          "idempotency": "run_id"
+        },
+        {
+          "from": "matching",
+          "to": "completed",
+          "event": "recon.matching_finished",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "匹配结束；未匹配项一律生成对账例外，不允许静默丢弃",
+          "effects": [
+            "生成 ReconciliationException"
+          ],
+          "idempotency": "run_id"
+        },
+        {
+          "from": "matching",
+          "to": "failed",
+          "event": "recon.matching_failed",
+          "actor": "scheduler",
+          "kind": "forward",
+          "guard": "匹配过程异常终止",
+          "effects": [
+            "告警"
+          ],
+          "idempotency": "run_id"
+        }
+      ],
+      "notes": "completed 不代表「全部对上」，只代表「全部有交代」。"
+    },
+    {
+      "name": "reconciliation-exception",
+      "entity": "ReconciliationException",
+      "initial": "open",
+      "terminal": [
+        "resolved",
+        "written_off"
+      ],
+      "states": [
+        "open",
+        "investigating",
+        "resolved",
+        "written_off"
+      ],
+      "transitions": [
+        {
+          "from": "open",
+          "to": "investigating",
+          "event": "operator.claim",
+          "actor": "operator",
+          "kind": "forward",
+          "guard": "运营认领该对账例外并成为责任人",
+          "effects": [
+            "写入审计事件"
+          ],
+          "idempotency": "exception_id"
+        },
+        {
+          "from": "investigating",
+          "to": "resolved",
+          "event": "operator.resolve",
+          "actor": "operator",
+          "kind": "forward",
+          "guard": "找到原因并完成修复动作",
+          "effects": [
+            "写入审计事件",
+            "记账：差异修复"
+          ],
+          "idempotency": "exception_id"
+        },
+        {
+          "from": "investigating",
+          "to": "written_off",
+          "event": "operator.write_off",
+          "actor": "operator",
+          "kind": "forward",
+          "guard": "经审批核销；核销人不得是认领人（NN-11）",
+          "effects": [
+            "写入审计事件",
+            "记账：核销"
+          ],
+          "idempotency": "exception_id",
+          "requirements": [
+            "PAY-REQ-0009"
+          ]
+        }
+      ],
+      "notes": "没有 open→resolved 的直达路径：任何差异都必须先被人认领，留下责任人。"
+    }
+  ]
+}

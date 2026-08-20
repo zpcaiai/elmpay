@@ -1,0 +1,252 @@
+{
+  "batch_id": "B31",
+  "requirements": [
+    {
+      "id": "B31-R1",
+      "statement": "行级安全在数据库侧强制，且对表属主同样生效",
+      "source": "batches/B31.md 目标"
+    },
+    {
+      "id": "B31-R2",
+      "statement": "对象授权按租户前缀受限，不依赖应用拼路径",
+      "source": "batches/B31.md 目标"
+    },
+    {
+      "id": "B31-R3",
+      "statement": "缓存键与否定缓存都按租户分区",
+      "source": "batches/B31.md 目标"
+    },
+    {
+      "id": "B31-R4",
+      "statement": "消息信封带租户且消费者必须校验；禁止跨租户扇出",
+      "source": "batches/B31.md 目标"
+    },
+    {
+      "id": "B31-R5",
+      "statement": "日志必须带租户且载荷脱敏；跨租户聚合需要双人控制的权限",
+      "source": "policies/non-negotiables.md#6"
+    },
+    {
+      "id": "B31-R6",
+      "statement": "导出过滤写在查询里、一次一个租户、核对行数",
+      "source": "batches/B31.md 目标"
+    },
+    {
+      "id": "B31-R7",
+      "statement": "每个隔离面都有断言「另一租户被拒」的探针并在 CI 中运行",
+      "source": "policies/non-negotiables.md#13"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/tenant-isolation.json",
+      "requirements": [
+        "B31-R1",
+        "B31-R2",
+        "B31-R3",
+        "B31-R4",
+        "B31-R5",
+        "B31-R6",
+        "B31-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/isolation.py",
+      "requirements": [
+        "B31-R1",
+        "B31-R2",
+        "B31-R3",
+        "B31-R4",
+        "B31-R5",
+        "B31-R6",
+        "B31-R7"
+      ]
+    },
+    {
+      "ref": "libs/isolation/reference/probes.py",
+      "requirements": [
+        "B31-R1",
+        "B31-R2",
+        "B31-R3",
+        "B31-R4",
+        "B31-R5",
+        "B31-R6",
+        "B31-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/isolationgen.py",
+      "requirements": [
+        "B31-R7"
+      ]
+    },
+    {
+      "ref": "scripts/render-isolation.py",
+      "requirements": [
+        "B31-R7"
+      ]
+    },
+    {
+      "ref": "scripts/isolation-smoke.py",
+      "requirements": [
+        "B31-R1",
+        "B31-R2",
+        "B31-R3",
+        "B31-R4",
+        "B31-R5",
+        "B31-R6",
+        "B31-R7"
+      ]
+    },
+    {
+      "ref": "contracts/tenancy/isolation.json",
+      "requirements": [
+        "B31-R7"
+      ]
+    },
+    {
+      "ref": "docs/tenancy/TENANT_ISOLATION.md",
+      "requirements": [
+        "B31-R7"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b31_isolation.py",
+      "requirements": [
+        "B31-R1",
+        "B31-R2",
+        "B31-R3",
+        "B31-R4",
+        "B31-R5",
+        "B31-R6",
+        "B31-R7"
+      ],
+      "cases": 96
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-07",
+      "implemented_by": [
+        "governance/tenant-isolation.json",
+        "tools/paygov/isolation.py",
+        "libs/isolation/reference/probes.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b31_isolation.py",
+        "scripts/isolation-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/tenant-isolation.json",
+        "tools/paygov/isolation.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b31_isolation.py"
+      ]
+    },
+    {
+      "id": "NN-06",
+      "implemented_by": [
+        "governance/tenant-isolation.json",
+        "tools/paygov/isolation.py",
+        "libs/isolation/reference/probes.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b31_isolation.py",
+        "scripts/isolation-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/isolation.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b31_isolation.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/tenant-isolation.json",
+        "tools/paygov/isolation.py",
+        "libs/isolation/reference/probes.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b31_isolation.py",
+        "scripts/isolation-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-14",
+      "implemented_by": [
+        "governance/tenant-isolation.json",
+        "tools/paygov/isolation.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b31_isolation.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/tenant-isolation.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b31_isolation.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B31/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B31/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B31/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B31/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B31/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B31/runtime/isolation-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B31/runtime/isolation-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B31/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B31/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B31/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B31.json",
+      "kind": "completion"
+    }
+  ]
+}

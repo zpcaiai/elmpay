@@ -1,0 +1,242 @@
+{
+  "batch_id": "B19",
+  "requirements": [
+    {
+      "id": "B19-R1",
+      "statement": "实现租户级、对象级和字段级授权",
+      "source": "batches/B19.md 目标"
+    },
+    {
+      "id": "B19-R2",
+      "statement": "关键动作双人复核（maker≠checker），审批绑定本次请求",
+      "source": "batches/B19.md 目标"
+    },
+    {
+      "id": "B19-R3",
+      "statement": "支持限时提权：有审批、有票据、有时限、到点自动收回",
+      "source": "batches/B19.md 目标"
+    },
+    {
+      "id": "B19-R4",
+      "statement": "职责分离：同一主体不得同时持有互斥权限",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B19-R5",
+      "statement": "卡号与 CVV 对任何角色都不可读，个人信息默认脱敏",
+      "source": "policies/non-negotiables.md#4"
+    },
+    {
+      "id": "B19-R6",
+      "statement": "授权默认拒绝，允许与拒绝都写入不可变审计并记录规则版本",
+      "source": "policies/non-negotiables.md#13"
+    },
+    {
+      "id": "B19-R7",
+      "statement": "特权角色清单成为单一事实源，回补 B16/B17/B18 三处硬编码缺口",
+      "source": "evidence/B16 §8、evidence/B17 §8、evidence/B18 §8"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/authorization.json",
+      "requirements": [
+        "B19-R1",
+        "B19-R2",
+        "B19-R3",
+        "B19-R4",
+        "B19-R5",
+        "B19-R6",
+        "B19-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/authz.py",
+      "requirements": [
+        "B19-R1",
+        "B19-R2",
+        "B19-R3",
+        "B19-R4",
+        "B19-R5",
+        "B19-R6",
+        "B19-R7"
+      ]
+    },
+    {
+      "ref": "libs/authz/reference/decision.py",
+      "requirements": [
+        "B19-R1",
+        "B19-R2",
+        "B19-R3",
+        "B19-R4",
+        "B19-R5",
+        "B19-R6"
+      ]
+    },
+    {
+      "ref": "tools/paygov/authzgen.py",
+      "requirements": [
+        "B19-R1",
+        "B19-R4"
+      ]
+    },
+    {
+      "ref": "scripts/render-authz.py",
+      "requirements": [
+        "B19-R1"
+      ]
+    },
+    {
+      "ref": "scripts/authz-smoke.py",
+      "requirements": [
+        "B19-R2",
+        "B19-R3",
+        "B19-R4",
+        "B19-R5"
+      ]
+    },
+    {
+      "ref": "contracts/security/authorization-matrix.json",
+      "requirements": [
+        "B19-R1",
+        "B19-R4"
+      ]
+    },
+    {
+      "ref": "docs/security/AUTHORIZATION.md",
+      "requirements": [
+        "B19-R1",
+        "B19-R3",
+        "B19-R4"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b19_authz.py",
+      "requirements": [
+        "B19-R1",
+        "B19-R2",
+        "B19-R3",
+        "B19-R4",
+        "B19-R5",
+        "B19-R6",
+        "B19-R7"
+      ],
+      "cases": 107
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/authorization.json",
+        "tools/paygov/authz.py",
+        "libs/authz/reference/decision.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b19_authz.py",
+        "scripts/authz-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "governance/authorization.json",
+        "libs/authz/reference/decision.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b19_authz.py",
+        "scripts/authz-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "governance/authorization.json",
+        "tools/paygov/authz.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b19_authz.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/authorization.json",
+        "libs/authz/reference/decision.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b19_authz.py",
+        "scripts/authz-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-004",
+      "implemented_by": [
+        "governance/authorization.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b19_authz.py"
+      ]
+    },
+    {
+      "id": "CTRL-014",
+      "implemented_by": [
+        "governance/authorization.json",
+        "tools/paygov/authz.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b19_authz.py",
+        "scripts/authz-smoke.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B19/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B19/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B19/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B19/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B19/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B19/runtime/authz-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B19/runtime/authz-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B19/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B19/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B19/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B19.json",
+      "kind": "completion"
+    }
+  ]
+}

@@ -1,0 +1,127 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-api.py; do not edit by hand",
+  "api_version": "v1",
+  "errors": [
+    {
+      "category": "money",
+      "code": "amount_below_minimum",
+      "http_status": 422,
+      "remedy": "提高金额；金额单位是最小货币单位整数",
+      "retryable": false,
+      "safe_message": "金额低于该币种的最小可交易金额。"
+    },
+    {
+      "category": "money",
+      "code": "currency_not_supported",
+      "http_status": 422,
+      "remedy": "查询受支持币种列表后重试",
+      "retryable": false,
+      "safe_message": "该币种不在受支持列表内。"
+    },
+    {
+      "category": "idempotency",
+      "code": "idempotency_key_reuse",
+      "http_status": 409,
+      "remedy": "换一个幂等键，或使用与首次完全相同的请求体重放",
+      "retryable": false,
+      "safe_message": "同一幂等键曾用于不同的请求体。"
+    },
+    {
+      "category": "server",
+      "code": "internal_error",
+      "http_status": 500,
+      "remedy": "按指数退避重试；如持续发生请携带 trace_id 联系支持",
+      "retryable": true,
+      "safe_message": "服务内部错误。"
+    },
+    {
+      "category": "client",
+      "code": "invalid_request",
+      "http_status": 400,
+      "remedy": "按 OpenAPI 契约修正请求后重试",
+      "retryable": false,
+      "safe_message": "请求不符合契约；请检查字段类型与必填项。"
+    },
+    {
+      "category": "auth",
+      "code": "permission_denied",
+      "http_status": 403,
+      "remedy": "联系租户管理员申请对应角色",
+      "retryable": false,
+      "safe_message": "当前主体无权执行该操作。"
+    },
+    {
+      "category": "webhook",
+      "code": "provider_event_replayed",
+      "http_status": 200,
+      "remedy": "无需处理；这是正常的重发去重结果",
+      "retryable": false,
+      "safe_message": "该渠道事件此前已处理，本次为重放。"
+    },
+    {
+      "category": "webhook",
+      "code": "provider_signature_invalid",
+      "http_status": 401,
+      "remedy": "不要重试；检查签名密钥与时间戳容忍窗口",
+      "retryable": false,
+      "safe_message": "回调签名校验失败。"
+    },
+    {
+      "category": "provider",
+      "code": "provider_timeout",
+      "http_status": 504,
+      "remedy": "**不要**当作失败；用同一幂等键重试或轮询对象状态",
+      "retryable": true,
+      "safe_message": "上游渠道超时，结果未定。"
+    },
+    {
+      "category": "provider",
+      "code": "provider_unavailable",
+      "http_status": 502,
+      "remedy": "按指数退避重试；不要重新生成幂等键",
+      "retryable": true,
+      "safe_message": "上游渠道暂时不可用。"
+    },
+    {
+      "category": "throttle",
+      "code": "rate_limited",
+      "http_status": 429,
+      "remedy": "读取 Retry-After 并退避重试",
+      "retryable": true,
+      "safe_message": "请求过于频繁。"
+    },
+    {
+      "category": "client",
+      "code": "resource_not_found",
+      "http_status": 404,
+      "remedy": "确认对象 ID；注意本接口不区分不存在与无权访问",
+      "retryable": false,
+      "safe_message": "对象不存在，或不属于当前租户。"
+    },
+    {
+      "category": "state",
+      "code": "state_transition_not_allowed",
+      "http_status": 409,
+      "remedy": "先读取对象当前状态；不要假设本地缓存的状态仍然有效",
+      "retryable": false,
+      "safe_message": "对象当前状态不允许该操作。"
+    },
+    {
+      "category": "auth",
+      "code": "tenant_mismatch",
+      "http_status": 403,
+      "remedy": "确认使用了正确租户的密钥；不要跨租户引用对象 ID",
+      "retryable": false,
+      "safe_message": "该对象不属于当前租户。"
+    },
+    {
+      "category": "auth",
+      "code": "unauthenticated",
+      "http_status": 401,
+      "remedy": "使用有效的 API 密钥重新签名请求",
+      "retryable": false,
+      "safe_message": "凭据缺失或无效。"
+    }
+  ],
+  "schema_version": "1.0.0"
+}

@@ -1,0 +1,13 @@
+[
+  "contracts/provider/capability-matrix.json",
+  "docs/provider/PROVIDER_CAPABILITIES.md",
+  "governance/provider-capabilities.json",
+  "libs/capability/reference/__init__.py",
+  "libs/capability/reference/matrix.py",
+  "scripts/capabilities-smoke.py",
+  "scripts/render-capabilities.py",
+  "tools/negative/b27.py",
+  "tools/paygov/capabilities.py",
+  "tools/paygov/capabilitiesgen.py",
+  "tools/tests/test_b27_capabilities.py"
+]

@@ -1,0 +1,1862 @@
+{
+  "x-generated": "GENERATED FILE — scripts/render-api.py; do not edit by hand",
+  "openapi": "3.1.0",
+  "info": {
+    "title": "elmpay 支付平台 API",
+    "version": "v1",
+    "description": "同一大版本内只允许向后兼容的加法；破坏性变更必须开新的大版本。"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.invalid"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "api_key": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization"
+      },
+      "provider_signature": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Payment-Signature"
+      }
+    },
+    "schemas": {
+      "Money": {
+        "type": "object",
+        "required": [
+          "amount_minor",
+          "currency"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "amount_minor": {
+            "type": "integer",
+            "format": "int64",
+            "description": "最小货币单位整数。精度由 governance/currency-metadata.json 决定。"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "pattern": "^[A-Z]{3}$"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "request_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "amount_below_minimum",
+              "currency_not_supported",
+              "idempotency_key_reuse",
+              "internal_error",
+              "invalid_request",
+              "permission_denied",
+              "provider_event_replayed",
+              "provider_signature_invalid",
+              "provider_timeout",
+              "provider_unavailable",
+              "rate_limited",
+              "resource_not_found",
+              "state_transition_not_allowed",
+              "tenant_mismatch",
+              "unauthenticated"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "remedy": {
+            "type": "string"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/v1/disputes": {
+      "get": {
+        "operationId": "list_disputes",
+        "summary": "分页列出争议",
+        "parameters": [
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "starting_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": null,
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/disputes/{dispute_id}": {
+      "get": {
+        "operationId": "get_dispute",
+        "summary": "读取争议",
+        "parameters": [
+          {
+            "name": "dispute_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在，或不属于当前租户。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": null,
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/disputes/{dispute_id}/evidence": {
+      "post": {
+        "operationId": "submit_dispute_evidence",
+        "summary": "提交争议举证材料",
+        "parameters": [
+          {
+            "name": "dispute_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "幂等键，作用域 dispute_id+evidence_revision，保留 168 小时。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在，或不属于当前租户。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "对象当前状态不允许该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": {
+          "machine": "dispute",
+          "event": "merchant.evidence_submitted"
+        },
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/payment_intents": {
+      "post": {
+        "operationId": "create_payment_intent",
+        "summary": "创建一次付款意图",
+        "parameters": [
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "幂等键，作用域 idempotency_key，保留 168 小时。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "金额低于该币种的最小可交易金额。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": null,
+        "x-deprecated-sunset": null
+      },
+      "get": {
+        "operationId": "list_payment_intents",
+        "summary": "分页列出付款意图",
+        "parameters": [
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "starting_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": null,
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/payment_intents/{payment_intent_id}": {
+      "get": {
+        "operationId": "get_payment_intent",
+        "summary": "读取付款意图",
+        "parameters": [
+          {
+            "name": "payment_intent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在，或不属于当前租户。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": null,
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/payment_intents/{payment_intent_id}/cancel": {
+      "post": {
+        "operationId": "cancel_payment_intent",
+        "summary": "取消尚未授权的付款意图",
+        "parameters": [
+          {
+            "name": "payment_intent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "幂等键，作用域 idempotency_key，保留 168 小时。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在，或不属于当前租户。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "对象当前状态不允许该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": {
+          "machine": "payment-intent",
+          "event": "merchant.cancel"
+        },
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/payment_intents/{payment_intent_id}/capture": {
+      "post": {
+        "operationId": "capture_payment_intent",
+        "summary": "对已授权的付款意图发起捕获",
+        "parameters": [
+          {
+            "name": "payment_intent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "幂等键，作用域 idempotency_key，保留 168 小时。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在，或不属于当前租户。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "对象当前状态不允许该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "上游渠道超时，结果未定。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游渠道暂时不可用。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": null,
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/payment_intents/{payment_intent_id}/void": {
+      "post": {
+        "operationId": "void_payment_intent",
+        "summary": "撤销已授权但未捕获的额度",
+        "parameters": [
+          {
+            "name": "payment_intent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "幂等键，作用域 idempotency_key，保留 168 小时。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在，或不属于当前租户。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "对象当前状态不允许该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "上游渠道暂时不可用。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": {
+          "machine": "payment-intent",
+          "event": "merchant.void"
+        },
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/refunds": {
+      "post": {
+        "operationId": "create_refund",
+        "summary": "发起退款",
+        "parameters": [
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "幂等键，作用域 idempotency_key，保留 168 小时。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在，或不属于当前租户。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "对象当前状态不允许该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "金额低于该币种的最小可交易金额。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": null,
+        "x-deprecated-sunset": null
+      },
+      "get": {
+        "operationId": "list_refunds",
+        "summary": "分页列出退款",
+        "parameters": [
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "starting_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": null,
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/refunds/{refund_id}": {
+      "get": {
+        "operationId": "get_refund",
+        "summary": "读取退款",
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在，或不属于当前租户。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": null,
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/refunds/{refund_id}/cancel": {
+      "post": {
+        "operationId": "cancel_refund",
+        "summary": "撤回尚未提交渠道的退款",
+        "parameters": [
+          {
+            "name": "refund_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "幂等键，作用域 idempotency_key，保留 168 小时。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在，或不属于当前租户。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "对象当前状态不允许该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "merchant",
+        "x-drives-transition": {
+          "machine": "refund",
+          "event": "merchant.cancel_refund"
+        },
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/subscriptions/{subscription_id}/cancel": {
+      "post": {
+        "operationId": "cancel_subscription",
+        "summary": "取消订阅",
+        "parameters": [
+          {
+            "name": "subscription_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "幂等键，作用域 idempotency_key，保留 168 小时。"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "凭据缺失或无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "当前主体无权执行该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "对象不存在，或不属于当前租户。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "对象当前状态不允许该操作。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ],
+        "x-actor": "customer",
+        "x-drives-transition": {
+          "machine": "subscription",
+          "event": "customer.cancel"
+        },
+        "x-deprecated-sunset": null
+      }
+    },
+    "/v1/webhooks/providers/{provider}": {
+      "post": {
+        "operationId": "receive_provider_event",
+        "summary": "接收渠道回调事件",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "traceparent",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Request-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Payment-Event-Id",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "幂等键，作用域 provider_event_id，保留 720 小时。"
+          },
+          {
+            "name": "X-Payment-Signature",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Payment-Timestamp",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功"
+          },
+          "401": {
+            "description": "回调签名校验失败。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求不符合契约；请检查字段类型与必填项。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "请求过于频繁。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "provider_signature": []
+          }
+        ],
+        "x-actor": "provider-event",
+        "x-drives-transition": null,
+        "x-deprecated-sunset": null
+      }
+    }
+  }
+}

@@ -1,0 +1,155 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-routing.py; do not edit by hand",
+  "audit_event_class": "config.change",
+  "canary": {
+    "auto_promote": false,
+    "auto_rollback_on_error_rate": true,
+    "error_rate_threshold_percent": 2,
+    "max_percent": 25,
+    "min_observation_minutes": 30,
+    "random_split_allowed": false,
+    "split_key": "payment_intent_id",
+    "stable_hash": true
+  },
+  "config_versioning": {
+    "activation_approvers_required": 2,
+    "activation_permission": "config.write",
+    "activation_requires_approval": true,
+    "decision_records_config_version": true,
+    "retain_versions": 50,
+    "versions_are_immutable": true
+  },
+  "determinism": {
+    "random_selection_allowed": false,
+    "replayable": true,
+    "same_inputs_same_decision": true,
+    "tie_break": "lowest_provider_id"
+  },
+  "retry": {
+    "backoff_seconds": [
+      1,
+      5,
+      25
+    ],
+    "change_provider_on_retry_allowed": false,
+    "max_attempts": 3,
+    "reuse_idempotency_key": true
+  },
+  "rollback": {
+    "max_seconds": 60,
+    "requires_approval": false,
+    "to_existing_version_only": true
+  },
+  "rules": [
+    {
+      "fallback": [],
+      "id": "cn_wallets",
+      "prefer": [
+        "wechat"
+      ],
+      "priority": 10,
+      "when": {
+        "currency": "CNY",
+        "max_amount_minor": 5000000,
+        "method": "wechat_pay",
+        "region": "CN"
+      }
+    },
+    {
+      "fallback": [],
+      "id": "cn_alipay",
+      "prefer": [
+        "alipay"
+      ],
+      "priority": 20,
+      "when": {
+        "currency": "CNY",
+        "max_amount_minor": 5000000,
+        "method": "alipay",
+        "region": "CN"
+      }
+    },
+    {
+      "fallback": [],
+      "id": "hk_cards",
+      "prefer": [
+        "stripe"
+      ],
+      "priority": 30,
+      "when": {
+        "currency": "HKD",
+        "max_amount_minor": 2000000,
+        "method": "card",
+        "region": "HK"
+      }
+    },
+    {
+      "fallback": [],
+      "id": "eu_cards",
+      "prefer": [
+        "stripe"
+      ],
+      "priority": 40,
+      "when": {
+        "currency": "EUR",
+        "max_amount_minor": 2000000,
+        "method": "card",
+        "region": "EU"
+      }
+    },
+    {
+      "fallback": [],
+      "id": "eu_wallet",
+      "prefer": [
+        "paypal"
+      ],
+      "priority": 50,
+      "when": {
+        "currency": "EUR",
+        "max_amount_minor": 2000000,
+        "method": "paypal_wallet",
+        "region": "EU"
+      }
+    },
+    {
+      "fallback": [],
+      "id": "sg_cards",
+      "prefer": [
+        "stripe"
+      ],
+      "priority": 60,
+      "when": {
+        "currency": "SGD",
+        "max_amount_minor": 2000000,
+        "method": "card",
+        "region": "SG"
+      }
+    }
+  ],
+  "schema_version": "1.0.0",
+  "scoring": {
+    "exploration_floor_percent": 5,
+    "factors": [
+      {
+        "id": "cost",
+        "weight": 30
+      },
+      {
+        "id": "risk",
+        "weight": 20
+      },
+      {
+        "id": "success_rate",
+        "weight": 50
+      }
+    ],
+    "min_sample": 200,
+    "starvation_guard": true,
+    "window_minutes": 60
+  },
+  "simulation": {
+    "compares_against_live": true,
+    "shadow_moves_money": false,
+    "uses_production_config": true
+  }
+}

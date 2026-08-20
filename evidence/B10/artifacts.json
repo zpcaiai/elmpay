@@ -1,0 +1,11 @@
+[
+  "docs/domain/STATE_MACHINES.md",
+  "governance/state-machines.json",
+  "libs/statemachine/reference/__init__.py",
+  "libs/statemachine/reference/machine.py",
+  "scripts/render-states.py",
+  "scripts/state-smoke.py",
+  "tools/paygov/stategen.py",
+  "tools/paygov/states.py",
+  "tools/tests/test_b10_states.py"
+]

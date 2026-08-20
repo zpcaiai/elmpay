@@ -1,0 +1,267 @@
+{
+  "batch_id": "B32",
+  "requirements": [
+    {
+      "id": "B32-R1",
+      "statement": "金额与币种在创建时快照并不可修改；改金额必须新建意图",
+      "source": "batches/B32.md 目标"
+    },
+    {
+      "id": "B32-R2",
+      "statement": "意图有过期时间，创建时写入、不可延长、过期不可确认",
+      "source": "batches/B32.md 目标"
+    },
+    {
+      "id": "B32-R3",
+      "statement": "确认必须带幂等键且同键返回同结果；一笔意图最多成功一次",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B32-R4",
+      "statement": "支付成功只能来自已验签渠道事件或服务端主动查询，回跳页不是证据",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B32-R5",
+      "statement": "可用支付方式在创建时快照，只能收窄不能放宽",
+      "source": "batches/B32.md 目标"
+    },
+    {
+      "id": "B32-R6",
+      "statement": "业务订单归原项目所有；平台只存引用，且一个订单同时只有一笔在途意图",
+      "source": "policies/non-negotiables.md#9"
+    },
+    {
+      "id": "B32-R7",
+      "statement": "状态机引用 B10；捕获不超过快照金额、退款不超过捕获",
+      "source": "policies/non-negotiables.md#2"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/payment-intent.json",
+      "requirements": [
+        "B32-R1",
+        "B32-R2",
+        "B32-R3",
+        "B32-R4",
+        "B32-R5",
+        "B32-R6",
+        "B32-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/intent.py",
+      "requirements": [
+        "B32-R1",
+        "B32-R2",
+        "B32-R3",
+        "B32-R4",
+        "B32-R5",
+        "B32-R6",
+        "B32-R7"
+      ]
+    },
+    {
+      "ref": "libs/intent/reference/intent.py",
+      "requirements": [
+        "B32-R1",
+        "B32-R2",
+        "B32-R3",
+        "B32-R4",
+        "B32-R5",
+        "B32-R6",
+        "B32-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/intentgen.py",
+      "requirements": [
+        "B32-R1",
+        "B32-R7"
+      ]
+    },
+    {
+      "ref": "scripts/render-intent.py",
+      "requirements": [
+        "B32-R1"
+      ]
+    },
+    {
+      "ref": "scripts/intent-smoke.py",
+      "requirements": [
+        "B32-R1",
+        "B32-R2",
+        "B32-R3",
+        "B32-R4",
+        "B32-R5",
+        "B32-R6",
+        "B32-R7"
+      ]
+    },
+    {
+      "ref": "contracts/payment/intent.json",
+      "requirements": [
+        "B32-R1",
+        "B32-R7"
+      ]
+    },
+    {
+      "ref": "docs/payment/PAYMENT_INTENT.md",
+      "requirements": [
+        "B32-R1",
+        "B32-R6"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b32_intent.py",
+      "requirements": [
+        "B32-R1",
+        "B32-R2",
+        "B32-R3",
+        "B32-R4",
+        "B32-R5",
+        "B32-R6",
+        "B32-R7"
+      ],
+      "cases": 103
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/payment-intent.json",
+        "tools/paygov/intent.py",
+        "libs/intent/reference/intent.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b32_intent.py",
+        "scripts/intent-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/payment-intent.json",
+        "tools/paygov/intent.py",
+        "libs/intent/reference/intent.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b32_intent.py",
+        "scripts/intent-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "governance/payment-intent.json",
+        "tools/paygov/intent.py",
+        "libs/intent/reference/intent.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b32_intent.py",
+        "scripts/intent-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-09",
+      "implemented_by": [
+        "governance/payment-intent.json",
+        "tools/paygov/intent.py",
+        "libs/intent/reference/intent.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b32_intent.py",
+        "scripts/intent-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/intent.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b32_intent.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/payment-intent.json",
+        "tools/paygov/intent.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b32_intent.py"
+      ]
+    },
+    {
+      "id": "NN-14",
+      "implemented_by": [
+        "governance/payment-intent.json",
+        "tools/paygov/intent.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b32_intent.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/payment-intent.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b32_intent.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B32/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B32/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B32/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B32/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B32/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B32/runtime/intent-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B32/runtime/intent-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B32/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B32/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B32/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B32.json",
+      "kind": "completion"
+    }
+  ]
+}

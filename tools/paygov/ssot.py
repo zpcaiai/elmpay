@@ -23,6 +23,11 @@ PATH = Path("governance/ssot-registry.json")
 GOVERNANCE_DIR = Path("governance")
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("ssot", "B07")
+
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     where = str(PATH)
@@ -65,6 +70,17 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
         problems += expect(validator in known_validators, "SSOT_VALIDATOR", scope,
                            f"validator '{validator}' is not registered; an unvalidated source of "
                            f"truth is a document, not a control", "NN-12")
+        if validator in known_validators:
+            # This registry is no longer pinned to B07's artefact digest — it
+            # grows by construction, once per batch, so pinning it meant B07's
+            # evidence expired every batch and cascaded a full re-baseline.
+            # What replaces the pin is this: an entry cannot lie about which
+            # batch owns it, because the owning batch is whatever the validator
+            # module itself declares.
+            owner_batch = validator_registry.batch_of(validator)
+            problems += expect(batch == owner_batch, "SSOT_BATCH_MISMATCH", scope,
+                               f"'{sid}' claims batch '{batch}' but its validator "
+                               f"'{validator}' is declared by {owner_batch}", "NN-12")
         for generated in source.get("generates", []):
             if generated in generated_by:
                 problems.append(Problem("SSOT_DOUBLE_GENERATOR", scope,

@@ -47,7 +47,8 @@ def compose_yaml(root: Path, budget: Budget | None = None) -> str:
         if service["ports"]:
             lines.append("    ports:")
             for port in service["ports"]:
-                mapping = "127.0.0.1:{}:{}".format(port["host"], port["container"])
+                bind = port.get("bind", "127.0.0.1")
+                mapping = "{}:{}:{}".format(bind, port["host"], port["container"])
                 lines.append("      - " + _quote(mapping))
         if service["environment"]:
             lines.append("    environment:")
@@ -75,7 +76,8 @@ def compose_yaml(root: Path, budget: Budget | None = None) -> str:
                   "      - no-new-privileges:true",
                   "    ports:"]
         for port in simulator["ports"]:
-            mapping = "127.0.0.1:{}:{}".format(port["host"], port["container"])
+            bind = port.get("bind", "127.0.0.1")
+            mapping = "{}:{}:{}".format(bind, port["host"], port["container"])
             lines.append("      - " + _quote(mapping))
         lines += ["    healthcheck:",
                   f'      test: ["CMD-SHELL", {_quote(simulator["healthcheck"])}]',

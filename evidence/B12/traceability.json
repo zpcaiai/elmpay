@@ -1,0 +1,255 @@
+{
+  "batch_id": "B12",
+  "requirements": [
+    {
+      "id": "B12-R1",
+      "statement": "在至少一次传递之上达成恰好一次的业务效果",
+      "source": "batches/B12.md 目标"
+    },
+    {
+      "id": "B12-R2",
+      "statement": "状态变更与事件写入必须在同一事务中，崩溃不得产生虚假事件",
+      "source": "policies/non-negotiables.md#4"
+    },
+    {
+      "id": "B12-R3",
+      "statement": "建立事件版本策略，新旧版本并行且只允许加法",
+      "source": "batches/B12.md 目标"
+    },
+    {
+      "id": "B12-R4",
+      "statement": "建立乱序容忍机制，以单调序号而非时钟为准",
+      "source": "batches/B12.md 目标"
+    },
+    {
+      "id": "B12-R5",
+      "statement": "事件负载不得包含卡数据、凭据或未分级的个人信息",
+      "source": "policies/non-negotiables.md#2"
+    },
+    {
+      "id": "B12-R6",
+      "statement": "每一条通往成功状态的转移都必须产生可被账本与对账消费的事件",
+      "source": "policies/non-negotiables.md#6"
+    },
+    {
+      "id": "B12-R7",
+      "statement": "投递失败必须进入死信而不是被静默丢弃",
+      "source": "batches/B12.md 自动化验证"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/event-catalog.json",
+      "requirements": [
+        "B12-R1",
+        "B12-R2",
+        "B12-R3",
+        "B12-R4",
+        "B12-R5",
+        "B12-R6",
+        "B12-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/events.py",
+      "requirements": [
+        "B12-R1",
+        "B12-R2",
+        "B12-R3",
+        "B12-R4",
+        "B12-R5",
+        "B12-R6",
+        "B12-R7"
+      ]
+    },
+    {
+      "ref": "libs/eventing/reference/eventing.py",
+      "requirements": [
+        "B12-R1",
+        "B12-R2",
+        "B12-R4",
+        "B12-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/eventgen.py",
+      "requirements": [
+        "B12-R3"
+      ]
+    },
+    {
+      "ref": "scripts/render-events.py",
+      "requirements": [
+        "B12-R3"
+      ]
+    },
+    {
+      "ref": "scripts/events-smoke.py",
+      "requirements": [
+        "B12-R1",
+        "B12-R2",
+        "B12-R4",
+        "B12-R7"
+      ]
+    },
+    {
+      "ref": "contracts/events/catalog.json",
+      "requirements": [
+        "B12-R3",
+        "B12-R5"
+      ]
+    },
+    {
+      "ref": "docs/events/EVENT_CATALOG.md",
+      "requirements": [
+        "B12-R1",
+        "B12-R4"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b12_events.py",
+      "requirements": [
+        "B12-R1",
+        "B12-R2",
+        "B12-R3",
+        "B12-R4",
+        "B12-R5",
+        "B12-R6",
+        "B12-R7"
+      ],
+      "cases": 84
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "governance/event-catalog.json",
+        "tools/paygov/events.py",
+        "libs/eventing/reference/eventing.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b12_events.py",
+        "scripts/events-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-02",
+      "implemented_by": [
+        "tools/paygov/events.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b12_events.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "governance/event-catalog.json",
+        "tools/paygov/events.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b12_events.py"
+      ]
+    },
+    {
+      "id": "NN-06",
+      "implemented_by": [
+        "tools/paygov/events.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b12_events.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-09",
+      "implemented_by": [
+        "governance/event-catalog.json",
+        "tools/paygov/events.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b12_events.py"
+      ]
+    },
+    {
+      "id": "NN-14",
+      "implemented_by": [
+        "governance/event-catalog.json",
+        "tools/paygov/events.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b12_events.py"
+      ]
+    },
+    {
+      "id": "CTRL-003",
+      "implemented_by": [
+        "governance/event-catalog.json",
+        "libs/eventing/reference/eventing.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b12_events.py",
+        "scripts/events-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-008",
+      "implemented_by": [
+        "tools/paygov/events.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b12_events.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B12/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B12/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B12/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B12/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B12/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B12/runtime/events-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B12/runtime/events-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B12/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B12/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B12/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B12.json",
+      "kind": "completion"
+    }
+  ]
+}

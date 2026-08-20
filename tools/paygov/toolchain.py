@@ -33,6 +33,11 @@ VALID_VERIFICATION = {"verified", "unverified-offline"}
 EXPECTED_JAVA_MAJOR = "25"
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("toolchain", "B03")
+
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     where = str(PATH)

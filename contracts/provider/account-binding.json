@@ -1,0 +1,246 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-accounts.py; do not edit by hand",
+  "activation": {
+    "callback_roundtrip_required": true,
+    "signature_verification_required": true,
+    "test_transaction_required": true
+  },
+  "audit_event_class": "config.change",
+  "binding": {
+    "identity_fields": [
+      "environment",
+      "project_id",
+      "provider",
+      "provider_merchant_id",
+      "tenant_id"
+    ],
+    "immutable_fields": [
+      "environment",
+      "project_id",
+      "provider",
+      "provider_merchant_id",
+      "tenant_id"
+    ],
+    "one_credential_per_binding": true,
+    "unique_key": [
+      "environment",
+      "project_id",
+      "provider",
+      "tenant_id"
+    ]
+  },
+  "callback": {
+    "attribution_must_be_deterministic": true,
+    "client_return_page_is_evidence": false,
+    "cross_tenant_delivery_allowed": false,
+    "guess_on_ambiguity": false,
+    "idempotency_key_field": "provider_event_id",
+    "quarantine_on_unattributable": true,
+    "replay_window_seconds": 300,
+    "signature_required": true
+  },
+  "capability_matrix": [
+    {
+      "initiate_payment": false,
+      "issue_refund": false,
+      "receive_callback": true,
+      "rotate_credential": true,
+      "settle": false,
+      "state": "pending"
+    },
+    {
+      "initiate_payment": true,
+      "issue_refund": true,
+      "receive_callback": true,
+      "rotate_credential": true,
+      "settle": true,
+      "state": "active"
+    },
+    {
+      "initiate_payment": false,
+      "issue_refund": true,
+      "receive_callback": true,
+      "rotate_credential": true,
+      "settle": true,
+      "state": "suspended"
+    },
+    {
+      "initiate_payment": false,
+      "issue_refund": false,
+      "receive_callback": false,
+      "rotate_credential": false,
+      "settle": false,
+      "state": "revoked"
+    }
+  ],
+  "credentials": {
+    "max_decrypt_lease_seconds": 300,
+    "plaintext_at_rest": false,
+    "plaintext_in_logs": false,
+    "rotation_max_days": 90,
+    "rotation_overlap_days": 7,
+    "shared_across_environments": false,
+    "shared_across_projects": false,
+    "shared_across_tenants": false,
+    "storage": "envelope_encrypted"
+  },
+  "forbidden": {
+    "attribution_by_amount_or_time": true,
+    "callback_without_signature": true,
+    "credential_in_source_or_ci": true,
+    "shared_credential_across_environments": true,
+    "shared_credential_across_tenants": true
+  },
+  "lifecycle": {
+    "initial": "pending",
+    "states": [
+      "pending",
+      "active",
+      "suspended",
+      "revoked"
+    ],
+    "terminal": [
+      "revoked"
+    ],
+    "transitions": [
+      {
+        "from": "pending",
+        "requires": [
+          "callback_roundtrip_verified",
+          "test_transaction_settled"
+        ],
+        "to": "active"
+      },
+      {
+        "from": "active",
+        "requires": [
+          "actor",
+          "reason"
+        ],
+        "to": "suspended"
+      },
+      {
+        "from": "suspended",
+        "requires": [
+          "actor",
+          "reason",
+          "second_approver"
+        ],
+        "to": "active"
+      },
+      {
+        "from": "suspended",
+        "requires": [
+          "credential_destroyed",
+          "in_flight_settled"
+        ],
+        "to": "revoked"
+      },
+      {
+        "from": "active",
+        "requires": [
+          "credential_destroyed",
+          "in_flight_settled",
+          "second_approver"
+        ],
+        "to": "revoked"
+      }
+    ]
+  },
+  "providers": [
+    {
+      "callback_attribution_field": "provider_merchant_id",
+      "callback_signed": true,
+      "credential_kind": "signing_key",
+      "credential_rotation_days": 90,
+      "environments": [
+        "live",
+        "test"
+      ],
+      "id": "alipay",
+      "key_id": "kek-provider-credentials",
+      "settlement_currencies": [
+        "CNY",
+        "HKD"
+      ]
+    },
+    {
+      "callback_attribution_field": "provider_merchant_id",
+      "callback_signed": true,
+      "credential_kind": "decryption_key",
+      "credential_rotation_days": 90,
+      "environments": [
+        "live",
+        "test"
+      ],
+      "id": "apple_pay",
+      "key_id": "kek-provider-credentials",
+      "settlement_currencies": [
+        "CNY",
+        "EUR",
+        "GBP",
+        "HKD",
+        "USD"
+      ]
+    },
+    {
+      "callback_attribution_field": "endpoint_id",
+      "callback_signed": true,
+      "credential_kind": "api_key",
+      "credential_rotation_days": 90,
+      "environments": [
+        "live",
+        "test"
+      ],
+      "id": "paypal",
+      "key_id": "kek-provider-credentials",
+      "settlement_currencies": [
+        "EUR",
+        "GBP",
+        "USD"
+      ]
+    },
+    {
+      "callback_attribution_field": "endpoint_id",
+      "callback_signed": true,
+      "credential_kind": "api_key",
+      "credential_rotation_days": 90,
+      "environments": [
+        "live",
+        "test"
+      ],
+      "id": "stripe",
+      "key_id": "kek-provider-credentials",
+      "settlement_currencies": [
+        "EUR",
+        "GBP",
+        "HKD",
+        "SGD",
+        "USD"
+      ]
+    },
+    {
+      "callback_attribution_field": "provider_merchant_id",
+      "callback_signed": true,
+      "credential_kind": "signing_key",
+      "credential_rotation_days": 90,
+      "environments": [
+        "live",
+        "test"
+      ],
+      "id": "wechat",
+      "key_id": "kek-provider-credentials",
+      "settlement_currencies": [
+        "CNY",
+        "HKD"
+      ]
+    }
+  ],
+  "quarantine": {
+    "alert_required": true,
+    "auto_replay_allowed": false,
+    "manual_replay_requires_attribution": true,
+    "retention_days": 30
+  },
+  "schema_version": "1.0.0"
+}

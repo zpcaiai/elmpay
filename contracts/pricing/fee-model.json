@@ -1,0 +1,217 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-fees.py; do not edit by hand",
+  "audit_event_class": "money.movement",
+  "categories": [
+    {
+      "charged_to_merchant": false,
+      "id": "internal_cost",
+      "is_revenue": false,
+      "remitted_to_authority": false
+    },
+    {
+      "charged_to_merchant": true,
+      "id": "platform_service_fee",
+      "is_revenue": true,
+      "remitted_to_authority": false
+    },
+    {
+      "charged_to_merchant": true,
+      "id": "provider_cost",
+      "is_revenue": false,
+      "remitted_to_authority": false
+    },
+    {
+      "charged_to_merchant": true,
+      "id": "tax",
+      "is_revenue": false,
+      "remitted_to_authority": true
+    }
+  ],
+  "currency": {
+    "conversion_requires_rate_record": true,
+    "fee_currency_equals_payment_currency": true,
+    "implicit_conversion_allowed": false,
+    "rate_record_fields": [
+      "quoted_at",
+      "rate",
+      "source"
+    ]
+  },
+  "metering": {
+    "event_key": "payment_id",
+    "idempotent": true,
+    "recomputable": true,
+    "retention_days": 1825
+  },
+  "rounding": {
+    "declared": true,
+    "mode": "half_up",
+    "remainder_owner": "platform",
+    "sum_must_equal_total": true,
+    "unit": "minor"
+  },
+  "schedules": [
+    {
+      "basis": "payment",
+      "category": "provider_cost",
+      "currency": "CNY",
+      "fixed_minor": 0,
+      "id": "alipay_cn_cost",
+      "max_minor": 0,
+      "method": "alipay",
+      "min_minor": 0,
+      "percentage_bp": 60,
+      "provider": "alipay",
+      "region": "CN"
+    },
+    {
+      "basis": "payment",
+      "category": "provider_cost",
+      "currency": "CNY",
+      "fixed_minor": 0,
+      "id": "applepay_cn_cost",
+      "max_minor": 0,
+      "method": "apple_pay",
+      "min_minor": 0,
+      "percentage_bp": 15,
+      "provider": "apple_pay",
+      "region": "CN"
+    },
+    {
+      "basis": "payment",
+      "category": "internal_cost",
+      "currency": "CNY",
+      "fixed_minor": 0,
+      "id": "internal_risk_cn",
+      "max_minor": 0,
+      "method": "wechat_pay",
+      "min_minor": 0,
+      "percentage_bp": 5,
+      "provider": "wechat",
+      "region": "CN"
+    },
+    {
+      "basis": "payment",
+      "category": "provider_cost",
+      "currency": "EUR",
+      "fixed_minor": 35,
+      "id": "paypal_eu_cost",
+      "max_minor": 0,
+      "method": "paypal_wallet",
+      "min_minor": 0,
+      "percentage_bp": 290,
+      "provider": "paypal",
+      "region": "EU"
+    },
+    {
+      "basis": "payment",
+      "category": "platform_service_fee",
+      "currency": "CNY",
+      "fixed_minor": 0,
+      "id": "platform_cn",
+      "max_minor": 500000,
+      "method": "wechat_pay",
+      "min_minor": 1,
+      "percentage_bp": 30,
+      "provider": "wechat",
+      "region": "CN"
+    },
+    {
+      "basis": "payment",
+      "category": "platform_service_fee",
+      "currency": "EUR",
+      "fixed_minor": 0,
+      "id": "platform_eu",
+      "max_minor": 500000,
+      "method": "card",
+      "min_minor": 1,
+      "percentage_bp": 30,
+      "provider": "stripe",
+      "region": "EU"
+    },
+    {
+      "basis": "payment",
+      "category": "provider_cost",
+      "currency": "EUR",
+      "fixed_minor": 25,
+      "id": "stripe_eu_cost",
+      "max_minor": 0,
+      "method": "card",
+      "min_minor": 0,
+      "percentage_bp": 140,
+      "provider": "stripe",
+      "region": "EU"
+    },
+    {
+      "basis": "payment",
+      "category": "provider_cost",
+      "currency": "HKD",
+      "fixed_minor": 235,
+      "id": "stripe_hk_cost",
+      "max_minor": 0,
+      "method": "card",
+      "min_minor": 0,
+      "percentage_bp": 340,
+      "provider": "stripe",
+      "region": "HK"
+    },
+    {
+      "basis": "payment",
+      "category": "provider_cost",
+      "currency": "SGD",
+      "fixed_minor": 50,
+      "id": "stripe_sg_cost",
+      "max_minor": 0,
+      "method": "card",
+      "min_minor": 0,
+      "percentage_bp": 340,
+      "provider": "stripe",
+      "region": "SG"
+    },
+    {
+      "basis": "platform_service_fee",
+      "category": "tax",
+      "currency": "EUR",
+      "fixed_minor": 0,
+      "id": "tax_eu_vat",
+      "max_minor": 0,
+      "method": "card",
+      "min_minor": 0,
+      "percentage_bp": 2000,
+      "provider": "stripe",
+      "region": "EU"
+    },
+    {
+      "basis": "payment",
+      "category": "provider_cost",
+      "currency": "CNY",
+      "fixed_minor": 0,
+      "id": "wechat_cn_cost",
+      "max_minor": 0,
+      "method": "wechat_pay",
+      "min_minor": 0,
+      "percentage_bp": 60,
+      "provider": "wechat",
+      "region": "CN"
+    }
+  ],
+  "schema_version": "1.0.0",
+  "settlement": {
+    "authoritative_source": "provider_settlement_report",
+    "book_value_is_estimate": true,
+    "max_settle_lag_days": 35,
+    "mismatch_opens_reconciliation": true,
+    "silent_overwrite_allowed": false,
+    "tolerance_minor": 0
+  },
+  "split": {
+    "must_sum_to_total": true,
+    "parties": [
+      "authority",
+      "merchant",
+      "platform",
+      "provider"
+    ],
+    "residue_to": "platform"
+  }
+}

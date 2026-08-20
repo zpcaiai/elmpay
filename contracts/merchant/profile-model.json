@@ -1,0 +1,221 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-merchant.py; do not edit by hand",
+  "appeal": {
+    "available": true,
+    "decision_must_state_reasons": true,
+    "notes": "拒绝必须给出理由并可申诉，复核人不能是原判人。一个不能被申诉的自动拒绝，在监管与商业上都站不住。",
+    "response_days": 15,
+    "reviewer_must_differ_from_decider": true
+  },
+  "audit_event_class": "config.change",
+  "business_categories": [
+    {
+      "allowed": false,
+      "code": "adult_content",
+      "risk": "prohibited"
+    },
+    {
+      "allowed": false,
+      "code": "crypto_exchange",
+      "risk": "prohibited"
+    },
+    {
+      "allowed": true,
+      "code": "digital_services",
+      "risk": "medium"
+    },
+    {
+      "allowed": true,
+      "code": "retail_goods",
+      "risk": "low"
+    },
+    {
+      "allowed": true,
+      "code": "travel",
+      "risk": "high"
+    },
+    {
+      "allowed": false,
+      "code": "unlicensed_gambling",
+      "risk": "prohibited"
+    }
+  ],
+  "documents": [
+    {
+      "contains_pii": true,
+      "expires_days": 180,
+      "id": "bank_account_proof",
+      "issuer": "bank"
+    },
+    {
+      "contains_pii": false,
+      "expires_days": 365,
+      "id": "business_licence",
+      "issuer": "registry"
+    },
+    {
+      "contains_pii": true,
+      "expires_days": 730,
+      "id": "director_identity",
+      "issuer": "government"
+    },
+    {
+      "contains_pii": true,
+      "expires_days": 365,
+      "id": "ubo_declaration",
+      "issuer": "merchant"
+    }
+  ],
+  "entity_kinds": [
+    {
+      "id": "company",
+      "required_documents": [
+        "bank_account_proof",
+        "business_licence",
+        "director_identity",
+        "ubo_declaration"
+      ]
+    },
+    {
+      "id": "individual",
+      "required_documents": [
+        "bank_account_proof",
+        "director_identity"
+      ]
+    },
+    {
+      "id": "sole_trader",
+      "required_documents": [
+        "bank_account_proof",
+        "business_licence",
+        "director_identity"
+      ]
+    }
+  ],
+  "material_changes": [
+    {
+      "holds_settlement": false,
+      "id": "category_change",
+      "permission": "config.write",
+      "requires_reverification": true
+    },
+    {
+      "holds_settlement": true,
+      "id": "country_change",
+      "permission": "config.write",
+      "requires_reverification": true
+    },
+    {
+      "holds_settlement": false,
+      "id": "legal_name_change",
+      "permission": "config.write",
+      "requires_reverification": true
+    },
+    {
+      "holds_settlement": true,
+      "id": "payout_account_change",
+      "permission": "payout_account.write",
+      "requires_reverification": true
+    },
+    {
+      "holds_settlement": false,
+      "id": "ubo_change",
+      "permission": "config.write",
+      "requires_reverification": true
+    }
+  ],
+  "operating_regions": [
+    {
+      "code": "CN",
+      "requires_local_entity": true,
+      "settlement_currencies": [
+        "CNY"
+      ]
+    },
+    {
+      "code": "EU",
+      "requires_local_entity": true,
+      "settlement_currencies": [
+        "EUR"
+      ]
+    },
+    {
+      "code": "HK",
+      "requires_local_entity": false,
+      "settlement_currencies": [
+        "HKD",
+        "USD"
+      ]
+    },
+    {
+      "code": "SG",
+      "requires_local_entity": false,
+      "settlement_currencies": [
+        "SGD",
+        "USD"
+      ]
+    }
+  ],
+  "retention": {
+    "after_offboarding_days": 1825,
+    "documents_encrypted": true,
+    "minimise_to_declared_purpose": true,
+    "notes": "KYB 材料在商户离开后仍需按监管要求保留五年；保留不等于可读——材料加密存储，读取受 B19 字段规则约束。"
+  },
+  "risk_levels": [
+    {
+      "approvers_required": 1,
+      "daily_limit_minor": 50000000,
+      "id": "low",
+      "settlement_delay_days": 1,
+      "single_limit_minor": 5000000
+    },
+    {
+      "approvers_required": 1,
+      "daily_limit_minor": 20000000,
+      "id": "medium",
+      "settlement_delay_days": 3,
+      "single_limit_minor": 2000000
+    },
+    {
+      "approvers_required": 2,
+      "daily_limit_minor": 5000000,
+      "id": "high",
+      "settlement_delay_days": 7,
+      "single_limit_minor": 500000
+    }
+  ],
+  "schema_version": "1.0.0",
+  "screening": {
+    "auto_approve_on_hit": false,
+    "hit_requires_human_review": true,
+    "lists": [
+      "adverse_media",
+      "pep",
+      "sanctions"
+    ],
+    "rescreen_interval_days": 90
+  },
+  "ubo": {
+    "max_ownership_depth": 5,
+    "ownership_threshold_percent": 25,
+    "requires_identity_document": true,
+    "screening_required": true
+  },
+  "verification": {
+    "authority_fields": [
+      "authority",
+      "decided_at",
+      "decision_reference",
+      "valid_until"
+    ],
+    "authority_required": true,
+    "max_validity_days": 730,
+    "platform_is_licensed_verifier": false,
+    "self_attestation_allowed_for": [
+      "display_name",
+      "support_contact",
+      "website"
+    ]
+  }
+}

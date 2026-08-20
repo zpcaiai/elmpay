@@ -1,0 +1,101 @@
+{
+  "batch": "B10",
+  "commands": [
+    {
+      "purpose": "environment fingerprint",
+      "expect": 0,
+      "command": "python3 -VV && uname -a && git --version && echo repo=$(git rev-parse --short HEAD)",
+      "save_to": "runtime/environment.txt"
+    },
+    {
+      "purpose": "dependency B08 evidence still validates",
+      "expect": 0,
+      "command": "python3 .payment-platform/skill-package/scripts/orchestrate.py validate B08 --repo .",
+      "save_to": "runtime/dependency-b08.json"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary)",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --out evidence/B10/test-results/summary.json --log evidence/B10/test-results/unittest.log",
+      "save_to": "test-results/summary.log"
+    },
+    {
+      "purpose": "generated state-machine document matches the model",
+      "expect": 0,
+      "command": "python3 scripts/render-states.py --check",
+      "save_to": "runtime/state-doc-drift.txt"
+    },
+    {
+      "purpose": "generated conformance vectors still match the money reference (B09 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-money-vectors.py --check",
+      "save_to": "runtime/money-vectors-drift.txt"
+    },
+    {
+      "purpose": "generated PostgreSQL schema still matches the domain model (B08 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-domain.py --check",
+      "save_to": "runtime/domain-drift.txt"
+    },
+    {
+      "purpose": "generated review documents match their source of truth",
+      "expect": 0,
+      "command": "python3 scripts/render-docs.py --check",
+      "save_to": "runtime/docs-drift.txt"
+    },
+    {
+      "purpose": "state machines replayed against real payment lifecycles",
+      "expect": 0,
+      "command": "python3 scripts/state-smoke.py",
+      "save_to": "runtime/state-smoke.log"
+    },
+    {
+      "purpose": "money reference still exercised end to end (B09 regression)",
+      "expect": 0,
+      "command": "python3 scripts/money-smoke.py",
+      "save_to": "runtime/money-smoke.log"
+    },
+    {
+      "purpose": "local orchestration still agrees with the vendored orchestrator",
+      "expect": 0,
+      "command": "python3 scripts/batch.py crosscheck",
+      "save_to": "runtime/crosscheck.log"
+    },
+    {
+      "purpose": "governance gate on the real repository",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo .",
+      "save_to": "security/governance-report.json"
+    },
+    {
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py",
+      "save_to": "security/negative-controls.log"
+    },
+    {
+      "purpose": "every new rule code remains load-bearing (deletion knockout)",
+      "expect": 0,
+      "command": "python3 scripts/rule-knockout.py --codes STATE_UNTRUSTED_SUCCESS,STATE_IDEMPOTENCY,STATE_UNDECLARED_COMPENSATION,STATE_COMPENSATION_WITHOUT_EFFECT,STATE_UNREACHABLE,STATE_DEAD_END,STATE_TERMINAL_EXIT,STATE_NONDETERMINISTIC,STATE_DOC_DRIFT,STATE_MACHINE_COVERAGE --out evidence/B10/security/rule-knockout.json",
+      "save_to": "security/rule-knockout.log"
+    },
+    {
+      "purpose": "exhausted budget must exit 3, never 0 (timeout path)",
+      "expect": 3,
+      "command": "python3 -m tools.paygov.cli verify state-machines --repo . --budget-seconds 0",
+      "save_to": "runtime/timeout-fail-closed.log"
+    },
+    {
+      "purpose": "duplicate invocation is byte-identical (idempotency)",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo . > /tmp/B10-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B10-2.json && diff /tmp/B10-1.json /tmp/B10-2.json && echo IDENTICAL",
+      "save_to": "runtime/idempotency.txt"
+    },
+    {
+      "purpose": "registered validators",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli list-validators --repo .",
+      "save_to": "runtime/validators.txt"
+    }
+  ]
+}

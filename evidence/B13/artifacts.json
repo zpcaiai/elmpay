@@ -1,0 +1,13 @@
+[
+  "contracts/sql/partitions.sql",
+  "contracts/sql/rls.sql",
+  "docs/data/DATA_ARCHITECTURE.md",
+  "governance/data-architecture.json",
+  "libs/tenancy/reference/__init__.py",
+  "libs/tenancy/reference/isolation.py",
+  "scripts/render-data.py",
+  "scripts/tenancy-smoke.py",
+  "tools/paygov/data.py",
+  "tools/paygov/datagen.py",
+  "tools/tests/test_b13_data.py"
+]

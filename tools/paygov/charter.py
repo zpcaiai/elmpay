@@ -44,6 +44,11 @@ REQUIRED_FRONT_FIELDS = ("- 文档 ID：", "- 版本：", "- 批次：", "- 状�
 MIN_CHARTER_BYTES = 3000
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("charter", "B00")
+
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     problems: list[Problem] = []

@@ -1,0 +1,266 @@
+{
+  "batch_id": "B26",
+  "requirements": [
+    {
+      "id": "B26-R1",
+      "statement": "商户渠道账户按租户、项目、环境、渠道四维隔离，且身份维度不可变",
+      "source": "batches/B26.md 目标"
+    },
+    {
+      "id": "B26-R2",
+      "statement": "渠道凭证不得跨租户、跨环境、跨项目共享，不得明文落盘或进日志",
+      "source": "policies/non-negotiables.md#4"
+    },
+    {
+      "id": "B26-R3",
+      "statement": "渠道回调必须验签、必须能被唯一归属；无法归属时隔离，不得猜测",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B26-R4",
+      "statement": "回调不得跨租户投递；客户端回跳页不得作为支付成功依据",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B26-R5",
+      "statement": "回调按渠道事件号幂等；渠道重发不得重复记账",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B26-R6",
+      "statement": "绑定只能由一次真实往返验证激活；凭证轮换有重叠期且需双人",
+      "source": "batches/B26.md 实施要求"
+    },
+    {
+      "id": "B26-R7",
+      "statement": "停用停止发起新支付但保留回调、退款与结算；吊销前必须结清在途并销毁凭证",
+      "source": "policies/non-negotiables.md#1"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/provider-accounts.json",
+      "requirements": [
+        "B26-R1",
+        "B26-R2",
+        "B26-R3",
+        "B26-R4",
+        "B26-R5",
+        "B26-R6",
+        "B26-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/accounts.py",
+      "requirements": [
+        "B26-R1",
+        "B26-R2",
+        "B26-R3",
+        "B26-R4",
+        "B26-R5",
+        "B26-R6",
+        "B26-R7"
+      ]
+    },
+    {
+      "ref": "libs/provider/reference/binding.py",
+      "requirements": [
+        "B26-R1",
+        "B26-R2",
+        "B26-R3",
+        "B26-R4",
+        "B26-R5",
+        "B26-R6",
+        "B26-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/accountsgen.py",
+      "requirements": [
+        "B26-R1",
+        "B26-R3"
+      ]
+    },
+    {
+      "ref": "scripts/render-accounts.py",
+      "requirements": [
+        "B26-R1"
+      ]
+    },
+    {
+      "ref": "scripts/accounts-smoke.py",
+      "requirements": [
+        "B26-R2",
+        "B26-R3",
+        "B26-R4",
+        "B26-R5",
+        "B26-R6",
+        "B26-R7"
+      ]
+    },
+    {
+      "ref": "contracts/provider/account-binding.json",
+      "requirements": [
+        "B26-R1",
+        "B26-R3"
+      ]
+    },
+    {
+      "ref": "docs/provider/PROVIDER_ACCOUNTS.md",
+      "requirements": [
+        "B26-R1",
+        "B26-R3"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b26_accounts.py",
+      "requirements": [
+        "B26-R1",
+        "B26-R2",
+        "B26-R3",
+        "B26-R4",
+        "B26-R5",
+        "B26-R6",
+        "B26-R7"
+      ],
+      "cases": 145
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/provider-accounts.json",
+        "tools/paygov/accounts.py",
+        "libs/provider/reference/binding.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b26_accounts.py",
+        "scripts/accounts-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/provider-accounts.json",
+        "libs/provider/reference/binding.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b26_accounts.py",
+        "scripts/accounts-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "governance/provider-accounts.json",
+        "tools/paygov/accounts.py",
+        "libs/provider/reference/binding.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b26_accounts.py",
+        "scripts/accounts-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "governance/provider-accounts.json",
+        "tools/paygov/accounts.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b26_accounts.py"
+      ]
+    },
+    {
+      "id": "NN-07",
+      "implemented_by": [
+        "governance/provider-accounts.json",
+        "tools/paygov/accounts.py",
+        "libs/provider/reference/binding.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b26_accounts.py",
+        "scripts/accounts-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/provider-accounts.json",
+        "tools/paygov/accounts.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b26_accounts.py"
+      ]
+    },
+    {
+      "id": "NN-14",
+      "implemented_by": [
+        "governance/provider-accounts.json",
+        "tools/paygov/accounts.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b26_accounts.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/provider-accounts.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b26_accounts.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B26/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B26/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B26/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B26/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B26/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B26/runtime/accounts-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B26/runtime/accounts-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B26/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B26/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B26/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B26.json",
+      "kind": "completion"
+    }
+  ]
+}

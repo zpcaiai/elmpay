@@ -1,0 +1,139 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B23",
+  "principle": "审计日志的价值不在于「记了」，而在于**事后没人能改**。一条能被改的记录，在争议里等于没有记录。因此这里有三层：每条记录进入**按租户的哈希链**（改一条、删一条、换顺序都会断链）；链头定期被**签名锚定**（否则截断尾部无法发现）；负载支持**密码学删除**（个人信息可以消失，而记录本身仍然可验证）。第三层是唯一能同时满足「不可抵赖」和「被遗忘权」的做法。",
+  "hash_chain": {
+    "algorithm": "SHA-256",
+    "per_tenant_chain": true,
+    "includes_previous_hash": true,
+    "includes_sequence": true,
+    "canonical_serialisation": "json_sorted_keys_utf8",
+    "notes": "哈希覆盖序号与前一条哈希：改一条会让它之后的每一条都对不上，删一条会让序号出现空洞。规范化序列化是必需的——同一条记录序列化成两种字节，哈希就不再是同一条记录的哈希。"
+  },
+  "anchoring": {
+    "required": true,
+    "interval_minutes": 60,
+    "signed_by_key": "kek-provider-credentials",
+    "witness": "external_timestamp_authority",
+    "anchor_retention_days": 3650,
+    "notes": "哈希链自己**发现不了尾部被截断**：把最后 N 条连同链头一起删掉，剩下的链依然自洽。锚点是唯一的解法——每小时把链头签名并交给外部时间戳机构，于是可被否认的窗口最多一小时（残余风险见 §8）。"
+  },
+  "records": {
+    "required_fields": [
+      "event_id",
+      "occurred_at",
+      "tenant_id",
+      "actor",
+      "actor_role",
+      "action",
+      "resource",
+      "decision",
+      "rule_version",
+      "request_digest"
+    ],
+    "forbidden_fields": [
+      "card_pan",
+      "card_cvv",
+      "password",
+      "authorization_header"
+    ],
+    "actor_must_be_resolvable": true,
+    "records_denials": true,
+    "notes": "五个 W 加两样东西：判定用的规则版本，以及这次请求的摘要。没有规则版本，事后只能回答「现在的规则会不会放行」，回答不了「当时为什么放行」。"
+  },
+  "event_classes": [
+    {
+      "id": "authz.decision",
+      "source": "authorization",
+      "retention_days": 2555,
+      "contains_pii": false,
+      "notes": "每一次授权判定，允许与拒绝都记。"
+    },
+    {
+      "id": "authz.elevation",
+      "source": "authorization",
+      "retention_days": 2555,
+      "contains_pii": false,
+      "notes": "限时提权的申请、批准、使用与到期收回。"
+    },
+    {
+      "id": "money.movement",
+      "source": "ledger",
+      "retention_days": 3650,
+      "contains_pii": false,
+      "notes": "资金动作，保留十年。"
+    },
+    {
+      "id": "key.use",
+      "source": "kms",
+      "retention_days": 2555,
+      "contains_pii": false,
+      "notes": "密钥使用与轮换、销毁。"
+    },
+    {
+      "id": "identity.authentication",
+      "source": "identity",
+      "retention_days": 1095,
+      "contains_pii": true,
+      "notes": "登录、MFA、恢复流程；含个人信息，因此负载可被密码学删除。"
+    },
+    {
+      "id": "config.change",
+      "source": "platform",
+      "retention_days": 3650,
+      "contains_pii": false,
+      "notes": "平台配置变更。配置能关掉其它所有控制，因此它的变更记录必须比配置本身活得久。"
+    },
+    {
+      "id": "data.access",
+      "source": "platform",
+      "retention_days": 2555,
+      "contains_pii": true,
+      "notes": "对个人信息与资金数据的读取。"
+    }
+  ],
+  "audited_actions": [
+    "refund.approve",
+    "payout_account.write",
+    "payout.approve",
+    "ledger.adjust",
+    "reconciliation.approve",
+    "risk_rule.write",
+    "risk_decision.override",
+    "cross_tenant_data.read",
+    "config.write"
+  ],
+  "storage": {
+    "append_only": true,
+    "worm_backend": true,
+    "delete_requires_key_destruction": true,
+    "separate_credentials_from_application": true,
+    "notes": "存储层只允许追加；应用的凭据不能删除审计记录——能删日志的人和被日志监督的人必须是两拨人。"
+  },
+  "redaction": {
+    "payload_crypto_shredding": true,
+    "content_hash_retained": true,
+    "shredding_preserves_chain": true,
+    "notes": "个人信息负载单独加密；删除时销毁负载密钥，保留内容哈希。于是「这条记录存在、内容未被改动」仍可证明，而内容本身已不可读——这是同时满足不可抵赖与被遗忘权的唯一做法。"
+  },
+  "clock": {
+    "source": "trusted_time_authority",
+    "max_skew_seconds": 60,
+    "monotonic_sequence_required": true,
+    "notes": "时间来自可信时间源；同一条链上的序号必须单调递增。允许时钟有偏差，但不允许顺序被时钟决定。"
+  },
+  "access": {
+    "reader_role": "auditor",
+    "reader_cannot_write": true,
+    "reader_cannot_be_elevated": true,
+    "access_is_itself_audited": true,
+    "notes": "审计读取本身要被审计。审计员不可提权——能改自己所审计对象的人不是审计员。"
+  },
+  "verification": {
+    "rehearsed": true,
+    "rehearsal_interval_days": 90,
+    "full_chain_verification_minutes": 30,
+    "independent_verifier": true,
+    "notes": "验证流程必须被定期演练，且验证器必须能被独立方运行——只有我们自己能验证的链，在争议中说服不了任何人。"
+  }
+}

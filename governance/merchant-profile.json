@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B25",
+  "principle": "本平台**不是持牌核验机构**，因此这里管理的是「资料与状态」，不是「核验结论」。最重要的一条规则由此而来：我们自己的记录**永远不能把状态写成「已核验」**，除非它引用了一个外部持牌机构的核验决定（机构、决定编号、日期、有效期）。其余三条同样是被现实教出来的：KYB 材料**会过期**（核验是持续状态不是一次性事件）、**改收款账户与改实际控制人必须触发重新核验**（这是接管商户最常用的两步）、以及**高风险等级的批准不能由一个人做完**。",
+  "verification": {
+    "platform_is_licensed_verifier": false,
+    "authority_required": true,
+    "authority_fields": ["authority", "decision_reference", "decided_at", "valid_until"],
+    "max_validity_days": 730,
+    "self_attestation_allowed_for": ["display_name", "support_contact", "website"],
+    "notes": "核验决定必须来自外部持牌机构并带有效期。允许商户自证的只有不影响资金与合规判断的展示信息——把「自己填的」和「被核验的」混在同一个字段里，是这个领域最常见的欺骗面。"
+  },
+  "entity_kinds": [
+    {"id": "company", "required_documents": ["business_licence", "ubo_declaration", "director_identity", "bank_account_proof"], "notes": "有限公司：需要营业执照、实际控制人声明、董事身份、收款账户证明。"},
+    {"id": "sole_trader", "required_documents": ["business_licence", "director_identity", "bank_account_proof"], "notes": "个体工商户：没有股权结构，但仍需要经营主体证明与账户证明。"},
+    {"id": "individual", "required_documents": ["director_identity", "bank_account_proof"], "notes": "个人收款：材料最少，因此限额也最低。"}
+  ],
+  "documents": [
+    {"id": "business_licence", "verifies": "法人主体存在且经营范围合法", "expires_days": 365, "contains_pii": false, "issuer": "registry", "notes": "营业执照有年检与吊销，一年一查是下限而不是保守。"},
+    {"id": "ubo_declaration", "verifies": "谁最终控制这家公司", "expires_days": 365, "contains_pii": true, "issuer": "merchant", "notes": "实际控制人声明由商户提供，因此**必须与外部核验交叉**；只信声明等于不做 KYB。"},
+    {"id": "director_identity", "verifies": "签署人是本人", "expires_days": 730, "contains_pii": true, "issuer": "government", "notes": "身份证件本身会过期，过期即视为缺失。"},
+    {"id": "bank_account_proof", "verifies": "收款账户属于该主体", "expires_days": 180, "contains_pii": true, "issuer": "bank", "notes": "**这是最短的有效期**：收款账户是资金的去向，也是接管商户后第一个被改的东西。"}
+  ],
+  "ubo": {
+    "ownership_threshold_percent": 25,
+    "max_ownership_depth": 5,
+    "requires_identity_document": true,
+    "screening_required": true,
+    "notes": "持股 25% 以上视为实际控制人，且必须穿透最多五层股权。只看第一层股东，等于让任何人用一个空壳挡住自己。"
+  },
+  "screening": {
+    "lists": ["sanctions", "pep", "adverse_media"],
+    "rescreen_interval_days": 90,
+    "hit_requires_human_review": true,
+    "auto_approve_on_hit": false,
+    "notes": "命中制裁名单**永远不能自动放行**，也不能自动拒绝：自动拒绝会把大量同名误伤，因此必须转人工，并记录判断理由。"
+  },
+  "business_categories": [
+    {"code": "retail_goods", "risk": "low", "allowed": true, "notes": "实物零售。"},
+    {"code": "digital_services", "risk": "medium", "allowed": true, "notes": "数字服务，退款争议率高于实物。"},
+    {"code": "travel", "risk": "high", "allowed": true, "notes": "旅游：预付款与交付间隔长，破产时退款风险由平台承担。"},
+    {"code": "crypto_exchange", "risk": "prohibited", "allowed": false, "notes": "本平台不承接。"},
+    {"code": "adult_content", "risk": "prohibited", "allowed": false, "notes": "本平台不承接。"},
+    {"code": "unlicensed_gambling", "risk": "prohibited", "allowed": false, "notes": "本平台不承接。"}
+  ],
+  "operating_regions": [
+    {"code": "CN", "settlement_currencies": ["CNY"], "requires_local_entity": true, "notes": "境内经营需要境内主体。"},
+    {"code": "HK", "settlement_currencies": ["HKD", "USD"], "requires_local_entity": false, "notes": "香港：可用美元结算。"},
+    {"code": "SG", "settlement_currencies": ["SGD", "USD"], "requires_local_entity": false, "notes": "新加坡。"},
+    {"code": "EU", "settlement_currencies": ["EUR"], "requires_local_entity": true, "notes": "欧盟：本地主体与本地结算账户。"}
+  ],
+  "risk_levels": [
+    {"id": "low", "daily_limit_minor": 50000000, "single_limit_minor": 5000000, "settlement_delay_days": 1, "approvers_required": 1, "notes": "低风险：T+1 结算。"},
+    {"id": "medium", "daily_limit_minor": 20000000, "single_limit_minor": 2000000, "settlement_delay_days": 3, "approvers_required": 1, "notes": "中风险：结算延后，给争议留出时间。"},
+    {"id": "high", "daily_limit_minor": 5000000, "single_limit_minor": 500000, "settlement_delay_days": 7, "approvers_required": 2, "notes": "高风险：限额压低、结算延后到七天，**且批准需要两个人**。"}
+  ],
+  "material_changes": [
+    {"id": "payout_account_change", "permission": "payout_account.write", "requires_reverification": true, "holds_settlement": true, "notes": "改收款账户：接管商户后的第一步，因此必须重新核验并暂停结算直到通过。"},
+    {"id": "ubo_change", "permission": "config.write", "requires_reverification": true, "holds_settlement": false, "notes": "实际控制人变更：主体没变，但「谁在控制」变了。"},
+    {"id": "legal_name_change", "permission": "config.write", "requires_reverification": true, "holds_settlement": false, "notes": "法人名称变更需重新取证。"},
+    {"id": "country_change", "permission": "config.write", "requires_reverification": true, "holds_settlement": true, "notes": "经营国家变更会改变适用法域与结算币种。"},
+    {"id": "category_change", "permission": "config.write", "requires_reverification": true, "holds_settlement": false, "notes": "经营类目变更可能落入禁止类目。"}
+  ],
+  "retention": {
+    "after_offboarding_days": 1825,
+    "minimise_to_declared_purpose": true,
+    "documents_encrypted": true,
+    "notes": "KYB 材料在商户离开后仍需按监管要求保留五年；保留不等于可读——材料加密存储，读取受 B19 字段规则约束。"
+  },
+  "audit_event_class": "config.change",
+  "appeal": {
+    "available": true,
+    "decision_must_state_reasons": true,
+    "reviewer_must_differ_from_decider": true,
+    "response_days": 15,
+    "notes": "拒绝必须给出理由并可申诉，复核人不能是原判人。一个不能被申诉的自动拒绝，在监管与商业上都站不住。"
+  }
+}

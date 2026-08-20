@@ -45,6 +45,11 @@ def _refs(value: str) -> list[str]:
     return [part.strip() for part in re.split(r"[,，\s]+", value) if part.strip()]
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("adr", "B02")
+
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     problems: list[Problem] = []

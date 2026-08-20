@@ -1,0 +1,228 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B24",
+  "principle": "多租户平台出事的地方从来不是「租户 A 读到了租户 B」这种正面攻击，而是三个边角：**停用**（停掉一个租户时，它已经收的钱、待退的款、渠道还会回调的通知怎么办）、**注销**（删掉一个租户，但删不掉它做过什么的记录）、以及**测试与生产**（一把测试密钥打到了真实资金上）。因此这里定义的不是「租户有哪些字段」，而是**层级、生命周期与不可跨越的边界**：公司 → 租户 → 项目 → 环境，环境之间不共享任何密钥，租户注销靠销毁它自己的 KEK，而账本与审计按各自的保留期独立存活。",
+  "hierarchy": [
+    {
+      "level": "organisation",
+      "id_prefix": "org",
+      "parent": null,
+      "notes": "法人主体。KYB 与合同在这一层，因此它是计费与合规的边界。"
+    },
+    {
+      "level": "tenant",
+      "id_prefix": "ten",
+      "parent": "organisation",
+      "notes": "隔离边界。每个租户有自己的 KEK、自己的行级安全谓词、自己的审计链——**跨租户引用在任何一层都不允许**。"
+    },
+    {
+      "level": "project",
+      "id_prefix": "prj",
+      "parent": "tenant",
+      "notes": "一个租户下的独立业务线，共享租户的隔离边界但有各自的配置与配额。"
+    },
+    {
+      "level": "environment",
+      "id_prefix": "env",
+      "parent": "project",
+      "notes": "live 或 test。**环境之间不共享密钥、不共享数据、不共享凭据**；这一条是本批次唯一一条「没有例外」的规则。"
+    }
+  ],
+  "identifier": {
+    "pattern": "^(org|ten|prj|env)_[0-9a-hjkmnp-tv-z]{16}$",
+    "opaque": true,
+    "case_sensitive": true,
+    "immutable": true,
+    "alphabet": "crockford_base32_lowercase_without_ilou",
+    "notes": "标识符不透明且不可变：把租户名、国家或序号编进 ID，等于把商业信息发给每一个能看到 URL 的人，也让「改名」变成「改主键」。字母表去掉 i/l/o/u，避免人工转录出错与生成脏话。"
+  },
+  "environments": [
+    {
+      "id": "live",
+      "handles_real_money": true,
+      "shares_keys_with": [],
+      "shares_data_with": [],
+      "notes": "真实资金。"
+    },
+    {
+      "id": "test",
+      "handles_real_money": false,
+      "shares_keys_with": [],
+      "shares_data_with": [],
+      "notes": "沙箱。**测试凭据在 live 上必须无效**，反之亦然——这类事故的典型形态是「同一把密钥两个环境都认」。"
+    }
+  ],
+  "lifecycle": {
+    "states": [
+      "draft",
+      "active",
+      "suspended",
+      "offboarding",
+      "closed"
+    ],
+    "initial": "draft",
+    "terminal": [
+      "closed"
+    ],
+    "transitions": [
+      {
+        "from": "draft",
+        "to": "active",
+        "requires": [
+          "kyb_verified",
+          "contract_signed"
+        ],
+        "notes": "未完成 KYB 的租户不得进入 active（KYB 数据模型在 B25）。"
+      },
+      {
+        "from": "active",
+        "to": "suspended",
+        "requires": [
+          "reason",
+          "actor"
+        ],
+        "notes": "停用是可逆的，且必须有理由与操作人。"
+      },
+      {
+        "from": "suspended",
+        "to": "active",
+        "requires": [
+          "reason",
+          "actor",
+          "second_approver"
+        ],
+        "notes": "恢复需要第二个人：停用往往因风控或合规，单人恢复等于单人推翻风控。"
+      },
+      {
+        "from": "suspended",
+        "to": "offboarding",
+        "requires": [
+          "reason",
+          "actor",
+          "second_approver"
+        ],
+        "notes": "从停用直接进入注销流程；与恢复走同一道四眼复核，因为这两条路的分叉点是同一个决定。"
+      },
+      {
+        "from": "active",
+        "to": "offboarding",
+        "requires": [
+          "reason",
+          "actor",
+          "second_approver"
+        ],
+        "notes": "商户主动离开。仍然要第二个人：注销会触发密钥销毁，是不可逆的。"
+      },
+      {
+        "from": "offboarding",
+        "to": "closed",
+        "requires": [
+          "settlement_complete",
+          "retention_period_started",
+          "kek_destroyed"
+        ],
+        "notes": "**只有在结算完成之后**才能关闭：先销毁密钥再结算，等于把钱锁死在自己账上。"
+      }
+    ],
+    "notes": "状态机本身很小，难的是每个状态下**什么还能做**——见 capability_matrix。"
+  },
+  "capability_matrix": [
+    {
+      "state": "draft",
+      "accept_payments": false,
+      "issue_refunds": false,
+      "receive_webhooks": false,
+      "settle": false,
+      "read_data": true,
+      "notes": "只能配置，不能收钱。"
+    },
+    {
+      "state": "active",
+      "accept_payments": true,
+      "issue_refunds": true,
+      "receive_webhooks": true,
+      "settle": true,
+      "read_data": true,
+      "notes": "正常经营：收款、退款、回调、结算全开。这一行是基准，其它每一行都要能解释自己相对它少了什么、为什么。"
+    },
+    {
+      "state": "suspended",
+      "accept_payments": false,
+      "issue_refunds": true,
+      "receive_webhooks": true,
+      "settle": true,
+      "read_data": true,
+      "notes": "**停用不等于断电**：新支付停止，但退款、渠道回调与结算必须继续——否则被停用的租户的付款人拿不回钱，而钱已经在路上。这是本批次最容易被写错的一格。"
+    },
+    {
+      "state": "offboarding",
+      "accept_payments": false,
+      "issue_refunds": true,
+      "receive_webhooks": true,
+      "settle": true,
+      "read_data": true,
+      "notes": "同上，且不再接受新配置。"
+    },
+    {
+      "state": "closed",
+      "accept_payments": false,
+      "issue_refunds": false,
+      "receive_webhooks": false,
+      "settle": false,
+      "read_data": false,
+      "notes": "数据已密码学销毁；账本与审计记录按各自保留期独立留存，读取需要平台侧的紧急通道。"
+    }
+  ],
+  "isolation": {
+    "per_tenant_kek": "kek-tenant-data",
+    "row_level_security_required": true,
+    "cross_tenant_reference_allowed": false,
+    "shared_identifiers_allowed": false,
+    "notes": "隔离由三样东西共同保证：B13 的强制行级安全、B20 的每租户 KEK、以及这里禁止的跨租户外键。任何一样缺失，另外两样都会被绕过。"
+  },
+  "quotas": [
+    {
+      "id": "payments_per_minute",
+      "scope": "project",
+      "default": 600,
+      "hard_ceiling": 60000,
+      "notes": "限流按项目而不是租户：一个项目被刷不应该让同租户的另一条业务线一起挂。"
+    },
+    {
+      "id": "api_keys_per_environment",
+      "scope": "environment",
+      "default": 10,
+      "hard_ceiling": 50,
+      "notes": "密钥数量本身就是攻击面。"
+    },
+    {
+      "id": "webhook_endpoints_per_project",
+      "scope": "project",
+      "default": 5,
+      "hard_ceiling": 20,
+      "notes": "回调端点越多，未验签端点被遗忘的概率越大。"
+    },
+    {
+      "id": "projects_per_tenant",
+      "scope": "tenant",
+      "default": 20,
+      "hard_ceiling": 200,
+      "notes": "上限存在的意义是让「批量建项目」这种异常行为可被发现。"
+    }
+  ],
+  "offboarding": {
+    "settlement_must_complete_first": true,
+    "kek_destruction_required": true,
+    "ledger_retained": true,
+    "audit_retained": true,
+    "grace_period_days": 30,
+    "notes": "注销顺序是不可交换的：结算完成 → 冷静期 → 销毁 KEK → 关闭。账本与审计记录不随租户消失，因为它们记录的是**平台做过什么**，不只是租户的数据。"
+  },
+  "audit_event_class": "config.change",
+  "naming": {
+    "display_name_max_length": 128,
+    "display_name_unique_per_organisation": true,
+    "display_name_mutable": true,
+    "notes": "展示名可改、可重名（跨组织），标识符不可改、全局唯一。把两者混为一谈是「改个名字导致对账断裂」的根源。"
+  }
+}

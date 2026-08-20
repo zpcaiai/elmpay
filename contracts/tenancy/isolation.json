@@ -1,0 +1,135 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-isolation.py; do not edit by hand",
+  "audit_event_class": "data.access",
+  "cache": {
+    "key_includes_tenant": true,
+    "negative_cache_scoped": true,
+    "shared_namespace_allowed": false
+  },
+  "evidence": {
+    "every_surface_has_probe": true,
+    "positive_only_test_is_not_evidence": true,
+    "probe_must_assert_denial": true,
+    "probes_run_in_ci": true
+  },
+  "exports": {
+    "filter_in_query": true,
+    "row_count_verified": true,
+    "single_tenant_per_export": true
+  },
+  "forced_controls": {
+    "application_side_filter_alone_sufficient": false,
+    "cross_tenant_permission": "cross_tenant_data.read",
+    "rls_forced_for_table_owner": true,
+    "session_tenant_required": true
+  },
+  "logs": {
+    "cross_tenant_aggregation_requires_permission": true,
+    "payload_redacted": true,
+    "tenant_field_required": true
+  },
+  "messaging": {
+    "consumer_must_verify_tenant": true,
+    "cross_tenant_fanout_allowed": false,
+    "tenant_in_envelope": true
+  },
+  "schema_version": "1.0.0",
+  "surfaces": [
+    {
+      "default": "deny",
+      "enforced_at": "application",
+      "id": "background_jobs",
+      "mechanism": "tenant_bound_job_context",
+      "probe": {
+        "asserts_denial": true,
+        "id": "probe_job_rejects_missing_tenant",
+        "runs_in_ci": true
+      },
+      "tenant_key": "tenant_id"
+    },
+    {
+      "default": "deny",
+      "enforced_at": "application",
+      "id": "cache",
+      "mechanism": "tenant_scoped_key",
+      "probe": {
+        "asserts_denial": true,
+        "id": "probe_cache_key_collides",
+        "runs_in_ci": true
+      },
+      "tenant_key": "tenant_id"
+    },
+    {
+      "default": "deny",
+      "enforced_at": "database",
+      "id": "database_rows",
+      "mechanism": "row_level_security",
+      "probe": {
+        "asserts_denial": true,
+        "id": "probe_rls_denies_other_tenant",
+        "runs_in_ci": true
+      },
+      "tenant_key": "tenant_id"
+    },
+    {
+      "default": "deny",
+      "enforced_at": "application",
+      "id": "exports",
+      "mechanism": "query_side_filter",
+      "probe": {
+        "asserts_denial": true,
+        "id": "probe_export_scoped_to_one_tenant",
+        "runs_in_ci": true
+      },
+      "tenant_key": "tenant_id"
+    },
+    {
+      "default": "deny",
+      "enforced_at": "observability",
+      "id": "logs",
+      "mechanism": "tenant_field_required",
+      "probe": {
+        "asserts_denial": true,
+        "id": "probe_log_rejects_foreign_row",
+        "runs_in_ci": true
+      },
+      "tenant_key": "tenant_id"
+    },
+    {
+      "default": "deny",
+      "enforced_at": "messaging",
+      "id": "message_topics",
+      "mechanism": "tenant_in_envelope",
+      "probe": {
+        "asserts_denial": true,
+        "id": "probe_consumer_rejects_foreign_tenant",
+        "runs_in_ci": true
+      },
+      "tenant_key": "tenant_id"
+    },
+    {
+      "default": "deny",
+      "enforced_at": "storage",
+      "id": "object_storage",
+      "mechanism": "prefix_scoped_credentials",
+      "probe": {
+        "asserts_denial": true,
+        "id": "probe_object_prefix_denies_other_tenant",
+        "runs_in_ci": true
+      },
+      "tenant_key": "tenant_id"
+    },
+    {
+      "default": "deny",
+      "enforced_at": "search",
+      "id": "search_index",
+      "mechanism": "tenant_partitioned_index",
+      "probe": {
+        "asserts_denial": true,
+        "id": "probe_search_denies_other_tenant",
+        "runs_in_ci": true
+      },
+      "tenant_key": "tenant_id"
+    }
+  ]
+}

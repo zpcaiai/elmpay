@@ -1,0 +1,258 @@
+{
+  "batch_id": "B16",
+  "requirements": [
+    {
+      "id": "B16-R1",
+      "statement": "每一次访问都绑定到身份，不依赖网络位置",
+      "source": "batches/B16.md 目标"
+    },
+    {
+      "id": "B16-R2",
+      "statement": "访问判定要考虑设备与上下文",
+      "source": "batches/B16.md 目标"
+    },
+    {
+      "id": "B16-R3",
+      "statement": "最小权限：默认拒绝，未声明即不可访问",
+      "source": "batches/B16.md 目标"
+    },
+    {
+      "id": "B16-R4",
+      "statement": "每一次访问判定都可审计，包括允许",
+      "source": "batches/B16.md 目标"
+    },
+    {
+      "id": "B16-R5",
+      "statement": "高风险操作需要四眼复核与 step-up",
+      "source": "policies/non-negotiables.md#11"
+    },
+    {
+      "id": "B16-R6",
+      "statement": "不得存在长期静态凭据，工作负载身份短期且自动轮换",
+      "source": "policies/non-negotiables.md#7"
+    },
+    {
+      "id": "B16-R7",
+      "statement": "租户绑定来自凭据而非请求体",
+      "source": "policies/non-negotiables.md#9"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/zero-trust.json",
+      "requirements": [
+        "B16-R1",
+        "B16-R2",
+        "B16-R3",
+        "B16-R4",
+        "B16-R5",
+        "B16-R6",
+        "B16-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/zerotrust.py",
+      "requirements": [
+        "B16-R1",
+        "B16-R2",
+        "B16-R3",
+        "B16-R4",
+        "B16-R5",
+        "B16-R6",
+        "B16-R7"
+      ]
+    },
+    {
+      "ref": "libs/zerotrust/reference/decision.py",
+      "requirements": [
+        "B16-R1",
+        "B16-R3",
+        "B16-R4",
+        "B16-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/ztgen.py",
+      "requirements": [
+        "B16-R3",
+        "B16-R4"
+      ]
+    },
+    {
+      "ref": "scripts/render-zerotrust.py",
+      "requirements": [
+        "B16-R3"
+      ]
+    },
+    {
+      "ref": "scripts/zerotrust-smoke.py",
+      "requirements": [
+        "B16-R1",
+        "B16-R3",
+        "B16-R4",
+        "B16-R5"
+      ]
+    },
+    {
+      "ref": "contracts/security/zero-trust-matrix.json",
+      "requirements": [
+        "B16-R3",
+        "B16-R5"
+      ]
+    },
+    {
+      "ref": "docs/security/ZERO_TRUST.md",
+      "requirements": [
+        "B16-R1",
+        "B16-R2"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b16_zerotrust.py",
+      "requirements": [
+        "B16-R1",
+        "B16-R2",
+        "B16-R3",
+        "B16-R4",
+        "B16-R5",
+        "B16-R6",
+        "B16-R7"
+      ],
+      "cases": 80
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-07",
+      "implemented_by": [
+        "governance/zero-trust.json",
+        "tools/paygov/zerotrust.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b16_zerotrust.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-09",
+      "implemented_by": [
+        "governance/zero-trust.json",
+        "tools/paygov/zerotrust.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b16_zerotrust.py",
+        "scripts/zerotrust-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "governance/zero-trust.json",
+        "tools/paygov/zerotrust.py",
+        "libs/zerotrust/reference/decision.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b16_zerotrust.py",
+        "scripts/zerotrust-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-06",
+      "implemented_by": [
+        "governance/zero-trust.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b16_zerotrust.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/zerotrust.py",
+        "libs/zerotrust/reference/decision.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b16_zerotrust.py",
+        "scripts/zerotrust-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-004",
+      "implemented_by": [
+        "governance/zero-trust.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b16_zerotrust.py"
+      ]
+    },
+    {
+      "id": "CTRL-007",
+      "implemented_by": [
+        "governance/zero-trust.json",
+        "libs/zerotrust/reference/decision.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b16_zerotrust.py",
+        "scripts/zerotrust-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-014",
+      "implemented_by": [
+        "governance/zero-trust.json",
+        "tools/paygov/zerotrust.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b16_zerotrust.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B16/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B16/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B16/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B16/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B16/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B16/runtime/zerotrust-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B16/runtime/zerotrust-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B16/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B16/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B16/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B16.json",
+      "kind": "completion"
+    }
+  ]
+}

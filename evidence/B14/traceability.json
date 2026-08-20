@@ -1,0 +1,238 @@
+{
+  "batch_id": "B14",
+  "requirements": [
+    {
+      "id": "B14-R1",
+      "statement": "定义边缘网关、支付核心、连接器、风控、账本、对账、管理端与工作流的边界",
+      "source": "batches/B14.md 目标"
+    },
+    {
+      "id": "B14-R2",
+      "statement": "运行期依赖必须维持单向，不得出现同步环",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B14-R3",
+      "statement": "每条同步依赖都有超时、熔断、隔板与明确的降级行为",
+      "source": "batches/B14.md 实施要求 2"
+    },
+    {
+      "id": "B14-R4",
+      "statement": "资金路径上的依赖不可用时必须失败关闭；渠道超时必须落到未知而非失败",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B14-R5",
+      "statement": "改变资金状态的渠道调用不得由传输层重试",
+      "source": "policies/non-negotiables.md#4"
+    },
+    {
+      "id": "B14-R6",
+      "statement": "服务只访问自己拥有的表，数据库层不得出现跨所有权外键",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B14-R7",
+      "statement": "服务发布与消费的事件必须与事件目录一致",
+      "source": "batches/B14.md 实施要求 1"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/service-topology.json",
+      "requirements": [
+        "B14-R1",
+        "B14-R2",
+        "B14-R3",
+        "B14-R4",
+        "B14-R5",
+        "B14-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/topology.py",
+      "requirements": [
+        "B14-R1",
+        "B14-R2",
+        "B14-R3",
+        "B14-R4",
+        "B14-R5",
+        "B14-R6",
+        "B14-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/domaingen.py",
+      "requirements": [
+        "B14-R6"
+      ]
+    },
+    {
+      "ref": "contracts/sql/schema.sql",
+      "requirements": [
+        "B14-R6"
+      ]
+    },
+    {
+      "ref": "tools/paygov/topogen.py",
+      "requirements": [
+        "B14-R1",
+        "B14-R3"
+      ]
+    },
+    {
+      "ref": "scripts/render-topology.py",
+      "requirements": [
+        "B14-R1"
+      ]
+    },
+    {
+      "ref": "scripts/topology-smoke.py",
+      "requirements": [
+        "B14-R2",
+        "B14-R3",
+        "B14-R4"
+      ]
+    },
+    {
+      "ref": "contracts/topology/graph.json",
+      "requirements": [
+        "B14-R1",
+        "B14-R3"
+      ]
+    },
+    {
+      "ref": "docs/architecture/SERVICE_TOPOLOGY.md",
+      "requirements": [
+        "B14-R1",
+        "B14-R4"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b14_topology.py",
+      "requirements": [
+        "B14-R1",
+        "B14-R2",
+        "B14-R3",
+        "B14-R4",
+        "B14-R5",
+        "B14-R6",
+        "B14-R7"
+      ],
+      "cases": 65
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/service-topology.json",
+        "tools/paygov/topology.py",
+        "tools/paygov/domaingen.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b14_topology.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/service-topology.json",
+        "tools/paygov/topology.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b14_topology.py",
+        "scripts/topology-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "governance/service-topology.json",
+        "tools/paygov/topology.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b14_topology.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/topology.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b14_topology.py",
+        "scripts/topology-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-003",
+      "implemented_by": [
+        "governance/service-topology.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b14_topology.py"
+      ]
+    },
+    {
+      "id": "CTRL-017",
+      "implemented_by": [
+        "governance/service-topology.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b14_topology.py",
+        "scripts/topology-smoke.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B14/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B14/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B14/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B14/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B14/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B14/runtime/topology-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B14/runtime/topology-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B14/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B14/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B14/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B14.json",
+      "kind": "completion"
+    }
+  ]
+}

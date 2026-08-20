@@ -8,9 +8,57 @@
       "save_to": "runtime/environment.txt"
     },
     {
-      "purpose": "full governance regression suite (verbose log + machine summary)",
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces（分片 1/4）",
       "expect": 0,
-      "command": "python3 scripts/test-summary.py --out evidence/B00/test-results/summary.json --log evidence/B00/test-results/unittest.log",
+      "command": "python3 scripts/negative-controls.py --shard 1/4",
+      "save_to": "security/negative-controls-1of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces（分片 2/4）",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 2/4",
+      "save_to": "security/negative-controls-2of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces（分片 3/4）",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 3/4",
+      "save_to": "security/negative-controls-3of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces（分片 4/4）",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 4/4",
+      "save_to": "security/negative-controls-4of4.log"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary)（分片 1/4）",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 1/4 --out evidence/B00/test-results/summary-1of4.json --log evidence/B00/test-results/unittest-1of4.log",
+      "save_to": "test-results/summary-1of4.log"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary)（分片 2/4）",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 2/4 --out evidence/B00/test-results/summary-2of4.json --log evidence/B00/test-results/unittest-2of4.log",
+      "save_to": "test-results/summary-2of4.log"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary)（分片 3/4）",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 3/4 --out evidence/B00/test-results/summary-3of4.json --log evidence/B00/test-results/unittest-3of4.log",
+      "save_to": "test-results/summary-3of4.log"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary)（分片 4/4）",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 4/4 --out evidence/B00/test-results/summary-4of4.json --log evidence/B00/test-results/unittest-4of4.log",
+      "save_to": "test-results/summary-4of4.log"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary)（合并，缺片即失败）",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --merge evidence/B00/test-results/summary-1of4.json evidence/B00/test-results/summary-2of4.json evidence/B00/test-results/summary-3of4.json evidence/B00/test-results/summary-4of4.json --out evidence/B00/test-results/summary.json --log evidence/B00/test-results/unittest.log",
       "save_to": "test-results/summary.log"
     },
     {
@@ -30,12 +78,6 @@
       "expect": 0,
       "command": "python3 -m tools.paygov.cli verify-all --repo .",
       "save_to": "security/governance-report.json"
-    },
-    {
-      "purpose": "runtime fail-closed proof against corrupted governance surfaces",
-      "expect": 0,
-      "command": "python3 scripts/negative-controls.py",
-      "save_to": "security/negative-controls.log"
     },
     {
       "purpose": "exhausted budget must exit 3, never 0 (timeout path)",

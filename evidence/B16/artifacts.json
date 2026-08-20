@@ -1,0 +1,12 @@
+[
+  "contracts/security/zero-trust-matrix.json",
+  "docs/security/ZERO_TRUST.md",
+  "governance/zero-trust.json",
+  "libs/zerotrust/reference/__init__.py",
+  "libs/zerotrust/reference/decision.py",
+  "scripts/render-zerotrust.py",
+  "scripts/zerotrust-smoke.py",
+  "tools/paygov/zerotrust.py",
+  "tools/paygov/ztgen.py",
+  "tools/tests/test_b16_zerotrust.py"
+]

@@ -27,6 +27,6 @@ class GeneratedDocs(FixtureTestCase):
         self.assertIn("DOC_DRIFT", self.codes(problems))
 
     def test_missing_document_is_reported(self):
-        (self.fixture.root / "docs/requirements/SERVICE_BOUNDARIES.md").unlink()
+        self.fixture.remove("docs/requirements/SERVICE_BOUNDARIES.md")
         problems = docs.validate(self.fixture.root, Budget(seconds=60).start())
         self.assertIn("DOC_MISSING", self.codes(problems))

@@ -29,7 +29,8 @@
     "sbom",
     "sign",
     "negative-controls",
-    "evidence-archive"
+    "evidence-archive",
+    "rule-knockout"
   ],
   "actions": [
     {
@@ -94,8 +95,9 @@
       "id": "BLOCK-04",
       "description": "关键证据缺失、追踪断链或依赖哈希不一致",
       "detected_by": [
+        "evidence-archive",
         "governance",
-        "evidence-archive"
+        "rule-knockout"
       ],
       "gate": "RG1"
     },
@@ -120,13 +122,17 @@
     {
       "id": "governance",
       "name": "治理门禁",
-      "purpose": "校验章程、红线、模块边界、需求、威胁模型、工具链与本地平台声明",
+      "purpose": "校验技能包镜像、章程、红线、模块边界、需求、威胁模型、工具链与本地平台声明",
       "needs": [],
       "commands": [
+        "python3 .payment-platform/skill-package/scripts/verify_package.py",
+        "diff -qr .payment-platform/skill-package/skills .agents/skills",
+        "diff -qr .payment-platform/skill-package/skills .claude/skills",
         "python3 -m tools.paygov.cli verify-all --repo .",
         "python3 scripts/render-docs.py --check",
         "python3 scripts/render-build.py --check",
-        "python3 scripts/render-dev-platform.py --check"
+        "python3 scripts/render-dev-platform.py --check",
+        "python3 scripts/batch.py crosscheck"
       ],
       "required": true,
       "fail_closed": true,
@@ -329,13 +335,15 @@
     {
       "id": "evidence-archive",
       "name": "证据归档",
-      "purpose": "校验批次证据、依赖哈希与追踪关系，并归档为不可变制品",
+      "purpose": "交叉校验两套编排实现、逐批次校验完成证据（含产物摘要与依赖哈希），并归档为不可变制品；任一批次不通过则拒绝出包",
       "needs": [
         "sign",
-        "negative-controls"
+        "negative-controls",
+        "rule-knockout"
       ],
       "commands": [
-        "python3 .payment-platform/skill-package/scripts/orchestrate.py status --repo .",
+        "python3 scripts/batch.py crosscheck",
+        "python3 scripts/validate-all.py",
         "python3 scripts/archive-evidence.py --out build/evidence-bundle.tar.gz"
       ],
       "required": true,
@@ -345,6 +353,24 @@
         "build/evidence-bundle.tar.gz"
       ],
       "timeout_minutes": 15
+    },
+    {
+      "id": "rule-knockout",
+      "name": "规则承重验证",
+      "purpose": "逐条抑制校验规则并重跑其覆盖测试，测试仍通过即说明该规则不承重",
+      "needs": [
+        "governance"
+      ],
+      "commands": [
+        "python3 scripts/rule-knockout.py --out build/rule-knockout.json"
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG1",
+      "artifacts": [
+        "build/rule-knockout.json"
+      ],
+      "timeout_minutes": 20
     }
   ]
 }

@@ -1,0 +1,149 @@
+{
+  "batch": "B14",
+  "commands": [
+    {
+      "purpose": "environment fingerprint",
+      "expect": 0,
+      "command": "python3 -VV && uname -a && git --version && echo repo=$(git rev-parse --short HEAD)",
+      "save_to": "runtime/environment.txt"
+    },
+    {
+      "purpose": "dependency B12 evidence still validates",
+      "expect": 0,
+      "command": "python3 .payment-platform/skill-package/scripts/orchestrate.py validate B12 --repo .",
+      "save_to": "runtime/dependency-b12.json"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary)",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --out evidence/B14/test-results/summary.json --log evidence/B14/test-results/unittest.log",
+      "save_to": "test-results/summary.log"
+    },
+    {
+      "purpose": "generated topology artefacts match the declaration",
+      "expect": 0,
+      "command": "python3 scripts/render-topology.py --check",
+      "save_to": "runtime/topology-drift.txt"
+    },
+    {
+      "purpose": "generated tenancy and partition DDL still match (B13 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-data.py --check",
+      "save_to": "runtime/data-drift.txt"
+    },
+    {
+      "purpose": "generated event artefacts still match the catalogue (B12 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-events.py --check",
+      "save_to": "runtime/events-drift.txt"
+    },
+    {
+      "purpose": "generated API artefacts still match the contract (B11 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-api.py --check",
+      "save_to": "runtime/api-drift.txt"
+    },
+    {
+      "purpose": "generated state-machine document still matches (B10 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-states.py --check",
+      "save_to": "runtime/state-doc-drift.txt"
+    },
+    {
+      "purpose": "generated money vectors still match (B09 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-money-vectors.py --check",
+      "save_to": "runtime/money-vectors-drift.txt"
+    },
+    {
+      "purpose": "regenerated schema (now without cross-module foreign keys) is stable",
+      "expect": 0,
+      "command": "python3 scripts/render-domain.py --check",
+      "save_to": "runtime/domain-drift.txt"
+    },
+    {
+      "purpose": "generated review documents match their source of truth",
+      "expect": 0,
+      "command": "python3 scripts/render-docs.py --check",
+      "save_to": "runtime/docs-drift.txt"
+    },
+    {
+      "purpose": "worst-case latency, failure injection and blast radius",
+      "expect": 0,
+      "command": "python3 scripts/topology-smoke.py",
+      "save_to": "runtime/topology-smoke.log"
+    },
+    {
+      "purpose": "tenant isolation still holds (B13 regression)",
+      "expect": 0,
+      "command": "python3 scripts/tenancy-smoke.py",
+      "save_to": "runtime/tenancy-smoke.log"
+    },
+    {
+      "purpose": "eventing fault injection still passes (B12 regression)",
+      "expect": 0,
+      "command": "python3 scripts/events-smoke.py",
+      "save_to": "runtime/events-smoke.log"
+    },
+    {
+      "purpose": "API transition vectors still replay (B11 regression)",
+      "expect": 0,
+      "command": "python3 scripts/api-smoke.py",
+      "save_to": "runtime/api-smoke.log"
+    },
+    {
+      "purpose": "state machines still replay (B10 regression)",
+      "expect": 0,
+      "command": "python3 scripts/state-smoke.py",
+      "save_to": "runtime/state-smoke.log"
+    },
+    {
+      "purpose": "money reference still exercised end to end (B09 regression)",
+      "expect": 0,
+      "command": "python3 scripts/money-smoke.py",
+      "save_to": "runtime/money-smoke.log"
+    },
+    {
+      "purpose": "local orchestration still agrees with the vendored orchestrator",
+      "expect": 0,
+      "command": "python3 scripts/batch.py crosscheck",
+      "save_to": "runtime/crosscheck.log"
+    },
+    {
+      "purpose": "governance gate on the real repository",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo .",
+      "save_to": "security/governance-report.json"
+    },
+    {
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py",
+      "save_to": "security/negative-controls.log"
+    },
+    {
+      "purpose": "every new rule code remains load-bearing (deletion knockout)",
+      "expect": 0,
+      "command": "python3 scripts/rule-knockout.py --codes TOPO_SYNC_CYCLE,TOPO_BUDGET_EXCEEDED,TOPO_TIMEOUT_TOO_TIGHT,TOPO_CONNECTOR_RETRY,TOPO_CONNECTOR_DEGRADATION,TOPO_CONNECTOR_OPERATION,TOPO_FAIL_OPEN,TOPO_FAILURE_MODE,TOPO_CIRCUIT_BREAKER,TOPO_BULKHEAD,TOPO_TABLE_ACCESS,TOPO_FOREIGN_KEY_CROSS_MODULE,TOPO_SYNC_DEPTH,TOPO_DEP_UNDECLARED,TOPO_EVENT_PRODUCER,TOPO_GENERATED_DRIFT --out evidence/B14/security/rule-knockout.json",
+      "save_to": "security/rule-knockout.log"
+    },
+    {
+      "purpose": "exhausted budget must exit 3, never 0 (timeout path)",
+      "expect": 3,
+      "command": "python3 -m tools.paygov.cli verify service-topology --repo . --budget-seconds 0",
+      "save_to": "runtime/timeout-fail-closed.log"
+    },
+    {
+      "purpose": "duplicate invocation is byte-identical (idempotency)",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo . > /tmp/B14-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B14-2.json && diff /tmp/B14-1.json /tmp/B14-2.json && echo IDENTICAL",
+      "save_to": "runtime/idempotency.txt"
+    },
+    {
+      "purpose": "registered validators",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli list-validators --repo .",
+      "save_to": "runtime/validators.txt"
+    }
+  ]
+}

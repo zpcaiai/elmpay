@@ -32,6 +32,11 @@ VALID_SEVERITY = {"high", "medium", "low"}
 PLACEHOLDER_OWNERS = {"", "tbd", "TBD", "unknown", "待定"}
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("threat-model", "B02")
+
 def validate(root: Path, budget: Budget | None = None, today: date | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     today = today or date.today()

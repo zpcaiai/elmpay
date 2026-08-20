@@ -1,0 +1,174 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-certs.py; do not edit by hand",
+  "alerting": {
+    "alert_on_unexpected_issuer": true,
+    "certificate_transparency_monitoring": true,
+    "channels": [
+      "on_call",
+      "security_team",
+      "ticket"
+    ],
+    "escalate_after_failed_renewals": 2,
+    "expiry_warning_ratio": 0.34,
+    "notes": "到期告警必须在「剩余时间 < 提前量」时触发，并在连续两次自动续期失败后升级为人工处理。同时监控 CT 日志：任何为我们的域名签出的、不是我们申请的证书，都是事故信号。"
+  },
+  "domains": [
+    {
+      "caa_records": [
+        "public_ca"
+      ],
+      "dnssec": true,
+      "name": "api.pay.example.invalid",
+      "owner": "platform-security",
+      "purpose": "merchant_api",
+      "registrar_lock": true,
+      "renew_before_days": 90
+    },
+    {
+      "caa_records": [
+        "workload-ca"
+      ],
+      "dnssec": true,
+      "name": "internal.pay.example.invalid",
+      "owner": "platform-security",
+      "purpose": "internal",
+      "registrar_lock": true,
+      "renew_before_days": 90
+    },
+    {
+      "caa_records": [
+        "public_ca"
+      ],
+      "dnssec": true,
+      "name": "pay.example.invalid",
+      "owner": "platform-security",
+      "purpose": "checkout",
+      "registrar_lock": true,
+      "renew_before_days": 90
+    }
+  ],
+  "lifecycle_stages": [
+    "generate",
+    "distribute",
+    "activate",
+    "overlap",
+    "rotate",
+    "revoke",
+    "recover"
+  ],
+  "materials": [
+    {
+      "automated_renewal": false,
+      "id": "apple-pay-processing",
+      "issuer": "provider",
+      "key_id": "kek-provider-credentials",
+      "kind": "signing_key",
+      "overlap_days": 30,
+      "owner": "payments-integration",
+      "renew_before_days": 60,
+      "revocation": "provider_console",
+      "subject": "apple_pay-processing",
+      "validity_days": 365
+    },
+    {
+      "automated_renewal": true,
+      "id": "edge-tls",
+      "issuer": "public_ca",
+      "key_id": "kek-provider-credentials",
+      "kind": "tls_certificate",
+      "overlap_days": 7,
+      "owner": "platform-security",
+      "renew_before_days": 31,
+      "revocation": "ocsp_must_staple",
+      "subject": "pay.example.invalid",
+      "validity_days": 90
+    },
+    {
+      "automated_renewal": true,
+      "id": "internal-mtls",
+      "issuer": "workload-ca",
+      "key_id": "kek-provider-credentials",
+      "kind": "tls_certificate",
+      "overlap_days": 1,
+      "owner": "platform-security",
+      "renew_before_days": 3,
+      "revocation": "short_lived",
+      "subject": "*.internal.pay.example.invalid",
+      "validity_days": 7
+    },
+    {
+      "automated_renewal": false,
+      "id": "provider-signing-alipay",
+      "issuer": "provider",
+      "key_id": "kek-provider-credentials",
+      "kind": "signing_key",
+      "overlap_days": 30,
+      "owner": "payments-integration",
+      "renew_before_days": 60,
+      "revocation": "provider_console",
+      "subject": "alipay-app",
+      "validity_days": 365
+    },
+    {
+      "automated_renewal": false,
+      "id": "provider-signing-wechat",
+      "issuer": "provider",
+      "key_id": "kek-provider-credentials",
+      "kind": "signing_key",
+      "overlap_days": 30,
+      "owner": "payments-integration",
+      "renew_before_days": 60,
+      "revocation": "provider_console",
+      "subject": "wechat-merchant",
+      "validity_days": 365
+    },
+    {
+      "automated_renewal": true,
+      "id": "token-signing",
+      "issuer": "self",
+      "key_id": "kek-provider-credentials",
+      "kind": "signing_key",
+      "overlap_days": 7,
+      "owner": "platform-security",
+      "renew_before_days": 31,
+      "revocation": "jwks_removal",
+      "subject": "platform-tokens",
+      "validity_days": 90
+    },
+    {
+      "automated_renewal": true,
+      "id": "webhook-verification",
+      "issuer": "provider",
+      "key_id": "kek-provider-credentials",
+      "kind": "verification_key",
+      "overlap_days": 14,
+      "owner": "payments-integration",
+      "renew_before_days": 60,
+      "revocation": "key_set_rotation",
+      "subject": "provider-webhooks",
+      "validity_days": 180
+    },
+    {
+      "automated_renewal": false,
+      "id": "workload-ca-root",
+      "issuer": "self",
+      "key_id": "root-hsm",
+      "kind": "ca_certificate",
+      "overlap_days": 180,
+      "owner": "platform-security",
+      "renew_before_days": 365,
+      "revocation": "trust_store_rollout",
+      "subject": "workload-ca",
+      "validity_days": 1825
+    }
+  ],
+  "recovery": {
+    "max_recovery_hours": 4,
+    "notes": "灾难恢复必须被**演练过**：一条从未走过的恢复流程在事故当天是不可信的。CA 材料有离线备份，恢复需要法定人数，目标 4 小时内恢复签发能力。",
+    "offline_backup_of_ca": true,
+    "quorum_required": true,
+    "rehearsal_interval_days": 180,
+    "rehearsed": true
+  },
+  "schema_version": "1.0.0"
+}

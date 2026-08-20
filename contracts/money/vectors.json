@@ -1,0 +1,528 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-money-vectors.py; do not edit by hand",
+  "allocation": [
+    {
+      "currency": "CNY",
+      "minor": 10000,
+      "parts": [
+        3334,
+        3333,
+        3333
+      ],
+      "sum": 10000,
+      "weights": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "currency": "CNY",
+      "minor": 10001,
+      "parts": [
+        3334,
+        3334,
+        3333
+      ],
+      "sum": 10001,
+      "weights": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "currency": "JPY",
+      "minor": 100,
+      "parts": [
+        34,
+        33,
+        33
+      ],
+      "sum": 100,
+      "weights": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "currency": "JPY",
+      "minor": 5,
+      "parts": [
+        3,
+        1,
+        1
+      ],
+      "sum": 5,
+      "weights": [
+        3,
+        1,
+        1
+      ]
+    },
+    {
+      "currency": "CNY",
+      "minor": -10000,
+      "parts": [
+        -3334,
+        -3333,
+        -3333
+      ],
+      "sum": -10000,
+      "weights": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "currency": "KWD",
+      "minor": 1234,
+      "parts": [
+        864,
+        247,
+        123
+      ],
+      "sum": 1234,
+      "weights": [
+        7,
+        2,
+        1
+      ]
+    },
+    {
+      "currency": "USD",
+      "minor": 7,
+      "parts": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0
+      ],
+      "sum": 7,
+      "weights": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    }
+  ],
+  "conversions": [
+    {
+      "expected": 1950,
+      "from": "CNY",
+      "minor": 10000,
+      "rate_numerator": 195000,
+      "rate_scale": 4,
+      "to": "JPY"
+    },
+    {
+      "expected": 1380,
+      "from": "CNY",
+      "minor": 10000,
+      "rate_numerator": 13800,
+      "rate_scale": 5,
+      "to": "USD"
+    },
+    {
+      "expected": 97951,
+      "from": "JPY",
+      "minor": 1999,
+      "rate_numerator": 490000,
+      "rate_scale": 6,
+      "to": "CNY"
+    },
+    {
+      "expected": 326,
+      "from": "KWD",
+      "minor": 1000,
+      "rate_numerator": 326000,
+      "rate_scale": 5,
+      "to": "USD"
+    },
+    {
+      "expected": 30670,
+      "from": "USD",
+      "minor": 10000,
+      "rate_numerator": 30670,
+      "rate_scale": 5,
+      "to": "KWD"
+    },
+    {
+      "expected": 20,
+      "from": "JPY",
+      "minor": 1,
+      "rate_numerator": 20000,
+      "rate_scale": 6,
+      "to": "KWD"
+    }
+  ],
+  "fees": [
+    {
+      "currency": "CNY",
+      "denominator": 1000,
+      "expected": 60,
+      "minor": 10000,
+      "mode": "half_even",
+      "numerator": 6
+    },
+    {
+      "currency": "CNY",
+      "denominator": 1000,
+      "expected": 290,
+      "minor": 10000,
+      "mode": "half_even",
+      "numerator": 29
+    },
+    {
+      "currency": "CNY",
+      "denominator": 1000,
+      "expected": 58,
+      "minor": 1999,
+      "mode": "half_even",
+      "numerator": 29
+    },
+    {
+      "currency": "CNY",
+      "denominator": 1000,
+      "expected": 58,
+      "minor": 1999,
+      "mode": "half_up",
+      "numerator": 29
+    },
+    {
+      "currency": "JPY",
+      "denominator": 1000,
+      "expected": 58,
+      "minor": 1999,
+      "mode": "half_even",
+      "numerator": 29
+    },
+    {
+      "currency": "KWD",
+      "denominator": 1000,
+      "expected": 36,
+      "minor": 1234,
+      "mode": "half_even",
+      "numerator": 29
+    },
+    {
+      "currency": "CNY",
+      "denominator": 1000,
+      "expected": -58,
+      "minor": -1999,
+      "mode": "half_even",
+      "numerator": 29
+    }
+  ],
+  "note": "由 libs/money/reference 生成。任何语言实现必须逐条复现这些结果。",
+  "parse_format": [
+    {
+      "currency": "CNY",
+      "formatted": "19.99",
+      "minor": 1999,
+      "text": "19.99"
+    },
+    {
+      "currency": "CNY",
+      "formatted": "0.01",
+      "minor": 1,
+      "text": "0.01"
+    },
+    {
+      "currency": "CNY",
+      "formatted": "-19.99",
+      "minor": -1999,
+      "text": "-19.99"
+    },
+    {
+      "currency": "JPY",
+      "formatted": "1999",
+      "minor": 1999,
+      "text": "1999"
+    },
+    {
+      "currency": "JPY",
+      "formatted": "-1",
+      "minor": -1,
+      "text": "-1"
+    },
+    {
+      "currency": "KWD",
+      "formatted": "1.234",
+      "minor": 1234,
+      "text": "1.234"
+    },
+    {
+      "currency": "KWD",
+      "formatted": "0.001",
+      "minor": 1,
+      "text": "0.001"
+    },
+    {
+      "currency": "USD",
+      "formatted": "1234567890.12",
+      "minor": 123456789012,
+      "text": "1234567890.12"
+    },
+    {
+      "currency": "BHD",
+      "formatted": "-0.500",
+      "minor": -500,
+      "text": "-0.500"
+    }
+  ],
+  "rounding": [
+    {
+      "denominator": 2,
+      "expected": 2,
+      "mode": "half_even",
+      "numerator": 5
+    },
+    {
+      "denominator": 2,
+      "expected": 3,
+      "mode": "half_up",
+      "numerator": 5
+    },
+    {
+      "denominator": 2,
+      "expected": 2,
+      "mode": "down",
+      "numerator": 5
+    },
+    {
+      "denominator": 2,
+      "expected": 3,
+      "mode": "up",
+      "numerator": 5
+    },
+    {
+      "denominator": 2,
+      "expected": 8,
+      "mode": "half_even",
+      "numerator": 15
+    },
+    {
+      "denominator": 2,
+      "expected": 8,
+      "mode": "half_up",
+      "numerator": 15
+    },
+    {
+      "denominator": 2,
+      "expected": 7,
+      "mode": "down",
+      "numerator": 15
+    },
+    {
+      "denominator": 2,
+      "expected": 8,
+      "mode": "up",
+      "numerator": 15
+    },
+    {
+      "denominator": 10,
+      "expected": 2,
+      "mode": "half_even",
+      "numerator": 25
+    },
+    {
+      "denominator": 10,
+      "expected": 3,
+      "mode": "half_up",
+      "numerator": 25
+    },
+    {
+      "denominator": 10,
+      "expected": 2,
+      "mode": "down",
+      "numerator": 25
+    },
+    {
+      "denominator": 10,
+      "expected": 3,
+      "mode": "up",
+      "numerator": 25
+    },
+    {
+      "denominator": 10,
+      "expected": 4,
+      "mode": "half_even",
+      "numerator": 35
+    },
+    {
+      "denominator": 10,
+      "expected": 4,
+      "mode": "half_up",
+      "numerator": 35
+    },
+    {
+      "denominator": 10,
+      "expected": 3,
+      "mode": "down",
+      "numerator": 35
+    },
+    {
+      "denominator": 10,
+      "expected": 4,
+      "mode": "up",
+      "numerator": 35
+    },
+    {
+      "denominator": 2,
+      "expected": -2,
+      "mode": "half_even",
+      "numerator": -5
+    },
+    {
+      "denominator": 2,
+      "expected": -3,
+      "mode": "half_up",
+      "numerator": -5
+    },
+    {
+      "denominator": 2,
+      "expected": -2,
+      "mode": "down",
+      "numerator": -5
+    },
+    {
+      "denominator": 2,
+      "expected": -3,
+      "mode": "up",
+      "numerator": -5
+    },
+    {
+      "denominator": 2,
+      "expected": -8,
+      "mode": "half_even",
+      "numerator": -15
+    },
+    {
+      "denominator": 2,
+      "expected": -8,
+      "mode": "half_up",
+      "numerator": -15
+    },
+    {
+      "denominator": 2,
+      "expected": -7,
+      "mode": "down",
+      "numerator": -15
+    },
+    {
+      "denominator": 2,
+      "expected": -8,
+      "mode": "up",
+      "numerator": -15
+    },
+    {
+      "denominator": 3,
+      "expected": 0,
+      "mode": "half_even",
+      "numerator": 1
+    },
+    {
+      "denominator": 3,
+      "expected": 0,
+      "mode": "half_up",
+      "numerator": 1
+    },
+    {
+      "denominator": 3,
+      "expected": 0,
+      "mode": "down",
+      "numerator": 1
+    },
+    {
+      "denominator": 3,
+      "expected": 1,
+      "mode": "up",
+      "numerator": 1
+    },
+    {
+      "denominator": 3,
+      "expected": 1,
+      "mode": "half_even",
+      "numerator": 2
+    },
+    {
+      "denominator": 3,
+      "expected": 1,
+      "mode": "half_up",
+      "numerator": 2
+    },
+    {
+      "denominator": 3,
+      "expected": 0,
+      "mode": "down",
+      "numerator": 2
+    },
+    {
+      "denominator": 3,
+      "expected": 1,
+      "mode": "up",
+      "numerator": 2
+    },
+    {
+      "denominator": 1000,
+      "expected": 1,
+      "mode": "half_even",
+      "numerator": 999
+    },
+    {
+      "denominator": 1000,
+      "expected": 1,
+      "mode": "half_up",
+      "numerator": 999
+    },
+    {
+      "denominator": 1000,
+      "expected": 0,
+      "mode": "down",
+      "numerator": 999
+    },
+    {
+      "denominator": 1000,
+      "expected": 1,
+      "mode": "up",
+      "numerator": 999
+    },
+    {
+      "denominator": 3,
+      "expected": 333,
+      "mode": "half_even",
+      "numerator": 1000
+    },
+    {
+      "denominator": 3,
+      "expected": 333,
+      "mode": "half_up",
+      "numerator": 1000
+    },
+    {
+      "denominator": 3,
+      "expected": 333,
+      "mode": "down",
+      "numerator": 1000
+    },
+    {
+      "denominator": 3,
+      "expected": 334,
+      "mode": "up",
+      "numerator": 1000
+    }
+  ],
+  "schema_version": "1.0.0"
+}

@@ -1,0 +1,13 @@
+[
+  "contracts/pricing/fee-model.json",
+  "docs/pricing/FEE_MODEL.md",
+  "governance/fee-model.json",
+  "libs/pricing/reference/__init__.py",
+  "libs/pricing/reference/fees.py",
+  "scripts/fees-smoke.py",
+  "scripts/render-fees.py",
+  "tools/negative/b29.py",
+  "tools/paygov/fees.py",
+  "tools/paygov/feesgen.py",
+  "tools/tests/test_b29_fees.py"
+]

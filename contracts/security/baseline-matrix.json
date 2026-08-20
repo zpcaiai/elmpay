@@ -1,0 +1,385 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-baseline.py; do not edit by hand",
+  "coverage": {
+    "accepted_gaps": 8,
+    "applicable": 31,
+    "enforced": 27
+  },
+  "requirements": [
+    {
+      "applicability": "api",
+      "enforcement": "test",
+      "id": "API-01",
+      "level": "L2",
+      "refs": [
+        "tools/tests/test_b19_authz.py::AuthzDecisionFunction::test_object_ownership_is_checked_even_inside_the_right_tenant"
+      ],
+      "standard": "API"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "gate_rule",
+      "id": "API-02",
+      "level": "L2",
+      "refs": [
+        "ID_FLOW",
+        "ID_FORBIDDEN_ALGORITHM"
+      ],
+      "standard": "API"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "gate_rule",
+      "id": "API-03",
+      "level": "L2",
+      "refs": [
+        "AUTHZ_FIELD_MASK",
+        "AUTHZ_FIELD_PAN_READABLE"
+      ],
+      "standard": "API"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "accepted_gap",
+      "id": "API-04",
+      "level": "L2",
+      "refs": [],
+      "standard": "API"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "gate_rule",
+      "id": "API-05",
+      "level": "L2",
+      "refs": [
+        "AUTHZ_ROLE_PERMISSION_UNKNOWN",
+        "MFA_PRIVILEGED_CLASS"
+      ],
+      "standard": "API"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "gate_rule",
+      "id": "API-08",
+      "level": "L2",
+      "refs": [
+        "DOMAIN_NO_CAA",
+        "ZT_DENY_BY_DEFAULT"
+      ],
+      "standard": "API"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "gate_rule",
+      "id": "API-09",
+      "level": "L2",
+      "refs": [
+        "API_OPERATION_DUPLICATE",
+        "SSOT_UNREGISTERED"
+      ],
+      "standard": "API"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "gate_rule",
+      "id": "API-10",
+      "level": "L2",
+      "refs": [
+        "API_SIGNATURE",
+        "TOPO_FAIL_OPEN"
+      ],
+      "standard": "API"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-1.4.1",
+      "level": "L2",
+      "refs": [
+        "AUTHZ_DEFAULT_DECISION",
+        "AUTHZ_ROLE_PERMISSION_UNKNOWN"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "test",
+      "id": "ASVS-1.4.4",
+      "level": "L2",
+      "refs": [
+        "tools/tests/test_b19_authz.py::AuthzDecisionFunction::test_the_maker_cannot_be_the_checker"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "supply_chain",
+      "enforcement": "gate_rule",
+      "id": "ASVS-10.3.2",
+      "level": "L2",
+      "refs": [
+        "CI_REQUIRED_STAGE",
+        "TOOLCHAIN_DIGEST"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "accepted_gap",
+      "id": "ASVS-12.1.1",
+      "level": "L2",
+      "refs": [],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "gate_rule",
+      "id": "ASVS-13.2.1",
+      "level": "L2",
+      "refs": [
+        "API_ERROR_STATUS",
+        "API_PATH"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "test",
+      "id": "ASVS-14.4.1",
+      "level": "L2",
+      "refs": [
+        "tools/tests/test_b22_baseline.py::HardeningReference::test_missing_security_headers_are_reported"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "test",
+      "id": "ASVS-14.5.2",
+      "level": "L2",
+      "refs": [
+        "tools/tests/test_b22_baseline.py::HardeningReference::test_wildcard_cors_with_credentials_is_rejected"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-2.2.1",
+      "level": "L2",
+      "refs": [
+        "MFA_PUSH_FATIGUE",
+        "MFA_RATE_LIMIT"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-2.5.4",
+      "level": "L2",
+      "refs": [
+        "ID_RECOVERY_DOWNGRADE",
+        "MFA_RECOVERY_BYPASS"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-2.8.1",
+      "level": "L2",
+      "refs": [
+        "AUTHZ_ROLE_NO_MFA",
+        "MFA_WEAK_FOR_PRIVILEGED"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-3.3.1",
+      "level": "L2",
+      "refs": [
+        "ID_REVOCATION_CHECK",
+        "ZT_SESSION"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-3.5.3",
+      "level": "L2",
+      "refs": [
+        "ID_BEARER_TOKEN",
+        "ID_BINDING_METHOD"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-4.1.3",
+      "level": "L2",
+      "refs": [
+        "AUTHZ_STANDING_ELEVATED",
+        "AUTHZ_STANDING_PRIVILEGE"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "gate_rule",
+      "id": "ASVS-4.2.2",
+      "level": "L2",
+      "refs": [
+        "API_MUTATION_NOT_IDEMPOTENT",
+        "ID_CSRF"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "api",
+      "enforcement": "test",
+      "id": "ASVS-5.1.3",
+      "level": "L2",
+      "refs": [
+        "tools/tests/test_b22_baseline.py::HardeningReference::test_amount_parsing_rejects_floats_and_junk"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "accepted_gap",
+      "id": "ASVS-5.3.4",
+      "level": "L2",
+      "refs": [],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "accepted_gap",
+      "id": "ASVS-6.2.1",
+      "level": "L2",
+      "refs": [],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-6.4.1",
+      "level": "L2",
+      "refs": [
+        "CONFIG_LITERAL_SECRET",
+        "KEY_APP_HOLDS_MATERIAL",
+        "KEY_HARDCODED"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-6.4.2",
+      "level": "L2",
+      "refs": [
+        "CERT_NO_OVERLAP",
+        "KEY_NO_SHREDDING",
+        "KEY_ROTATION_MISSING"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-7.1.1",
+      "level": "L2",
+      "refs": [
+        "API_ERROR_LEAK",
+        "KEY_IN_LOGS"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "test",
+      "id": "ASVS-7.1.2",
+      "level": "L2",
+      "refs": [
+        "tools/tests/test_b22_baseline.py::HardeningReference::test_redaction_strips_card_numbers_and_credentials"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-8.3.4",
+      "level": "L2",
+      "refs": [
+        "AUTHZ_FIELD_CLASSIFICATION",
+        "KEY_FIELD_UNPROTECTED"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "backend",
+      "enforcement": "gate_rule",
+      "id": "ASVS-9.1.1",
+      "level": "L2",
+      "refs": [
+        "CERT_SELF_SIGNED_EDGE",
+        "ZT_BOUNDARY_REQUIREMENTS"
+      ],
+      "standard": "ASVS"
+    },
+    {
+      "applicability": "mobile",
+      "enforcement": "accepted_gap",
+      "id": "MASVS-AUTH-2",
+      "level": "L2",
+      "refs": [],
+      "standard": "MASVS"
+    },
+    {
+      "applicability": "mobile",
+      "enforcement": "accepted_gap",
+      "id": "MASVS-CRYPTO-1",
+      "level": "L2",
+      "refs": [],
+      "standard": "MASVS"
+    },
+    {
+      "applicability": "mobile",
+      "enforcement": "accepted_gap",
+      "id": "MASVS-NETWORK-1",
+      "level": "L2",
+      "refs": [],
+      "standard": "MASVS"
+    },
+    {
+      "applicability": "mobile",
+      "enforcement": "accepted_gap",
+      "id": "MASVS-STORAGE-1",
+      "level": "L2",
+      "refs": [],
+      "standard": "MASVS"
+    }
+  ],
+  "schema_version": "1.0.0",
+  "standards": [
+    {
+      "id": "API",
+      "notes": "OWASP API Security Top 10。",
+      "version": "2023"
+    },
+    {
+      "id": "ASVS",
+      "notes": "OWASP 应用安全验证标准，本平台按 L2 要求。",
+      "version": "4.0.3"
+    },
+    {
+      "id": "MASVS",
+      "notes": "OWASP 移动应用安全验证标准；本平台目前没有自有移动端，相关条目一律记为缺口而不是「符合」。",
+      "version": "2.0"
+    }
+  ]
+}

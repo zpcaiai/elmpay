@@ -1,0 +1,12 @@
+[
+  "contracts/security/authorization-matrix.json",
+  "docs/security/AUTHORIZATION.md",
+  "governance/authorization.json",
+  "libs/authz/reference/__init__.py",
+  "libs/authz/reference/decision.py",
+  "scripts/authz-smoke.py",
+  "scripts/render-authz.py",
+  "tools/paygov/authz.py",
+  "tools/paygov/authzgen.py",
+  "tools/tests/test_b19_authz.py"
+]

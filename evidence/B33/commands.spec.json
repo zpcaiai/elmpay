@@ -1,0 +1,137 @@
+{
+  "batch": "B33",
+  "commands": [
+    {
+      "purpose": "environment fingerprint",
+      "expect": 0,
+      "command": "python3 -VV && uname -a && git --version && echo repo=$(git rev-parse --short HEAD)",
+      "save_to": "runtime/environment.txt"
+    },
+    {
+      "purpose": "vendored skill package checksum and inventory",
+      "expect": 0,
+      "command": "python3 .payment-platform/skill-package/scripts/verify_package.py",
+      "save_to": "runtime/skill-package.json"
+    },
+    {
+      "purpose": "dependency B32 evidence still validates",
+      "expect": 0,
+      "command": "python3 .payment-platform/skill-package/scripts/orchestrate.py validate B32 --repo .",
+      "save_to": "runtime/dependency-b32.json"
+    },
+    {
+      "purpose": "full governance regression suite shard 1 of 4",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 1/4 --out evidence/B33/test-results/summary-1of4.json --log evidence/B33/test-results/unittest-1of4.log",
+      "save_to": "test-results/summary-1of4.log"
+    },
+    {
+      "purpose": "full governance regression suite shard 2 of 4",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 2/4 --out evidence/B33/test-results/summary-2of4.json --log evidence/B33/test-results/unittest-2of4.log",
+      "save_to": "test-results/summary-2of4.log"
+    },
+    {
+      "purpose": "full governance regression suite shard 3 of 4",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 3/4 --out evidence/B33/test-results/summary-3of4.json --log evidence/B33/test-results/unittest-3of4.log",
+      "save_to": "test-results/summary-3of4.log"
+    },
+    {
+      "purpose": "full governance regression suite shard 4 of 4",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 4/4 --out evidence/B33/test-results/summary-4of4.json --log evidence/B33/test-results/unittest-4of4.log",
+      "save_to": "test-results/summary-4of4.log"
+    },
+    {
+      "purpose": "merge all test shards and refuse missing or duplicate units",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --merge evidence/B33/test-results/summary-1of4.json evidence/B33/test-results/summary-2of4.json evidence/B33/test-results/summary-3of4.json evidence/B33/test-results/summary-4of4.json --out evidence/B33/test-results/summary.json --log evidence/B33/test-results/unittest.log",
+      "save_to": "test-results/summary.log"
+    },
+    {
+      "purpose": "generated payment attempt artefacts match the model",
+      "expect": 0,
+      "command": "python3 scripts/render-attempt.py --check",
+      "save_to": "runtime/attempt-drift.txt"
+    },
+    {
+      "purpose": "timeout, retry, tenant, response and finality runtime scenario",
+      "expect": 0,
+      "command": "python3 scripts/attempt-smoke.py",
+      "save_to": "runtime/attempt-smoke.log"
+    },
+    {
+      "purpose": "all generated governance documents remain in sync",
+      "expect": 0,
+      "command": "python3 scripts/render-docs.py --check",
+      "save_to": "runtime/docs-drift.txt"
+    },
+    {
+      "purpose": "local orchestration still agrees with the vendored orchestrator",
+      "expect": 0,
+      "command": "python3 scripts/batch.py crosscheck",
+      "save_to": "runtime/crosscheck.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof shard 1 of 4",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 1/4",
+      "save_to": "security/negative-controls-1of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof shard 2 of 4",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 2/4",
+      "save_to": "security/negative-controls-2of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof shard 3 of 4",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 3/4",
+      "save_to": "security/negative-controls-3of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof shard 4 of 4",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 4/4",
+      "save_to": "security/negative-controls-4of4.log"
+    },
+    {
+      "purpose": "critical attempt rules remain load-bearing",
+      "expect": 0,
+      "command": "python3 scripts/rule-knockout.py --codes ATTEMPT_TENANT_LOOKUP_UNSCOPED,ATTEMPT_START_NOT_ATOMIC,ATTEMPT_CONCURRENT_DUPLICATE_CALL,ATTEMPT_FIELD_MISSING,ATTEMPT_RESPONSE_EVIDENCE_MISSING,ATTEMPT_TIMEOUT_IS_FAILURE,ATTEMPT_UNKNOWN_RETRYABLE,ATTEMPT_REUSED,ATTEMPT_FAILURE_SETTLES_INTENT,ATTEMPT_REPLACEMENT_REUSES_KEY,ATTEMPT_REPLACEMENT_NO_CUSTOMER_ACTION,ATTEMPT_UNMAPPED_IS_SUCCESS,ATTEMPT_CODE_NAMESPACE,ATTEMPT_FINAL_MUTABLE,ATTEMPT_CONTRADICTION_IGNORED,ATTEMPT_STATES_DIVERGE,ATTEMPT_RETURN_PAGE_EVIDENCE --out evidence/B33/security/rule-knockout.json",
+      "save_to": "security/rule-knockout.log"
+    },
+    {
+      "purpose": "payment attempt validator on the real repository",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify payment-attempt --repo .",
+      "save_to": "runtime/attempt-validator.json"
+    },
+    {
+      "purpose": "governance gate on the real repository",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo .",
+      "save_to": "security/governance-report.json"
+    },
+    {
+      "purpose": "exhausted budget must exit 3, never 0",
+      "expect": 3,
+      "command": "python3 -m tools.paygov.cli verify payment-attempt --repo . --budget-seconds 0",
+      "save_to": "runtime/timeout-fail-closed.log"
+    },
+    {
+      "purpose": "duplicate governance invocation is byte-identical",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo . > /tmp/B33-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B33-2.json && diff /tmp/B33-1.json /tmp/B33-2.json && echo IDENTICAL",
+      "save_to": "runtime/idempotency.txt"
+    },
+    {
+      "purpose": "registered validators",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli list-validators --repo .",
+      "save_to": "runtime/validators.txt"
+    }
+  ]
+}

@@ -1,0 +1,272 @@
+{
+  "batch_id": "B13",
+  "requirements": [
+    {
+      "id": "B13-R1",
+      "statement": "每张表的归属唯一且与模块注册表一致",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B13-R2",
+      "statement": "租户数据在数据库层强制隔离，不依赖查询作者的记忆",
+      "source": "policies/non-negotiables.md#9"
+    },
+    {
+      "id": "B13-R3",
+      "statement": "确定分区键与冷热分层，使归档成为分离而不是删除",
+      "source": "batches/B13.md 目标"
+    },
+    {
+      "id": "B13-R4",
+      "statement": "账本与凭据类数据仅可追加，不可更新或删除",
+      "source": "policies/non-negotiables.md#6"
+    },
+    {
+      "id": "B13-R5",
+      "statement": "确定归档策略且归档必须可校验、可回读",
+      "source": "batches/B13.md 目标"
+    },
+    {
+      "id": "B13-R6",
+      "statement": "确定未来分片策略，使分片成为搬迁而不是重写",
+      "source": "batches/B13.md 目标"
+    },
+    {
+      "id": "B13-R7",
+      "statement": "跨租户访问必须有受控通道、审计事件与四眼复核",
+      "source": "policies/non-negotiables.md#11"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/data-architecture.json",
+      "requirements": [
+        "B13-R1",
+        "B13-R2",
+        "B13-R3",
+        "B13-R4",
+        "B13-R5",
+        "B13-R6",
+        "B13-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/data.py",
+      "requirements": [
+        "B13-R1",
+        "B13-R2",
+        "B13-R3",
+        "B13-R4",
+        "B13-R5",
+        "B13-R6",
+        "B13-R7"
+      ]
+    },
+    {
+      "ref": "libs/tenancy/reference/isolation.py",
+      "requirements": [
+        "B13-R2",
+        "B13-R4",
+        "B13-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/datagen.py",
+      "requirements": [
+        "B13-R2",
+        "B13-R3",
+        "B13-R4"
+      ]
+    },
+    {
+      "ref": "scripts/render-data.py",
+      "requirements": [
+        "B13-R3"
+      ]
+    },
+    {
+      "ref": "scripts/tenancy-smoke.py",
+      "requirements": [
+        "B13-R2",
+        "B13-R4",
+        "B13-R7"
+      ]
+    },
+    {
+      "ref": "contracts/sql/rls.sql",
+      "requirements": [
+        "B13-R2",
+        "B13-R4"
+      ]
+    },
+    {
+      "ref": "contracts/sql/partitions.sql",
+      "requirements": [
+        "B13-R3",
+        "B13-R5"
+      ]
+    },
+    {
+      "ref": "docs/data/DATA_ARCHITECTURE.md",
+      "requirements": [
+        "B13-R1",
+        "B13-R5",
+        "B13-R6"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b13_data.py",
+      "requirements": [
+        "B13-R1",
+        "B13-R2",
+        "B13-R3",
+        "B13-R4",
+        "B13-R5",
+        "B13-R6",
+        "B13-R7"
+      ],
+      "cases": 81
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-09",
+      "implemented_by": [
+        "governance/data-architecture.json",
+        "tools/paygov/data.py",
+        "contracts/sql/rls.sql"
+      ],
+      "verified_by": [
+        "tools/tests/test_b13_data.py",
+        "scripts/tenancy-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-06",
+      "implemented_by": [
+        "governance/data-architecture.json",
+        "tools/paygov/data.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b13_data.py",
+        "scripts/tenancy-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "tools/paygov/data.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b13_data.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-11",
+      "implemented_by": [
+        "governance/data-architecture.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b13_data.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-14",
+      "implemented_by": [
+        "governance/data-architecture.json",
+        "tools/paygov/data.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b13_data.py"
+      ]
+    },
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "tools/paygov/data.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b13_data.py"
+      ]
+    },
+    {
+      "id": "CTRL-005",
+      "implemented_by": [
+        "contracts/sql/rls.sql",
+        "governance/data-architecture.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b13_data.py",
+        "scripts/tenancy-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-008",
+      "implemented_by": [
+        "governance/data-architecture.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b13_data.py"
+      ]
+    },
+    {
+      "id": "CTRL-013",
+      "implemented_by": [
+        "governance/data-architecture.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b13_data.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B13/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B13/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B13/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B13/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B13/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B13/runtime/data-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B13/runtime/tenancy-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B13/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B13/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B13/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B13.json",
+      "kind": "completion"
+    }
+  ]
+}

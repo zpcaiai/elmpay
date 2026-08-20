@@ -1,0 +1,13 @@
+[
+  "contracts/routing/policy.json",
+  "docs/routing/ROUTING_POLICY.md",
+  "governance/routing-policy.json",
+  "libs/routing/reference/__init__.py",
+  "libs/routing/reference/router.py",
+  "scripts/render-routing.py",
+  "scripts/routing-smoke.py",
+  "tools/negative/b28.py",
+  "tools/paygov/routing.py",
+  "tools/paygov/routinggen.py",
+  "tools/tests/test_b28_routing.py"
+]

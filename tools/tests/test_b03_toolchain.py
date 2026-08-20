@@ -143,7 +143,7 @@ class ToolchainRejects(FixtureTestCase):
         self.assertIn("BUILD_DRIFT", self.codes(self._validate()))
 
     def test_rejects_missing_generated_build_file(self):
-        (self.fixture.root / "gradle/libs.versions.toml").unlink()
+        self.fixture.remove("gradle/libs.versions.toml")
         self.assertIn("BUILD_MISSING", self.codes(self._validate()))
 
     def test_rejects_unverified_catalogue_without_a_note(self):

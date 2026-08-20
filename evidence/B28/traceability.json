@@ -1,0 +1,254 @@
+{
+  "batch_id": "B28",
+  "requirements": [
+    {
+      "id": "B28-R1",
+      "statement": "路由是确定性的：同输入同版本必得同决定，并可重放",
+      "source": "batches/B28.md 目标"
+    },
+    {
+      "id": "B28-R2",
+      "statement": "按优先级确定性匹配规则；优先级不得重复；目标渠道必须具备相应能力",
+      "source": "batches/B28.md 目标"
+    },
+    {
+      "id": "B28-R3",
+      "statement": "成本/成功率/风险三因子加权，成功率需足够样本且保留探索下限",
+      "source": "batches/B28.md 目标"
+    },
+    {
+      "id": "B28-R4",
+      "statement": "配置版本不可变、决定记录版本号、生效需双人审批并可审计",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B28-R5",
+      "statement": "灰度按支付意图稳定哈希分流，重试不得换分支；自动放量关闭、自动回滚打开",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B28-R6",
+      "statement": "回滚是切回已有版本、无需审批且有时限",
+      "source": "batches/B28.md 目标"
+    },
+    {
+      "id": "B28-R7",
+      "statement": "影子评估读生产配置但不得产生任何资金动作；重试复用幂等键且不换渠道",
+      "source": "policies/non-negotiables.md#1"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/routing-policy.json",
+      "requirements": [
+        "B28-R1",
+        "B28-R2",
+        "B28-R3",
+        "B28-R4",
+        "B28-R5",
+        "B28-R6",
+        "B28-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/routing.py",
+      "requirements": [
+        "B28-R1",
+        "B28-R2",
+        "B28-R3",
+        "B28-R4",
+        "B28-R5",
+        "B28-R6",
+        "B28-R7"
+      ]
+    },
+    {
+      "ref": "libs/routing/reference/router.py",
+      "requirements": [
+        "B28-R1",
+        "B28-R2",
+        "B28-R3",
+        "B28-R4",
+        "B28-R5",
+        "B28-R6",
+        "B28-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/routinggen.py",
+      "requirements": [
+        "B28-R1",
+        "B28-R2"
+      ]
+    },
+    {
+      "ref": "scripts/render-routing.py",
+      "requirements": [
+        "B28-R1"
+      ]
+    },
+    {
+      "ref": "scripts/routing-smoke.py",
+      "requirements": [
+        "B28-R1",
+        "B28-R3",
+        "B28-R4",
+        "B28-R5",
+        "B28-R6",
+        "B28-R7"
+      ]
+    },
+    {
+      "ref": "contracts/routing/policy.json",
+      "requirements": [
+        "B28-R1",
+        "B28-R2"
+      ]
+    },
+    {
+      "ref": "docs/routing/ROUTING_POLICY.md",
+      "requirements": [
+        "B28-R1",
+        "B28-R5"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b28_routing.py",
+      "requirements": [
+        "B28-R1",
+        "B28-R2",
+        "B28-R3",
+        "B28-R4",
+        "B28-R5",
+        "B28-R6",
+        "B28-R7"
+      ],
+      "cases": 127
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/routing-policy.json",
+        "tools/paygov/routing.py",
+        "libs/routing/reference/router.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b28_routing.py",
+        "scripts/routing-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/routing-policy.json",
+        "tools/paygov/routing.py",
+        "libs/routing/reference/router.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b28_routing.py",
+        "scripts/routing-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "governance/routing-policy.json",
+        "tools/paygov/routing.py",
+        "libs/routing/reference/router.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b28_routing.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/routing.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b28_routing.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/routing-policy.json",
+        "tools/paygov/routing.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b28_routing.py"
+      ]
+    },
+    {
+      "id": "NN-14",
+      "implemented_by": [
+        "governance/routing-policy.json",
+        "tools/paygov/routing.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b28_routing.py",
+        "scripts/routing-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/routing-policy.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b28_routing.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B28/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B28/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B28/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B28/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B28/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B28/runtime/routing-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B28/runtime/routing-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B28/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B28/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B28/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B28.json",
+      "kind": "completion"
+    }
+  ]
+}

@@ -1,0 +1,379 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B08",
+  "note": "统一语言：同一概念在代码、契约、文档、告警与运营界面中必须使用同一个词。",
+  "terms": [
+    {
+      "term_en": "Tenant",
+      "term_cn": "租户",
+      "kind": "entity",
+      "definition": "平台的顶层隔离单元。所有数据、缓存、消息与导出都以租户为边界。"
+    },
+    {
+      "term_en": "Project",
+      "term_cn": "业务项目",
+      "kind": "entity",
+      "definition": "接入平台的一个业务系统。业务订单归它所有，平台不复制。"
+    },
+    {
+      "term_en": "Merchant",
+      "term_cn": "商户",
+      "kind": "entity",
+      "definition": "结算主体。结算由持牌机构直达其结算账户，平台不持有资金。"
+    },
+    {
+      "term_en": "ProviderAccount",
+      "term_cn": "渠道账户",
+      "kind": "entity",
+      "definition": "商户在某个支付渠道下的账户与凭证引用，凭证只以 kms:// 或 vault:// 形式出现。"
+    },
+    {
+      "term_en": "PaymentIntent",
+      "term_cn": "支付意图",
+      "kind": "entity",
+      "definition": "一次付款意图，是平台支付事实的入口，与业务订单以 external_reference 唯一绑定。"
+    },
+    {
+      "term_en": "PaymentAttempt",
+      "term_cn": "支付尝试",
+      "kind": "entity",
+      "definition": "一次面向渠道的实际请求。一个支付意图可以有多次尝试。"
+    },
+    {
+      "term_en": "Refund",
+      "term_cn": "退款",
+      "kind": "entity",
+      "definition": "针对已捕获金额的退回，受可退余额上限与四眼审批约束。"
+    },
+    {
+      "term_en": "Dispute",
+      "term_cn": "争议",
+      "kind": "entity",
+      "definition": "持卡人或付款人发起的拒付/争议，含举证时限与结果。"
+    },
+    {
+      "term_en": "Subscription",
+      "term_cn": "订阅",
+      "kind": "entity",
+      "definition": "按周期扣款的计费关系，依据 Mandate 或 PSP 令牌引用扣款。"
+    },
+    {
+      "term_en": "LedgerAccount",
+      "term_cn": "账本科目",
+      "kind": "entity",
+      "definition": "复式账本中的科目，按租户与币种独立。"
+    },
+    {
+      "term_en": "LedgerTransaction",
+      "term_cn": "账本交易",
+      "kind": "entity",
+      "definition": "一组必须借贷平衡的分录，按来源唯一，防止重复过账。"
+    },
+    {
+      "term_en": "LedgerEntry",
+      "term_cn": "账本分录",
+      "kind": "entity",
+      "definition": "单条借或贷记录，写入后不可修改，修正只能用反向分录。"
+    },
+    {
+      "term_en": "ReconciliationRun",
+      "term_cn": "对账运行",
+      "kind": "entity",
+      "definition": "一次针对某渠道某业务日的对账过程，按账单文件摘要幂等。"
+    },
+    {
+      "term_en": "ReconciliationException",
+      "term_cn": "对账差异",
+      "kind": "entity",
+      "definition": "三方对账中未能匹配或金额/状态不一致的条目，必须分类并处置。"
+    },
+    {
+      "term_en": "active",
+      "term_cn": "生效中",
+      "kind": "state",
+      "definition": "生效中：资源处于正常可用状态，可以发起或接收业务操作。"
+    },
+    {
+      "term_en": "approved",
+      "term_cn": "已审批",
+      "kind": "state",
+      "definition": "已审批：通过四眼复核，可以执行。"
+    },
+    {
+      "term_en": "authorized",
+      "term_cn": "已授权",
+      "kind": "state",
+      "definition": "已授权：资金已冻结但尚未捕获。"
+    },
+    {
+      "term_en": "canceled",
+      "term_cn": "已取消",
+      "kind": "state",
+      "definition": "已取消：在捕获前主动终止。"
+    },
+    {
+      "term_en": "captured",
+      "term_cn": "已捕获",
+      "kind": "state",
+      "definition": "已捕获：资金已确认收取，履约依据成立。"
+    },
+    {
+      "term_en": "closed",
+      "term_cn": "已关闭",
+      "kind": "state",
+      "definition": "已关闭：仅允许只读查询。"
+    },
+    {
+      "term_en": "completed",
+      "term_cn": "已完成",
+      "kind": "state",
+      "definition": "已完成：对账运行结束并产出差异清单。"
+    },
+    {
+      "term_en": "created",
+      "term_cn": "已创建",
+      "kind": "state",
+      "definition": "已创建：支付意图已登记，尚未发起渠道请求。"
+    },
+    {
+      "term_en": "disabled",
+      "term_cn": "已停用",
+      "kind": "state",
+      "definition": "已停用：渠道账户不可用。"
+    },
+    {
+      "term_en": "ended",
+      "term_cn": "已结束",
+      "kind": "state",
+      "definition": "已结束：订阅自然到期或终止。"
+    },
+    {
+      "term_en": "evidence_required",
+      "term_cn": "待举证",
+      "kind": "state",
+      "definition": "待举证：需在时限内提交证据。"
+    },
+    {
+      "term_en": "expired",
+      "term_cn": "已过期",
+      "kind": "state",
+      "definition": "已过期：超过有效期未完成。"
+    },
+    {
+      "term_en": "failed",
+      "term_cn": "已失败",
+      "kind": "state",
+      "definition": "已失败：渠道明确拒绝或不可恢复错误。"
+    },
+    {
+      "term_en": "ingesting",
+      "term_cn": "摄取中",
+      "kind": "state",
+      "definition": "摄取中：正在导入渠道账单或银行文件。"
+    },
+    {
+      "term_en": "initiated",
+      "term_cn": "已发起",
+      "kind": "state",
+      "definition": "已发起：尝试已构造请求但尚未收到渠道响应。"
+    },
+    {
+      "term_en": "investigating",
+      "term_cn": "调查中",
+      "kind": "state",
+      "definition": "调查中：差异正在人工或自动排查。"
+    },
+    {
+      "term_en": "lost",
+      "term_cn": "败诉",
+      "kind": "state",
+      "definition": "败诉：争议裁定对商户不利，产生资金损失与对应账本分录。"
+    },
+    {
+      "term_en": "matching",
+      "term_cn": "匹配中",
+      "kind": "state",
+      "definition": "匹配中：正在执行三方逐笔匹配。"
+    },
+    {
+      "term_en": "onboarding",
+      "term_cn": "接入中",
+      "kind": "state",
+      "definition": "接入中：商户资料与渠道绑定尚未完成。"
+    },
+    {
+      "term_en": "open",
+      "term_cn": "未处理",
+      "kind": "state",
+      "definition": "未处理：差异已被识别并登记，尚未开始调查。"
+    },
+    {
+      "term_en": "opened",
+      "term_cn": "已开启",
+      "kind": "state",
+      "definition": "已开启：争议已由渠道创建。"
+    },
+    {
+      "term_en": "past_due",
+      "term_cn": "逾期",
+      "kind": "state",
+      "definition": "逾期：扣款失败且处于重试或催缴窗口。"
+    },
+    {
+      "term_en": "pending",
+      "term_cn": "处理中",
+      "kind": "state",
+      "definition": "处理中：渠道已受理，结果待定。"
+    },
+    {
+      "term_en": "processing",
+      "term_cn": "执行中",
+      "kind": "state",
+      "definition": "执行中：已向渠道发起退款。"
+    },
+    {
+      "term_en": "requested",
+      "term_cn": "已申请",
+      "kind": "state",
+      "definition": "已申请：退款已提交，等待审批。"
+    },
+    {
+      "term_en": "requires_action",
+      "term_cn": "需要付款人动作",
+      "kind": "state",
+      "definition": "需要付款人动作：等待付款人在渠道侧完成操作。"
+    },
+    {
+      "term_en": "resolved",
+      "term_cn": "已解决",
+      "kind": "state",
+      "definition": "已解决：差异原因查明并完成处置。"
+    },
+    {
+      "term_en": "succeeded",
+      "term_cn": "已成功",
+      "kind": "state",
+      "definition": "已成功：以验签事件或主动查询确认。"
+    },
+    {
+      "term_en": "suspended",
+      "term_cn": "已暂停",
+      "kind": "state",
+      "definition": "已暂停：暂停新增业务，保留只读与对账能力。"
+    },
+    {
+      "term_en": "terminated",
+      "term_cn": "已终止",
+      "kind": "state",
+      "definition": "已终止：不得再发起任何支付。"
+    },
+    {
+      "term_en": "trialing",
+      "term_cn": "试用中",
+      "kind": "state",
+      "definition": "试用中：订阅处于免费或优惠试用期。"
+    },
+    {
+      "term_en": "under_review",
+      "term_cn": "审理中",
+      "kind": "state",
+      "definition": "审理中：渠道正在裁定。"
+    },
+    {
+      "term_en": "unknown",
+      "term_cn": "不确定",
+      "kind": "state",
+      "definition": "不确定：渠道超时或响应不可解释，必须主动查询直到收敛。"
+    },
+    {
+      "term_en": "withdrawn",
+      "term_cn": "已撤回",
+      "kind": "state",
+      "definition": "已撤回：付款人撤回争议。"
+    },
+    {
+      "term_en": "won",
+      "term_cn": "胜诉",
+      "kind": "state",
+      "definition": "胜诉：争议裁定对商户有利，冻结金额释放回商户。"
+    },
+    {
+      "term_en": "written_off",
+      "term_cn": "已核销",
+      "kind": "state",
+      "definition": "已核销：经复核后按既定政策核销，必须有理由与复核人。"
+    },
+    {
+      "term_en": "external reference",
+      "term_cn": "外部引用",
+      "kind": "concept",
+      "definition": "业务项目的业务订单号；与 project_id 组成唯一键，是平台与业务系统之间唯一的关联点。"
+    },
+    {
+      "term_en": "idempotency key",
+      "term_cn": "幂等键",
+      "kind": "concept",
+      "definition": "调用方提供的键。相同键与相同载荷返回首次结果，载荷不同返回冲突。"
+    },
+    {
+      "term_en": "minor unit",
+      "term_cn": "最小货币单位",
+      "kind": "concept",
+      "definition": "金额的整数表示单位（如分）。所有金额字段使用它，禁止浮点。"
+    },
+    {
+      "term_en": "capture",
+      "term_cn": "捕获",
+      "kind": "concept",
+      "definition": "把已授权的资金确认收取。只有捕获成功才构成履约依据。"
+    },
+    {
+      "term_en": "mandate",
+      "term_cn": "扣款授权",
+      "kind": "concept",
+      "definition": "付款人给予的周期扣款授权，以引用形式保存，不保存可复用明文令牌。"
+    },
+    {
+      "term_en": "inbox",
+      "term_cn": "入站信箱",
+      "kind": "concept",
+      "definition": "渠道事件的持久去重存储，保证至少一次投递下的恰好一次业务效果。"
+    },
+    {
+      "term_en": "outbox",
+      "term_cn": "出站信箱",
+      "kind": "concept",
+      "definition": "与本地事务同提交的待发事件表，保证事件不丢。"
+    },
+    {
+      "term_en": "double entry",
+      "term_cn": "复式记账",
+      "kind": "concept",
+      "definition": "每笔资金事实同时产生借与贷，且金额相等。"
+    },
+    {
+      "term_en": "reversing entry",
+      "term_cn": "反向分录",
+      "kind": "concept",
+      "definition": "财务修正的唯一方式；历史分录本身不可修改。"
+    },
+    {
+      "term_en": "three-way reconciliation",
+      "term_cn": "三方对账",
+      "kind": "concept",
+      "definition": "业务订单、平台支付、渠道账单与银行到账之间的逐笔匹配。"
+    },
+    {
+      "term_en": "four eyes",
+      "term_cn": "四眼复核",
+      "kind": "concept",
+      "definition": "高风险操作必须由发起人以外的第二人审批。"
+    },
+    {
+      "term_en": "fail closed",
+      "term_cn": "失败即拒绝",
+      "kind": "concept",
+      "definition": "证据不足或状态不确定时一律拒绝或挂起，不默认放行。"
+    }
+  ]
+}

@@ -1,0 +1,178 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-mfa.py; do not edit by hand",
+  "authenticators": [
+    {
+      "allowed_as_sole_factor": false,
+      "id": "push-approval",
+      "kind": "push",
+      "origin_bound": false,
+      "phishing_resistant": false
+    },
+    {
+      "allowed_as_sole_factor": false,
+      "id": "sms-otp",
+      "kind": "otp",
+      "origin_bound": false,
+      "phishing_resistant": false
+    },
+    {
+      "allowed_as_sole_factor": false,
+      "id": "totp",
+      "kind": "otp",
+      "origin_bound": false,
+      "phishing_resistant": false
+    },
+    {
+      "allowed_as_sole_factor": true,
+      "id": "webauthn-platform",
+      "kind": "webauthn",
+      "origin_bound": true,
+      "phishing_resistant": true
+    },
+    {
+      "allowed_as_sole_factor": true,
+      "id": "webauthn-roaming",
+      "kind": "webauthn",
+      "origin_bound": true,
+      "phishing_resistant": true
+    }
+  ],
+  "fallback": {
+    "downgrade_allowed": false,
+    "policy": "不存在「密钥不在手边就用短信」的回退。回退一旦允许降级，账号的真实安全级别就是那个最弱的回退。"
+  },
+  "phishing_resistant_classes": [
+    "webauthn"
+  ],
+  "requirements": [
+    {
+      "allowed_authenticators": [
+        "webauthn-roaming"
+      ],
+      "forbidden_authenticators": [
+        "push-approval",
+        "sms-otp",
+        "totp",
+        "webauthn-platform"
+      ],
+      "minimum_registered_authenticators": 2,
+      "required_class": "phishing_resistant",
+      "role": "break-glass",
+      "step_up_actions": [
+        "cross_tenant_data.read"
+      ]
+    },
+    {
+      "allowed_authenticators": [
+        "webauthn-platform",
+        "webauthn-roaming"
+      ],
+      "forbidden_authenticators": [
+        "push-approval",
+        "sms-otp"
+      ],
+      "minimum_registered_authenticators": 2,
+      "required_class": "phishing_resistant",
+      "role": "merchant-admin",
+      "step_up_actions": [
+        "api_key.rotate",
+        "payout_account.write"
+      ]
+    },
+    {
+      "allowed_authenticators": [
+        "webauthn-platform",
+        "webauthn-roaming"
+      ],
+      "forbidden_authenticators": [
+        "push-approval",
+        "sms-otp",
+        "totp"
+      ],
+      "minimum_registered_authenticators": 2,
+      "required_class": "phishing_resistant",
+      "role": "merchant-finance",
+      "step_up_actions": [
+        "payout.approve",
+        "reconciliation.approve",
+        "refund.approve"
+      ]
+    },
+    {
+      "allowed_authenticators": [
+        "totp",
+        "webauthn-platform",
+        "webauthn-roaming"
+      ],
+      "forbidden_authenticators": [
+        "push-approval"
+      ],
+      "minimum_registered_authenticators": 1,
+      "required_class": "any",
+      "role": "payer",
+      "step_up_actions": []
+    },
+    {
+      "allowed_authenticators": [
+        "webauthn-platform",
+        "webauthn-roaming"
+      ],
+      "forbidden_authenticators": [
+        "push-approval",
+        "sms-otp",
+        "totp"
+      ],
+      "minimum_registered_authenticators": 2,
+      "required_class": "phishing_resistant",
+      "role": "platform-operator",
+      "step_up_actions": [
+        "cross_tenant_data.read",
+        "refund.approve",
+        "risk_rule.write"
+      ]
+    },
+    {
+      "allowed_authenticators": [
+        "webauthn-platform",
+        "webauthn-roaming"
+      ],
+      "forbidden_authenticators": [
+        "push-approval",
+        "sms-otp",
+        "totp"
+      ],
+      "minimum_registered_authenticators": 2,
+      "required_class": "phishing_resistant",
+      "role": "risk-analyst",
+      "step_up_actions": [
+        "risk_rule.write"
+      ]
+    }
+  ],
+  "schema_version": "1.0.0",
+  "step_up": {
+    "max_age_seconds": 300,
+    "policy": "高风险操作必须重新验证，且断言要绑定**这一次操作**的摘要。不绑定操作的 step-up 只证明「刚才有人验证过」，证明不了「验证的是这一笔退款」。",
+    "required_for_high_risk": true,
+    "transaction_binding": true
+  },
+  "webauthn": {
+    "allowed_algorithms": [
+      -7,
+      -257
+    ],
+    "allowed_origins": [
+      "https://pay.example.invalid",
+      "https://admin.pay.example.invalid"
+    ],
+    "attestation": "direct",
+    "challenge_bytes": 32,
+    "challenge_single_use": true,
+    "challenge_ttl_seconds": 120,
+    "policy": "断言必须绑定 origin 与 RP ID，挑战一次性且 120 秒过期，签名计数器回退视为认证器被克隆。user_verification=required 让「密钥被偷」不等于「账号被盗」。",
+    "relying_party_id": "pay.example.invalid",
+    "resident_key": "preferred",
+    "sign_count_regression_is_clone": true,
+    "user_verification": "required"
+  }
+}

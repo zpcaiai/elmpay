@@ -1,0 +1,671 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B14",
+  "call_kinds": [
+    "sync",
+    "async"
+  ],
+  "criticality_tiers": [
+    "tier1",
+    "tier2",
+    "tier3"
+  ],
+  "runtime_kinds": [
+    "gateway",
+    "api",
+    "worker",
+    "app"
+  ],
+  "policy": {
+    "max_sync_depth": 3,
+    "sync_budget_rule": "调用方的预算必须覆盖它所有同步依赖的超时之和；否则超时设置只是装饰，真正生效的是调用方自己先被上游掐断。",
+    "money_path_failure_mode": "fail_closed",
+    "money_path_note": "资金路径上的依赖不可用时必须拒绝，不得放行；唯一例外是渠道不可用——那时 attempt 进入 unknown 而不是 failed（AC-01）。",
+    "database_access": "exclusive_per_owner",
+    "database_note": "服务只能访问自己拥有的表。共享数据库表是分布式单体的定义。"
+  },
+  "services": [
+    {
+      "name": "edge-gateway",
+      "module": "edge-gateway",
+      "runtime": "gateway",
+      "criticality": "tier1",
+      "request_budget_ms": 3000,
+      "slo": {
+        "availability": "99.99%",
+        "p99_ms": 3000
+      },
+      "inbound": [
+        "Payments API v1"
+      ],
+      "dependencies": [
+        {
+          "target": "payment-core",
+          "kind": "sync",
+          "reason": "所有对外支付 API 都经网关进入支付核心",
+          "timeout_ms": 2500,
+          "retries": 0,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 400,
+            "queue": 0
+          },
+          "degradation": "返回 provider_unavailable(502)，不生成任何支付事实",
+          "failure_mode": "fail_closed"
+        },
+        {
+          "target": "merchant-config",
+          "kind": "sync",
+          "reason": "鉴权与租户解析需要商户配置",
+          "timeout_ms": 150,
+          "retries": 1,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 100,
+            "queue": 0
+          },
+          "degradation": "使用本地缓存的商户配置，缓存过期则拒绝请求",
+          "failure_mode": "fail_closed"
+        }
+      ],
+      "publishes": [],
+      "consumes": [],
+      "notes": "网关不持有任何支付事实，也不写库；它只做鉴权、限流与路由。"
+    },
+    {
+      "name": "payment-core",
+      "module": "payment-core",
+      "runtime": "api",
+      "criticality": "tier1",
+      "request_budget_ms": 2500,
+      "slo": {
+        "availability": "99.95%",
+        "p99_ms": 500
+      },
+      "inbound": [
+        "Payments API v1"
+      ],
+      "dependencies": [
+        {
+          "target": "risk-engine",
+          "kind": "sync",
+          "reason": "授权前必须拿到风控决策",
+          "timeout_ms": 300,
+          "retries": 0,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 200,
+            "queue": 0
+          },
+          "degradation": "**失败关闭**：风控不可用时拒绝授权，不放行",
+          "failure_mode": "fail_closed"
+        },
+        {
+          "target": "merchant-config",
+          "kind": "sync",
+          "reason": "需要渠道账户与路由规则",
+          "timeout_ms": 150,
+          "retries": 1,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 200,
+            "queue": 0
+          },
+          "degradation": "使用本地缓存的渠道账户配置，缓存过期则拒绝",
+          "failure_mode": "fail_closed"
+        },
+        {
+          "target": "wechat-pay",
+          "kind": "sync",
+          "reason": "发起授权/捕获/退款",
+          "timeout_ms": 1500,
+          "retries": 0,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 100,
+            "queue": 0
+          },
+          "degradation": "attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败**",
+          "operation": "mutating",
+          "failure_mode": "degrade",
+          "exclusive_group": "provider"
+        },
+        {
+          "target": "alipay",
+          "kind": "sync",
+          "reason": "发起授权/捕获/退款",
+          "timeout_ms": 1500,
+          "retries": 0,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 100,
+            "queue": 0
+          },
+          "degradation": "attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败**",
+          "operation": "mutating",
+          "failure_mode": "degrade",
+          "exclusive_group": "provider"
+        },
+        {
+          "target": "stripe",
+          "kind": "sync",
+          "reason": "发起授权/捕获/退款",
+          "timeout_ms": 1500,
+          "retries": 0,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 100,
+            "queue": 0
+          },
+          "degradation": "attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败**",
+          "operation": "mutating",
+          "failure_mode": "degrade",
+          "exclusive_group": "provider"
+        },
+        {
+          "target": "paypal",
+          "kind": "sync",
+          "reason": "发起授权/捕获/退款",
+          "timeout_ms": 1500,
+          "retries": 0,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 100,
+            "queue": 0
+          },
+          "degradation": "attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败**",
+          "operation": "mutating",
+          "failure_mode": "degrade",
+          "exclusive_group": "provider"
+        },
+        {
+          "target": "apple-pay",
+          "kind": "sync",
+          "reason": "发起授权/捕获/退款",
+          "timeout_ms": 1500,
+          "retries": 0,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 100,
+            "queue": 0
+          },
+          "degradation": "attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败**",
+          "operation": "mutating",
+          "failure_mode": "degrade",
+          "exclusive_group": "provider"
+        },
+        {
+          "target": "ledger-service",
+          "kind": "async",
+          "reason": "记账走事件，不进支付关键路径——同步记账会让账本故障变成支付故障",
+          "degradation": "账本落后不阻塞支付；差异由对账兜底"
+        }
+      ],
+      "publishes": [
+        "payment_intent.authorized",
+        "payment_intent.captured",
+        "payment_intent.failed",
+        "payment_intent.canceled",
+        "payment_intent.voided",
+        "payment_attempt.unresolved",
+        "payment_attempt.succeeded",
+        "refund.succeeded",
+        "refund.failed",
+        "dispute.opened",
+        "dispute.lost",
+        "subscription.past_due"
+      ],
+      "consumes": [],
+      "notes": "支付核心是唯一能写支付事实的服务。它同步依赖的只有风控、商户配置与渠道；账本、对账、对外投递全部异步。"
+    },
+    {
+      "name": "risk-engine",
+      "module": "risk-engine",
+      "runtime": "api",
+      "criticality": "tier1",
+      "request_budget_ms": 300,
+      "slo": {
+        "availability": "99.95%",
+        "p99_ms": 150
+      },
+      "inbound": [
+        "Risk decision API (internal)"
+      ],
+      "dependencies": [
+        {
+          "target": "merchant-config",
+          "kind": "sync",
+          "reason": "需要租户级风控规则",
+          "timeout_ms": 150,
+          "retries": 1,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 100,
+            "queue": 0
+          },
+          "degradation": "使用缓存的风控规则，缓存过期则返回拒绝",
+          "failure_mode": "fail_closed"
+        }
+      ],
+      "publishes": [],
+      "consumes": [
+        "payment_intent.authorized",
+        "payment_intent.failed",
+        "dispute.opened",
+        "dispute.lost",
+        "reconciliation.exception_opened",
+        "payment_attempt.resolved"
+      ],
+      "notes": "风控在支付关键路径上，所以它的预算只有 300ms，且自身依赖必须更快。"
+    },
+    {
+      "name": "merchant-config",
+      "module": "merchant-config",
+      "runtime": "api",
+      "criticality": "tier1",
+      "request_budget_ms": 150,
+      "slo": {
+        "availability": "99.99%",
+        "p99_ms": 80
+      },
+      "inbound": [
+        "Merchant config API (internal)"
+      ],
+      "dependencies": [],
+      "publishes": [],
+      "consumes": [],
+      "notes": "配置服务是叶子节点：它不同步依赖任何其他服务，否则整棵调用树的可用性会被它的依赖拖垮。"
+    },
+    {
+      "name": "webhook-ingress",
+      "module": "webhook-ingress",
+      "runtime": "api",
+      "criticality": "tier1",
+      "request_budget_ms": 2000,
+      "slo": {
+        "availability": "99.99%",
+        "p99_ms": 300
+      },
+      "inbound": [
+        "Provider webhook endpoint v1"
+      ],
+      "dependencies": [
+        {
+          "target": "wechat-pay",
+          "kind": "sync",
+          "reason": "主动查询以确认渠道事件",
+          "timeout_ms": 1200,
+          "retries": 1,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 50,
+            "queue": 0
+          },
+          "degradation": "回调先落盘再定责；查询失败不影响回执",
+          "operation": "query",
+          "failure_mode": "degrade",
+          "exclusive_group": "provider"
+        },
+        {
+          "target": "alipay",
+          "kind": "sync",
+          "reason": "主动查询以确认渠道事件",
+          "timeout_ms": 1200,
+          "retries": 1,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 50,
+            "queue": 0
+          },
+          "degradation": "回调先落盘再定责；查询失败不影响回执",
+          "operation": "query",
+          "failure_mode": "degrade",
+          "exclusive_group": "provider"
+        },
+        {
+          "target": "stripe",
+          "kind": "sync",
+          "reason": "主动查询以确认渠道事件",
+          "timeout_ms": 1200,
+          "retries": 1,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 50,
+            "queue": 0
+          },
+          "degradation": "回调先落盘再定责；查询失败不影响回执",
+          "operation": "query",
+          "failure_mode": "degrade",
+          "exclusive_group": "provider"
+        }
+      ],
+      "publishes": [],
+      "consumes": [],
+      "notes": "入站回调必须先验签再落盘，落盘之后才回执。先回执后落盘会让渠道以为送达了。"
+    },
+    {
+      "name": "webhook-delivery",
+      "module": "webhook-delivery",
+      "runtime": "worker",
+      "criticality": "tier2",
+      "request_budget_ms": 30000,
+      "slo": {
+        "availability": "99.9%",
+        "p99_ms": 5000
+      },
+      "inbound": [],
+      "dependencies": [
+        {
+          "target": "merchant-config",
+          "kind": "sync",
+          "reason": "需要商户的回调订阅配置",
+          "timeout_ms": 150,
+          "retries": 1,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 50,
+            "queue": 0
+          },
+          "degradation": "使用缓存的订阅配置；缓存过期则暂停投递而不是乱投",
+          "failure_mode": "fail_closed"
+        }
+      ],
+      "publishes": [],
+      "consumes": [
+        "payment_intent.authorized",
+        "payment_intent.captured",
+        "payment_intent.failed",
+        "payment_intent.canceled",
+        "payment_intent.voided",
+        "payment_attempt.succeeded",
+        "payment_attempt.resolved",
+        "refund.succeeded",
+        "refund.failed",
+        "dispute.opened",
+        "dispute.lost",
+        "subscription.past_due",
+        "reconciliation.exception_opened"
+      ],
+      "notes": "对外投递是异步工作进程，它的慢不会传导回支付关键路径。"
+    },
+    {
+      "name": "ledger-service",
+      "module": "ledger-service",
+      "runtime": "worker",
+      "criticality": "tier1",
+      "request_budget_ms": 10000,
+      "slo": {
+        "availability": "99.95%",
+        "p99_ms": 2000
+      },
+      "inbound": [],
+      "dependencies": [],
+      "publishes": [],
+      "consumes": [
+        "payment_intent.authorized",
+        "payment_intent.captured",
+        "payment_intent.voided",
+        "payment_attempt.succeeded",
+        "payment_attempt.resolved",
+        "refund.succeeded",
+        "dispute.opened",
+        "dispute.lost",
+        "reconciliation.exception_opened"
+      ],
+      "notes": "账本只消费事件，不被同步调用。这让「账本慢」永远不等于「支付失败」。"
+    },
+    {
+      "name": "reconciliation-service",
+      "module": "reconciliation-service",
+      "runtime": "worker",
+      "criticality": "tier2",
+      "request_budget_ms": 600000,
+      "slo": {
+        "availability": "99.5%",
+        "p99_ms": 60000
+      },
+      "inbound": [],
+      "dependencies": [
+        {
+          "target": "merchant-config",
+          "kind": "sync",
+          "reason": "需要渠道账户以拉取对账文件",
+          "timeout_ms": 200,
+          "retries": 2,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 20,
+            "queue": 10
+          },
+          "degradation": "缓存的渠道账户配置；过期则跳过该渠道并产生对账例外",
+          "failure_mode": "fail_closed"
+        },
+        {
+          "target": "ledger-service",
+          "kind": "async",
+          "reason": "对账结果以事件形式回流，不同步写账本",
+          "degradation": "账本数据缺失时产生对账例外，而不是静默跳过"
+        }
+      ],
+      "publishes": [
+        "reconciliation.exception_opened"
+      ],
+      "consumes": [
+        "payment_intent.captured",
+        "refund.succeeded",
+        "payment_attempt.unresolved",
+        "payment_attempt.succeeded"
+      ],
+      "notes": "对账是批处理，预算以分钟计；它兜住所有 unknown 与差异。"
+    },
+    {
+      "name": "worker-scheduler",
+      "module": "worker-scheduler",
+      "runtime": "worker",
+      "criticality": "tier2",
+      "request_budget_ms": 60000,
+      "slo": {
+        "availability": "99.9%",
+        "p99_ms": 10000
+      },
+      "inbound": [],
+      "dependencies": [
+        {
+          "target": "payment-core",
+          "kind": "sync",
+          "reason": "订阅扣款与超时清理需要调用支付核心",
+          "timeout_ms": 2500,
+          "retries": 0,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 50,
+            "queue": 20
+          },
+          "degradation": "任务重排到下一个窗口，不重复发起支付",
+          "failure_mode": "fail_closed"
+        },
+        {
+          "target": "merchant-config",
+          "kind": "sync",
+          "reason": "需要租户的账期与重试配置",
+          "timeout_ms": 200,
+          "retries": 1,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 20,
+            "queue": 10
+          },
+          "degradation": "缓存的调度配置；过期则暂停该租户的调度",
+          "failure_mode": "fail_closed"
+        }
+      ],
+      "publishes": [],
+      "consumes": [
+        "payment_attempt.unresolved",
+        "subscription.past_due"
+      ],
+      "notes": "调度器的重试必须是幂等的：它调用的每个支付核心接口都要求幂等键。"
+    },
+    {
+      "name": "checkout-web",
+      "module": "checkout-web",
+      "runtime": "app",
+      "criticality": "tier1",
+      "request_budget_ms": 3200,
+      "slo": {
+        "availability": "99.9%",
+        "p99_ms": 1500
+      },
+      "inbound": [
+        "Checkout UI"
+      ],
+      "dependencies": [
+        {
+          "target": "payment-core",
+          "kind": "sync",
+          "reason": "调用支付 API；网络上经由 edge-gateway 转发，但依赖的是支付核心的契约",
+          "timeout_ms": 3000,
+          "retries": 0,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 200,
+            "queue": 0
+          },
+          "degradation": "展示「支付处理中」并轮询状态，**不得**自行判定成功",
+          "failure_mode": "fail_closed"
+        }
+      ],
+      "publishes": [],
+      "consumes": [],
+      "notes": "收银台是浏览器里的东西，它的任何状态都不是支付依据（NN-03）。（流量物理上经过 edge-gateway，但依赖的是 payment-core 的 API 契约。）"
+    },
+    {
+      "name": "admin-web",
+      "module": "admin-web",
+      "runtime": "app",
+      "criticality": "tier2",
+      "request_budget_ms": 5000,
+      "slo": {
+        "availability": "99.5%",
+        "p99_ms": 2000
+      },
+      "inbound": [
+        "Admin console"
+      ],
+      "dependencies": [
+        {
+          "target": "payment-core",
+          "kind": "sync",
+          "reason": "调用支付 API；网络上经由 edge-gateway 转发，但依赖的是支付核心的契约",
+          "timeout_ms": 4500,
+          "retries": 0,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 50,
+            "queue": 0
+          },
+          "degradation": "只读降级：展示缓存数据并禁用所有写操作",
+          "failure_mode": "fail_closed"
+        }
+      ],
+      "publishes": [],
+      "consumes": [],
+      "notes": "后台不得绕过公开领域服务直接改支付状态（FF-02）。（流量物理上经过 edge-gateway，但依赖的是 payment-core 的 API 契约。）"
+    }
+  ]
+}

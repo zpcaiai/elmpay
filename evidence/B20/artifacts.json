@@ -1,0 +1,12 @@
+[
+  "contracts/security/key-inventory.json",
+  "docs/security/KEY_MANAGEMENT.md",
+  "governance/key-management.json",
+  "libs/kms/reference/__init__.py",
+  "libs/kms/reference/envelope.py",
+  "scripts/kms-smoke.py",
+  "scripts/render-keys.py",
+  "tools/paygov/keys.py",
+  "tools/paygov/keysgen.py",
+  "tools/tests/test_b20_keys.py"
+]

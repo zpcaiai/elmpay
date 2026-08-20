@@ -1,0 +1,13 @@
+[
+  "contracts/security/audit-contract.json",
+  "docs/security/AUDIT_LOG.md",
+  "governance/audit-log.json",
+  "libs/audit/reference/__init__.py",
+  "libs/audit/reference/chain.py",
+  "scripts/audit-smoke.py",
+  "scripts/render-audit.py",
+  "tools/negative/b23.py",
+  "tools/paygov/audit.py",
+  "tools/paygov/auditgen.py",
+  "tools/tests/test_b23_audit.py"
+]

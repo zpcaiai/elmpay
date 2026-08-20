@@ -50,7 +50,7 @@ python3 -m tools.paygov.cli verify adr threat-model --repo .
 python3 scripts/render-docs.py --check
 python3 scripts/negative-controls.py
 python3 -m unittest discover -s tools/tests -t . -v
-python3 scripts/rebaseline.py
+python3 .ai/rebaseline.py status --from B00 --to B02
 python3 .payment-platform/skill-package/scripts/orchestrate.py validate B02 --repo .
 ```
 
@@ -82,5 +82,6 @@ python3 .payment-platform/skill-package/scripts/orchestrate.py validate B02 --re
 
 ## 10. 证据与审查
 
-`evidence/B02/`；执行者 `claude-agent`，独立审查者 `Ethan`。
-依赖 B01 完成文件的哈希写入 `evidence/completion/B02.json`。
+`evidence/B02/`；配置中的执行者 `claude-agent`，独立审查者 `Ethan`。重新基线只有在受 Git
+跟踪的 `evidence/B02/review.json` 绑定当前 HEAD、命令、最终 trace 与产物摘要后才可最终化；
+本次未观察到该人类批准。依赖 B01 完成文件的哈希只会在复核通过后写入 completion。

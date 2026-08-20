@@ -1,0 +1,13 @@
+[
+  "contracts/payment/attempt.json",
+  "docs/payment/PAYMENT_ATTEMPT.md",
+  "governance/payment-attempt.json",
+  "libs/attempt/reference/__init__.py",
+  "libs/attempt/reference/attempt.py",
+  "scripts/attempt-smoke.py",
+  "scripts/render-attempt.py",
+  "tools/negative/b33.py",
+  "tools/paygov/attempt.py",
+  "tools/paygov/attemptgen.py",
+  "tools/tests/test_b33_attempt.py"
+]

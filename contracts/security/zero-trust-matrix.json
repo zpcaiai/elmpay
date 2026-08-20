@@ -1,0 +1,199 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-zerotrust.py; do not edit by hand",
+  "decisions": [
+    {
+      "action": "advance",
+      "audit_event": "payer.payment_advanced",
+      "four_eyes": false,
+      "id": "ZTD-01",
+      "principal": "payer",
+      "requirements": [
+        "audit_record",
+        "authenticated_identity",
+        "authorisation_policy"
+      ],
+      "resource_class": "own_payment",
+      "step_up": false
+    },
+    {
+      "action": "write",
+      "audit_event": "merchant.payment_write",
+      "four_eyes": false,
+      "id": "ZTD-02",
+      "principal": "merchant-api-client",
+      "requirements": [
+        "audit_record",
+        "authenticated_identity",
+        "authorisation_policy",
+        "request_signature",
+        "tenant_binding"
+      ],
+      "resource_class": "tenant_payment",
+      "step_up": false
+    },
+    {
+      "action": "read",
+      "audit_event": "merchant.payment_read",
+      "four_eyes": false,
+      "id": "ZTD-03",
+      "principal": "merchant-api-client",
+      "requirements": [
+        "audit_record",
+        "authenticated_identity",
+        "authorisation_policy",
+        "request_signature",
+        "tenant_binding"
+      ],
+      "resource_class": "tenant_payment",
+      "step_up": false
+    },
+    {
+      "action": "read",
+      "audit_event": "operator.payment_read",
+      "four_eyes": false,
+      "id": "ZTD-04",
+      "principal": "platform-operator",
+      "requirements": [
+        "audit_record",
+        "authenticated_identity",
+        "authorisation_policy",
+        "device_posture",
+        "justification",
+        "phishing_resistant_mfa"
+      ],
+      "resource_class": "tenant_payment",
+      "step_up": false
+    },
+    {
+      "action": "approve",
+      "audit_event": "operator.refund_approved",
+      "four_eyes": true,
+      "id": "ZTD-05",
+      "principal": "platform-operator",
+      "requirements": [
+        "audit_record",
+        "authenticated_identity",
+        "authorisation_policy",
+        "device_posture",
+        "justification",
+        "phishing_resistant_mfa"
+      ],
+      "resource_class": "refund",
+      "step_up": true
+    },
+    {
+      "action": "write",
+      "audit_event": "operator.risk_rule_changed",
+      "four_eyes": true,
+      "id": "ZTD-06",
+      "principal": "platform-operator",
+      "requirements": [
+        "audit_record",
+        "authenticated_identity",
+        "authorisation_policy",
+        "device_posture",
+        "justification",
+        "phishing_resistant_mfa"
+      ],
+      "resource_class": "risk_rule",
+      "step_up": true
+    },
+    {
+      "action": "read",
+      "audit_event": "breakglass.cross_tenant_read",
+      "four_eyes": true,
+      "id": "ZTD-07",
+      "principal": "break-glass",
+      "requirements": [
+        "audit_record",
+        "authenticated_identity",
+        "authorisation_policy",
+        "device_posture",
+        "justification",
+        "phishing_resistant_mfa",
+        "time_bound_session"
+      ],
+      "resource_class": "cross_tenant_data",
+      "step_up": true
+    },
+    {
+      "action": "write",
+      "audit_event": "workload.data_write",
+      "four_eyes": false,
+      "id": "ZTD-08",
+      "principal": "service-workload",
+      "requirements": [
+        "audit_record",
+        "authenticated_identity",
+        "authorisation_policy",
+        "workload_attestation"
+      ],
+      "resource_class": "owned_table",
+      "step_up": false
+    },
+    {
+      "action": "call",
+      "audit_event": "workload.internal_call",
+      "four_eyes": false,
+      "id": "ZTD-09",
+      "principal": "service-workload",
+      "requirements": [
+        "audit_record",
+        "authenticated_identity",
+        "authorisation_policy",
+        "token_audience",
+        "workload_attestation"
+      ],
+      "resource_class": "internal_api",
+      "step_up": false
+    },
+    {
+      "action": "call",
+      "audit_event": "workload.provider_call",
+      "four_eyes": false,
+      "id": "ZTD-10",
+      "principal": "connector-egress",
+      "requirements": [
+        "audit_record",
+        "authenticated_identity",
+        "authorisation_policy",
+        "egress_allowlist",
+        "workload_attestation"
+      ],
+      "resource_class": "provider_api",
+      "step_up": false
+    },
+    {
+      "action": "write",
+      "audit_event": "ci.artifact_published",
+      "four_eyes": false,
+      "id": "ZTD-11",
+      "principal": "ci-pipeline",
+      "requirements": [
+        "audit_record",
+        "authenticated_identity",
+        "authorisation_policy",
+        "provenance_attestation",
+        "workload_attestation"
+      ],
+      "resource_class": "artifact_registry",
+      "step_up": false
+    }
+  ],
+  "deny_by_default": true,
+  "network_location_grants": [],
+  "schema_version": "1.0.0",
+  "session": {
+    "max_human_session_minutes": 60,
+    "policy": "撤销必须在 60 秒内在所有服务生效。一个「最长 8 小时」的令牌，就是攻击者在你发现之前的 8 小时。",
+    "reauth_minutes": 60,
+    "revocation_propagation_seconds": 60
+  },
+  "workload_identity": {
+    "max_certificate_minutes": 60,
+    "policy": "工作负载身份由平台签发、短期有效、自动轮换。长期静态服务账号密码一旦泄露就没有过期这回事（NN-07）。",
+    "scheme": "spiffe_like",
+    "static_long_lived_credentials_allowed": false,
+    "transport": "mtls"
+  }
+}

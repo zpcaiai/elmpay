@@ -1,0 +1,336 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-authz.py; do not edit by hand",
+  "default_decision": "deny",
+  "dual_control": {
+    "approval_bound_to_request_digest": true,
+    "approval_ttl_seconds": 900,
+    "approver_must_differ_from_requester": true,
+    "minimum_approvals": 1,
+    "notes": "审批必须绑定**这一次请求的摘要**：不绑定的审批只能证明「有人批过某件事」，会被复用到另一笔上。这与 B18 的 step-up 交易绑定是同一个道理。"
+  },
+  "elevation": {
+    "approver_must_differ_from_requester": true,
+    "auto_revoke": true,
+    "break_glass": {
+      "max_duration_minutes": 30,
+      "notes": "紧急通道的时限比常规提权更短，且**每一次使用都必须在 24 小时内被人复核**。不复核的紧急通道等于常驻管理员。",
+      "notify_channels": [
+        "security_team",
+        "on_call",
+        "audit_log"
+      ],
+      "post_use_review_hours": 24,
+      "requires_approval": true,
+      "role": "break-glass"
+    },
+    "elevatable_permissions": [
+      "ledger.adjust",
+      "cross_tenant_data.read",
+      "config.write"
+    ],
+    "max_duration_minutes": 60,
+    "non_elevatable_roles": [
+      "auditor",
+      "payer",
+      "payment-core-service"
+    ],
+    "notes": "不存在常驻特权。提权必须有审批人（且不是申请人自己）、有票据、有时限、到点自动收回。",
+    "requires_approval": true,
+    "requires_ticket_reference": true,
+    "standing_privileged_access": false
+  },
+  "field_rules": [
+    {
+      "classification": "financial",
+      "field": "bank_account_number",
+      "masked_by_default": true,
+      "never_readable": false,
+      "readable_by": [
+        "merchant-finance"
+      ]
+    },
+    {
+      "classification": "cvv",
+      "field": "card_cvv",
+      "masked_by_default": true,
+      "never_readable": true,
+      "readable_by": []
+    },
+    {
+      "classification": "pan",
+      "field": "card_pan",
+      "masked_by_default": true,
+      "never_readable": true,
+      "readable_by": []
+    },
+    {
+      "classification": "pii",
+      "field": "customer_email",
+      "masked_by_default": true,
+      "never_readable": false,
+      "readable_by": [
+        "merchant-admin",
+        "support-agent"
+      ]
+    },
+    {
+      "classification": "pii",
+      "field": "customer_phone",
+      "masked_by_default": true,
+      "never_readable": false,
+      "readable_by": [
+        "merchant-admin",
+        "support-agent"
+      ]
+    }
+  ],
+  "permissions": [
+    {
+      "dual_control": false,
+      "elevation_required": false,
+      "id": "audit_log.read",
+      "scope": "platform",
+      "sensitivity": "normal"
+    },
+    {
+      "dual_control": false,
+      "elevation_required": false,
+      "id": "bank_account.read",
+      "scope": "field",
+      "sensitivity": "high"
+    },
+    {
+      "dual_control": true,
+      "elevation_required": true,
+      "id": "config.write",
+      "scope": "platform",
+      "sensitivity": "high"
+    },
+    {
+      "dual_control": true,
+      "elevation_required": true,
+      "id": "cross_tenant_data.read",
+      "scope": "platform",
+      "sensitivity": "high"
+    },
+    {
+      "dual_control": false,
+      "elevation_required": false,
+      "id": "customer_pii.read",
+      "scope": "field",
+      "sensitivity": "high"
+    },
+    {
+      "dual_control": true,
+      "elevation_required": true,
+      "id": "ledger.adjust",
+      "scope": "object",
+      "sensitivity": "money"
+    },
+    {
+      "dual_control": false,
+      "elevation_required": false,
+      "id": "payment.create",
+      "scope": "tenant",
+      "sensitivity": "normal"
+    },
+    {
+      "dual_control": false,
+      "elevation_required": false,
+      "id": "payment.read",
+      "scope": "tenant",
+      "sensitivity": "normal"
+    },
+    {
+      "dual_control": true,
+      "elevation_required": false,
+      "id": "payout.approve",
+      "scope": "object",
+      "sensitivity": "money"
+    },
+    {
+      "dual_control": true,
+      "elevation_required": false,
+      "id": "payout_account.write",
+      "scope": "object",
+      "sensitivity": "money"
+    },
+    {
+      "dual_control": true,
+      "elevation_required": false,
+      "id": "reconciliation.approve",
+      "scope": "object",
+      "sensitivity": "money"
+    },
+    {
+      "dual_control": true,
+      "elevation_required": false,
+      "id": "refund.approve",
+      "scope": "object",
+      "sensitivity": "money"
+    },
+    {
+      "dual_control": false,
+      "elevation_required": false,
+      "id": "refund.request",
+      "scope": "object",
+      "sensitivity": "money"
+    },
+    {
+      "dual_control": true,
+      "elevation_required": false,
+      "id": "risk_decision.override",
+      "scope": "object",
+      "sensitivity": "high"
+    },
+    {
+      "dual_control": true,
+      "elevation_required": false,
+      "id": "risk_rule.write",
+      "scope": "platform",
+      "sensitivity": "high"
+    }
+  ],
+  "privileged_roles": [
+    "break-glass",
+    "merchant-admin",
+    "merchant-finance",
+    "platform-operator",
+    "risk-analyst"
+  ],
+  "roles": [
+    {
+      "id": "auditor",
+      "kind": "human",
+      "permissions": [
+        "audit_log.read",
+        "payment.read"
+      ],
+      "privileged": false,
+      "scope": "platform",
+      "zero_trust_principal": "platform-operator"
+    },
+    {
+      "id": "break-glass",
+      "kind": "human",
+      "permissions": [
+        "audit_log.read"
+      ],
+      "privileged": true,
+      "scope": "platform",
+      "zero_trust_principal": "break-glass"
+    },
+    {
+      "id": "merchant-admin",
+      "kind": "human",
+      "permissions": [
+        "customer_pii.read",
+        "payment.create",
+        "payment.read",
+        "payout_account.write",
+        "refund.request"
+      ],
+      "privileged": true,
+      "scope": "tenant",
+      "zero_trust_principal": "merchant-api-client"
+    },
+    {
+      "id": "merchant-finance",
+      "kind": "human",
+      "permissions": [
+        "bank_account.read",
+        "payment.read",
+        "payout.approve",
+        "reconciliation.approve",
+        "refund.approve"
+      ],
+      "privileged": true,
+      "scope": "tenant",
+      "zero_trust_principal": "merchant-api-client"
+    },
+    {
+      "id": "payer",
+      "kind": "human",
+      "permissions": [
+        "payment.create"
+      ],
+      "privileged": false,
+      "scope": "self",
+      "zero_trust_principal": "payer"
+    },
+    {
+      "id": "payment-core-service",
+      "kind": "service",
+      "permissions": [
+        "payment.create",
+        "payment.read"
+      ],
+      "privileged": false,
+      "scope": "platform",
+      "zero_trust_principal": "service-workload"
+    },
+    {
+      "id": "platform-operator",
+      "kind": "human",
+      "permissions": [
+        "audit_log.read",
+        "payment.read",
+        "risk_decision.override"
+      ],
+      "privileged": true,
+      "scope": "platform",
+      "zero_trust_principal": "platform-operator"
+    },
+    {
+      "id": "risk-analyst",
+      "kind": "human",
+      "permissions": [
+        "payment.read",
+        "risk_rule.write"
+      ],
+      "privileged": true,
+      "scope": "platform",
+      "zero_trust_principal": "platform-operator"
+    },
+    {
+      "id": "support-agent",
+      "kind": "human",
+      "permissions": [
+        "customer_pii.read",
+        "payment.read",
+        "refund.request"
+      ],
+      "privileged": false,
+      "scope": "tenant",
+      "zero_trust_principal": "merchant-api-client"
+    }
+  ],
+  "schema_version": "1.0.0",
+  "separation_of_duties": [
+    {
+      "id": "SOD-01",
+      "left": "refund.request",
+      "right": "refund.approve"
+    },
+    {
+      "id": "SOD-02",
+      "left": "payout_account.write",
+      "right": "payout.approve"
+    },
+    {
+      "id": "SOD-03",
+      "left": "ledger.adjust",
+      "right": "reconciliation.approve"
+    },
+    {
+      "id": "SOD-04",
+      "left": "risk_rule.write",
+      "right": "risk_decision.override"
+    },
+    {
+      "id": "SOD-05",
+      "left": "risk_rule.write",
+      "right": "refund.approve"
+    }
+  ]
+}

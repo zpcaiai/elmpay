@@ -22,6 +22,11 @@ KNOWN_PROVIDERS = ("wechat", "alipay", "stripe", "paypal", "apple_pay")
 LITERAL_SECRET_HINTS = ("sk_live", "sk_test", "-----BEGIN", "AKIA", "mch_key=", "apiv3")
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("project-config", "B00")
+
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     where = str(CONFIG_PATH)

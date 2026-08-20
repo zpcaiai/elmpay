@@ -1,0 +1,12 @@
+[
+  "contracts/security/mfa-matrix.json",
+  "docs/security/MFA.md",
+  "governance/mfa.json",
+  "libs/mfa/reference/__init__.py",
+  "libs/mfa/reference/webauthn.py",
+  "scripts/mfa-smoke.py",
+  "scripts/render-mfa.py",
+  "tools/paygov/mfa.py",
+  "tools/paygov/mfagen.py",
+  "tools/tests/test_b18_mfa.py"
+]

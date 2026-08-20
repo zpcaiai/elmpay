@@ -59,13 +59,36 @@
     {
       "ref": "scripts/finish-batch.py",
       "requirements": [
+        "B06-R2",
+        "B06-R5"
+      ]
+    },
+    {
+      "ref": "scripts/make-completion.py",
+      "requirements": [
+        "B06-R2",
+        "B06-R5"
+      ]
+    },
+    {
+      "ref": "scripts/record-commands.py",
+      "requirements": [
         "B06-R2"
       ]
     },
     {
-      "ref": "scripts/rebaseline.py",
+      "ref": "scripts/test-summary.py",
       "requirements": [
-        "B06-R2"
+        "B06-R2",
+        "B06-R5"
+      ]
+    },
+    {
+      "ref": ".ai/rebaseline.py",
+      "requirements": [
+        "B06-R1",
+        "B06-R2",
+        "B06-R5"
       ]
     },
     {
@@ -83,15 +106,21 @@
         "B06-R2",
         "B06-R3",
         "B06-R4"
-      ],
-      "cases": 28
+      ]
     },
     {
       "ref": "tools/tests/test_b06_evidence.py",
       "requirements": [
         "B06-R5"
-      ],
-      "cases": 14
+      ]
+    },
+    {
+      "ref": "tools/tests/test_ai_rebaseline.py",
+      "requirements": [
+        "B06-R1",
+        "B06-R2",
+        "B06-R5"
+      ]
     }
   ],
   "controls": [

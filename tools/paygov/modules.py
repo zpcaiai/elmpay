@@ -26,6 +26,11 @@ REQUIRED_FIELDS = ("name", "layer", "path", "owner", "owned_tables", "depends_on
 FORBIDDEN_TABLE_PREFIXES = ("business_order", "order_item", "inventory", "product", "shipment")
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("module-registry", "B00")
+
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     where = str(REGISTRY_PATH)

@@ -1,0 +1,263 @@
+{
+  "batch_id": "B29",
+  "requirements": [
+    {
+      "id": "B29-R1",
+      "statement": "区分渠道成本、平台服务费、税费与内部成本四类口径",
+      "source": "batches/B29.md 目标"
+    },
+    {
+      "id": "B29-R2",
+      "statement": "账面模型是估计，不得替代真实资金结算；差异开对账项且不得覆盖",
+      "source": "batches/B29.md 目标"
+    },
+    {
+      "id": "B29-R3",
+      "statement": "金额与费率全部使用整数最小单位，舍入方式必须声明且余数有归属",
+      "source": "policies/non-negotiables.md#2"
+    },
+    {
+      "id": "B29-R4",
+      "statement": "税费代收代缴、不计入收入，且按服务费计征而非支付金额",
+      "source": "policies/non-negotiables.md#2"
+    },
+    {
+      "id": "B29-R5",
+      "statement": "分账各方之和必须精确等于总额",
+      "source": "policies/non-negotiables.md#2"
+    },
+    {
+      "id": "B29-R6",
+      "statement": "费用币种等于支付币种；跨币种必须有显式汇率记录",
+      "source": "policies/non-negotiables.md#2"
+    },
+    {
+      "id": "B29-R7",
+      "statement": "计量按支付 ID 幂等且可重算，事件保留满足审计与争议需要",
+      "source": "policies/non-negotiables.md#3"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/fee-model.json",
+      "requirements": [
+        "B29-R1",
+        "B29-R2",
+        "B29-R3",
+        "B29-R4",
+        "B29-R5",
+        "B29-R6",
+        "B29-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/fees.py",
+      "requirements": [
+        "B29-R1",
+        "B29-R2",
+        "B29-R3",
+        "B29-R4",
+        "B29-R5",
+        "B29-R6",
+        "B29-R7"
+      ]
+    },
+    {
+      "ref": "libs/pricing/reference/fees.py",
+      "requirements": [
+        "B29-R1",
+        "B29-R2",
+        "B29-R3",
+        "B29-R4",
+        "B29-R5",
+        "B29-R6",
+        "B29-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/feesgen.py",
+      "requirements": [
+        "B29-R1",
+        "B29-R3"
+      ]
+    },
+    {
+      "ref": "scripts/render-fees.py",
+      "requirements": [
+        "B29-R1"
+      ]
+    },
+    {
+      "ref": "scripts/fees-smoke.py",
+      "requirements": [
+        "B29-R2",
+        "B29-R3",
+        "B29-R4",
+        "B29-R5",
+        "B29-R6",
+        "B29-R7"
+      ]
+    },
+    {
+      "ref": "contracts/pricing/fee-model.json",
+      "requirements": [
+        "B29-R1",
+        "B29-R3"
+      ]
+    },
+    {
+      "ref": "docs/pricing/FEE_MODEL.md",
+      "requirements": [
+        "B29-R1",
+        "B29-R2"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b29_fees.py",
+      "requirements": [
+        "B29-R1",
+        "B29-R2",
+        "B29-R3",
+        "B29-R4",
+        "B29-R5",
+        "B29-R6",
+        "B29-R7"
+      ],
+      "cases": 115
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/fee-model.json",
+        "tools/paygov/fees.py",
+        "libs/pricing/reference/fees.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b29_fees.py",
+        "scripts/fees-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/fee-model.json",
+        "libs/pricing/reference/fees.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b29_fees.py",
+        "scripts/fees-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "governance/fee-model.json",
+        "tools/paygov/fees.py",
+        "libs/pricing/reference/fees.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b29_fees.py",
+        "scripts/fees-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/fees.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b29_fees.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/fee-model.json",
+        "tools/paygov/fees.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b29_fees.py"
+      ]
+    },
+    {
+      "id": "NN-14",
+      "implemented_by": [
+        "governance/fee-model.json",
+        "tools/paygov/fees.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b29_fees.py"
+      ]
+    },
+    {
+      "id": "NN-15",
+      "implemented_by": [
+        "governance/fee-model.json",
+        "tools/paygov/fees.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b29_fees.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/fee-model.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b29_fees.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B29/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B29/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B29/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B29/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B29/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B29/runtime/fees-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B29/runtime/fees-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B29/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B29/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B29/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B29.json",
+      "kind": "completion"
+    }
+  ]
+}

@@ -1,7 +1,9 @@
 [
+  "docs/reviews/W00-independent-review.md",
   "docs/traceability/MATRIX.md",
-  "governance/ssot-registry.json",
   "scripts/traceability-matrix.py",
+  "tools/negative/hygiene.py",
+  "tools/paygov/rulecov.py",
   "tools/paygov/ssot.py",
   "tools/paygov/traceability.py",
   "tools/tests/test_b07_ssot.py",

@@ -14,11 +14,20 @@
 
 ## 决策
 
-完成文件的每个字段都由仓库状态重新计算；`scripts/finish-batch.py` 与 `scripts/rebaseline.py` 按依赖顺序重新产生证据，且重新基线必须重新跑全量测试、治理门禁与运行期负向控制。
+完成文件的每个字段都由仓库状态重新计算；`scripts/finish-batch.py` 负责最终化，
+`.ai/rebaseline.py` 是唯一受支持的分片迁移与有界启动窗口续跑入口。重新基线按依赖顺序重新执行
+命令谱中的测试、治理门禁与运行期负向控制。
+
+自动化命令记录与完成批准是两个信任边界。最终化必须提供受 Git 跟踪的
+`evidence/<batch>/review.json`，由配置中的独立审查者批准并绑定当前 `HEAD`、manifest、
+命令谱、最终 trace、产物清单及每个产物摘要。驱动器不得生成审查文件；缺失或过期时只能
+保留命令级状态并报告 `review-blocked`。完成文件原子安装，并在边界后复查绑定与依赖；漂移
+时恢复旧 completion 或移除本次新文件。
 
 ## 后果
 
-每次跨批次修改共享代码都要付出一次重新基线的运行成本；换来的是证据与代码始终一致。
+每次跨批次修改共享代码都要付出一次重新基线和重新审查的运行成本；换来的是证据、代码、
+执行记录与批准对象始终一致。本地 `.ai/.state/` 可以恢复执行，但不能充当审查或完成证据。
 
 ## 备选方案
 
@@ -26,4 +35,5 @@
 
 ## 验证
 
-`docs/EVIDENCE.md`；`scripts/rebaseline.py` 的真实运行记录在各批次 `commands.ndjson` 中。
+`docs/EVIDENCE.md`；`.ai/rebaseline.py` 的真实运行记录在各批次 `commands.ndjson` 中；
+`scripts/finish-batch.py` 在写 completion 前验证精确命令记录与独立审查绑定。

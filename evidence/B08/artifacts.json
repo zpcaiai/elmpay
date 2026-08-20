@@ -1,0 +1,11 @@
+[
+  "contracts/sql/schema.sql",
+  "docs/domain/DOMAIN_MODEL.md",
+  "docs/domain/GLOSSARY.md",
+  "governance/domain-model.json",
+  "governance/glossary.json",
+  "scripts/render-domain.py",
+  "tools/paygov/domain.py",
+  "tools/paygov/domaingen.py",
+  "tools/tests/test_b08_domain.py"
+]

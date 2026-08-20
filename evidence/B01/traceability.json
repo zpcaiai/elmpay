@@ -187,7 +187,19 @@
       "kind": "security"
     },
     {
-      "path": "evidence/B01/security/negative-controls.log",
+      "path": "evidence/B01/security/negative-controls-1of4.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B01/security/negative-controls-2of4.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B01/security/negative-controls-3of4.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B01/security/negative-controls-4of4.log",
       "kind": "security"
     },
     {

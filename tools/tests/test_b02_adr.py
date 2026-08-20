@@ -66,7 +66,7 @@ class AdrRejects(FixtureTestCase):
         self.assertIn("ADR_CONTROL", self.codes(self._validate()))
 
     def test_rejects_numbering_gap(self):
-        (self.fixture.root / self.DIR / "0005-idempotency-inbox-outbox.md").unlink()
+        self.fixture.remove(f"{self.DIR}/0005-idempotency-inbox-outbox.md")
         self.assertIn("ADR_NUMBERING", self.codes(self._validate()))
 
     def test_rejects_bad_filename(self):

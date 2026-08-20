@@ -21,7 +21,7 @@ class CharterRejects(FixtureTestCase):
         return charter.validate(self.fixture.root, Budget().start())
 
     def test_rejects_missing_document(self):
-        (self.fixture.root / "docs/charter/DELIVERY_MODEL.md").unlink()
+        self.fixture.remove("docs/charter/DELIVERY_MODEL.md")
         self.assertIn("CHARTER_MISSING", self.codes(self._validate()))
 
     def test_rejects_missing_section(self):

@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B28",
+  "principle": "路由必须是**确定性且可重放**的：同样的输入 + 同一个配置版本 = 同一个决定，而且决定必须把产生它的配置版本写进记录。做不到这一点，几个月后在争议或对账差异面前，没有人能解释这笔钱当初为什么走了 A 而不是 B。由此派生的三条同样是被现实教出来的：**成功率驱动的路由会自我强化**——拿不到流量的渠道永远无法恢复它的成功率，于是一次抖动被固化成一条永久下线的通道，因此必须有探索下限；**灰度不能按随机数分流**——同一笔支付的重试必须落在同一个分支，否则重试换了分支就等于换了渠道，重复扣款由此而来；**上线要双人，回滚不要**——给回滚加审批，是把故障时长直接写进流程里的做法。",
+  "config_versioning": {
+    "versions_are_immutable": true,
+    "decision_records_config_version": true,
+    "activation_requires_approval": true,
+    "activation_approvers_required": 2,
+    "activation_permission": "config.write",
+    "retain_versions": 50,
+    "notes": "配置版本一经发布不可修改，只能发布新版本。决定记录里必须带版本号——没有版本号的路由决定在事后无法复现，也就无法被质疑，也就无法被信任。"
+  },
+  "determinism": {
+    "same_inputs_same_decision": true,
+    "random_selection_allowed": false,
+    "tie_break": "lowest_provider_id",
+    "replayable": true,
+    "notes": "并列时按渠道 ID 字典序取最小，而不是随机——「随便挑一个」在灰度对比、事故复盘和争议举证里都是无法回答的答案。"
+  },
+  "rules": [
+    {
+      "id": "cn_wallets",
+      "priority": 10,
+      "when": {
+        "region": "CN",
+        "method": "wechat_pay",
+        "currency": "CNY",
+        "max_amount_minor": 5000000
+      },
+      "prefer": [
+        "wechat"
+      ],
+      "fallback": [],
+      "notes": "境内微信支付直连，无备选：钱包没有等价替代，改走支付宝等于换支付方式。"
+    },
+    {
+      "id": "cn_alipay",
+      "priority": 20,
+      "when": {
+        "region": "CN",
+        "method": "alipay",
+        "currency": "CNY",
+        "max_amount_minor": 5000000
+      },
+      "prefer": [
+        "alipay"
+      ],
+      "fallback": [],
+      "notes": "同上，支付宝直连。"
+    },
+    {
+      "id": "hk_cards",
+      "priority": 30,
+      "when": {
+        "region": "HK",
+        "method": "card",
+        "currency": "HKD",
+        "max_amount_minor": 2000000
+      },
+      "prefer": [
+        "stripe"
+      ],
+      "fallback": [],
+      "notes": "香港卡：目前只有一家收单，备选为空是事实而不是遗漏。"
+    },
+    {
+      "id": "eu_cards",
+      "priority": 40,
+      "when": {
+        "region": "EU",
+        "method": "card",
+        "currency": "EUR",
+        "max_amount_minor": 2000000
+      },
+      "prefer": [
+        "stripe"
+      ],
+      "fallback": [],
+      "notes": "欧盟卡：SCA 由渠道侧完成，路由不改变认证要求。"
+    },
+    {
+      "id": "eu_wallet",
+      "priority": 50,
+      "when": {
+        "region": "EU",
+        "method": "paypal_wallet",
+        "currency": "EUR",
+        "max_amount_minor": 2000000
+      },
+      "prefer": [
+        "paypal"
+      ],
+      "fallback": [],
+      "notes": "欧盟钱包：PayPal 授权保证期只有三天，路由不改变这个限制。"
+    },
+    {
+      "id": "sg_cards",
+      "priority": 60,
+      "when": {
+        "region": "SG",
+        "method": "card",
+        "currency": "SGD",
+        "max_amount_minor": 2000000
+      },
+      "prefer": [
+        "stripe"
+      ],
+      "fallback": [],
+      "notes": "新加坡卡：与香港同一家收单，备选为空；多一家收单是商务问题，不是配置问题。"
+    }
+  ],
+  "scoring": {
+    "factors": [
+      {
+        "id": "success_rate",
+        "weight": 50,
+        "notes": "成功率权重最高，但受探索下限保护，见下。"
+      },
+      {
+        "id": "cost",
+        "weight": 30,
+        "notes": "费率与结算周期的综合成本。"
+      },
+      {
+        "id": "risk",
+        "weight": 20,
+        "notes": "争议率与风控拒绝率。"
+      }
+    ],
+    "window_minutes": 60,
+    "min_sample": 200,
+    "exploration_floor_percent": 5,
+    "starvation_guard": true,
+    "notes": "成功率必须在**足够样本**上计算，否则前十笔的偶然失败就能把一条通道判死刑。探索下限 5% 是为了让被判死刑的通道还有翻案的机会：拿不到流量的渠道永远无法证明自己已经恢复。"
+  },
+  "canary": {
+    "split_key": "payment_intent_id",
+    "stable_hash": true,
+    "random_split_allowed": false,
+    "max_percent": 25,
+    "min_observation_minutes": 30,
+    "auto_promote": false,
+    "auto_rollback_on_error_rate": true,
+    "error_rate_threshold_percent": 2,
+    "notes": "分流键必须是支付意图 ID 并用稳定哈希——**同一笔支付的重试必须落在同一分支**。按随机数分流会让重试换分支，也就换了渠道，重复扣款由此而来。自动放量关闭、自动回滚打开：这两个方向的风险不对称。"
+  },
+  "rollback": {
+    "to_existing_version_only": true,
+    "requires_approval": false,
+    "max_seconds": 60,
+    "notes": "回滚是**切回一个已经存在的版本**，不是「把配置改回去」——后者是一次新的发布，同样可能出错。回滚不需要审批：给回滚加审批等于把故障时长写进流程。"
+  },
+  "simulation": {
+    "shadow_moves_money": false,
+    "uses_production_config": true,
+    "compares_against_live": true,
+    "notes": "影子评估读生产配置、算出决定、与线上决定比对，但**绝不产生任何资金动作**。一个能动钱的模拟器迟早会在某个人手里动一次真钱。"
+  },
+  "retry": {
+    "reuse_idempotency_key": true,
+    "max_attempts": 3,
+    "change_provider_on_retry_allowed": false,
+    "backoff_seconds": [
+      1,
+      5,
+      25
+    ],
+    "notes": "重试必须复用同一幂等键，且**不得换渠道**：换了渠道的重试不是重试，是第二笔支付，而第一笔的终态还没到。"
+  },
+  "audit_event_class": "config.change"
+}

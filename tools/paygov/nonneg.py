@@ -24,6 +24,11 @@ VALID_STATUS = {"active", "planned"}
 POLICY_ITEM = re.compile(r"^\d+\.\s+\*\*(.+?)\*\*", re.MULTILINE)
 
 
+# Registered automatically: tools/paygov/registry.py discovers every module in
+# this package that declares VALIDATOR. Adding a batch means adding a module,
+# not editing a shared file that every earlier batch is pinned to.
+VALIDATOR = ("non-negotiables", "B00")
+
 def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     budget = budget or Budget().start()
     where = str(REGISTRY_PATH)
@@ -90,6 +95,20 @@ def _enforcement(root: Path, rule: dict, scope: str, rid: str) -> list[Problem]:
             if not module.is_file():
                 problems.append(Problem("NONNEG_ENFORCEMENT", scope,
                                         f"enforcement test module '{value}' does not exist", rid))
+            else:
+                # Existence is not enforcement. An independent review truncated
+                # two enforcement modules to zero bytes and every gate stayed
+                # green, so the module must be non-empty and must name the rule
+                # it claims to enforce.
+                body = module.read_text(encoding="utf-8", errors="replace")
+                if len(body.strip()) < 200:
+                    problems.append(Problem("NONNEG_ENFORCEMENT_EMPTY", scope,
+                                            f"enforcement test module '{value}' is empty or a "
+                                            f"stub; existence is not enforcement", rid))
+                elif rid not in body:
+                    problems.append(Problem("NONNEG_ENFORCEMENT_UNNAMED", scope,
+                                            f"enforcement test module '{value}' never mentions "
+                                            f"'{rid}', so it cannot be shown to enforce it", rid))
         elif kind == "batch":
             if not BATCH_ID.match(value):
                 problems.append(Problem("NONNEG_ENFORCEMENT", scope,

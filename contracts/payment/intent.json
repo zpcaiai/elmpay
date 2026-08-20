@@ -1,0 +1,94 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-intent.py; do not edit by hand",
+  "amount_invariants": {
+    "captured_cannot_exceed_amount": true,
+    "negative_amounts_forbidden": true,
+    "refunded_cannot_exceed_captured": true,
+    "zero_amount_intent_allowed": false
+  },
+  "amount_snapshot": {
+    "change_requires_new_intent": true,
+    "exponent_source": "governance/currency-metadata.json",
+    "fields": [
+      "amount_minor",
+      "currency"
+    ],
+    "immutable": true,
+    "minor_units_only": true
+  },
+  "audit_event_class": "money.movement",
+  "client_secret": {
+    "contains_credentials": false,
+    "expires_with_intent": true,
+    "scoped_to_single_intent": true
+  },
+  "confirmation": {
+    "authoritative_sources": [
+      "server_side_query",
+      "verified_provider_event"
+    ],
+    "client_return_page_is_evidence": false,
+    "concurrent_confirmations_serialized": true,
+    "idempotency_key_required": true,
+    "key_unique_per": [
+      "intent_id",
+      "tenant_id"
+    ],
+    "single_success": true
+  },
+  "expiry": {
+    "default_minutes": 60,
+    "expired_can_be_confirmed": false,
+    "expiry_actor": "scheduler",
+    "extension_allowed": false,
+    "max_minutes": 1440,
+    "recorded_at_creation": true
+  },
+  "lifecycle": {
+    "initial": "created",
+    "source": "governance/state-machines.json#payment-intent",
+    "states": [
+      "created",
+      "requires_action",
+      "authorized",
+      "captured",
+      "failed",
+      "canceled",
+      "expired"
+    ],
+    "success_states": [
+      "authorized",
+      "captured"
+    ],
+    "terminal": [
+      "captured",
+      "failed",
+      "canceled",
+      "expired"
+    ]
+  },
+  "method_constraints": {
+    "confirm_method_must_be_in_snapshot": true,
+    "narrow_after_creation_allowed": true,
+    "snapshot_at_creation": true,
+    "source": "governance/provider-capabilities.json",
+    "widen_after_creation_allowed": false
+  },
+  "order_link": {
+    "forbidden_fields": [
+      "cart",
+      "customer_email",
+      "line_items",
+      "product_name",
+      "shipping_address"
+    ],
+    "owner": "originating_project",
+    "reference_fields": [
+      "external_reference",
+      "project_id"
+    ],
+    "stores_order_content": false,
+    "unique_live_intent_per_order": true
+  },
+  "schema_version": "1.0.0"
+}

@@ -1,0 +1,248 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-api.py --record-baseline",
+  "major": 1,
+  "note": "记录当前大版本的兼容性基线。只有开新大版本时才允许重录。",
+  "operations": {
+    "cancel_payment_intent": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": true
+      },
+      "method": "POST",
+      "path": "/v1/payment_intents/{payment_intent_id}/cancel"
+    },
+    "cancel_refund": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": true
+      },
+      "method": "POST",
+      "path": "/v1/refunds/{refund_id}/cancel"
+    },
+    "cancel_subscription": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": true
+      },
+      "method": "POST",
+      "path": "/v1/subscriptions/{subscription_id}/cancel"
+    },
+    "capture_payment_intent": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "provider_timeout",
+        "provider_unavailable",
+        "rate_limited",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": true
+      },
+      "method": "POST",
+      "path": "/v1/payment_intents/{payment_intent_id}/capture"
+    },
+    "create_payment_intent": {
+      "errors": [
+        "amount_below_minimum",
+        "currency_not_supported",
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "tenant_mismatch",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": true
+      },
+      "method": "POST",
+      "path": "/v1/payment_intents"
+    },
+    "create_refund": {
+      "errors": [
+        "amount_below_minimum",
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "tenant_mismatch",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": true
+      },
+      "method": "POST",
+      "path": "/v1/refunds"
+    },
+    "get_dispute": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "resource_not_found",
+        "tenant_mismatch",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": false
+      },
+      "method": "GET",
+      "path": "/v1/disputes/{dispute_id}"
+    },
+    "get_payment_intent": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "resource_not_found",
+        "tenant_mismatch",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": false
+      },
+      "method": "GET",
+      "path": "/v1/payment_intents/{payment_intent_id}"
+    },
+    "get_refund": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "resource_not_found",
+        "tenant_mismatch",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": false
+      },
+      "method": "GET",
+      "path": "/v1/refunds/{refund_id}"
+    },
+    "list_disputes": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "tenant_mismatch",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": false
+      },
+      "method": "GET",
+      "path": "/v1/disputes"
+    },
+    "list_payment_intents": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "tenant_mismatch",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": false
+      },
+      "method": "GET",
+      "path": "/v1/payment_intents"
+    },
+    "list_refunds": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "tenant_mismatch",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": false
+      },
+      "method": "GET",
+      "path": "/v1/refunds"
+    },
+    "receive_provider_event": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "provider_event_replayed",
+        "provider_signature_invalid",
+        "rate_limited"
+      ],
+      "idempotency": {
+        "required": true
+      },
+      "method": "POST",
+      "path": "/v1/webhooks/providers/{provider}"
+    },
+    "submit_dispute_evidence": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "rate_limited",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": true
+      },
+      "method": "POST",
+      "path": "/v1/disputes/{dispute_id}/evidence"
+    },
+    "void_payment_intent": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "provider_unavailable",
+        "rate_limited",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": true
+      },
+      "method": "POST",
+      "path": "/v1/payment_intents/{payment_intent_id}/void"
+    }
+  }
+}

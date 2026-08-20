@@ -1,0 +1,150 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B31",
+  "principle": "隔离必须**被证明**，不能被声明。本批次要求每一个隔离面都有一个**断言「另一个租户看不到」**的探针——只断言「本租户看得到」的测试对隔离一无所知，因为把过滤器整个删掉它照样通过。另外三条同样是被现实教出来的：**最危险的泄漏面不是数据库**——所有人都会给数据库加行级安全，泄漏发生在缓存键漏了租户、消息主题被多个租户共用、日志里带了别人的行，因为「那不是数据库」，于是没人用同样的纪律对待它；**忘记 WHERE 子句必须是不可能的**——没有租户上下文的查询要报错，而不是返回全部；**应用层过滤不算隔离**——它是一行可以被下一个人删掉的代码，而删掉之后所有正向测试仍然全绿。",
+  "surfaces": [
+    {
+      "id": "database_rows",
+      "mechanism": "row_level_security",
+      "enforced_at": "database",
+      "default": "deny",
+      "tenant_key": "tenant_id",
+      "probe": {
+        "id": "probe_rls_denies_other_tenant",
+        "asserts_denial": true,
+        "runs_in_ci": true
+      },
+      "notes": "数据库行：行级安全在数据库侧强制，且对表属主同样生效（FORCE ROW LEVEL SECURITY）——否则应用连的那个账号往往正好是属主。"
+    },
+    {
+      "id": "object_storage",
+      "mechanism": "prefix_scoped_credentials",
+      "enforced_at": "storage",
+      "default": "deny",
+      "tenant_key": "tenant_id",
+      "probe": {
+        "id": "probe_object_prefix_denies_other_tenant",
+        "asserts_denial": true,
+        "runs_in_ci": true
+      },
+      "notes": "对象存储：凭证按租户前缀受限，不是靠应用拼路径。"
+    },
+    {
+      "id": "cache",
+      "mechanism": "tenant_scoped_key",
+      "enforced_at": "application",
+      "default": "deny",
+      "tenant_key": "tenant_id",
+      "probe": {
+        "id": "probe_cache_key_collides",
+        "asserts_denial": true,
+        "runs_in_ci": true
+      },
+      "notes": "缓存：键必须含租户。这是最常见的泄漏面——一个按用户 ID 记忆化的缓存在两个租户有同名用户时就串了，而且它不会报错，只会返回别人的数据。"
+    },
+    {
+      "id": "message_topics",
+      "mechanism": "tenant_in_envelope",
+      "enforced_at": "messaging",
+      "default": "deny",
+      "tenant_key": "tenant_id",
+      "probe": {
+        "id": "probe_consumer_rejects_foreign_tenant",
+        "asserts_denial": true,
+        "runs_in_ci": true
+      },
+      "notes": "消息：主题可以共用，但信封里必须带租户且**消费者必须校验**。只在生产者侧带租户等于没带。"
+    },
+    {
+      "id": "logs",
+      "mechanism": "tenant_field_required",
+      "enforced_at": "observability",
+      "default": "deny",
+      "tenant_key": "tenant_id",
+      "probe": {
+        "id": "probe_log_rejects_foreign_row",
+        "asserts_denial": true,
+        "runs_in_ci": true
+      },
+      "notes": "日志：每条日志必须带租户字段，且载荷经过脱敏。一条包含别人订单号的错误日志，是一次没人会发现的泄漏。"
+    },
+    {
+      "id": "exports",
+      "mechanism": "query_side_filter",
+      "enforced_at": "application",
+      "default": "deny",
+      "tenant_key": "tenant_id",
+      "probe": {
+        "id": "probe_export_scoped_to_one_tenant",
+        "asserts_denial": true,
+        "runs_in_ci": true
+      },
+      "notes": "导出：过滤必须写在查询里，不能先查全量再在应用里筛——后者在数据量大时会被人「优化」成分页，然后分页的最后一页带出别人的数据。"
+    },
+    {
+      "id": "search_index",
+      "mechanism": "tenant_partitioned_index",
+      "enforced_at": "search",
+      "default": "deny",
+      "tenant_key": "tenant_id",
+      "probe": {
+        "id": "probe_search_denies_other_tenant",
+        "asserts_denial": true,
+        "runs_in_ci": true
+      },
+      "notes": "搜索索引：按租户分区；共享索引 + 查询时过滤是同一类应用层隔离。"
+    },
+    {
+      "id": "background_jobs",
+      "mechanism": "tenant_bound_job_context",
+      "enforced_at": "application",
+      "default": "deny",
+      "tenant_key": "tenant_id",
+      "probe": {
+        "id": "probe_job_rejects_missing_tenant",
+        "asserts_denial": true,
+        "runs_in_ci": true
+      },
+      "notes": "后台任务：任务上下文必须绑定租户。跨租户的批处理是最容易「顺手」写成全表扫描的地方。"
+    }
+  ],
+  "forced_controls": {
+    "rls_forced_for_table_owner": true,
+    "session_tenant_required": true,
+    "application_side_filter_alone_sufficient": false,
+    "cross_tenant_permission": "cross_tenant_data.read",
+    "notes": "没有租户上下文的查询必须**报错**而不是返回全部。「忘记 WHERE 子句」在这套设定里不是一个可能发生的 bug，而是一次异常。"
+  },
+  "cache": {
+    "key_includes_tenant": true,
+    "shared_namespace_allowed": false,
+    "negative_cache_scoped": true,
+    "notes": "否定缓存（「查无此物」）同样必须按租户分区：A 租户查不到的对象，在 B 租户可能存在，共享的否定缓存会把它藏起来。"
+  },
+  "messaging": {
+    "tenant_in_envelope": true,
+    "consumer_must_verify_tenant": true,
+    "cross_tenant_fanout_allowed": false,
+    "notes": "消费者校验是这条控制的全部：生产者带上租户而消费者不看，等于没有控制。"
+  },
+  "logs": {
+    "tenant_field_required": true,
+    "payload_redacted": true,
+    "cross_tenant_aggregation_requires_permission": true,
+    "notes": "跨租户聚合查询需要显式权限，且该权限在 B19 是双人控制。"
+  },
+  "exports": {
+    "filter_in_query": true,
+    "single_tenant_per_export": true,
+    "row_count_verified": true,
+    "notes": "每次导出只允许一个租户，且导出后要核对行数——行数核对是唯一能发现「过滤器写在了错误位置」的廉价手段。"
+  },
+  "evidence": {
+    "every_surface_has_probe": true,
+    "probe_must_assert_denial": true,
+    "probes_run_in_ci": true,
+    "positive_only_test_is_not_evidence": true,
+    "notes": "只断言正向可见性的测试不构成隔离证据：把过滤器整个删掉，它照样全绿。"
+  },
+  "audit_event_class": "data.access"
+}

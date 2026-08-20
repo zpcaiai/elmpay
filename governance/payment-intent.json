@@ -1,0 +1,103 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B32",
+  "principle": "支付意图一经创建，**金额快照不可修改**。付款人授权的是一个具体数字；一个可以被改的金额意味着「他同意的」和「被扣的」可以不是同一个数，而事后没有任何记录能证明差别在哪。要改金额只能开一笔新的意图——**改金额不是编辑，是另一次付款**。其余三条同样是被现实教出来的：**意图必须过期，且过期不可复活**——「把有效期往后延一延」是陈旧价格被扣走的标准路径；**业务订单不归支付平台所有**——这里只存一个引用，不存订单内容，否则两边的「真相」迟早对不上，而客服会相信错的那一边；**一个业务订单同时只能有一笔在途意图**——这是重复扣款最便宜的防线。",
+  "amount_snapshot": {
+    "immutable": true,
+    "fields": [
+      "amount_minor",
+      "currency"
+    ],
+    "change_requires_new_intent": true,
+    "minor_units_only": true,
+    "exponent_source": "governance/currency-metadata.json",
+    "notes": "金额与币种在创建时快照并冻结。币种精度来自受版本控制的货币元数据，不是代码里的一张表——同一个币种在两处有两个精度，是金额差 100 倍的经典来源。"
+  },
+  "lifecycle": {
+    "source": "governance/state-machines.json#payment-intent",
+    "states": [
+      "created",
+      "requires_action",
+      "authorized",
+      "captured",
+      "failed",
+      "canceled",
+      "expired"
+    ],
+    "initial": "created",
+    "terminal": [
+      "captured",
+      "failed",
+      "canceled",
+      "expired"
+    ],
+    "success_states": [
+      "authorized",
+      "captured"
+    ],
+    "notes": "状态机在 B10 已经定义，这里**引用而不是重新定义**。两处各写一份状态，最终一定会分叉，而分叉的那天没有人会注意到。"
+  },
+  "expiry": {
+    "default_minutes": 60,
+    "max_minutes": 1440,
+    "recorded_at_creation": true,
+    "extension_allowed": false,
+    "expired_can_be_confirmed": false,
+    "expiry_actor": "scheduler",
+    "notes": "过期时间在创建时写死，不能延长。过期由调度器触发而不是由下一个请求「顺便」发现——后者意味着一笔三天没人碰的意图在第四天仍然是可确认的。"
+  },
+  "confirmation": {
+    "idempotency_key_required": true,
+    "key_unique_per": [
+      "tenant_id",
+      "intent_id"
+    ],
+    "single_success": true,
+    "concurrent_confirmations_serialized": true,
+    "client_return_page_is_evidence": false,
+    "authoritative_sources": [
+      "verified_provider_event",
+      "server_side_query"
+    ],
+    "notes": "确认必须带幂等键，且同一个键重复请求返回同一个结果。支付成功的唯一依据是**已验签的渠道事件或服务端主动查询**——客户端回跳页由付款人的浏览器发起，谁都能构造。"
+  },
+  "method_constraints": {
+    "snapshot_at_creation": true,
+    "source": "governance/provider-capabilities.json",
+    "confirm_method_must_be_in_snapshot": true,
+    "widen_after_creation_allowed": false,
+    "narrow_after_creation_allowed": true,
+    "notes": "可用支付方式在创建时按 B27 能力矩阵算好并冻结。**只能收窄不能放宽**：风控可以在确认前砍掉一种方式，但没有人可以在事后给一笔已展示给付款人的意图加上一种它当时没有的方式。"
+  },
+  "order_link": {
+    "owner": "originating_project",
+    "reference_fields": [
+      "project_id",
+      "external_reference"
+    ],
+    "unique_live_intent_per_order": true,
+    "stores_order_content": false,
+    "forbidden_fields": [
+      "line_items",
+      "cart",
+      "shipping_address",
+      "customer_email",
+      "product_name"
+    ],
+    "notes": "平台只存 `project_id + external_reference` 这一个引用。把订单行、收货地址、客户邮箱复制过来会让平台变成第二个订单系统，而两个订单系统永远会在某一天给出不同的答案。"
+  },
+  "amount_invariants": {
+    "captured_cannot_exceed_amount": true,
+    "refunded_cannot_exceed_captured": true,
+    "negative_amounts_forbidden": true,
+    "zero_amount_intent_allowed": false,
+    "notes": "这三条是账本能不能对上的底线。零金额意图不允许：它通常是「先占个位」的产物，而占位应该用别的机制，不是一笔金额为零的付款。"
+  },
+  "client_secret": {
+    "contains_credentials": false,
+    "scoped_to_single_intent": true,
+    "expires_with_intent": true,
+    "notes": "面向客户端的短期引用不含任何凭证，且只对这一笔意图有效、随意图一起过期。"
+  },
+  "audit_event_class": "money.movement"
+}

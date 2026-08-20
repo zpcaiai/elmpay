@@ -86,15 +86,39 @@ class CliTimeoutPath(FixtureTestCase):
         self.assertIn("VALIDATOR_ABORTED", output)
 
     def test_timeout_is_not_reported_as_success(self):
+        # NN-12: evidence that cannot be produced is a failure, never a pass.
         _, output = cli.run(["repo-hygiene"], REAL_ROOT, 0.0)
         self.assertFalse(json.loads(output)["ok"])
 
+    def test_there_is_no_passed_with_warnings_exit_code(self):
+        """NN-12 — the CLI contract has no 'succeeded with problems' state."""
+        self.fixture.mutate("governance/project-config.json",
+                            lambda d: d["security"].__setitem__("admin_mfa", "sms_otp"))
+        code, output = cli.run(["project-config"], self.fixture.root, 30.0)
+        self.assertEqual(code, cli.EXIT_PROBLEMS)
+        self.assertFalse(json.loads(output)["ok"])
+        self.assertNotEqual(code, cli.EXIT_OK)
+
 
 class CliDuplicateAndConcurrentPath(FixtureTestCase):
+    """Determinism and shared-state properties.
+
+    These run against a clean fixture rather than the repository itself: the
+    property under test is "no shared mutable state, byte-identical output",
+    which does not depend on scale, and a fixture keeps the suite fast enough to
+    run on every batch.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.write_synthetic_evidence(self.fixture)
+        self.clean = self.fixture.root
+
     def test_repeated_runs_are_byte_identical(self):
-        first = cli.run([], REAL_ROOT, 120.0)
-        second = cli.run([], REAL_ROOT, 120.0)
+        first = cli.run([], self.clean, 120.0)
+        second = cli.run([], self.clean, 120.0)
         self.assertEqual(first, second)
+        self.assertEqual(first[0], cli.EXIT_OK, first[1])
 
     def test_repeated_failing_runs_are_byte_identical(self):
         self.fixture.mutate("governance/project-config.json",
@@ -107,7 +131,7 @@ class CliDuplicateAndConcurrentPath(FixtureTestCase):
         # (module-level caches, registry mutation) without making the suite
         # dominated by this one case.
         with ThreadPoolExecutor(max_workers=4) as pool:
-            results = list(pool.map(lambda _: cli.run([], REAL_ROOT, 120.0), range(4)))
+            results = list(pool.map(lambda _: cli.run([], self.clean, 120.0), range(4)))
         self.assertEqual(len(set(results)), 1)
         self.assertTrue(all(code == cli.EXIT_OK for code, _ in results))
 
@@ -121,3 +145,49 @@ class CliDuplicateAndConcurrentPath(FixtureTestCase):
         problems = json.loads(output)["problems"]
         keys = [(p["code"], p["where"], p["message"]) for p in problems]
         self.assertEqual(keys, sorted(keys))
+
+
+class ValidatorDiscovery(FixtureTestCase):
+    """The registry is discovered, not listed.
+
+    A hand-written list of validators sat in B00's artefacts, so every later
+    batch that added one changed B00's digest and forced the whole programme to
+    re-issue evidence. These tests pin the replacement: declaring
+    ``VALIDATOR = (name, batch)`` next to ``validate`` is what registers a
+    module, and a malformed declaration must break loudly rather than drop the
+    validator silently out of the gate.
+    """
+
+    def test_every_validator_module_is_discovered(self):
+        import importlib
+        import pkgutil
+        from pathlib import Path
+
+        from tools.paygov import registry
+        registry.load_all()
+        package = Path(registry.__file__).resolve().parent
+        declared = {}
+        for info in pkgutil.iter_modules([str(package)]):
+            if info.name in {"registry", "cli", "__main__"}:
+                continue
+            module = importlib.import_module(f"tools.paygov.{info.name}")
+            value = getattr(module, "VALIDATOR", None)
+            if value is not None:
+                declared[value[0]] = value[1]
+        self.assertTrue(declared)
+        self.assertEqual(sorted(declared), registry.names())
+        for name, batch in declared.items():
+            self.assertEqual(registry.batch_of(name), batch)
+
+    def test_a_module_without_a_declaration_is_not_registered(self):
+        from tools.paygov import registry, structs
+        registry.load_all()
+        self.assertIsNone(getattr(structs, "VALIDATOR", None))
+        self.assertNotIn("structs", registry.names())
+
+    def test_the_gate_lists_the_same_validators_it_runs(self):
+        from tools.paygov import cli, registry
+        registry.load_all()
+        code, output = cli.run([], self.fixture.root, 60.0)
+        self.assertIn(code, {0, 2})
+        self.assertTrue(registry.names())

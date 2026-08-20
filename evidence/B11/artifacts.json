@@ -1,0 +1,13 @@
+[
+  "contracts/api/errors.json",
+  "contracts/api/openapi.baseline.json",
+  "contracts/api/openapi.json",
+  "contracts/api/transition-vectors.json",
+  "docs/api/API_CONTRACT.md",
+  "governance/api-contract.json",
+  "scripts/api-smoke.py",
+  "scripts/render-api.py",
+  "tools/paygov/api.py",
+  "tools/paygov/apigen.py",
+  "tools/tests/test_b11_api.py"
+]

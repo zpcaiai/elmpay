@@ -1,0 +1,13 @@
+[
+  "contracts/onboarding/workflow.json",
+  "docs/onboarding/ONBOARDING_WORKFLOW.md",
+  "governance/onboarding-workflow.json",
+  "libs/onboarding/reference/__init__.py",
+  "libs/onboarding/reference/workflow.py",
+  "scripts/onboarding-smoke.py",
+  "scripts/render-onboarding.py",
+  "tools/negative/b30.py",
+  "tools/paygov/onboarding.py",
+  "tools/paygov/onboardinggen.py",
+  "tools/tests/test_b30_onboarding.py"
+]

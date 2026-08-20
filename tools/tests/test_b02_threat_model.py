@@ -104,5 +104,5 @@ class ThreatModelRejects(FixtureTestCase):
         self.assertIn("THREAT_BOUNDARY", self.codes(self._validate()))
 
     def test_rejects_missing_upstream_threat_model(self):
-        (self.fixture.root / ".payment-platform/skill-package/security/THREAT_MODEL.md").unlink()
+        self.fixture.remove(".payment-platform/skill-package/security/THREAT_MODEL.md")
         self.assertIn("THREAT_UPSTREAM_MISSING", self.codes(self._validate()))

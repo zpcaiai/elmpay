@@ -1,0 +1,110 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-onboarding.py; do not edit by hand",
+  "approval": {
+    "approver_differs_from_requester": true,
+    "bound_to_digest": true,
+    "digest_fields": [
+      "domains",
+      "limits",
+      "payout_account",
+      "provider",
+      "tenant_id"
+    ],
+    "expires_hours": 72,
+    "eyes_required": 2,
+    "permission": "config.write",
+    "reapproval_required_on_change": true
+  },
+  "audit_event_class": "config.change",
+  "callback_verification": {
+    "https_required": true,
+    "private_address_allowed": false,
+    "roundtrip_required": true,
+    "signature_required": true
+  },
+  "credentials": {
+    "echo_back_allowed": false,
+    "import_once": true,
+    "stored_via_binding": true
+  },
+  "domain_verification": {
+    "method": "dns_txt",
+    "token_expires_hours": 168,
+    "token_single_use": true,
+    "wildcard_allowed": false
+  },
+  "limits": {
+    "default_from_risk_level": true,
+    "must_be_set_before_go_live": true,
+    "raise_requires_approval": true
+  },
+  "resumption": {
+    "manual_completion_allowed": false,
+    "max_resume_days": 30,
+    "replay_completed_side_effects": false,
+    "resume_from_last_completed_step": true,
+    "state_persisted": true
+  },
+  "schema_version": "1.0.0",
+  "steps": [
+    {
+      "evidence_required": "credential_reference",
+      "has_side_effect": true,
+      "id": "import_credentials",
+      "idempotent": true,
+      "order": 10,
+      "requires_approval": false,
+      "resumable": true
+    },
+    {
+      "evidence_required": "dns_txt_record",
+      "has_side_effect": false,
+      "id": "verify_domain",
+      "idempotent": true,
+      "order": 20,
+      "requires_approval": false,
+      "resumable": true
+    },
+    {
+      "evidence_required": "callback_roundtrip_id",
+      "has_side_effect": true,
+      "id": "verify_callback",
+      "idempotent": true,
+      "order": 30,
+      "requires_approval": false,
+      "resumable": true
+    },
+    {
+      "evidence_required": "limit_snapshot",
+      "has_side_effect": false,
+      "id": "set_limits",
+      "idempotent": true,
+      "order": 40,
+      "requires_approval": false,
+      "resumable": true
+    },
+    {
+      "evidence_required": "approval_record",
+      "has_side_effect": false,
+      "id": "approve",
+      "idempotent": true,
+      "order": 50,
+      "requires_approval": true,
+      "resumable": true
+    },
+    {
+      "evidence_required": "binding_state",
+      "has_side_effect": true,
+      "id": "go_live",
+      "idempotent": true,
+      "order": 60,
+      "requires_approval": false,
+      "resumable": true
+    }
+  ],
+  "suspension": {
+    "approvals_required": 1,
+    "immediate": true,
+    "reinstatement_approvals_required": 2
+  }
+}

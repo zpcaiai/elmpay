@@ -1,0 +1,200 @@
+{
+  "batch_id": "B08",
+  "requirements": [
+    {
+      "id": "B08-R1",
+      "statement": "定义租户、项目、商户、支付意图、支付尝试、退款、争议、订阅、账本与对账对象",
+      "source": "batches/B08.md 目标"
+    },
+    {
+      "id": "B08-R2",
+      "statement": "金额一律为最小货币单位整数，类型系统中不存在浮点",
+      "source": "policies/non-negotiables.md#5"
+    },
+    {
+      "id": "B08-R3",
+      "statement": "租户隔离在模型层强制：租户实体必须携带 tenant_id",
+      "source": "policies/non-negotiables.md#9"
+    },
+    {
+      "id": "B08-R4",
+      "statement": "业务订单数据不得进入支付平台模型",
+      "source": "policies/non-negotiables.md#1"
+    },
+    {
+      "id": "B08-R5",
+      "statement": "建立统一语言，实体与状态在代码、契约、文档中同名",
+      "source": "batches/B08.md 目标"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/domain-model.json",
+      "requirements": [
+        "B08-R1",
+        "B08-R2",
+        "B08-R3",
+        "B08-R4"
+      ]
+    },
+    {
+      "ref": "governance/glossary.json",
+      "requirements": [
+        "B08-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/domain.py",
+      "requirements": [
+        "B08-R2",
+        "B08-R3",
+        "B08-R4",
+        "B08-R5"
+      ]
+    },
+    {
+      "ref": "tools/paygov/domaingen.py",
+      "requirements": [
+        "B08-R1",
+        "B08-R2",
+        "B08-R3"
+      ]
+    },
+    {
+      "ref": "scripts/render-domain.py",
+      "requirements": [
+        "B08-R1"
+      ]
+    },
+    {
+      "ref": "contracts/sql/schema.sql",
+      "requirements": [
+        "B08-R1",
+        "B08-R2",
+        "B08-R3"
+      ]
+    },
+    {
+      "ref": "docs/domain/DOMAIN_MODEL.md",
+      "requirements": [
+        "B08-R1"
+      ]
+    },
+    {
+      "ref": "docs/domain/GLOSSARY.md",
+      "requirements": [
+        "B08-R5"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b08_domain.py",
+      "requirements": [
+        "B08-R1",
+        "B08-R2",
+        "B08-R3",
+        "B08-R4",
+        "B08-R5"
+      ],
+      "cases": 36
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-01",
+      "implemented_by": [
+        "governance/domain-model.json",
+        "tools/paygov/domain.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b08_domain.py"
+      ]
+    },
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "governance/domain-model.json",
+        "tools/paygov/domaingen.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b08_domain.py"
+      ]
+    },
+    {
+      "id": "NN-09",
+      "implemented_by": [
+        "tools/paygov/domain.py",
+        "contracts/sql/schema.sql"
+      ],
+      "verified_by": [
+        "tools/tests/test_b08_domain.py"
+      ]
+    },
+    {
+      "id": "NN-06",
+      "implemented_by": [
+        "governance/domain-model.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b08_domain.py"
+      ]
+    },
+    {
+      "id": "CTRL-005",
+      "implemented_by": [
+        "contracts/sql/schema.sql"
+      ],
+      "verified_by": [
+        "tools/tests/test_b08_domain.py"
+      ]
+    },
+    {
+      "id": "CTRL-008",
+      "implemented_by": [
+        "governance/domain-model.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b08_domain.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B08/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B08/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B08/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B08/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B08/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B08/runtime/domain-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B08/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B08/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B08.json",
+      "kind": "completion"
+    }
+  ]
+}

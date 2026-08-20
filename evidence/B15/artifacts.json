@@ -1,0 +1,12 @@
+[
+  "contracts/migration/plan.json",
+  "docs/migration/MIGRATION_RUNBOOK.md",
+  "governance/migration-plan.json",
+  "libs/migration/reference/__init__.py",
+  "libs/migration/reference/dualwrite.py",
+  "scripts/migration-smoke.py",
+  "scripts/render-migration.py",
+  "tools/paygov/miggen.py",
+  "tools/paygov/migration.py",
+  "tools/tests/test_b15_migration.py"
+]

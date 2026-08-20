@@ -1,0 +1,1508 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B13",
+  "tenancy": {
+    "model": "shared_database_shared_schema_with_rls",
+    "tenant_column": "tenant_id",
+    "session_setting": "app.tenant_id",
+    "policy": "共享库共享表 + 强制行级安全。应用连接使用非 owner 角色，且 owner 角色也必须 FORCE ROW LEVEL SECURITY——否则一次以 owner 身份跑的运维脚本就能跨租户读全表。",
+    "escape_hatch": {
+      "role": "platform_break_glass",
+      "requires_audit_event": true,
+      "requires_second_approver": true,
+      "max_session_minutes": 60,
+      "policy": "跨租户访问必须走单独角色，留审计事件并且四眼复核（NN-11）。没有紧急通道的隔离设计会在第一次故障时被人用 superuser 绕过。"
+    }
+  },
+  "mutability_kinds": [
+    "mutable",
+    "append_only"
+  ],
+  "partition_kinds": [
+    "none",
+    "range",
+    "hash"
+  ],
+  "deletion_strategies": [
+    "crypto_shred",
+    "hard_delete",
+    "anonymise"
+  ],
+  "archive": {
+    "target_scheme": "object-storage",
+    "format": "parquet",
+    "integrity": "sha256_manifest",
+    "policy": "归档必须可校验、可回读。写出去就再也读不回来的归档等于删除。"
+  },
+  "sharding": {
+    "status": "planned",
+    "key": "tenant_id",
+    "policy": "现在不分片，但每张租户表的主键与索引都以 tenant_id 打头，使将来按租户分片成为搬迁而不是重写。"
+  },
+  "tables": [
+    {
+      "table": "bank_statement",
+      "owner": "reconciliation-service",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/bank_statement"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "bank_statement_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "bank_statement_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "delivery_attempt",
+      "owner": "webhook-delivery",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 180,
+        "cold_days": 180,
+        "archive_after_days": 180,
+        "archive_target": "object-storage://elmpay-archive/delivery_attempt"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "delivery_attempt_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "delivery_attempt_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "delivery_dead_letter",
+      "owner": "webhook-delivery",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 400,
+        "archive_after_days": 400,
+        "archive_target": "object-storage://elmpay-archive/delivery_dead_letter"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "delivery_dead_letter_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "delivery_dead_letter_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "delivery_subscription",
+      "owner": "webhook-delivery",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/delivery_subscription"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "delivery_subscription_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "delivery_subscription_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "dispute",
+      "owner": "payment-core",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/dispute"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "dispute_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [
+        "cardholder_reference"
+      ],
+      "rls": {
+        "enabled": true,
+        "policy": "dispute_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      },
+      "deletion_strategy": "crypto_shred"
+    },
+    {
+      "table": "fee_record",
+      "owner": "ledger-service",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/fee_record"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "fee_record_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "fee_record_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "fx_rate",
+      "owner": "ledger-service",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/fx_rate"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "fx_rate_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "fx_rate_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      },
+      "mutability_reason": "汇率表是参考数据，会随行情更新；用于某笔交易的汇率快照记在该交易的分录上。"
+    },
+    {
+      "table": "idempotency_key",
+      "owner": "payment-core",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 30,
+        "warm_days": 30,
+        "cold_days": 30,
+        "archive_after_days": 30,
+        "archive_target": "object-storage://elmpay-archive/idempotency_key"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "idempotency_key_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "idempotency_key_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "job_lock",
+      "owner": "worker-scheduler",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 7,
+        "warm_days": 7,
+        "cold_days": 7,
+        "archive_after_days": 7,
+        "archive_target": "object-storage://elmpay-archive/job_lock"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "job_lock_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "job_lock_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "job_run",
+      "owner": "worker-scheduler",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 180,
+        "cold_days": 180,
+        "archive_after_days": 180,
+        "archive_target": "object-storage://elmpay-archive/job_run"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "job_run_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "job_run_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "ledger_account",
+      "owner": "ledger-service",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/ledger_account"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "ledger_account_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "ledger_account_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      },
+      "mutability_reason": "科目是余额的持有者，不是资金移动的记录；名称、状态与缓存余额都会变。真正不可变的是 ledger_transaction 与 ledger_entry。"
+    },
+    {
+      "table": "ledger_entry",
+      "owner": "ledger-service",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/ledger_entry"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "ledger_entry_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "ledger_entry_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "ledger_transaction",
+      "owner": "ledger-service",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/ledger_transaction"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "ledger_transaction_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "ledger_transaction_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "merchant",
+      "owner": "merchant-config",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/merchant"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "merchant_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [
+        "contact_email",
+        "contact_phone"
+      ],
+      "rls": {
+        "enabled": true,
+        "policy": "merchant_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      },
+      "deletion_strategy": "crypto_shred"
+    },
+    {
+      "table": "outbox_event",
+      "owner": "payment-core",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 90,
+        "cold_days": 90,
+        "archive_after_days": 90,
+        "archive_target": "object-storage://elmpay-archive/outbox_event"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "outbox_event_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "outbox_event_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "payment_attempt",
+      "owner": "payment-core",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/payment_attempt"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "payment_attempt_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "payment_attempt_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "payment_intent",
+      "owner": "payment-core",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/payment_intent"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "payment_intent_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "payment_intent_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "pricing_rule",
+      "owner": "merchant-config",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/pricing_rule"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "pricing_rule_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "pricing_rule_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "project",
+      "owner": "merchant-config",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/project"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "project_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "project_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "provider_account",
+      "owner": "merchant-config",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/provider_account"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "provider_account_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "provider_account_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "provider_capability",
+      "owner": "merchant-config",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/provider_capability"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "provider_capability_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "provider_capability_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "provider_statement",
+      "owner": "reconciliation-service",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/provider_statement"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "provider_statement_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "provider_statement_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "provider_webhook_inbox",
+      "owner": "webhook-ingress",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 400,
+        "archive_after_days": 400,
+        "archive_target": "object-storage://elmpay-archive/provider_webhook_inbox"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "provider_webhook_inbox_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "provider_webhook_inbox_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "provider_webhook_raw",
+      "owner": "webhook-ingress",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 400,
+        "archive_after_days": 400,
+        "archive_target": "object-storage://elmpay-archive/provider_webhook_raw"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "provider_webhook_raw_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "provider_webhook_raw_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "recon_exception",
+      "owner": "reconciliation-service",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/recon_exception"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "recon_exception_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "recon_exception_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "recon_match",
+      "owner": "reconciliation-service",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/recon_match"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "recon_match_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "recon_match_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "recon_run",
+      "owner": "reconciliation-service",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/recon_run"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "recon_run_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "recon_run_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "refund",
+      "owner": "payment-core",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/refund"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "refund_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "refund_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "risk_case",
+      "owner": "risk-engine",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/risk_case"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "risk_case_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [
+        "reviewer_note"
+      ],
+      "rls": {
+        "enabled": true,
+        "policy": "risk_case_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      },
+      "deletion_strategy": "crypto_shred"
+    },
+    {
+      "table": "risk_decision",
+      "owner": "risk-engine",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/risk_decision"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "risk_decision_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "risk_decision_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "risk_list_entry",
+      "owner": "risk-engine",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/risk_list_entry"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "risk_list_entry_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "risk_list_entry_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "risk_rule",
+      "owner": "risk-engine",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/risk_rule"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "risk_rule_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "risk_rule_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "risk_signal",
+      "owner": "risk-engine",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 400,
+        "archive_after_days": 400,
+        "archive_target": "object-storage://elmpay-archive/risk_signal"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "risk_signal_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "risk_signal_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "routing_rule",
+      "owner": "merchant-config",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/routing_rule"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "routing_rule_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "routing_rule_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "scheduled_job",
+      "owner": "worker-scheduler",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/scheduled_job"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "scheduled_job_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "scheduled_job_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "settlement_instruction",
+      "owner": "ledger-service",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/settlement_instruction"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "settlement_instruction_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "settlement_instruction_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      },
+      "mutability_reason": "结算指令有生命周期（待发起→已发送→已确认→失败），它是状态而不是凭据；对应的资金移动记在 ledger_entry 上。"
+    },
+    {
+      "table": "subscription",
+      "owner": "payment-core",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "range",
+        "key": "created_at",
+        "interval": "monthly",
+        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+      },
+      "retention": {
+        "hot_days": 90,
+        "warm_days": 400,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/subscription"
+      },
+      "shard_key": [
+        "tenant_id"
+      ],
+      "indexes": [
+        {
+          "name": "subscription_tenant_created_idx",
+          "columns": [
+            "tenant_id",
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "subscription_tenant_isolation",
+        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "tenant",
+      "owner": "merchant-config",
+      "tenant_scoped": false,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "参考数据体量小、被高频读取，分区只会增加计划开销"
+      },
+      "retention": {
+        "hot_days": 2555,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/tenant"
+      },
+      "shard_key": null,
+      "indexes": [
+        {
+          "name": "tenant_created_idx",
+          "columns": [
+            "created_at"
+          ],
+          "unique": false
+        }
+      ],
+      "personal_columns": [],
+      "rls": {
+        "enabled": false,
+        "reason": "tenant 表本身就是租户目录；对它做行级隔离会让租户无法被创建或查询"
+      }
+    }
+  ]
+}

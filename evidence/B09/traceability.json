@@ -1,0 +1,195 @@
+{
+  "batch_id": "B09",
+  "requirements": [
+    {
+      "id": "B09-R1",
+      "statement": "所有资金金额使用整数最小货币单位，禁止 binary floating point",
+      "source": "policies/non-negotiables.md#5"
+    },
+    {
+      "id": "B09-R2",
+      "statement": "币种精度来自受版本控制的货币元数据，而非代码中的常量",
+      "source": "policies/non-negotiables.md#5"
+    },
+    {
+      "id": "B09-R3",
+      "statement": "舍入规则显式声明并可复现，零小数与三小数币种均被正确处理",
+      "source": "batches/B09.md 目标"
+    },
+    {
+      "id": "B09-R4",
+      "statement": "分摊与换算不得凭空产生或销毁最小单位",
+      "source": "batches/B09.md 目标"
+    },
+    {
+      "id": "B09-R5",
+      "statement": "跨语言实现必须能被同一组一致性向量判定，漂移即构建失败",
+      "source": "batches/B09.md 实施要求 1"
+    },
+    {
+      "id": "B09-R6",
+      "statement": "缺少测试、运行证据或安全证明时必须 fail closed",
+      "source": "policies/non-negotiables.md#12"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/currency-metadata.json",
+      "requirements": [
+        "B09-R2",
+        "B09-R3"
+      ]
+    },
+    {
+      "ref": "libs/money/reference/money.py",
+      "requirements": [
+        "B09-R1",
+        "B09-R3",
+        "B09-R4"
+      ]
+    },
+    {
+      "ref": "tools/paygov/money.py",
+      "requirements": [
+        "B09-R1",
+        "B09-R2",
+        "B09-R3",
+        "B09-R5",
+        "B09-R6"
+      ]
+    },
+    {
+      "ref": "tools/paygov/moneygen.py",
+      "requirements": [
+        "B09-R5",
+        "B09-R6"
+      ]
+    },
+    {
+      "ref": "scripts/render-money-vectors.py",
+      "requirements": [
+        "B09-R5"
+      ]
+    },
+    {
+      "ref": "contracts/money/vectors.json",
+      "requirements": [
+        "B09-R3",
+        "B09-R4",
+        "B09-R5"
+      ]
+    },
+    {
+      "ref": "scripts/money-smoke.py",
+      "requirements": [
+        "B09-R4"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b09_money.py",
+      "requirements": [
+        "B09-R1",
+        "B09-R2",
+        "B09-R3",
+        "B09-R4",
+        "B09-R5",
+        "B09-R6"
+      ],
+      "cases": 57
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "governance/currency-metadata.json",
+        "libs/money/reference/money.py",
+        "tools/paygov/money.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b09_money.py",
+        "scripts/money-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/paygov/money.py",
+        "tools/paygov/moneygen.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b09_money.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "CTRL-008",
+      "implemented_by": [
+        "libs/money/reference/money.py",
+        "contracts/money/vectors.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b09_money.py",
+        "scripts/money-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-011",
+      "implemented_by": [
+        "tools/paygov/moneygen.py",
+        "scripts/render-money-vectors.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b09_money.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B09/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B09/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B09/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B09/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B09/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B09/runtime/money-vectors-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B09/runtime/money-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B09/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B09/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B09/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B09.json",
+      "kind": "completion"
+    }
+  ]
+}

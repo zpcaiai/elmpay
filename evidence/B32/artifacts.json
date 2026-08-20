@@ -1,0 +1,13 @@
+[
+  "contracts/payment/intent.json",
+  "docs/payment/PAYMENT_INTENT.md",
+  "governance/payment-intent.json",
+  "libs/intent/reference/__init__.py",
+  "libs/intent/reference/intent.py",
+  "scripts/intent-smoke.py",
+  "scripts/render-intent.py",
+  "tools/negative/b32.py",
+  "tools/paygov/intent.py",
+  "tools/paygov/intentgen.py",
+  "tools/tests/test_b32_intent.py"
+]

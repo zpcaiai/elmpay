@@ -1,0 +1,364 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B09",
+  "source": "ISO 4217 — 具体清单必须在具备联网校验能力时对官方发布核验，见 RR-06 的同类缺口",
+  "verification_status": "unverified-offline",
+  "default_rounding": "half_even",
+  "allowed_rounding": [
+    "half_even",
+    "half_up",
+    "down",
+    "up"
+  ],
+  "fx_rate_scale": 8,
+  "currencies": [
+    {
+      "code": "CNY",
+      "numeric": "156",
+      "minor_unit_exponent": 2,
+      "name_en": "Yuan Renminbi",
+      "name_cn": "人民币",
+      "rounding": "half_even"
+    },
+    {
+      "code": "USD",
+      "numeric": "840",
+      "minor_unit_exponent": 2,
+      "name_en": "US Dollar",
+      "name_cn": "美元",
+      "rounding": "half_even"
+    },
+    {
+      "code": "EUR",
+      "numeric": "978",
+      "minor_unit_exponent": 2,
+      "name_en": "Euro",
+      "name_cn": "欧元",
+      "rounding": "half_even"
+    },
+    {
+      "code": "GBP",
+      "numeric": "826",
+      "minor_unit_exponent": 2,
+      "name_en": "Pound Sterling",
+      "name_cn": "英镑",
+      "rounding": "half_even"
+    },
+    {
+      "code": "HKD",
+      "numeric": "344",
+      "minor_unit_exponent": 2,
+      "name_en": "Hong Kong Dollar",
+      "name_cn": "港元",
+      "rounding": "half_even"
+    },
+    {
+      "code": "SGD",
+      "numeric": "702",
+      "minor_unit_exponent": 2,
+      "name_en": "Singapore Dollar",
+      "name_cn": "新加坡元",
+      "rounding": "half_even"
+    },
+    {
+      "code": "AUD",
+      "numeric": "036",
+      "minor_unit_exponent": 2,
+      "name_en": "Australian Dollar",
+      "name_cn": "澳元",
+      "rounding": "half_even"
+    },
+    {
+      "code": "CAD",
+      "numeric": "124",
+      "minor_unit_exponent": 2,
+      "name_en": "Canadian Dollar",
+      "name_cn": "加拿大元",
+      "rounding": "half_even"
+    },
+    {
+      "code": "CHF",
+      "numeric": "756",
+      "minor_unit_exponent": 2,
+      "name_en": "Swiss Franc",
+      "name_cn": "瑞士法郎",
+      "rounding": "half_even",
+      "cash_rounding_minor": 5
+    },
+    {
+      "code": "NZD",
+      "numeric": "554",
+      "minor_unit_exponent": 2,
+      "name_en": "New Zealand Dollar",
+      "name_cn": "新西兰元",
+      "rounding": "half_even"
+    },
+    {
+      "code": "SEK",
+      "numeric": "752",
+      "minor_unit_exponent": 2,
+      "name_en": "Swedish Krona",
+      "name_cn": "瑞典克朗",
+      "rounding": "half_even",
+      "cash_rounding_minor": 100
+    },
+    {
+      "code": "NOK",
+      "numeric": "578",
+      "minor_unit_exponent": 2,
+      "name_en": "Norwegian Krone",
+      "name_cn": "挪威克朗",
+      "rounding": "half_even",
+      "cash_rounding_minor": 100
+    },
+    {
+      "code": "DKK",
+      "numeric": "208",
+      "minor_unit_exponent": 2,
+      "name_en": "Danish Krone",
+      "name_cn": "丹麦克朗",
+      "rounding": "half_even",
+      "cash_rounding_minor": 50
+    },
+    {
+      "code": "PLN",
+      "numeric": "985",
+      "minor_unit_exponent": 2,
+      "name_en": "Zloty",
+      "name_cn": "波兰兹罗提",
+      "rounding": "half_even"
+    },
+    {
+      "code": "TWD",
+      "numeric": "901",
+      "minor_unit_exponent": 2,
+      "name_en": "New Taiwan Dollar",
+      "name_cn": "新台币",
+      "rounding": "half_even"
+    },
+    {
+      "code": "THB",
+      "numeric": "764",
+      "minor_unit_exponent": 2,
+      "name_en": "Baht",
+      "name_cn": "泰铢",
+      "rounding": "half_even"
+    },
+    {
+      "code": "MYR",
+      "numeric": "458",
+      "minor_unit_exponent": 2,
+      "name_en": "Malaysian Ringgit",
+      "name_cn": "马来西亚林吉特",
+      "rounding": "half_even"
+    },
+    {
+      "code": "PHP",
+      "numeric": "608",
+      "minor_unit_exponent": 2,
+      "name_en": "Philippine Peso",
+      "name_cn": "菲律宾比索",
+      "rounding": "half_even"
+    },
+    {
+      "code": "INR",
+      "numeric": "356",
+      "minor_unit_exponent": 2,
+      "name_en": "Indian Rupee",
+      "name_cn": "印度卢比",
+      "rounding": "half_even"
+    },
+    {
+      "code": "BRL",
+      "numeric": "986",
+      "minor_unit_exponent": 2,
+      "name_en": "Brazilian Real",
+      "name_cn": "巴西雷亚尔",
+      "rounding": "half_even"
+    },
+    {
+      "code": "MXN",
+      "numeric": "484",
+      "minor_unit_exponent": 2,
+      "name_en": "Mexican Peso",
+      "name_cn": "墨西哥比索",
+      "rounding": "half_even"
+    },
+    {
+      "code": "ZAR",
+      "numeric": "710",
+      "minor_unit_exponent": 2,
+      "name_en": "Rand",
+      "name_cn": "南非兰特",
+      "rounding": "half_even"
+    },
+    {
+      "code": "AED",
+      "numeric": "784",
+      "minor_unit_exponent": 2,
+      "name_en": "UAE Dirham",
+      "name_cn": "阿联酋迪拉姆",
+      "rounding": "half_even"
+    },
+    {
+      "code": "SAR",
+      "numeric": "682",
+      "minor_unit_exponent": 2,
+      "name_en": "Saudi Riyal",
+      "name_cn": "沙特里亚尔",
+      "rounding": "half_even"
+    },
+    {
+      "code": "TRY",
+      "numeric": "949",
+      "minor_unit_exponent": 2,
+      "name_en": "Turkish Lira",
+      "name_cn": "土耳其里拉",
+      "rounding": "half_even"
+    },
+    {
+      "code": "RUB",
+      "numeric": "643",
+      "minor_unit_exponent": 2,
+      "name_en": "Russian Ruble",
+      "name_cn": "俄罗斯卢布",
+      "rounding": "half_even"
+    },
+    {
+      "code": "JPY",
+      "numeric": "392",
+      "minor_unit_exponent": 0,
+      "name_en": "Yen",
+      "name_cn": "日元",
+      "rounding": "half_even"
+    },
+    {
+      "code": "KRW",
+      "numeric": "410",
+      "minor_unit_exponent": 0,
+      "name_en": "Won",
+      "name_cn": "韩元",
+      "rounding": "half_even"
+    },
+    {
+      "code": "VND",
+      "numeric": "704",
+      "minor_unit_exponent": 0,
+      "name_en": "Dong",
+      "name_cn": "越南盾",
+      "rounding": "half_even"
+    },
+    {
+      "code": "IDR",
+      "numeric": "360",
+      "minor_unit_exponent": 2,
+      "name_en": "Rupiah",
+      "name_cn": "印尼盾",
+      "rounding": "half_even"
+    },
+    {
+      "code": "CLP",
+      "numeric": "152",
+      "minor_unit_exponent": 0,
+      "name_en": "Chilean Peso",
+      "name_cn": "智利比索",
+      "rounding": "half_even"
+    },
+    {
+      "code": "ISK",
+      "numeric": "352",
+      "minor_unit_exponent": 0,
+      "name_en": "Iceland Krona",
+      "name_cn": "冰岛克朗",
+      "rounding": "half_even"
+    },
+    {
+      "code": "UGX",
+      "numeric": "800",
+      "minor_unit_exponent": 0,
+      "name_en": "Uganda Shilling",
+      "name_cn": "乌干达先令",
+      "rounding": "half_even"
+    },
+    {
+      "code": "XOF",
+      "numeric": "952",
+      "minor_unit_exponent": 0,
+      "name_en": "CFA Franc BCEAO",
+      "name_cn": "西非法郎",
+      "rounding": "half_even"
+    },
+    {
+      "code": "PYG",
+      "numeric": "600",
+      "minor_unit_exponent": 0,
+      "name_en": "Guarani",
+      "name_cn": "巴拉圭瓜拉尼",
+      "rounding": "half_even"
+    },
+    {
+      "code": "RWF",
+      "numeric": "646",
+      "minor_unit_exponent": 0,
+      "name_en": "Rwanda Franc",
+      "name_cn": "卢旺达法郎",
+      "rounding": "half_even"
+    },
+    {
+      "code": "BHD",
+      "numeric": "048",
+      "minor_unit_exponent": 3,
+      "name_en": "Bahraini Dinar",
+      "name_cn": "巴林第纳尔",
+      "rounding": "half_even"
+    },
+    {
+      "code": "KWD",
+      "numeric": "414",
+      "minor_unit_exponent": 3,
+      "name_en": "Kuwaiti Dinar",
+      "name_cn": "科威特第纳尔",
+      "rounding": "half_even"
+    },
+    {
+      "code": "OMR",
+      "numeric": "512",
+      "minor_unit_exponent": 3,
+      "name_en": "Rial Omani",
+      "name_cn": "阿曼里亚尔",
+      "rounding": "half_even"
+    },
+    {
+      "code": "JOD",
+      "numeric": "400",
+      "minor_unit_exponent": 3,
+      "name_en": "Jordanian Dinar",
+      "name_cn": "约旦第纳尔",
+      "rounding": "half_even"
+    },
+    {
+      "code": "TND",
+      "numeric": "788",
+      "minor_unit_exponent": 3,
+      "name_en": "Tunisian Dinar",
+      "name_cn": "突尼斯第纳尔",
+      "rounding": "half_even"
+    },
+    {
+      "code": "IQD",
+      "numeric": "368",
+      "minor_unit_exponent": 3,
+      "name_en": "Iraqi Dinar",
+      "name_cn": "伊拉克第纳尔",
+      "rounding": "half_even"
+    },
+    {
+      "code": "LYD",
+      "numeric": "434",
+      "minor_unit_exponent": 3,
+      "name_en": "Libyan Dinar",
+      "name_cn": "利比亚第纳尔",
+      "rounding": "half_even"
+    }
+  ]
+}

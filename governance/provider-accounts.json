@@ -1,0 +1,269 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B26",
+  "principle": "渠道回调**永远不能靠猜来归属租户**。绑定关系是唯一的映射来源，而映射的键必须是渠道自己在回调里原样回传的标识；当一个回调无法被唯一归属时，正确的动作是**隔离并告警**，不是「取最像的那一个」——猜错一次，就是把 A 商户的钱记到 B 商户名下。由此派生的另外三条同样是被现实教出来的：凭证**按租户、项目、环境、渠道四维隔离且永不共享**（一把共享密钥意味着一次泄露波及所有人）；绑定**只能由一次真实的往返验证激活**，不是填完表单就算通；以及**停用不等于断开回调**——停用停止发起新支付，但在途交易的回调必须继续接收，否则平台会丢掉自己已经收过钱的证据。",
+  "binding": {
+    "identity_fields": [
+      "tenant_id",
+      "project_id",
+      "environment",
+      "provider",
+      "provider_merchant_id"
+    ],
+    "unique_key": [
+      "tenant_id",
+      "project_id",
+      "environment",
+      "provider"
+    ],
+    "immutable_fields": [
+      "tenant_id",
+      "project_id",
+      "environment",
+      "provider",
+      "provider_merchant_id"
+    ],
+    "one_credential_per_binding": true,
+    "provider_merchant_id_opaque": true,
+    "notes": "绑定的身份四维加上渠道商户号；这五项一旦写入不可修改——可变的绑定等于可迁移的资金去向，而迁移不会留下任何痕迹。要改，只能吊销旧绑定再新建一条，历史因此永远可解释。"
+  },
+  "providers": [
+    {
+      "id": "wechat",
+      "key_id": "kek-provider-credentials",
+      "credential_kind": "signing_key",
+      "environments": [
+        "live",
+        "test"
+      ],
+      "settlement_currencies": [
+        "CNY",
+        "HKD"
+      ],
+      "callback_attribution_field": "provider_merchant_id",
+      "callback_signed": true,
+      "credential_rotation_days": 90,
+      "notes": "微信支付：商户私钥在 HSM 里，应用只能请求签名；回调用商户号归属。"
+    },
+    {
+      "id": "alipay",
+      "key_id": "kek-provider-credentials",
+      "credential_kind": "signing_key",
+      "environments": [
+        "live",
+        "test"
+      ],
+      "settlement_currencies": [
+        "CNY",
+        "HKD"
+      ],
+      "callback_attribution_field": "provider_merchant_id",
+      "callback_signed": true,
+      "credential_rotation_days": 90,
+      "notes": "支付宝：应用私钥同样由 HSM 托管。"
+    },
+    {
+      "id": "stripe",
+      "key_id": "kek-provider-credentials",
+      "credential_kind": "api_key",
+      "environments": [
+        "live",
+        "test"
+      ],
+      "settlement_currencies": [
+        "USD",
+        "EUR",
+        "GBP",
+        "SGD",
+        "HKD"
+      ],
+      "callback_attribution_field": "endpoint_id",
+      "callback_signed": true,
+      "credential_rotation_days": 90,
+      "notes": "Stripe 用 API 密钥而不是签名私钥，且回调按 endpoint 区分——因此归属键是 endpoint 而不是商户号：**每个绑定必须有自己的 endpoint**。"
+    },
+    {
+      "id": "paypal",
+      "key_id": "kek-provider-credentials",
+      "credential_kind": "api_key",
+      "environments": [
+        "live",
+        "test"
+      ],
+      "settlement_currencies": [
+        "USD",
+        "EUR",
+        "GBP"
+      ],
+      "callback_attribution_field": "endpoint_id",
+      "callback_signed": true,
+      "credential_rotation_days": 90,
+      "notes": "PayPal 同上。"
+    },
+    {
+      "id": "apple_pay",
+      "key_id": "kek-provider-credentials",
+      "credential_kind": "decryption_key",
+      "environments": [
+        "live",
+        "test"
+      ],
+      "settlement_currencies": [
+        "USD",
+        "EUR",
+        "GBP",
+        "CNY",
+        "HKD"
+      ],
+      "callback_attribution_field": "provider_merchant_id",
+      "callback_signed": true,
+      "credential_rotation_days": 90,
+      "notes": "Apple Pay：支付处理私钥用于解密令牌，同样在 HSM 内。"
+    }
+  ],
+  "credentials": {
+    "storage": "envelope_encrypted",
+    "plaintext_at_rest": false,
+    "plaintext_in_logs": false,
+    "max_decrypt_lease_seconds": 300,
+    "shared_across_tenants": false,
+    "shared_across_environments": false,
+    "shared_across_projects": false,
+    "rotation_max_days": 90,
+    "rotation_overlap_days": 7,
+    "notes": "凭证解密是**短租约**：拿到明文的窗口以秒计，过期即失效，因为一个长期驻留内存的渠道私钥等于一个长期可被导出的私钥。轮换必须有重叠期——没有重叠期的轮换会在切换的瞬间丢掉正在途中的回调，而那些回调正是平台证明自己收过钱的唯一凭据。"
+  },
+  "callback": {
+    "signature_required": true,
+    "attribution_must_be_deterministic": true,
+    "guess_on_ambiguity": false,
+    "quarantine_on_unattributable": true,
+    "cross_tenant_delivery_allowed": false,
+    "replay_window_seconds": 300,
+    "idempotency_key_field": "provider_event_id",
+    "client_return_page_is_evidence": false,
+    "notes": "回调必须验签、必须能被唯一归属、必须带渠道事件号做幂等。客户端回跳页**不是**支付成功的证据（NN-01）：它由付款人的浏览器发起，任何人都能构造。"
+  },
+  "quarantine": {
+    "retention_days": 30,
+    "alert_required": true,
+    "auto_replay_allowed": false,
+    "manual_replay_requires_attribution": true,
+    "notes": "无法归属的回调进隔离区并告警。**不允许自动重放**——自动重放一个归属不明的资金事件，等于让系统替人做那个它做不了的判断。人工重放必须先给出明确归属。"
+  },
+  "activation": {
+    "test_transaction_required": true,
+    "callback_roundtrip_required": true,
+    "signature_verification_required": true,
+    "notes": "激活的条件是**一次真实的往返**：发起一笔测试交易、收到渠道回调、验签通过。填完表单就置为可用，等于把第一次真实支付当成联调。"
+  },
+  "lifecycle": {
+    "states": [
+      "pending",
+      "active",
+      "suspended",
+      "revoked"
+    ],
+    "initial": "pending",
+    "terminal": [
+      "revoked"
+    ],
+    "transitions": [
+      {
+        "from": "pending",
+        "to": "active",
+        "requires": [
+          "test_transaction_settled",
+          "callback_roundtrip_verified"
+        ],
+        "notes": "只有往返验证通过才能激活。"
+      },
+      {
+        "from": "active",
+        "to": "suspended",
+        "requires": [
+          "reason",
+          "actor"
+        ],
+        "notes": "停用停止发起新支付，但不断开回调。"
+      },
+      {
+        "from": "suspended",
+        "to": "active",
+        "requires": [
+          "reason",
+          "actor",
+          "second_approver"
+        ],
+        "notes": "恢复需要第二个人：单人恢复等于单人推翻风控的决定。"
+      },
+      {
+        "from": "suspended",
+        "to": "revoked",
+        "requires": [
+          "in_flight_settled",
+          "credential_destroyed"
+        ],
+        "notes": "吊销前必须先把在途交易结清，再销毁凭证。"
+      },
+      {
+        "from": "active",
+        "to": "revoked",
+        "requires": [
+          "in_flight_settled",
+          "credential_destroyed",
+          "second_approver"
+        ],
+        "notes": "直接吊销同样要先结清在途，且需要复核。"
+      }
+    ]
+  },
+  "capability_matrix": [
+    {
+      "state": "pending",
+      "initiate_payment": false,
+      "receive_callback": true,
+      "issue_refund": false,
+      "settle": false,
+      "rotate_credential": true,
+      "notes": "待验证：只能收到自己发起的那笔测试交易的回调。"
+    },
+    {
+      "state": "active",
+      "initiate_payment": true,
+      "receive_callback": true,
+      "issue_refund": true,
+      "settle": true,
+      "rotate_credential": true,
+      "notes": "已验证：发起、回调、退款、结算、轮换全开；这是唯一可以接受真实支付的状态。"
+    },
+    {
+      "state": "suspended",
+      "initiate_payment": false,
+      "receive_callback": true,
+      "issue_refund": true,
+      "settle": true,
+      "rotate_credential": true,
+      "notes": "停用停止新支付；**回调、退款、结算必须继续**——在途的钱已经离开付款人，断开回调只会让平台丢掉自己收过钱的证据。"
+    },
+    {
+      "state": "revoked",
+      "initiate_payment": false,
+      "receive_callback": false,
+      "issue_refund": false,
+      "settle": false,
+      "rotate_credential": false,
+      "notes": "吊销后凭证已销毁，什么都做不了；此前的在途交易在吊销前已结清。"
+    }
+  ],
+  "forbidden": {
+    "shared_credential_across_tenants": true,
+    "shared_credential_across_environments": true,
+    "credential_in_source_or_ci": true,
+    "callback_without_signature": true,
+    "attribution_by_amount_or_time": true,
+    "notes": "最后一条最容易被当成「聪明的兜底」：用金额加时间去猜归属。它在测试环境永远有效，在生产环境会在第一个并发相同金额的时刻把两笔钱记反。"
+  },
+  "rotation_permission": "config.write",
+  "audit_event_class": "config.change"
+}

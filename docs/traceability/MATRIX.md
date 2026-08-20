@@ -1,10 +1,13 @@
 <!-- GENERATED FILE — do not edit by hand.
-     Source of truth: governance/requirements.json + service-boundaries.json + docs/adr/ + evidence/
+     Source of truth: governance/requirements.json + governance/service-boundaries.json + docs/adr/
      Regenerate with: python3 scripts/render-docs.py -->
 
 # 双向追踪矩阵（B07）
 
-需求 53 条 · 能力 18 项 · ADR 12 条 · 红线 15 条 · 控制 20 条 · 已出证据批次 7 个。
+需求 53 条 · 能力 18 项 · ADR 12 条 · 红线 15 条 · 控制 20 条。
+
+批次证据到控制的映射不在本文档中——它随证据变化，放进受哈希固定的文档会造成
+“完成一个批次即让该批次失效”的循环。见 `evidence/*/runtime/trace-graph.json`。
 
 ## 需求 → 能力 → 模块 → 控制 → 验证批次 → ADR
 
@@ -103,15 +106,3 @@
 | CTRL-018 | PAY-REQ-0053 |
 | CTRL-019 | PAY-REQ-0052 |
 | CTRL-020 | PAY-REQ-0049 |
-
-## 已出证据批次 → 控制 → 测试
-
-| 批次 | 控制 | 测试 |
-| --- | --- | --- |
-| B00 | CTRL-011 NN-01 NN-02 NN-05 NN-07 NN-09 NN-11 NN-12 NN-13 | test_b00_charter.py test_b00_cli.py test_b00_module_registry.py test_b00_nonnegotiables.py test_b00_project_config.py test_b00_repo_hygiene.py |
-| B01 | CTRL-016 CTRL-020 NN-01 NN-12 | test_b01_boundaries.py test_b01_docs_drift.py test_b01_requirements.py |
-| B02 | CTRL-012 CTRL-020 NN-11 NN-12 NN-15 | test_b01_docs_drift.py test_b02_adr.py test_b02_threat_model.py |
-| B03 | CTRL-011 CTRL-018 NN-11 NN-12 NN-15 | test_b02_adr.py test_b03_toolchain.py |
-| B04 | CTRL-003 CTRL-016 NN-02 NN-04 NN-07 NN-08 NN-09 | test_b04_dev_platform.py test_b04_simulator.py |
-| B05 | CTRL-011 CTRL-018 CTRL-020 NN-11 NN-12 | test_b00_cli.py test_b05_ci.py |
-| B06 | CTRL-007 CTRL-020 NN-11 NN-12 | test_b06_evidence.py test_b06_orchestration.py |

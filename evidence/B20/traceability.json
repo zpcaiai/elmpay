@@ -1,0 +1,249 @@
+{
+  "batch_id": "B20",
+  "requirements": [
+    {
+      "id": "B20-R1",
+      "statement": "所有渠道私钥、API 密钥与敏感配置由 KMS/HSM 管理",
+      "source": "batches/B20.md 目标"
+    },
+    {
+      "id": "B20-R2",
+      "statement": "应用只持有短期解密能力，不持有密钥材料",
+      "source": "batches/B20.md 目标"
+    },
+    {
+      "id": "B20-R3",
+      "statement": "信封加密：一条记录一把数据密钥，密文绑定租户、用途与密钥版本",
+      "source": "policies/non-negotiables.md#6"
+    },
+    {
+      "id": "B20-R4",
+      "statement": "根密钥不可导出、存于 HSM、操作需法定人数",
+      "source": "policies/non-negotiables.md#7"
+    },
+    {
+      "id": "B20-R5",
+      "statement": "密钥轮换有周期、有重叠期、可紧急轮换，且只重新包裹不重写数据",
+      "source": "batches/B20.md 实施要求"
+    },
+    {
+      "id": "B20-R6",
+      "statement": "支持密码学销毁：租户下线销毁其 KEK",
+      "source": "policies/non-negotiables.md#6"
+    },
+    {
+      "id": "B20-R7",
+      "statement": "每一次密钥使用都被审计并记录密钥版本",
+      "source": "policies/non-negotiables.md#13"
+    },
+    {
+      "id": "B20-R8",
+      "statement": "B19 标记为敏感的字段必须有数据密钥保护；承诺不存储的字段不得被加密存储",
+      "source": "governance/authorization.json"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/key-management.json",
+      "requirements": [
+        "B20-R1",
+        "B20-R2",
+        "B20-R3",
+        "B20-R4",
+        "B20-R5",
+        "B20-R6",
+        "B20-R7",
+        "B20-R8"
+      ]
+    },
+    {
+      "ref": "tools/paygov/keys.py",
+      "requirements": [
+        "B20-R1",
+        "B20-R2",
+        "B20-R3",
+        "B20-R4",
+        "B20-R5",
+        "B20-R6",
+        "B20-R7",
+        "B20-R8"
+      ]
+    },
+    {
+      "ref": "libs/kms/reference/envelope.py",
+      "requirements": [
+        "B20-R2",
+        "B20-R3",
+        "B20-R5",
+        "B20-R6",
+        "B20-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/keysgen.py",
+      "requirements": [
+        "B20-R1",
+        "B20-R3"
+      ]
+    },
+    {
+      "ref": "scripts/render-keys.py",
+      "requirements": [
+        "B20-R1"
+      ]
+    },
+    {
+      "ref": "scripts/kms-smoke.py",
+      "requirements": [
+        "B20-R2",
+        "B20-R3",
+        "B20-R5",
+        "B20-R6",
+        "B20-R7"
+      ]
+    },
+    {
+      "ref": "contracts/security/key-inventory.json",
+      "requirements": [
+        "B20-R1",
+        "B20-R4"
+      ]
+    },
+    {
+      "ref": "docs/security/KEY_MANAGEMENT.md",
+      "requirements": [
+        "B20-R1",
+        "B20-R5",
+        "B20-R6"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b20_keys.py",
+      "requirements": [
+        "B20-R1",
+        "B20-R2",
+        "B20-R3",
+        "B20-R4",
+        "B20-R5",
+        "B20-R6",
+        "B20-R7",
+        "B20-R8"
+      ],
+      "cases": 102
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "governance/key-management.json",
+        "tools/paygov/keys.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b20_keys.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-06",
+      "implemented_by": [
+        "governance/key-management.json",
+        "libs/kms/reference/envelope.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b20_keys.py",
+        "scripts/kms-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-07",
+      "implemented_by": [
+        "governance/key-management.json",
+        "tools/paygov/keys.py",
+        "libs/kms/reference/envelope.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b20_keys.py",
+        "scripts/kms-smoke.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-13",
+      "implemented_by": [
+        "governance/key-management.json",
+        "libs/kms/reference/envelope.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b20_keys.py",
+        "scripts/kms-smoke.py"
+      ]
+    },
+    {
+      "id": "CTRL-004",
+      "implemented_by": [
+        "governance/key-management.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b20_keys.py"
+      ]
+    },
+    {
+      "id": "CTRL-006",
+      "implemented_by": [
+        "governance/key-management.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b20_keys.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B20/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B20/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B20/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B20/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B20/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B20/runtime/keys-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B20/runtime/kms-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B20/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B20/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B20/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B20.json",
+      "kind": "completion"
+    }
+  ]
+}

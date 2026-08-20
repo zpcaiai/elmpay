@@ -1,0 +1,335 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B27",
+  "principle": "能力矩阵**必须默认拒绝**。没有明确声明的组合（渠道 × 支付方式 × 地区 × 币种 × 设备）一律视为不支持，而不是「先发出去看渠道怎么说」——后者把失败推迟到付款人已经输完卡号的那一刻，而且失败原因来自我们读不懂的第三方报文。由此派生的三条同样是被现实教出来的：**授权有有效期**，过期后的捕获即使侥幸成功也在争议里站不住，必须重新授权；**退款有窗口**，窗口之外只能走争议或线下，平台不得在界面上承诺自己做不到的事；**争议的答复时限是外部设定的**，错过即自动判负，因此它必须是硬性约束而不是提醒。",
+  "resolution": {
+    "default": "deny",
+    "unknown_combination": "unsupported",
+    "silent_fallback_to_another_method": false,
+    "silent_fallback_to_another_provider": false,
+    "notes": "解析顺序：地区 → 支付方式 → 渠道 → 币种 → 设备，任一步没有命中就是不支持。**不允许静默换渠道或换支付方式**：付款人以为自己在用 A 付款，账单上出现 B，这在争议里是我们的举证责任，不是渠道的。"
+  },
+  "device_kinds": [
+    "web",
+    "ios",
+    "android",
+    "in_app_webview",
+    "pos"
+  ],
+  "payment_methods": [
+    {
+      "id": "wechat_pay",
+      "kind": "wallet",
+      "notes": "微信支付：钱包，无卡组织争议流程。"
+    },
+    {
+      "id": "alipay",
+      "kind": "wallet",
+      "notes": "支付宝：同上。"
+    },
+    {
+      "id": "card",
+      "kind": "card",
+      "notes": "卡：唯一同时具备授权/捕获与卡组织争议的方式。"
+    },
+    {
+      "id": "paypal_wallet",
+      "kind": "wallet",
+      "notes": "PayPal 余额与绑定资金源。"
+    },
+    {
+      "id": "apple_pay",
+      "kind": "device_wallet",
+      "notes": "Apple Pay：设备钱包，底层仍是卡；因此设备维度是硬限制。"
+    }
+  ],
+  "capabilities": [
+    {
+      "provider": "wechat",
+      "method": "wechat_pay",
+      "regions": [
+        "CN",
+        "HK"
+      ],
+      "currencies": [
+        "CNY",
+        "HKD"
+      ],
+      "devices": [
+        "web",
+        "ios",
+        "android",
+        "in_app_webview"
+      ],
+      "supports_authorization_capture": false,
+      "authorization_valid_hours": 0,
+      "partial_capture": false,
+      "capture_max_percent": 100,
+      "refund_window_days": 365,
+      "partial_refund": true,
+      "refund_to_original_instrument_only": true,
+      "supports_subscription": true,
+      "dispute_window_days": 90,
+      "dispute_response_days": 15,
+      "notes": "微信支付没有授权/捕获两段式，下单即扣款；「争议」是平台介入的投诉流程，不是卡组织拒付——写成 chargeback 会让风控用错模型。"
+    },
+    {
+      "provider": "alipay",
+      "method": "alipay",
+      "regions": [
+        "CN",
+        "HK"
+      ],
+      "currencies": [
+        "CNY",
+        "HKD"
+      ],
+      "devices": [
+        "web",
+        "ios",
+        "android",
+        "in_app_webview"
+      ],
+      "supports_authorization_capture": false,
+      "authorization_valid_hours": 0,
+      "partial_capture": false,
+      "capture_max_percent": 100,
+      "refund_window_days": 365,
+      "partial_refund": true,
+      "refund_to_original_instrument_only": true,
+      "supports_subscription": true,
+      "dispute_window_days": 90,
+      "dispute_response_days": 15,
+      "notes": "支付宝同样是一段式扣款；退款窗口一年。"
+    },
+    {
+      "provider": "stripe",
+      "method": "card",
+      "regions": [
+        "HK",
+        "SG",
+        "EU"
+      ],
+      "currencies": [
+        "USD",
+        "EUR",
+        "SGD",
+        "HKD"
+      ],
+      "devices": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "supports_authorization_capture": true,
+      "authorization_valid_hours": 168,
+      "partial_capture": true,
+      "capture_max_percent": 100,
+      "refund_window_days": 180,
+      "partial_refund": true,
+      "refund_to_original_instrument_only": true,
+      "supports_subscription": true,
+      "dispute_window_days": 120,
+      "dispute_response_days": 20,
+      "notes": "卡授权有效期七天，超期捕获必须重新授权；**捕获上限就是授权金额**——超捕获在部分收单机构会成功，但持卡人有权拒付超出部分。"
+    },
+    {
+      "provider": "stripe",
+      "method": "apple_pay",
+      "regions": [
+        "HK",
+        "SG",
+        "EU"
+      ],
+      "currencies": [
+        "USD",
+        "EUR",
+        "SGD",
+        "HKD"
+      ],
+      "devices": [
+        "ios",
+        "web"
+      ],
+      "supports_authorization_capture": true,
+      "authorization_valid_hours": 168,
+      "partial_capture": true,
+      "capture_max_percent": 100,
+      "refund_window_days": 180,
+      "partial_refund": true,
+      "refund_to_original_instrument_only": true,
+      "supports_subscription": false,
+      "dispute_window_days": 120,
+      "dispute_response_days": 20,
+      "notes": "Apple Pay 走卡通道，因此争议规则与卡一致；但设备维度不是建议而是限制：Android 上没有 Apple Pay。"
+    },
+    {
+      "provider": "apple_pay",
+      "method": "apple_pay",
+      "regions": [
+        "CN"
+      ],
+      "currencies": [
+        "CNY"
+      ],
+      "devices": [
+        "ios"
+      ],
+      "supports_authorization_capture": true,
+      "authorization_valid_hours": 168,
+      "partial_capture": false,
+      "capture_max_percent": 100,
+      "refund_window_days": 180,
+      "partial_refund": true,
+      "refund_to_original_instrument_only": true,
+      "supports_subscription": false,
+      "dispute_window_days": 120,
+      "dispute_response_days": 20,
+      "notes": "境内 Apple Pay 直连，仅 iOS，且不支持部分捕获。"
+    },
+    {
+      "provider": "paypal",
+      "method": "paypal_wallet",
+      "regions": [
+        "SG",
+        "EU",
+        "HK"
+      ],
+      "currencies": [
+        "USD",
+        "EUR"
+      ],
+      "devices": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "supports_authorization_capture": true,
+      "authorization_valid_hours": 72,
+      "partial_capture": true,
+      "capture_max_percent": 100,
+      "refund_window_days": 180,
+      "partial_refund": true,
+      "refund_to_original_instrument_only": true,
+      "supports_subscription": true,
+      "dispute_window_days": 180,
+      "dispute_response_days": 10,
+      "notes": "PayPal 的授权保证期只有三天，比卡短得多——把它和卡写在同一个常量里，是「为什么我们的延迟发货订单收不到钱」的标准答案。"
+    }
+  ],
+  "authorization": {
+    "max_valid_hours": 168,
+    "capture_after_expiry_allowed": false,
+    "reauthorization_required": true,
+    "over_capture_allowed": false,
+    "notes": "授权不是「预留了一笔钱」而是「持卡人银行答应在若干天内认这笔账」。过期后捕获可能仍然返回成功，但持卡人有权拒付，且举证责任在我们。"
+  },
+  "refund": {
+    "beyond_window_action": "manual_or_dispute",
+    "promise_beyond_window": false,
+    "refund_exceeding_capture_allowed": false,
+    "notes": "窗口之外不能在界面上给出「退款」按钮：一个点了不生效的按钮，比没有按钮更糟——它让客服和商户都以为钱已经在路上。"
+  },
+  "dispute": {
+    "deadline_is_external": true,
+    "missing_response_loses_by_default": true,
+    "auto_accept_allowed": false,
+    "evidence_required": [
+      "order_record",
+      "delivery_proof",
+      "authorization_record"
+    ],
+    "notes": "答复时限由卡组织或渠道设定，不是我们的 SLA：错过即判负，没有申诉。**不允许自动认赔**——自动认赔会把一次误操作变成一条被欺诈者反复利用的通道。"
+  },
+  "availability": [
+    {
+      "provider": "wechat",
+      "scheduled_maintenance": true,
+      "maintenance_window_utc": "18:00-18:30",
+      "degraded_behaviour": "reject",
+      "silent_fallback_allowed": false,
+      "notes": "维护窗口内拒绝下单并明确告知，不静默转到别的渠道。"
+    },
+    {
+      "provider": "alipay",
+      "scheduled_maintenance": true,
+      "maintenance_window_utc": "18:00-18:30",
+      "degraded_behaviour": "reject",
+      "silent_fallback_allowed": false,
+      "notes": "维护窗口内同样拒绝下单并告知付款人，不静默转到微信或卡。"
+    },
+    {
+      "provider": "stripe",
+      "scheduled_maintenance": false,
+      "maintenance_window_utc": "",
+      "degraded_behaviour": "reject",
+      "silent_fallback_allowed": false,
+      "notes": "无固定维护窗口；不可用时直接拒绝而不是排队，排队会让付款人重复下单。"
+    },
+    {
+      "provider": "paypal",
+      "scheduled_maintenance": false,
+      "maintenance_window_utc": "",
+      "degraded_behaviour": "reject",
+      "silent_fallback_allowed": false,
+      "notes": "无固定维护窗口；不可用时直接拒绝，授权保证期只有三天，排队等于错过窗口。"
+    },
+    {
+      "provider": "apple_pay",
+      "scheduled_maintenance": false,
+      "maintenance_window_utc": "",
+      "degraded_behaviour": "reject",
+      "silent_fallback_allowed": false,
+      "notes": "无固定维护窗口；不可用时拒绝，设备钱包没有可降级的替代路径。"
+    }
+  ],
+  "region_policy": [
+    {
+      "region": "CN",
+      "allowed_methods": [
+        "wechat_pay",
+        "alipay",
+        "apple_pay"
+      ],
+      "requires_local_acquirer": true,
+      "strong_customer_authentication": false,
+      "notes": "境内需要境内收单；钱包为主。"
+    },
+    {
+      "region": "HK",
+      "allowed_methods": [
+        "wechat_pay",
+        "alipay",
+        "card",
+        "apple_pay",
+        "paypal_wallet"
+      ],
+      "requires_local_acquirer": false,
+      "strong_customer_authentication": false,
+      "notes": "香港：钱包与卡并存。"
+    },
+    {
+      "region": "SG",
+      "allowed_methods": [
+        "card",
+        "apple_pay",
+        "paypal_wallet"
+      ],
+      "requires_local_acquirer": false,
+      "strong_customer_authentication": false,
+      "notes": "新加坡：以卡为主。"
+    },
+    {
+      "region": "EU",
+      "allowed_methods": [
+        "card",
+        "apple_pay",
+        "paypal_wallet"
+      ],
+      "requires_local_acquirer": true,
+      "strong_customer_authentication": true,
+      "notes": "欧盟：PSD2 强客户认证是法定要求，**不是可配置项**；关掉它不是降级体验，是违法。"
+    }
+  ],
+  "audit_event_class": "config.change"
+}

@@ -1,0 +1,438 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B16",
+  "principle": "不存在「内网所以可信」。每一次访问都要在**这一次**证明身份、证明设备与上下文、命中最小权限策略，并留下可审计的判定记录。",
+  "deny_by_default": true,
+  "network_location_grants": [],
+  "required_factors": [
+    "authenticated_identity",
+    "authorisation_policy",
+    "audit_record",
+    "device_posture",
+    "workload_attestation",
+    "request_signature",
+    "tenant_binding",
+    "phishing_resistant_mfa",
+    "justification",
+    "time_bound_session",
+    "token_audience",
+    "egress_allowlist",
+    "provenance_attestation"
+  ],
+  "principal_kinds": [
+    "human",
+    "machine",
+    "workload"
+  ],
+  "session": {
+    "max_human_session_minutes": 60,
+    "reauth_minutes": 60,
+    "revocation_propagation_seconds": 60,
+    "policy": "撤销必须在 60 秒内在所有服务生效。一个「最长 8 小时」的令牌，就是攻击者在你发现之前的 8 小时。"
+  },
+  "workload_identity": {
+    "scheme": "spiffe_like",
+    "transport": "mtls",
+    "max_certificate_minutes": 60,
+    "static_long_lived_credentials_allowed": false,
+    "policy": "工作负载身份由平台签发、短期有效、自动轮换。长期静态服务账号密码一旦泄露就没有过期这回事（NN-07）。"
+  },
+  "audit": {
+    "every_decision_recorded": true,
+    "required_fields": [
+      "actor",
+      "principal_kind",
+      "resource_class",
+      "action",
+      "decision",
+      "reason",
+      "policy_version",
+      "trace_id",
+      "occurred_at"
+    ],
+    "immutable": true,
+    "policy": "每一次判定——**包括允许**——都要落审计。只记拒绝的审计，在事后调查里等于没有审计（CTRL-007）。"
+  },
+  "zone_rules": [
+    {
+      "boundary": "TB-01",
+      "requires": [
+        "authenticated_identity",
+        "audit_record"
+      ],
+      "mutual_tls": false,
+      "notes": "付款人到公共边缘：不要求 mTLS，但边缘必须终止 TLS 并做机器人与限流。"
+    },
+    {
+      "boundary": "TB-02",
+      "requires": [
+        "request_signature",
+        "tenant_binding",
+        "audit_record"
+      ],
+      "mutual_tls": false,
+      "notes": "业务项目到平台：签名 + 租户绑定，租户来自密钥而不是请求体。"
+    },
+    {
+      "boundary": "TB-03",
+      "requires": [
+        "authenticated_identity",
+        "authorisation_policy",
+        "audit_record"
+      ],
+      "mutual_tls": true,
+      "notes": "公共边缘到支付核心：即使都在「内网」，也要双向 mTLS。这条是零信任与传统边界安全的分水岭。"
+    },
+    {
+      "boundary": "TB-05",
+      "requires": [
+        "workload_attestation",
+        "egress_allowlist",
+        "audit_record"
+      ],
+      "mutual_tls": true,
+      "notes": "连接器到渠道：出站白名单 + 工作负载证明。"
+    },
+    {
+      "boundary": "TB-07",
+      "requires": [
+        "phishing_resistant_mfa",
+        "device_posture",
+        "justification",
+        "audit_record"
+      ],
+      "mutual_tls": true,
+      "notes": "管理员到后台：抗钓鱼 MFA + 设备状态 + 操作理由。"
+    },
+    {
+      "boundary": "TB-08",
+      "requires": [
+        "workload_attestation",
+        "tenant_binding",
+        "audit_record"
+      ],
+      "mutual_tls": true,
+      "notes": "服务到数据层：工作负载身份 + 租户绑定，与 B13 的强制 RLS 互为纵深。"
+    },
+    {
+      "boundary": "TB-10",
+      "requires": [
+        "workload_attestation",
+        "audit_record"
+      ],
+      "mutual_tls": true,
+      "notes": "服务到 KMS：只有工作负载身份能取密钥，人拿不到（NN-07）。"
+    },
+    {
+      "boundary": "TB-11",
+      "requires": [
+        "provenance_attestation",
+        "audit_record"
+      ],
+      "mutual_tls": true,
+      "notes": "CI 到制品库：来源证明是供应链的第一道门。"
+    },
+    {
+      "boundary": "TB-04",
+      "requires": [
+        "workload_attestation",
+        "token_audience",
+        "audit_record"
+      ],
+      "mutual_tls": true,
+      "notes": "支付核心到连接器：两侧都在「内网」，仍然要双向 mTLS 与受众校验。连接器被攻陷时，它拿到的令牌不应该能回头调用支付核心。"
+    },
+    {
+      "boundary": "TB-06",
+      "requires": [
+        "request_signature",
+        "audit_record"
+      ],
+      "mutual_tls": false,
+      "notes": "渠道回调到回调入口：渠道不会用我们的 mTLS，所以这里靠签名 + 时间戳 + 重放窗口。验签之前不做任何业务判断（NN-08）。"
+    },
+    {
+      "boundary": "TB-09",
+      "requires": [
+        "workload_attestation",
+        "tenant_binding",
+        "audit_record"
+      ],
+      "mutual_tls": true,
+      "notes": "服务到消息层：消息里带租户，消费方必须能证明自己有权读这个租户的事件。只靠「能连上 broker」就能读全部主题，是最常见的横向移动路径。"
+    },
+    {
+      "boundary": "TB-12",
+      "requires": [
+        "workload_attestation",
+        "egress_allowlist",
+        "audit_record"
+      ],
+      "mutual_tls": false,
+      "notes": "服务到第三方监控与通知：出站白名单 + 最小化载荷。监控与短信通道是数据外带最常被忽略的出口（NN-14）。"
+    }
+  ],
+  "principals": [
+    {
+      "id": "payer",
+      "kind": "human",
+      "home_zone": "Z01",
+      "identity_source": "none",
+      "credential": "session_token",
+      "credential_lifetime_minutes": 30,
+      "rotation_days": 0,
+      "notes": "付款人不注册也能付款。它的身份是「这次会话」，不是「这个人」，所以它的权限只能是「推进自己这一笔支付」。"
+    },
+    {
+      "id": "merchant-api-client",
+      "kind": "machine",
+      "home_zone": "Z02",
+      "identity_source": "tenant_api_key",
+      "credential": "http_signature",
+      "credential_lifetime_minutes": 15,
+      "rotation_days": 90,
+      "notes": "商户服务端。签名有效期 15 分钟，密钥 90 天轮换；密钥本身不落地，由 KMS 短期解密（NN-07）。"
+    },
+    {
+      "id": "platform-operator",
+      "kind": "human",
+      "home_zone": "Z07",
+      "identity_source": "corporate_idp",
+      "credential": "webauthn",
+      "credential_lifetime_minutes": 60,
+      "rotation_days": 0,
+      "notes": "平台运营人员。抗钓鱼 MFA 是硬要求（B18 落地），会话 60 分钟，高风险操作要求 step-up 并四眼复核（NN-11）。"
+    },
+    {
+      "id": "service-workload",
+      "kind": "workload",
+      "home_zone": "Z04",
+      "identity_source": "workload_identity",
+      "credential": "mtls_certificate",
+      "credential_lifetime_minutes": 60,
+      "rotation_days": 1,
+      "notes": "服务工作负载。证书 60 分钟有效、每天轮换；**不存在长期静态服务账号密码**。"
+    },
+    {
+      "id": "connector-egress",
+      "kind": "workload",
+      "home_zone": "Z05",
+      "identity_source": "workload_identity",
+      "credential": "mtls_certificate",
+      "credential_lifetime_minutes": 60,
+      "rotation_days": 1,
+      "notes": "出站到渠道的工作负载。它拿的是出站身份，拿不到支付核心的数据面权限。"
+    },
+    {
+      "id": "ci-pipeline",
+      "kind": "workload",
+      "home_zone": "Z11",
+      "identity_source": "oidc_federation",
+      "credential": "short_lived_token",
+      "credential_lifetime_minutes": 15,
+      "rotation_days": 0,
+      "notes": "CI 用 OIDC 联合换取 15 分钟令牌，仓库里不存任何云凭据（NN-07）。"
+    },
+    {
+      "id": "break-glass",
+      "kind": "human",
+      "home_zone": "Z07",
+      "identity_source": "corporate_idp",
+      "credential": "webauthn",
+      "credential_lifetime_minutes": 60,
+      "rotation_days": 0,
+      "notes": "紧急通道。它能跨租户，所以它必须留审计事件、四眼复核并自动过期（NN-11）。"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "ZTD-01",
+      "principal": "payer",
+      "resource_class": "own_payment",
+      "action": "advance",
+      "requirements": [
+        "authenticated_identity",
+        "authorisation_policy",
+        "audit_record"
+      ],
+      "step_up": false,
+      "four_eyes": false,
+      "audit_event": "payer.payment_advanced",
+      "notes": "付款人只能推进自己那一笔，且推进结果不作为成功依据（NN-03）——真正的成功来自渠道事件。"
+    },
+    {
+      "id": "ZTD-02",
+      "principal": "merchant-api-client",
+      "resource_class": "tenant_payment",
+      "action": "write",
+      "requirements": [
+        "authenticated_identity",
+        "authorisation_policy",
+        "audit_record",
+        "request_signature",
+        "tenant_binding"
+      ],
+      "step_up": false,
+      "four_eyes": false,
+      "audit_event": "merchant.payment_write",
+      "notes": "商户只能操作自己租户的支付。租户绑定来自密钥，不来自请求体——让请求体决定租户就是跨租户越权的入口。"
+    },
+    {
+      "id": "ZTD-03",
+      "principal": "merchant-api-client",
+      "resource_class": "tenant_payment",
+      "action": "read",
+      "requirements": [
+        "authenticated_identity",
+        "authorisation_policy",
+        "audit_record",
+        "request_signature",
+        "tenant_binding"
+      ],
+      "step_up": false,
+      "four_eyes": false,
+      "audit_event": "merchant.payment_read",
+      "notes": "读也要绑定租户。只在写路径上做隔离是最常见的疏漏。"
+    },
+    {
+      "id": "ZTD-04",
+      "principal": "platform-operator",
+      "resource_class": "tenant_payment",
+      "action": "read",
+      "requirements": [
+        "authenticated_identity",
+        "authorisation_policy",
+        "audit_record",
+        "device_posture",
+        "phishing_resistant_mfa",
+        "justification"
+      ],
+      "step_up": false,
+      "four_eyes": false,
+      "audit_event": "operator.payment_read",
+      "notes": "运营读租户数据必须给出理由，理由进审计。「我看一眼」也要留痕。"
+    },
+    {
+      "id": "ZTD-05",
+      "principal": "platform-operator",
+      "resource_class": "refund",
+      "action": "approve",
+      "requirements": [
+        "authenticated_identity",
+        "authorisation_policy",
+        "audit_record",
+        "device_posture",
+        "phishing_resistant_mfa",
+        "justification"
+      ],
+      "step_up": true,
+      "four_eyes": true,
+      "audit_event": "operator.refund_approved",
+      "notes": "退款审批是资金操作：需要 step-up 且审批人不得是发起人（NN-11）。"
+    },
+    {
+      "id": "ZTD-06",
+      "principal": "platform-operator",
+      "resource_class": "risk_rule",
+      "action": "write",
+      "requirements": [
+        "authenticated_identity",
+        "authorisation_policy",
+        "audit_record",
+        "device_posture",
+        "phishing_resistant_mfa",
+        "justification"
+      ],
+      "step_up": true,
+      "four_eyes": true,
+      "audit_event": "operator.risk_rule_changed",
+      "notes": "改风控规则等于改所有后续支付的判定，按资金操作对待。"
+    },
+    {
+      "id": "ZTD-07",
+      "principal": "break-glass",
+      "resource_class": "cross_tenant_data",
+      "action": "read",
+      "requirements": [
+        "authenticated_identity",
+        "authorisation_policy",
+        "audit_record",
+        "device_posture",
+        "phishing_resistant_mfa",
+        "justification",
+        "time_bound_session"
+      ],
+      "step_up": true,
+      "four_eyes": true,
+      "audit_event": "breakglass.cross_tenant_read",
+      "notes": "紧急通道是唯一能跨租户的路径。它必须自动过期，且必须四眼。"
+    },
+    {
+      "id": "ZTD-08",
+      "principal": "service-workload",
+      "resource_class": "owned_table",
+      "action": "write",
+      "requirements": [
+        "authenticated_identity",
+        "workload_attestation",
+        "authorisation_policy",
+        "audit_record"
+      ],
+      "step_up": false,
+      "four_eyes": false,
+      "audit_event": "workload.data_write",
+      "notes": "工作负载只能写自己模块拥有的表（与 B14 的 TOPO_TABLE_ACCESS 同一条边界）。"
+    },
+    {
+      "id": "ZTD-09",
+      "principal": "service-workload",
+      "resource_class": "internal_api",
+      "action": "call",
+      "requirements": [
+        "authenticated_identity",
+        "workload_attestation",
+        "authorisation_policy",
+        "audit_record",
+        "token_audience"
+      ],
+      "step_up": false,
+      "four_eyes": false,
+      "audit_event": "workload.internal_call",
+      "notes": "服务间调用要校验令牌受众。没有受众校验的令牌等于万能钥匙。"
+    },
+    {
+      "id": "ZTD-10",
+      "principal": "connector-egress",
+      "resource_class": "provider_api",
+      "action": "call",
+      "requirements": [
+        "authenticated_identity",
+        "workload_attestation",
+        "authorisation_policy",
+        "audit_record",
+        "egress_allowlist"
+      ],
+      "step_up": false,
+      "four_eyes": false,
+      "audit_event": "workload.provider_call",
+      "notes": "出站必须走白名单。任意出站等于把数据外带通道留给攻击者。"
+    },
+    {
+      "id": "ZTD-11",
+      "principal": "ci-pipeline",
+      "resource_class": "artifact_registry",
+      "action": "write",
+      "requirements": [
+        "authenticated_identity",
+        "workload_attestation",
+        "authorisation_policy",
+        "audit_record",
+        "provenance_attestation"
+      ],
+      "step_up": false,
+      "four_eyes": false,
+      "audit_event": "ci.artifact_published",
+      "notes": "CI 发布制品必须带来源证明，否则供应链上谁都能塞东西进来。"
+    }
+  ]
+}

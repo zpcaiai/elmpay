@@ -1,0 +1,13 @@
+[
+  "contracts/security/certificate-inventory.json",
+  "docs/security/CERTIFICATE_LIFECYCLE.md",
+  "governance/certificates.json",
+  "libs/pki/reference/__init__.py",
+  "libs/pki/reference/lifecycle.py",
+  "scripts/certs-smoke.py",
+  "scripts/render-certs.py",
+  "tools/negative/b21.py",
+  "tools/paygov/certs.py",
+  "tools/paygov/certsgen.py",
+  "tools/tests/test_b21_certs.py"
+]

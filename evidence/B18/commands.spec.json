@@ -1,0 +1,197 @@
+{
+  "batch": "B18",
+  "commands": [
+    {
+      "purpose": "environment fingerprint",
+      "expect": 0,
+      "command": "python3 -VV && uname -a && git --version && echo repo=$(git rev-parse --short HEAD)",
+      "save_to": "runtime/environment.txt"
+    },
+    {
+      "purpose": "dependency B16 evidence still validates",
+      "expect": 0,
+      "command": "python3 .payment-platform/skill-package/scripts/orchestrate.py validate B16 --repo .",
+      "save_to": "runtime/dependency-b16.json"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary)",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --out evidence/B18/test-results/summary.json --log evidence/B18/test-results/unittest.log",
+      "save_to": "test-results/summary.log"
+    },
+    {
+      "purpose": "generated MFA artefacts match the model",
+      "expect": 0,
+      "command": "python3 scripts/render-mfa.py --check",
+      "save_to": "runtime/mfa-drift.txt"
+    },
+    {
+      "purpose": "generated identity artefacts still match (B17 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-identity.py --check",
+      "save_to": "runtime/identity-drift.txt"
+    },
+    {
+      "purpose": "generated zero-trust artefacts still match (B16 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-zerotrust.py --check",
+      "save_to": "runtime/zerotrust-drift.txt"
+    },
+    {
+      "purpose": "generated migration artefacts still match (B15 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-migration.py --check",
+      "save_to": "runtime/migration-drift.txt"
+    },
+    {
+      "purpose": "generated topology artefacts still match (B14 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-topology.py --check",
+      "save_to": "runtime/topology-drift.txt"
+    },
+    {
+      "purpose": "generated tenancy DDL still matches (B13 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-data.py --check",
+      "save_to": "runtime/data-drift.txt"
+    },
+    {
+      "purpose": "generated event artefacts still match (B12 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-events.py --check",
+      "save_to": "runtime/events-drift.txt"
+    },
+    {
+      "purpose": "generated API artefacts still match (B11 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-api.py --check",
+      "save_to": "runtime/api-drift.txt"
+    },
+    {
+      "purpose": "generated state-machine document still matches (B10 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-states.py --check",
+      "save_to": "runtime/state-doc-drift.txt"
+    },
+    {
+      "purpose": "generated money vectors still match (B09 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-money-vectors.py --check",
+      "save_to": "runtime/money-vectors-drift.txt"
+    },
+    {
+      "purpose": "generated schema still matches (B08 regression)",
+      "expect": 0,
+      "command": "python3 scripts/render-domain.py --check",
+      "save_to": "runtime/domain-drift.txt"
+    },
+    {
+      "purpose": "generated review documents match their source of truth",
+      "expect": 0,
+      "command": "python3 scripts/render-docs.py --check",
+      "save_to": "runtime/docs-drift.txt"
+    },
+    {
+      "purpose": "WebAuthn ceremonies verified: phishing, replay, cloned authenticator, unbound step-up",
+      "expect": 0,
+      "command": "python3 scripts/mfa-smoke.py",
+      "save_to": "runtime/mfa-smoke.log"
+    },
+    {
+      "purpose": "token verification still holds (B17 regression)",
+      "expect": 0,
+      "command": "python3 scripts/identity-smoke.py",
+      "save_to": "runtime/identity-smoke.log"
+    },
+    {
+      "purpose": "zero-trust decisions still hold (B16 regression)",
+      "expect": 0,
+      "command": "python3 scripts/zerotrust-smoke.py",
+      "save_to": "runtime/zerotrust-smoke.log"
+    },
+    {
+      "purpose": "migration dual write still safe (B15 regression)",
+      "expect": 0,
+      "command": "python3 scripts/migration-smoke.py",
+      "save_to": "runtime/migration-smoke.log"
+    },
+    {
+      "purpose": "topology worst case still holds (B14 regression)",
+      "expect": 0,
+      "command": "python3 scripts/topology-smoke.py",
+      "save_to": "runtime/topology-smoke.log"
+    },
+    {
+      "purpose": "tenant isolation still holds (B13 regression)",
+      "expect": 0,
+      "command": "python3 scripts/tenancy-smoke.py",
+      "save_to": "runtime/tenancy-smoke.log"
+    },
+    {
+      "purpose": "eventing fault injection still passes (B12 regression)",
+      "expect": 0,
+      "command": "python3 scripts/events-smoke.py",
+      "save_to": "runtime/events-smoke.log"
+    },
+    {
+      "purpose": "API transition vectors still replay (B11 regression)",
+      "expect": 0,
+      "command": "python3 scripts/api-smoke.py",
+      "save_to": "runtime/api-smoke.log"
+    },
+    {
+      "purpose": "state machines still replay (B10 regression)",
+      "expect": 0,
+      "command": "python3 scripts/state-smoke.py",
+      "save_to": "runtime/state-smoke.log"
+    },
+    {
+      "purpose": "money reference still exercised (B09 regression)",
+      "expect": 0,
+      "command": "python3 scripts/money-smoke.py",
+      "save_to": "runtime/money-smoke.log"
+    },
+    {
+      "purpose": "local orchestration still agrees with the vendored orchestrator",
+      "expect": 0,
+      "command": "python3 scripts/batch.py crosscheck",
+      "save_to": "runtime/crosscheck.log"
+    },
+    {
+      "purpose": "governance gate on the real repository",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo .",
+      "save_to": "security/governance-report.json"
+    },
+    {
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py",
+      "save_to": "security/negative-controls.log"
+    },
+    {
+      "purpose": "every new rule code remains load-bearing (deletion knockout)",
+      "expect": 0,
+      "command": "python3 scripts/rule-knockout.py --codes MFA_MISCLASSIFIED,MFA_SOLE_FACTOR,MFA_WEAK_FOR_PRIVILEGED,MFA_SINGLE_AUTHENTICATOR,MFA_NO_TRANSACTION_BINDING,MFA_DOWNGRADE_FALLBACK,MFA_CHALLENGE_REPLAY,MFA_SIGN_COUNT,MFA_USER_VERIFICATION,MFA_ORIGIN,MFA_ROLE_UNCOVERED,MFA_RECOVERY_BYPASS,MFA_PUSH_FATIGUE,MFA_GENERATED_DRIFT,MFA_PRIVILEGED_CLASS,MFA_FACTOR_UNBACKED --out evidence/B18/security/rule-knockout.json",
+      "save_to": "security/rule-knockout.log"
+    },
+    {
+      "purpose": "exhausted budget must exit 3, never 0 (timeout path)",
+      "expect": 3,
+      "command": "python3 -m tools.paygov.cli verify mfa --repo . --budget-seconds 0",
+      "save_to": "runtime/timeout-fail-closed.log"
+    },
+    {
+      "purpose": "duplicate invocation is byte-identical (idempotency)",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo . > /tmp/B18-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B18-2.json && diff /tmp/B18-1.json /tmp/B18-2.json && echo IDENTICAL",
+      "save_to": "runtime/idempotency.txt"
+    },
+    {
+      "purpose": "registered validators",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli list-validators --repo .",
+      "save_to": "runtime/validators.txt"
+    }
+  ]
+}

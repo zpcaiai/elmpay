@@ -22,8 +22,18 @@ from .repo import Budget, load_json
 
 MANIFEST = Path(".payment-platform/skill-package/manifest.json")
 COMPLETION_DIR = Path("evidence/completion")
+PROJECT_CONFIG = Path("governance/project-config.json")
 HEX64 = re.compile(r"^[a-f0-9]{64}$")
 COMMIT = re.compile(r"^[0-9a-fA-F]{7,64}$")
+REVIEW_COMMIT = re.compile(r"^[a-f0-9]{7,64}$")
+REVIEW_FIELDS = {
+    "schema_version", "batch_id", "decision", "reviewer", "executor",
+    "reviewed_at", "scope", "notes", "bindings",
+}
+REVIEW_BINDING_FIELDS = {
+    "git_head", "manifest_sha256", "commands_spec_sha256",
+    "artifacts_json_sha256", "traceability_sha256", "artifacts",
+}
 REQUIRED_COMPLETION_FIELDS = {
     "batch_id", "status", "commit_sha", "environment", "started_at", "completed_at",
     "executor", "reviewer", "artifacts", "tests", "security", "dependency_hashes",
@@ -100,8 +110,16 @@ class Programme:
     def completion_path(self, batch: str) -> Path:
         return self.root / COMPLETION_DIR / f"{batch}.json"
 
-    def problems(self, batch: str) -> list[str]:
-        """Every reason ``batch`` may not be considered complete."""
+    def problems(self, batch: str, *, extended: bool = True) -> list[str]:
+        """Every reason ``batch`` may not be considered complete.
+
+        ``extended=False`` restricts the checks to the ones the vendored
+        orchestrator also performs, so the differential cross-check compares
+        like with like. The extra local checks (recorded exit codes,
+        runner-vs-completion agreement) are strictly additional: they can make a
+        batch fail here that would pass there, never the reverse, and
+        ``scripts/batch.py crosscheck`` reports them separately.
+        """
         if batch not in self.batches:
             return [f"unknown batch {batch}"]
         problems: list[str] = []
@@ -146,6 +164,233 @@ class Programme:
         problems += self._security(data, base)
         problems += self._dependency_hashes(data, batch)
         problems += self._artifacts(data)
+        if extended:
+            problems += self._recorded_exit_codes(base)
+            problems += self._declared_commands_ran(base)
+            problems += self._summary_agreement(base, data)
+            problems += self._declared_artifacts(base, data)
+            problems += self._review_attestation(base, batch, data)
+        return problems
+
+    @staticmethod
+    def _declared_artifacts(base: Path, data: dict) -> list[str]:
+        """``artifacts.json`` and the completion file must list the same set."""
+        listing = base / "artifacts.json"
+        if not listing.is_file():
+            return []
+        try:
+            declared = set(json.loads(listing.read_text(encoding="utf-8")))
+        except Exception as exc:
+            return [f"artifacts.json is unreadable: {exc}"]
+        recorded = {a.get("path") for a in data.get("artifacts", []) if isinstance(a, dict)}
+        problems = [f"artefact declared but not recorded in the completion file: {rel}"
+                    for rel in sorted(declared - recorded)]
+        problems += [f"artefact recorded but not declared in artifacts.json: {rel}"
+                     for rel in sorted(recorded - declared)]
+        return problems
+
+    def extended_only_problems(self, batch: str) -> list[str]:
+        """Findings this implementation makes that the vendored one cannot."""
+        base = self.root / "evidence" / batch
+        path = self.completion_path(batch)
+        if not path.is_file():
+            return []
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return []
+        return (self._recorded_exit_codes(base) + self._declared_commands_ran(base)
+                + self._summary_agreement(base, payload)
+                + self._declared_artifacts(base, payload)
+                + self._review_attestation(base, batch, payload))
+
+    def _review_attestation(self, base: Path, batch: str, completion: dict) -> list[str]:
+        """Revalidate the independent approval against live local evidence.
+
+        This is deliberately an extended-only check: the vendored orchestrator
+        predates review attestations.  Authoritative local status and release
+        readiness use it, while the differential view can still compare the
+        common upstream contract with ``extended=False``.
+        """
+        review_path = base / "review.json"
+        try:
+            resolved_base = base.resolve(strict=True)
+            resolved = review_path.resolve(strict=True)
+            resolved.relative_to(resolved_base)
+            if review_path.is_symlink() or resolved != review_path.absolute():
+                raise ValueError("review.json must be a regular in-place file")
+        except (OSError, ValueError):
+            return [f"review attestation is missing or outside its batch directory: {review_path}"]
+        if not resolved.is_file():
+            return [f"review attestation is missing or outside its batch directory: {review_path}"]
+
+        problems: list[str] = []
+        relative = review_path.relative_to(self.root).as_posix()
+        try:
+            tracked = subprocess.run(
+                ["git", "-C", str(self.root), "ls-files", "--error-unmatch", "--",
+                 relative],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=15, check=False)
+            if tracked.returncode != 0:
+                problems.append("review attestation must be tracked by Git")
+        except (OSError, subprocess.TimeoutExpired):
+            problems.append("review attestation Git tracking could not be proven")
+
+        try:
+            review: Any = json.loads(resolved.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            return problems + [f"review attestation is unreadable: {exc}"]
+        if not isinstance(review, dict):
+            return problems + ["review attestation must be an object"]
+        if set(review) != REVIEW_FIELDS:
+            problems.append(
+                f"review attestation keys must be exactly {sorted(REVIEW_FIELDS)}")
+        if review.get("schema_version") != "1.0.0":
+            problems.append("review schema_version must be 1.0.0")
+        if review.get("batch_id") != batch or review.get("decision") != "approved":
+            problems.append("review must approve the current batch")
+
+        try:
+            config: Any = json.loads(
+                (self.root / PROJECT_CONFIG).read_text(encoding="utf-8"))
+            identities = config["evidence"]
+            if not isinstance(identities, dict):
+                raise ValueError("evidence configuration must be an object")
+            configured_executor = identities["executor"]
+            configured_reviewer = identities["reviewer"]
+            if not all(isinstance(value, str) and value.strip()
+                       for value in (configured_executor, configured_reviewer)):
+                raise ValueError("configured identities must be non-empty strings")
+            if configured_executor == configured_reviewer:
+                raise ValueError("configured executor and reviewer must differ")
+        except (OSError, KeyError, ValueError, json.JSONDecodeError) as exc:
+            return problems + [f"cannot load configured evidence identities: {exc}"]
+        if review.get("executor") != configured_executor \
+                or review.get("reviewer") != configured_reviewer:
+            problems.append("review principals do not match project configuration")
+        if review.get("executor") == review.get("reviewer"):
+            problems.append("reviewer and executor must differ")
+        if not isinstance(review.get("scope"), str) or not review["scope"].strip():
+            problems.append("review scope must be non-empty")
+        if not isinstance(review.get("notes"), str) or not review["notes"].strip():
+            problems.append("review notes must be a non-empty string")
+        try:
+            reviewed_at = datetime.fromisoformat(
+                review.get("reviewed_at", "").replace("Z", "+00:00"))
+            if reviewed_at.tzinfo is None or reviewed_at.utcoffset() is None:
+                raise ValueError("timestamp has no UTC offset")
+        except (AttributeError, ValueError):
+            problems.append("reviewed_at must be an ISO-8601 timestamp with timezone")
+
+        bindings = review.get("bindings")
+        if not isinstance(bindings, dict):
+            return problems + ["review bindings must be an object"]
+        if set(bindings) != REVIEW_BINDING_FIELDS:
+            problems.append(
+                f"review binding keys must be exactly {sorted(REVIEW_BINDING_FIELDS)}")
+
+        artifacts_path = base / "artifacts.json"
+        try:
+            declared: Any = json.loads(artifacts_path.read_text(encoding="utf-8"))
+            if not isinstance(declared, list) or not declared \
+                    or not all(isinstance(item, str) and item for item in declared) \
+                    or len(declared) != len(set(declared)):
+                raise ValueError("artifacts.json must be a non-empty array of unique paths")
+            artifact_hashes: dict[str, str] = {}
+            for relative in declared:
+                target = self._contained(relative)
+                if target is None or not target.is_file():
+                    raise ValueError(f"artifact is not a contained file: {relative}")
+                artifact_hashes[relative] = sha256(target)
+            expected = {
+                "manifest_sha256": sha256(self.root / MANIFEST),
+                "commands_spec_sha256": sha256(base / "commands.spec.json"),
+                "artifacts_json_sha256": sha256(artifacts_path),
+                "traceability_sha256": sha256(base / "traceability.json"),
+                "artifacts": artifact_hashes,
+            }
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            return problems + [f"cannot compute review bindings: {exc}"]
+
+        commit = bindings.get("git_head")
+        if not isinstance(commit, str) or REVIEW_COMMIT.fullmatch(commit) is None \
+                or commit != completion.get("commit_sha"):
+            problems.append("review binding git_head does not match completion commit_sha")
+        for key in ("manifest_sha256", "commands_spec_sha256", "artifacts_json_sha256",
+                    "traceability_sha256"):
+            value = bindings.get(key)
+            if not isinstance(value, str) or HEX64.fullmatch(value) is None \
+                    or value != expected[key]:
+                problems.append(f"review binding {key} does not match current evidence")
+        if bindings.get("artifacts") != expected["artifacts"]:
+            problems.append("review artifact hash set does not exactly match artifacts.json")
+        return problems
+
+    @staticmethod
+    def _declared_commands_ran(base: Path) -> list[str]:
+        """Every command the spec declares must appear in the recorded log."""
+        ndjson, spec_path = base / "commands.ndjson", base / "commands.spec.json"
+        if not ndjson.is_file() or not spec_path.is_file():
+            return []
+        try:
+            recorded = {json.loads(line)["command"] for line in
+                        ndjson.read_text(encoding="utf-8").splitlines() if line.strip()}
+            declared = {c["command"] for c in
+                        json.loads(spec_path.read_text(encoding="utf-8"))["commands"]}
+        except Exception as exc:
+            return [f"command log or spec is unreadable: {exc}"]
+        return [f"declared command was never executed: {command}"
+                for command in sorted(declared - recorded)]
+
+    @staticmethod
+    def _recorded_exit_codes(base: Path) -> list[str]:
+        """The vendored orchestrator only requires exit_code to be an integer.
+
+        A batch whose every recorded command failed would therefore validate.
+        Here each record must have matched the exit code its spec expected.
+        """
+        ndjson = base / "commands.ndjson"
+        if not ndjson.is_file():
+            return []
+        problems: list[str] = []
+        for index, line in enumerate(ndjson.read_text(encoding="utf-8").splitlines()):
+            if not line.strip():
+                continue
+            try:
+                record = json.loads(line)
+            except Exception:
+                continue
+            expected = record.get("expected_exit_code")
+            if expected is None:
+                problems.append(f"commands.ndjson record {index} has no expected_exit_code")
+            elif record.get("exit_code") != expected:
+                problems.append(
+                    f"recorded command exited {record.get('exit_code')} but {expected} was "
+                    f"expected: {record.get('command', '?')}")
+        return problems
+
+    @staticmethod
+    def _summary_agreement(base: Path, data: dict) -> list[str]:
+        """The completion file's test numbers must be the runner's numbers."""
+        summary_path = base / "test-results" / "summary.json"
+        if not summary_path.is_file():
+            return ["test-results/summary.json is missing; the tests figure would be unverifiable"]
+        try:
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            return [f"test-results/summary.json is unreadable: {exc}"]
+        problems: list[str] = []
+        tests = data.get("tests", {}) if isinstance(data.get("tests"), dict) else {}
+        if summary.get("failed") or summary.get("skipped_critical"):
+            problems.append(f"runner summary is not clean: {summary}")
+        if summary.get("run") != summary.get("passed"):
+            problems.append(
+                f"runner reports run={summary.get('run')} passed={summary.get('passed')}")
+        if tests.get("passed") != summary.get("passed"):
+            problems.append(
+                f"completion records {tests.get('passed')} passing tests but the runner produced "
+                f"{summary.get('passed')}")
         return problems
 
     def _commit_exists(self, commit: str) -> bool:
@@ -314,32 +559,34 @@ class Programme:
             return None
 
     # ---- derived state ---------------------------------------------------
-    def valid(self, batch: str, cache: dict[str, bool] | None = None) -> bool:
+    def valid(self, batch: str, cache: dict[str, bool] | None = None, *,
+              extended: bool = True) -> bool:
         cache = {} if cache is None else cache
         if batch in cache:
             return cache[batch]
         cache[batch] = False  # guards against cyclic manifests
-        ok = not self.problems(batch) and all(self.valid(dep, cache)
-                                              for dep in self.dependencies(batch))
+        ok = not self.problems(batch, extended=extended) and all(
+            self.valid(dep, cache, extended=extended) for dep in self.dependencies(batch))
         cache[batch] = ok
         return ok
 
-    def completed(self) -> set[str]:
+    def completed(self, *, extended: bool = True) -> set[str]:
         cache: dict[str, bool] = {}
-        return {bid for bid in self.order if self.valid(bid, cache)}
+        return {bid for bid in self.order if self.valid(bid, cache, extended=extended)}
 
-    def ready(self) -> list[str]:
-        done = self.completed()
+    def ready(self, *, extended: bool = True) -> list[str]:
+        done = self.completed(extended=extended)
         return [bid for bid in self.order
                 if bid not in done and all(dep in done for dep in self.dependencies(bid))]
 
-    def status(self) -> dict:
-        done = self.completed()
+    def status(self, *, extended: bool = True) -> dict:
+        done = self.completed(extended=extended)
         return {"completed": len(done), "total": len(self.batches),
-                "ready": self.ready(), "remaining": len(self.batches) - len(done)}
+                "ready": self.ready(extended=extended),
+                "remaining": len(self.batches) - len(done)}
 
-    def release_ready(self) -> dict:
-        done = self.completed()
+    def release_ready(self, *, extended: bool = True) -> dict:
+        done = self.completed(extended=extended)
         invalid = [bid for bid in self.order if bid not in done]
         return {"release_ready": not invalid, "invalid_batches": invalid,
                 "completed": len(done), "total": len(self.batches)}

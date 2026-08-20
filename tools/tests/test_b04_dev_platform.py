@@ -146,7 +146,7 @@ class DevPlatformRejects(FixtureTestCase):
         self.assertIn("DEV_DRIFT", self.codes(self._validate()))
 
     def test_rejects_missing_generated_file(self):
-        (self.fixture.root / "platform/dev/compose.yaml").unlink()
+        self.fixture.remove("platform/dev/compose.yaml")
         self.assertIn("DEV_MISSING", self.codes(self._validate()))
 
     def test_rejects_simulator_without_build_context(self):

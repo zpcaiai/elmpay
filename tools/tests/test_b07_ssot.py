@@ -84,3 +84,33 @@ class SsotRejects(FixtureTestCase):
     def test_rejects_invalid_batch_reference(self):
         self.fixture.mutate(self.REL, lambda d: d["sources"][0].__setitem__("batch", "B900"))
         self.assertIn("SSOT_BATCH", self.codes(self._validate()))
+
+
+class RegistryOwnershipIsDerived(FixtureTestCase):
+    """The SSOT registry is no longer pinned to B07's artefact digest.
+
+    It grows once per batch by construction, so pinning it meant B07's evidence
+    expired every batch and dragged the whole programme through a re-baseline.
+    What replaces the pin is a consistency rule: an entry cannot claim a batch
+    that disagrees with the validator module's own declaration.
+    """
+
+    def test_every_entry_agrees_with_its_validator_module(self):
+        from tools.paygov import registry
+        registry.load_all()
+        document = self.fixture.read("governance/ssot-registry.json")
+        for source in document["sources"]:
+            self.assertEqual(source["batch"], registry.batch_of(source["validator"]),
+                             source["id"])
+
+    def test_a_mislabelled_entry_is_rejected(self):
+        self.fixture.mutate("governance/ssot-registry.json", lambda d: next(
+            s for s in d["sources"] if s["id"] == "mfa").__setitem__("batch", "B03"))
+        codes = self.codes(ssot.validate(self.fixture.root, Budget(seconds=60).start()))
+        self.assertIn("SSOT_BATCH_MISMATCH", codes)
+
+    def test_the_registry_is_not_listed_as_a_b07_artefact(self):
+        import json
+        listing = json.loads(
+            (REAL_ROOT / "evidence/B07/artifacts.json").read_text(encoding="utf-8"))
+        self.assertNotIn("governance/ssot-registry.json", listing)

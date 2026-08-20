@@ -1,0 +1,267 @@
+{
+  "batch_id": "B11",
+  "requirements": [
+    {
+      "id": "B11-R1",
+      "statement": "统一版本策略与弃用规则，同一大版本内只允许向后兼容的加法",
+      "source": "batches/B11.md 目标"
+    },
+    {
+      "id": "B11-R2",
+      "statement": "所有写操作必须携带幂等键，同键不同体必须冲突而非覆盖",
+      "source": "policies/non-negotiables.md#4"
+    },
+    {
+      "id": "B11-R3",
+      "statement": "统一分页方式，禁止在支付数据上使用偏移分页",
+      "source": "batches/B11.md 目标"
+    },
+    {
+      "id": "B11-R4",
+      "statement": "统一错误码、HTTP 状态与可重试语义，错误文案不得泄露敏感数据",
+      "source": "policies/non-negotiables.md#14"
+    },
+    {
+      "id": "B11-R5",
+      "statement": "统一追踪头，追踪与日志不得包含凭据、卡数据或不必要个人信息",
+      "source": "batches/B11.md 自动化验证"
+    },
+    {
+      "id": "B11-R6",
+      "statement": "渠道回调必须先验签，并声明时间戳容忍与重放窗口",
+      "source": "policies/non-negotiables.md#8"
+    },
+    {
+      "id": "B11-R7",
+      "statement": "API 暴露的操作不得让调用方冒充已验签渠道事件写入成功状态",
+      "source": "policies/non-negotiables.md#3"
+    },
+    {
+      "id": "B11-R8",
+      "statement": "破坏性变更必须能被机器检出，而不是依赖记忆",
+      "source": "batches/B11.md 目标"
+    }
+  ],
+  "code": [
+    {
+      "ref": "governance/api-contract.json",
+      "requirements": [
+        "B11-R1",
+        "B11-R2",
+        "B11-R3",
+        "B11-R4",
+        "B11-R5",
+        "B11-R6",
+        "B11-R7"
+      ]
+    },
+    {
+      "ref": "tools/paygov/api.py",
+      "requirements": [
+        "B11-R1",
+        "B11-R2",
+        "B11-R3",
+        "B11-R4",
+        "B11-R5",
+        "B11-R6",
+        "B11-R7",
+        "B11-R8"
+      ]
+    },
+    {
+      "ref": "tools/paygov/apigen.py",
+      "requirements": [
+        "B11-R1",
+        "B11-R4",
+        "B11-R8"
+      ]
+    },
+    {
+      "ref": "scripts/render-api.py",
+      "requirements": [
+        "B11-R1",
+        "B11-R8"
+      ]
+    },
+    {
+      "ref": "contracts/api/openapi.json",
+      "requirements": [
+        "B11-R1",
+        "B11-R3",
+        "B11-R4"
+      ]
+    },
+    {
+      "ref": "contracts/api/errors.json",
+      "requirements": [
+        "B11-R4"
+      ]
+    },
+    {
+      "ref": "contracts/api/transition-vectors.json",
+      "requirements": [
+        "B11-R2",
+        "B11-R7"
+      ]
+    },
+    {
+      "ref": "contracts/api/openapi.baseline.json",
+      "requirements": [
+        "B11-R8"
+      ]
+    },
+    {
+      "ref": "scripts/api-smoke.py",
+      "requirements": [
+        "B11-R2",
+        "B11-R3",
+        "B11-R4",
+        "B11-R7"
+      ]
+    },
+    {
+      "ref": "docs/api/API_CONTRACT.md",
+      "requirements": [
+        "B11-R1",
+        "B11-R4"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "tools/tests/test_b11_api.py",
+      "requirements": [
+        "B11-R1",
+        "B11-R2",
+        "B11-R3",
+        "B11-R4",
+        "B11-R5",
+        "B11-R6",
+        "B11-R7",
+        "B11-R8"
+      ],
+      "cases": 80
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-03",
+      "implemented_by": [
+        "governance/api-contract.json",
+        "tools/paygov/api.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b11_api.py",
+        "scripts/api-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-04",
+      "implemented_by": [
+        "governance/api-contract.json",
+        "tools/paygov/api.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b11_api.py",
+        "scripts/api-smoke.py"
+      ]
+    },
+    {
+      "id": "NN-08",
+      "implemented_by": [
+        "governance/api-contract.json",
+        "tools/paygov/api.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b11_api.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-14",
+      "implemented_by": [
+        "tools/paygov/api.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b11_api.py",
+        "scripts/negative-controls.py"
+      ]
+    },
+    {
+      "id": "NN-05",
+      "implemented_by": [
+        "governance/api-contract.json",
+        "tools/paygov/apigen.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b11_api.py"
+      ]
+    },
+    {
+      "id": "CTRL-002",
+      "implemented_by": [
+        "governance/api-contract.json"
+      ],
+      "verified_by": [
+        "tools/tests/test_b11_api.py"
+      ]
+    },
+    {
+      "id": "CTRL-003",
+      "implemented_by": [
+        "governance/api-contract.json",
+        "tools/paygov/api.py"
+      ],
+      "verified_by": [
+        "tools/tests/test_b11_api.py",
+        "scripts/api-smoke.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B11/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B11/commands.ndjson",
+      "kind": "commands"
+    },
+    {
+      "path": "evidence/B11/test-results/unittest.log",
+      "kind": "test-results"
+    },
+    {
+      "path": "evidence/B11/test-results/summary.json",
+      "kind": "test-summary"
+    },
+    {
+      "path": "evidence/B11/runtime/environment.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B11/runtime/api-drift.txt",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B11/runtime/api-smoke.log",
+      "kind": "runtime"
+    },
+    {
+      "path": "evidence/B11/security/governance-report.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B11/security/negative-controls.log",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/B11/security/rule-knockout.json",
+      "kind": "security"
+    },
+    {
+      "path": "evidence/completion/B11.json",
+      "kind": "completion"
+    }
+  ]
+}

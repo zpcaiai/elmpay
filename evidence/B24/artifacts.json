@@ -1,0 +1,13 @@
+[
+  "contracts/tenancy/registry.json",
+  "docs/tenancy/TENANT_REGISTRY.md",
+  "governance/tenant-registry.json",
+  "libs/registry/reference/__init__.py",
+  "libs/registry/reference/tenants.py",
+  "scripts/render-tenants.py",
+  "scripts/tenants-smoke.py",
+  "tools/negative/b24.py",
+  "tools/paygov/tenants.py",
+  "tools/paygov/tenantsgen.py",
+  "tools/tests/test_b24_tenants.py"
+]

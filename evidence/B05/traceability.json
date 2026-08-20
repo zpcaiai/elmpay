@@ -25,6 +25,11 @@
       "id": "B05-R5",
       "statement": "证据归档为不可变 bundle，任一批次不通过则拒绝出包",
       "source": "policies/release-gates.md RG1"
+    },
+    {
+      "id": "B05-R6",
+      "statement": "CI 必须验证技能包自身以及 agent 实际读取的两个安装镜像完全一致",
+      "source": "repository skill installation boundary"
     }
   ],
   "code": [
@@ -34,7 +39,8 @@
         "B05-R1",
         "B05-R2",
         "B05-R3",
-        "B05-R4"
+        "B05-R4",
+        "B05-R6"
       ]
     },
     {
@@ -42,7 +48,8 @@
       "requirements": [
         "B05-R2",
         "B05-R3",
-        "B05-R4"
+        "B05-R4",
+        "B05-R6"
       ]
     },
     {
@@ -56,7 +63,8 @@
       "ref": ".github/workflows/ci.yml",
       "requirements": [
         "B05-R1",
-        "B05-R2"
+        "B05-R2",
+        "B05-R6"
       ]
     },
     {
@@ -85,9 +93,10 @@
         "B05-R1",
         "B05-R2",
         "B05-R3",
-        "B05-R4"
+        "B05-R4",
+        "B05-R6"
       ],
-      "cases": 27
+      "cases": 29
     },
     {
       "ref": "tools/tests/test_b00_cli.py",

@@ -1,0 +1,13 @@
+[
+  "contracts/security/baseline-matrix.json",
+  "docs/security/SECURITY_BASELINE.md",
+  "governance/security-baseline.json",
+  "libs/appsec/reference/__init__.py",
+  "libs/appsec/reference/hardening.py",
+  "scripts/baseline-smoke.py",
+  "scripts/render-baseline.py",
+  "tools/negative/b22.py",
+  "tools/paygov/baseline.py",
+  "tools/paygov/baselinegen.py",
+  "tools/tests/test_b22_baseline.py"
+]
