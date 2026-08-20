@@ -57,7 +57,10 @@
       "category": "build",
       "version": "9.2.1",
       "pin_type": "exact",
-      "digest": "",
+      "digest": "sha256:72f44c9f8ebcb1af43838f45ee5c4aa9c5444898b3468ab3f4af7b6076c5bc3f",
+      "wrapper_jar_sha256": "423cb469ccc0ecc31f0e4e1c309976198ccb734cdcbb7029d4bda0f18f57e8d9",
+      "wrapper_script_sha256": "b2fe376b143a459ba5d0bd290dc89beed5399fc6d159cd1214bd642ea94bcf07",
+      "wrapper_bat_sha256": "9386e790d58b9368ca8e034536a5baa688643d51cb37bfa462503d36fd0291a6",
       "source": "https://gradle.org/releases/",
       "owner": "payment-platform-platform-eng",
       "upgrade_policy": "wrapper 校验和锁定；升级需绿色 CI 两轮"

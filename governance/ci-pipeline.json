@@ -322,7 +322,7 @@
         "governance"
       ],
       "commands": [
-        "python3 scripts/negative-controls.py"
+        "python3 scripts/negative-controls.py > negative-controls.log 2>&1"
       ],
       "required": true,
       "fail_closed": true,

@@ -34,7 +34,7 @@ from tools.paygov.rulecov import emitted_codes  # noqa: E402
 COPY_DIRS = ("tools", "scripts", "governance", "docs", "platform", "gradle", "evidence",
              ".payment-platform", ".github")
 COPY_FILES = ("settings.gradle.kts", "build.gradle.kts", ".tool-versions", "README.md",
-              "SECURITY.md", "Makefile", "CODEOWNERS", "LICENSE")
+              "SECURITY.md", "Makefile", "CODEOWNERS", "LICENSE", "gradlew", "gradlew.bat")
 
 SEAM = '''
 
@@ -59,7 +59,7 @@ def build_copy(destination: Path) -> Path:
             shutil.copytree(source, root / name, symlinks=False)
     for name in COPY_FILES:
         if (ROOT / name).is_file():
-            shutil.copyfile(ROOT / name, root / name)
+            shutil.copy2(ROOT / name, root / name)
     for module in sorted((root / "tools" / "paygov").glob("*.py")):
         text = module.read_text(encoding="utf-8")
         if "\ndef validate(" in text:

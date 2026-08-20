@@ -69,6 +69,7 @@
       "validator": "toolchain",
       "generates": [
         "gradle/libs.versions.toml",
+        "gradle/wrapper/gradle-wrapper.properties",
         "build.gradle.kts",
         ".tool-versions",
         "platform/toolchain/versions.env",

@@ -4,12 +4,6 @@
 
 rootProject.name = "elmpay"
 
-dependencyResolutionManagement {
-    versionCatalogs {
-        create("libs") { from(files("gradle/libs.versions.toml")) }
-    }
-}
-
 include(":libs:money")
 include(":libs:domain-events")
 include(":libs:idempotency")

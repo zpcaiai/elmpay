@@ -11,7 +11,10 @@ Rules, all fail-closed:
 """
 from __future__ import annotations
 
+import hashlib
+import os
 import re
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -113,6 +116,7 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
 
     problems += _build_systems(root, build_systems, where)
     problems += _java_version(doc, where)
+    problems += _gradle_wrapper(root, doc, where)
     problems += _generated(root, budget)
     return problems
 
@@ -150,6 +154,65 @@ def _java_version(doc: dict, where: str) -> list[Problem]:
     return expect(major == EXPECTED_JAVA_MAJOR, "TOOLCHAIN_JDK", where,
                   f"the programme baseline is Java {EXPECTED_JAVA_MAJOR}; catalogue pins {major}",
                   "NN-12")
+
+
+def _gradle_wrapper(root: Path, doc: dict, where: str) -> list[Problem]:
+    """Require a runnable, byte-pinned wrapper in every clean checkout."""
+    problems: list[Problem] = []
+    required = ("gradlew", "gradlew.bat", "gradle/wrapper/gradle-wrapper.jar",
+                "gradle/wrapper/gradle-wrapper.properties")
+    for rel in required:
+        path = root / rel
+        problems += expect(path.is_file() and path.stat().st_size > 0,
+                           "TOOLCHAIN_WRAPPER", rel,
+                           "the complete Gradle wrapper must be version-controlled", "NN-12")
+
+    launcher = root / "gradlew"
+    if launcher.is_file():
+        problems += expect(os.access(launcher, os.X_OK), "TOOLCHAIN_WRAPPER", "gradlew",
+                           "gradlew must retain its executable bit", "NN-12")
+        try:
+            launcher_text = launcher.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            launcher_text = ""
+        problems += expect("gradle/wrapper/gradle-wrapper.jar" in launcher_text,
+                           "TOOLCHAIN_WRAPPER", "gradlew",
+                           "gradlew does not launch the pinned wrapper JAR", "NN-12")
+
+    gradle = next((entry for entry in doc["entries"] if entry.get("id") == "gradle"), None)
+    if gradle is None:
+        return problems
+    problems += expect(bool(DIGEST.match(str(gradle.get("digest", "")))),
+                       "TOOLCHAIN_DIGEST", f"{where}#gradle",
+                       "the Gradle distribution must have a sha256 digest", "NN-12")
+    expected_jar = str(gradle.get("wrapper_jar_sha256", ""))
+    problems += expect(bool(re.fullmatch(r"[a-f0-9]{64}", expected_jar)),
+                       "TOOLCHAIN_WRAPPER", f"{where}#gradle",
+                       "wrapper_jar_sha256 must pin the official wrapper JAR", "NN-12")
+
+    for rel, field in (("gradlew", "wrapper_script_sha256"),
+                       ("gradlew.bat", "wrapper_bat_sha256")):
+        path = root / rel
+        expected = str(gradle.get(field, ""))
+        actual = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else ""
+        problems += expect(bool(re.fullmatch(r"[a-f0-9]{64}", expected))
+                           and actual == expected,
+                           "TOOLCHAIN_WRAPPER", rel,
+                           f"{rel} differs from the official catalogue checksum", "NN-12")
+
+    jar = root / "gradle/wrapper/gradle-wrapper.jar"
+    if jar.is_file():
+        try:
+            actual = hashlib.sha256(jar.read_bytes()).hexdigest()
+            with zipfile.ZipFile(jar) as archive:
+                has_main = "org/gradle/wrapper/GradleWrapperMain.class" in archive.namelist()
+        except (OSError, zipfile.BadZipFile):
+            actual, has_main = "", False
+        problems += expect(actual == expected_jar and has_main,
+                           "TOOLCHAIN_WRAPPER", str(jar.relative_to(root)),
+                           "wrapper JAR is corrupt or differs from its catalogue checksum",
+                           "NN-12")
+    return problems
 
 
 def _generated(root: Path, budget: Budget) -> list[Problem]:

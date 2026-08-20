@@ -36,6 +36,7 @@ EXPECTED_CODES = {
     "B03 container image pinned by tag only": "TOOLCHAIN_DIGEST",
     "B03 dependency loses its owner": "TOOLCHAIN_METADATA",
     "B03 module left without a build system": "TOOLCHAIN_BUILD_SYSTEM",
+    "B03 Gradle wrapper launcher is corrupted": "TOOLCHAIN_WRAPPER",
     "B03 Java baseline silently downgraded": "TOOLCHAIN_JDK",
     "B04 inline password in the local platform": "DEV_INLINE_SECRET",
     "B04 local service points at a production value": "DEV_PRODUCTION_VALUE",
@@ -701,6 +702,9 @@ SCENARIOS = [
 
 
 TEXT_SCENARIOS = [
+    ("B03 Gradle wrapper launcher is corrupted",
+     "gradlew", "gradle/wrapper/gradle-wrapper.jar", "gradle/wrapper/broken-wrapper.jar",
+     EXIT_PROBLEMS),
     ("B02 ADR loses its alternatives section",
      "docs/adr/0001-monorepo-modular-boundaries.md", "## 备选方案", "## 闲聊", EXIT_PROBLEMS),
     ("B02 ADR points at a non-existent requirement",

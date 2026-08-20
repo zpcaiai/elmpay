@@ -23,6 +23,13 @@ class ModuleRegistryHappyPath(FixtureTestCase):
             self.assertTrue(any(item.is_file() and item.stat().st_size > 0
                                 for item in path.rglob("*")), module["path"])
 
+    def test_disposable_fixture_mirrors_portable_module_content(self):
+        registry = self.fixture.read("governance/module-registry.json")
+        for module in registry["modules"]:
+            path = self.fixture.root / module["path"]
+            self.assertTrue(any(item.is_file() and item.stat().st_size > 0
+                                for item in path.rglob("*")), module["path"])
+
     def test_table_ownership_is_exclusive(self):
         registry = self.fixture.read("governance/module-registry.json")
         seen: dict[str, str] = {}

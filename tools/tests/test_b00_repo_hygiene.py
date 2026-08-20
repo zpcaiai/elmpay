@@ -96,6 +96,10 @@ class HygieneDetects(FixtureTestCase):
         problems = self._validate()
         self.assertIn("TOOLCHAIN_THIRD_PARTY", self.codes(problems))
 
+    def test_accepts_zipfile_from_the_standard_library(self):
+        self.fixture.write("tools/paygov/archive_check.py", "import zipfile\n")
+        self.assertNotIn("TOOLCHAIN_THIRD_PARTY", self.codes(self._validate()))
+
 
 class HygieneScanIsBounded(FixtureTestCase):
     def test_budget_is_enforced(self):
@@ -264,6 +268,13 @@ class NegativeControlSharding(FixtureTestCase):
                                  f"total={total} count={count}")
                 self.assertEqual(len(seen), len(set(seen)),
                                  f"total={total} count={count}: a scenario ran twice")
+
+    def test_negative_fixture_carries_real_module_boundary_content(self):
+        nc = _negative_controls()
+        for module_path in nc._MODULE_PATHS:
+            prefix = f"{module_path.rstrip('/')}/"
+            self.assertTrue(any(rel.startswith(prefix) and blob
+                                for rel, blob in nc._SNAPSHOT.items()), module_path)
 
     def test_offset_keeps_the_second_list_from_piling_onto_one_shard(self):
         nc = _negative_controls()

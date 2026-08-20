@@ -73,10 +73,10 @@ def settings_gradle(root: Path, budget: Budget | None = None) -> str:
     doc = _catalog(root, budget)
     registry = load_json(root / "governance/module-registry.json", budget)
     paths = {m["name"]: m["path"] for m in registry["modules"]}
-    lines = [BANNER_SLASH, 'rootProject.name = "elmpay"', "",
-             "dependencyResolutionManagement {", "    versionCatalogs {",
-             "        create(\"libs\") { from(files(\"gradle/libs.versions.toml\")) }",
-             "    }", "}", ""]
+    # Gradle automatically imports gradle/libs.versions.toml as the ``libs``
+    # catalogue. Importing it explicitly calls ``from`` a second time and makes
+    # every clean build fail before task configuration begins.
+    lines = [BANNER_SLASH, 'rootProject.name = "elmpay"', ""]
     for name in doc["modules_by_build_system"]["gradle"]:
         path = paths[name]
         project = ":" + path.replace("/", ":")
@@ -153,8 +153,26 @@ def versions_env(root: Path, budget: Budget | None = None) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+def wrapper_properties(root: Path, budget: Budget | None = None) -> str:
+    """Pin the Gradle wrapper distribution and its independently verified hash."""
+    budget = budget or Budget().start()
+    gradle = _entries(_catalog(root, budget))["gradle"]
+    digest = str(gradle.get("digest", ""))
+    checksum = digest.removeprefix("sha256:")
+    return BANNER_HASH + f"""distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionSha256Sum={checksum}
+distributionUrl=https\\://services.gradle.org/distributions/gradle-{gradle["version"]}-bin.zip
+networkTimeout=10000
+validateDistributionUrl=true
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+"""
+
+
 TARGETS = {
     "gradle/libs.versions.toml": libs_versions_toml,
+    "gradle/wrapper/gradle-wrapper.properties": wrapper_properties,
     "settings.gradle.kts": settings_gradle,
     "build.gradle.kts": build_gradle,
     ".tool-versions": tool_versions,

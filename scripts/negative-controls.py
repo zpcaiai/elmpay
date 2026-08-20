@@ -64,7 +64,11 @@ def _discovered() -> tuple:
 
 
 COPIED = _discovered() + (
+    "gradlew",
+    "gradlew.bat",
     "gradle/libs.versions.toml",
+    "gradle/wrapper/gradle-wrapper.jar",
+    "gradle/wrapper/gradle-wrapper.properties",
     "settings.gradle.kts",
     "build.gradle.kts",
     ".tool-versions",
@@ -122,6 +126,19 @@ def _snapshot() -> dict[str, bytes]:
         for path in sorted((ROOT / rel).rglob("*")):
             if path.is_file():
                 blobs[path.relative_to(ROOT).as_posix()] = path.read_bytes()
+    # The module validator requires real boundary content because empty
+    # directories are not version-controlled. Carry one real, non-empty file
+    # per declared module into the disposable repository; synthesising marker
+    # files here would make the negative baseline prove a different tree.
+    registry = json.loads(
+        (ROOT / "governance" / "module-registry.json").read_text("utf-8"))
+    for module in registry["modules"]:
+        base = ROOT / module["path"]
+        candidates = sorted(path for path in base.rglob("*")
+                            if path.is_file() and path.stat().st_size > 0)
+        if candidates:
+            path = candidates[0]
+            blobs[path.relative_to(ROOT).as_posix()] = path.read_bytes()
     for path in sorted((ROOT / "tools" / "tests").glob("*.py")):
         blobs[f"tools/tests/{path.name}"] = path.read_bytes()
     blobs["scripts/negative-controls.py"] = (ROOT / "scripts/negative-controls.py").read_bytes()
@@ -162,6 +179,7 @@ def build(tmp: Path) -> Path:
         dest = root / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(blob)
+    (root / "gradlew").chmod(0o755)
     for path in _MODULE_PATHS + _SIMULATOR_PATHS:
         (root / path).mkdir(parents=True, exist_ok=True)
     return root

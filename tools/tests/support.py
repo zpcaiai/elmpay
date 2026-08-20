@@ -56,7 +56,11 @@ COPIED_DIRS = ("docs", "contracts")
 # Generated build files: the toolchain validator compares them against the
 # catalogue, so a fixture must carry them too.
 GENERATED_BUILD_FILES = (
+    "gradlew",
+    "gradlew.bat",
     "gradle/libs.versions.toml",
+    "gradle/wrapper/gradle-wrapper.jar",
+    "gradle/wrapper/gradle-wrapper.properties",
     "settings.gradle.kts",
     "build.gradle.kts",
     ".tool-versions",
@@ -88,6 +92,19 @@ def _snapshot() -> dict[str, bytes]:
         for path in sorted((REAL_ROOT / rel).rglob("*")):
             if path.is_file():
                 blobs[path.relative_to(REAL_ROOT).as_posix()] = path.read_bytes()
+    # MODULE_PATH is deliberately stronger than ``mkdir``: an empty directory
+    # disappears from a Git checkout. Mirror one real, non-empty boundary file
+    # from every declared module so disposable fixtures model a clean checkout
+    # instead of manufacturing empty directories that fail their own baseline.
+    registry = json.loads(
+        (REAL_ROOT / "governance" / "module-registry.json").read_text("utf-8"))
+    for module in registry["modules"]:
+        base = REAL_ROOT / module["path"]
+        candidates = sorted(path for path in base.rglob("*")
+                            if path.is_file() and path.stat().st_size > 0)
+        if candidates:
+            path = candidates[0]
+            blobs[path.relative_to(REAL_ROOT).as_posix()] = path.read_bytes()
     # Real bodies, not empty placeholders: NONNEG_ENFORCEMENT_EMPTY and
     # NONNEG_ENFORCEMENT_UNNAMED can only be exercised against real content.
     for module in sorted((REAL_ROOT / "tools" / "tests").glob("*.py")):
@@ -160,6 +177,7 @@ class FixtureRepo:
             dst = self.root / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
             dst.write_bytes(blob)
+        (self.root / "gradlew").chmod(0o755)
         # Mirror declared module directories so MODULE_PATH checks pass.
         for path in _MODULE_PATHS + _SIMULATOR_PATHS:
             (self.root / path).mkdir(parents=True, exist_ok=True)

@@ -150,7 +150,7 @@ def _third_party_imports(root: Path, budget: Budget) -> list[Problem]:
         "argparse", "hashlib", "subprocess", "datetime", "collections", "itertools", "unittest",
         "tempfile", "shutil", "textwrap", "contextlib", "io", "string", "math", "copy",
         "threading", "concurrent", "uuid", "secrets", "statistics", "functools", "enum",
-        "csv", "abc", "operator", "difflib", "unicodedata", "ast",
+        "csv", "abc", "operator", "difflib", "unicodedata", "ast", "zipfile",
         "hmac", "hashlib", "http", "urllib", "socket", "socketserver", "base64",
         "random", "libs", "decimal", "fractions", "importlib", "pkgutil", "multiprocessing",
     }
