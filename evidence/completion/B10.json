@@ -1,0 +1,60 @@
+{
+  "batch_id": "B10",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T10:50:41Z",
+  "completed_at": "2026-08-19T10:51:54Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "docs/domain/STATE_MACHINES.md",
+      "sha256": "7551134df9dcc4f8fdf3f2255651e44735f37afed3433d3ca36917a5f3280066"
+    },
+    {
+      "path": "governance/state-machines.json",
+      "sha256": "174d007df158d2fe55aae8cae7456c1da1c304799338db5dae9366d0db8f55fc"
+    },
+    {
+      "path": "libs/statemachine/reference/__init__.py",
+      "sha256": "17ae7eec61de35a3af4d920d85f35be19b136e7a557c49c95d7c1b3473a0fd52"
+    },
+    {
+      "path": "libs/statemachine/reference/machine.py",
+      "sha256": "6385e141af260cd1fbcd016d7411d2ca27a020fb968b8191f44a7434d157f529"
+    },
+    {
+      "path": "scripts/render-states.py",
+      "sha256": "6b59b627bd48449134b75e0e49eb0003bc3ce67534b15153b912a614da04e827"
+    },
+    {
+      "path": "scripts/state-smoke.py",
+      "sha256": "a985952004da23eabc0a44ae14a915ecc4022f582b83f172431872007952a157"
+    },
+    {
+      "path": "tools/paygov/stategen.py",
+      "sha256": "5c87ce1466e5fe4451d32d20bb4e65cfcd3b160f19917f0442efd4319b3a6ae1"
+    },
+    {
+      "path": "tools/paygov/states.py",
+      "sha256": "9796655b636c2e300a4314ca741e1a1ac244d3e4f6c618a891c8ea18a35b168b"
+    },
+    {
+      "path": "tools/tests/test_b10_states.py",
+      "sha256": "1dd22c719f83133214a2e013e027fa12191189e7a5043bffd230c8c37750f22a"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B08": "d9751f95534c28dbe5f100e85d8b575c6337862688d26c4ea6bb5dfe69695774"
+  }
+}

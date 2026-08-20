@@ -1,0 +1,68 @@
+{
+  "batch_id": "B11",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T10:51:54Z",
+  "completed_at": "2026-08-19T10:53:10Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/api/errors.json",
+      "sha256": "3001a3befe10b3c94cbbfddc53caa9b4d42c6b71c663bc0bed347eb6278bc13b"
+    },
+    {
+      "path": "contracts/api/openapi.baseline.json",
+      "sha256": "7ad13ec031b2af04e6daddf770bb8dab8c3e50d32811a3da37f3e5b47f3ce5fa"
+    },
+    {
+      "path": "contracts/api/openapi.json",
+      "sha256": "1955422fbedc214355e6fc8b2a2363fdf95ab215b3adb62db4d27e1a2cf7c875"
+    },
+    {
+      "path": "contracts/api/transition-vectors.json",
+      "sha256": "927a1bd23c18ec5b6496a00b97339881812957dacd92ae1d4b81153509b9a383"
+    },
+    {
+      "path": "docs/api/API_CONTRACT.md",
+      "sha256": "9636f3157a0d63bddafe2053c925989478ac09655d53d8fa5b47147bb8f741b7"
+    },
+    {
+      "path": "governance/api-contract.json",
+      "sha256": "df8342d424a1c95ccb8952d6468f62dda24e30271f2eb08c622d81d0a96894b2"
+    },
+    {
+      "path": "scripts/api-smoke.py",
+      "sha256": "06f98374a4ec77cd4c902fe1f2cc4668d60cf397fcf2031bbec4bbc7c4c43756"
+    },
+    {
+      "path": "scripts/render-api.py",
+      "sha256": "cd684cce093f1e477b7fc7006b69f437134008ab058ca5cee8b810d2b8b22ee9"
+    },
+    {
+      "path": "tools/paygov/api.py",
+      "sha256": "2c1f5c72378bd63d82f6f4d5104ef7a4fb2da2c052019186b394d27c44079e37"
+    },
+    {
+      "path": "tools/paygov/apigen.py",
+      "sha256": "a8ca62cc0310e8c214f6a418f65b9c1f11f21b8b924c86e06a32c8895c6d4027"
+    },
+    {
+      "path": "tools/tests/test_b11_api.py",
+      "sha256": "f635c267842f981795c7b8cd093ebb2e2212fd9cfd5c3b510d553b9325fc0edf"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B10": "d2821c2bbd36ee1083549ec605b7a7ec6fb9410dae79c0e0be06302025dd6b0a"
+  }
+}

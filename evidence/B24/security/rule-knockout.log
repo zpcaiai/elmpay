@@ -1,0 +1,18 @@
+[OK  ] TENANT_SUSPENDED_BLOCKS_REFUNDS: removing it breaks 1 module(s)
+[OK  ] TENANT_SUSPENDED_TAKES_MONEY: removing it breaks 1 module(s)
+[OK  ] TENANT_DRAFT_TAKES_MONEY: removing it breaks 1 module(s)
+[OK  ] TENANT_CLOSED_ACTIVE: removing it breaks 1 module(s)
+[OK  ] TENANT_ENV_SHARES_KEYS: removing it breaks 1 module(s)
+[OK  ] TENANT_ID_NOT_OPAQUE: removing it breaks 1 module(s)
+[OK  ] TENANT_ACTIVATION_UNVERIFIED: removing it breaks 1 module(s)
+[OK  ] TENANT_UNSUSPEND_SINGLE_PERSON: removing it breaks 1 module(s)
+[OK  ] TENANT_CLOSE_BEFORE_SETTLEMENT: removing it breaks 1 module(s)
+[OK  ] TENANT_CLOSE_WITHOUT_SHREDDING: removing it breaks 1 module(s)
+[OK  ] TENANT_LEDGER_NOT_RETAINED: removing it breaks 1 module(s)
+[OK  ] TENANT_KEK_NOT_SCOPED: removing it breaks 1 module(s)
+[OK  ] TENANT_CROSS_REFERENCE: removing it breaks 1 module(s)
+[OK  ] TENANT_QUOTA_CEILING: removing it breaks 1 module(s)
+[OK  ] TENANT_AUDIT_CLASS_UNKNOWN: removing it breaks 1 module(s)
+[OK  ] TENANT_GENERATED_DRIFT: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

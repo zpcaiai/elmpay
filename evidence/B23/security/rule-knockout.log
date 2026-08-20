@@ -1,0 +1,18 @@
+[OK  ] AUDIT_NO_CHAIN: removing it breaks 1 module(s)
+[OK  ] AUDIT_NO_SEQUENCE: removing it breaks 1 module(s)
+[OK  ] AUDIT_NO_ANCHOR: removing it breaks 1 module(s)
+[OK  ] AUDIT_ANCHOR_INTERVAL: removing it breaks 1 module(s)
+[OK  ] AUDIT_NO_WITNESS: removing it breaks 1 module(s)
+[OK  ] AUDIT_ANCHOR_KEY_UNMANAGED: removing it breaks 1 module(s)
+[OK  ] AUDIT_MISSING_FIELD: removing it breaks 1 module(s)
+[OK  ] AUDIT_FORBIDDEN_FIELD: removing it breaks 1 module(s)
+[OK  ] AUDIT_MUTABLE_STORAGE: removing it breaks 1 module(s)
+[OK  ] AUDIT_SHARED_CREDENTIALS: removing it breaks 1 module(s)
+[OK  ] AUDIT_NO_SHREDDING: removing it breaks 1 module(s)
+[OK  ] AUDIT_SHRED_LOSES_PROOF: removing it breaks 1 module(s)
+[OK  ] AUDIT_READER_ELEVATABLE: removing it breaks 1 module(s)
+[OK  ] AUDIT_ACTION_UNLOGGED: removing it breaks 1 module(s)
+[OK  ] AUDIT_UNREHEARSED: removing it breaks 1 module(s)
+[OK  ] AUDIT_GENERATED_DRIFT: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

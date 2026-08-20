@@ -1,0 +1,69 @@
+{
+  "batch_id": "B31",
+  "status": "passed",
+  "commit_sha": "84c80250beda2bd88b3a595f1ff09711b1e2344a",
+  "environment": "integration",
+  "started_at": "2026-08-19T16:45:36Z",
+  "completed_at": "2026-08-19T16:47:05Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/tenancy/isolation.json",
+      "sha256": "59ed0888d0d1c8918f30face809a15c74164de8a05c267de54d4bb5bb5dea91e"
+    },
+    {
+      "path": "docs/tenancy/TENANT_ISOLATION.md",
+      "sha256": "45e04da6fad04b9c7ebc9d92cba075cc3ad1fc219f4d4507d4c38ae6fe009902"
+    },
+    {
+      "path": "governance/tenant-isolation.json",
+      "sha256": "182733a1d524318fe195635d733760e1ce6a0cbc4621fd36622322e9b7f69fc5"
+    },
+    {
+      "path": "libs/isolation/reference/__init__.py",
+      "sha256": "6f4a2556ef407ca7d520191c681da1bb76d794f34cbe695b7cc55267b9df2325"
+    },
+    {
+      "path": "libs/isolation/reference/probes.py",
+      "sha256": "bfae95a55e869921dcc7cc53410592225c9de78428e012d73775df78c7e6c551"
+    },
+    {
+      "path": "scripts/isolation-smoke.py",
+      "sha256": "7335b35800ffd7bff52c39d19fb96bd40c68f769bcb765fd794832e4336996ba"
+    },
+    {
+      "path": "scripts/render-isolation.py",
+      "sha256": "6a098594500dcb4525ec6238fe67eaed39c8c32c733563b157ce106d9688a4ca"
+    },
+    {
+      "path": "tools/negative/b31.py",
+      "sha256": "12a185083aa6fe6b272e111f61e01344cce38220a15418117592147234985292"
+    },
+    {
+      "path": "tools/paygov/isolation.py",
+      "sha256": "23662972a4a2543361c03243f77a58ff3fc68a773c05063dea064c1d16cbb725"
+    },
+    {
+      "path": "tools/paygov/isolationgen.py",
+      "sha256": "4b45b5287c5eb1d3482070cdafb8813860dda612abd8217c993b680e1aa6ace1"
+    },
+    {
+      "path": "tools/tests/test_b31_isolation.py",
+      "sha256": "c3cbb97b152ded97c5d6094e2d1caff19cff495095cf2cd1a0a0a0d84867469c"
+    }
+  ],
+  "tests": {
+    "passed": 2546,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B30": "fbd49a082655cb65ae3e5e764ad1751c9bf725daa9e10fe5789d2a30c6d18314",
+    "B29": "5aa77f5871661d642498e4526a9d6b68b344850384835cac07c8cdeb7540a8ba"
+  }
+}

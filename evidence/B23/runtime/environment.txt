@@ -1,0 +1,4 @@
+Python 3.10.12 (main, Jun 22 2026, 18:55:27) [GCC 11.4.0]
+Linux claude 6.8.0-136-generic #136~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul  3 15:42:07 UTC  aarch64 aarch64 aarch64 GNU/Linux
+git version 2.34.1
+repo=344af4f

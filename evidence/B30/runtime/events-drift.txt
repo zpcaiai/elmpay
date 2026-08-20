@@ -1,0 +1,2 @@
+up-to-date  contracts/events/catalog.json
+up-to-date  docs/events/EVENT_CATALOG.md

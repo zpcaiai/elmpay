@@ -1,9 +1,1 @@
-{
-  "run": 306,
-  "passed": 306,
-  "failed": 0,
-  "skipped": 0,
-  "skipped_critical": 0,
-  "failures": [],
-  "errors": []
-}
+{"run": 2753, "passed": 2753, "failed": 0, "skipped": 0, "skipped_critical": 0}

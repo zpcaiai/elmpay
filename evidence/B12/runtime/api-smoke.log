@@ -1,0 +1,38 @@
+== 1. 每条 accepted 向量都必须走到声明的状态，且重放不变
+[OK ] cancel_payment_intent: payment-intent created --merchant.cancel--> canceled — landed=canceled replayed=canceled
+[OK ] cancel_payment_intent: payment-intent requires_action --merchant.cancel--> canceled — landed=canceled replayed=canceled
+[OK ] void_payment_intent: payment-intent authorized --merchant.void--> canceled — landed=canceled replayed=canceled
+[OK ] cancel_refund: refund requested --merchant.cancel_refund--> canceled — landed=canceled replayed=canceled
+[OK ] submit_dispute_evidence: dispute evidence_required --merchant.evidence_submitted--> under_review — landed=under_review replayed=under_review
+[OK ] cancel_subscription: subscription trialing --customer.cancel--> canceled — landed=canceled replayed=canceled
+[OK ] cancel_subscription: subscription active --customer.cancel--> canceled — landed=canceled replayed=canceled
+[OK ] cancel_subscription: subscription past_due --customer.cancel--> canceled — landed=canceled replayed=canceled
+
+== 2. 每条 rejected 向量都必须以声明的理由被拒绝
+[OK ] dispute opened --provider.nonexistent_event--> 拒绝(EVENT_NOT_ALLOWED) — EVENT_NOT_ALLOWED
+[OK ] payment-attempt pending --provider.succeeded--> 拒绝(WRONG_ACTOR) — WRONG_ACTOR
+[OK ] payment-attempt unknown --reconciliation.matched_success--> 拒绝(WRONG_ACTOR) — WRONG_ACTOR
+[OK ] payment-attempt initiated --provider.nonexistent_event--> 拒绝(EVENT_NOT_ALLOWED) — EVENT_NOT_ALLOWED
+[OK ] payment-intent created --provider.authorized--> 拒绝(WRONG_ACTOR) — WRONG_ACTOR
+[OK ] payment-intent requires_action --provider.authorized--> 拒绝(WRONG_ACTOR) — WRONG_ACTOR
+[OK ] payment-intent authorized --provider.captured--> 拒绝(WRONG_ACTOR) — WRONG_ACTOR
+[OK ] payment-intent created --provider.nonexistent_event--> 拒绝(EVENT_NOT_ALLOWED) — EVENT_NOT_ALLOWED
+[OK ] reconciliation-exception open --provider.nonexistent_event--> 拒绝(EVENT_NOT_ALLOWED) — EVENT_NOT_ALLOWED
+[OK ] reconciliation-run ingesting --provider.nonexistent_event--> 拒绝(EVENT_NOT_ALLOWED) — EVENT_NOT_ALLOWED
+[OK ] refund processing --provider.refunded--> 拒绝(WRONG_ACTOR) — WRONG_ACTOR
+[OK ] refund requested --provider.nonexistent_event--> 拒绝(EVENT_NOT_ALLOWED) — EVENT_NOT_ALLOWED
+[OK ] subscription trialing --provider.nonexistent_event--> 拒绝(EVENT_NOT_ALLOWED) — EVENT_NOT_ALLOWED
+
+== 3. 契约层的三条硬性质
+[OK ] 每个写操作都要求幂等键 — 9 个写操作
+[OK ] 没有任何列表接口使用偏移分页 — ['created_at,id', 'cursor', 'limit', 'starting_after']
+[OK ] 没有错误文案回显卡数据或凭据 — []
+
+== 4. 幂等键作用域与状态机声明逐条一致
+[OK ] cancel_payment_intent 的幂等作用域与状态机一致 — api=idempotency_key model=['idempotency_key']
+[OK ] void_payment_intent 的幂等作用域与状态机一致 — api=idempotency_key model=['idempotency_key']
+[OK ] cancel_refund 的幂等作用域与状态机一致 — api=idempotency_key model=['idempotency_key']
+[OK ] submit_dispute_evidence 的幂等作用域与状态机一致 — api=dispute_id+evidence_revision model=['dispute_id+evidence_revision']
+[OK ] cancel_subscription 的幂等作用域与状态机一致 — api=idempotency_key model=['idempotency_key']
+
+checks=29 failures=0

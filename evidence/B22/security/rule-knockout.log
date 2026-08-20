@@ -1,0 +1,18 @@
+[OK  ] BASE_RULE_UNKNOWN: removing it breaks 1 module(s)
+[OK  ] BASE_TEST_MISSING: removing it breaks 1 module(s)
+[OK  ] BASE_GAP_NO_OWNER: removing it breaks 1 module(s)
+[OK  ] BASE_GAP_NO_REVIEW: removing it breaks 1 module(s)
+[OK  ] BASE_GAP_WITH_REFS: removing it breaks 1 module(s)
+[OK  ] BASE_FALSE_COMPLIANCE: removing it breaks 1 module(s)
+[OK  ] BASE_COVERAGE_BELOW_FLOOR: removing it breaks 1 module(s)
+[OK  ] BASE_TOO_MANY_GAPS: removing it breaks 1 module(s)
+[OK  ] BASE_NO_ENFORCEMENT: removing it breaks 1 module(s)
+[OK  ] BASE_STANDARD_UNKNOWN: removing it breaks 1 module(s)
+[OK  ] BASE_STANDARD_VERSION: removing it breaks 1 module(s)
+[OK  ] BASE_STANDARD_UNUSED: removing it breaks 1 module(s)
+[OK  ] BASE_ENFORCEMENT_KIND: removing it breaks 1 module(s)
+[OK  ] BASE_COVERAGE_POLICY: removing it breaks 1 module(s)
+[OK  ] BASE_GAP_NO_REASON: removing it breaks 1 module(s)
+[OK  ] BASE_GENERATED_DRIFT: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

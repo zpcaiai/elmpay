@@ -1,0 +1,18 @@
+[OK  ] ISO_PROBE_POSITIVE_ONLY: removing it breaks 1 module(s)
+[OK  ] ISO_NO_PROBE: removing it breaks 1 module(s)
+[OK  ] ISO_PROBE_NOT_IN_CI: removing it breaks 1 module(s)
+[OK  ] ISO_PROBE_DUPLICATE: removing it breaks 1 module(s)
+[OK  ] ISO_SURFACE_MISSING: removing it breaks 1 module(s)
+[OK  ] ISO_DEFAULT_ALLOW: removing it breaks 1 module(s)
+[OK  ] ISO_RLS_NOT_FORCED: removing it breaks 1 module(s)
+[OK  ] ISO_TABLE_WITHOUT_RLS: removing it breaks 1 module(s)
+[OK  ] ISO_NO_SESSION_TENANT: removing it breaks 1 module(s)
+[OK  ] ISO_APPLICATION_FILTER_ONLY: removing it breaks 1 module(s)
+[OK  ] ISO_CACHE_UNSCOPED: removing it breaks 1 module(s)
+[OK  ] ISO_NEGATIVE_CACHE_SHARED: removing it breaks 1 module(s)
+[OK  ] ISO_CONSUMER_TRUSTS_PRODUCER: removing it breaks 1 module(s)
+[OK  ] ISO_LOG_PAYLOAD: removing it breaks 1 module(s)
+[OK  ] ISO_EXPORT_FILTER_LATE: removing it breaks 1 module(s)
+[OK  ] ISO_CROSS_TENANT_SINGLE_PERSON: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

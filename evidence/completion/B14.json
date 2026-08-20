@@ -1,0 +1,64 @@
+{
+  "batch_id": "B14",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T10:55:57Z",
+  "completed_at": "2026-08-19T10:57:23Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/sql/schema.sql",
+      "sha256": "8fd7a4775c18379b81781a5a93292c00a0f5fae028a587c72f3e59e0e2bf3aa7"
+    },
+    {
+      "path": "contracts/topology/graph.json",
+      "sha256": "60b2244306d3e2eccff460679d474369239d4233074e40091fc3918655d23628"
+    },
+    {
+      "path": "docs/architecture/SERVICE_TOPOLOGY.md",
+      "sha256": "0fbd6848db1bf3ccff06f408509dcdc1d5cb5426afb5c986cadf3f0b24f7190d"
+    },
+    {
+      "path": "governance/service-topology.json",
+      "sha256": "5c0091b7accc7137e01455eec267ce0b3562e7b8538c1791ce3a86d9e3df8378"
+    },
+    {
+      "path": "scripts/render-topology.py",
+      "sha256": "30a4cd7bcafec6b8c1622b093cbf3685e6cb03816342d18f6366356e4591ec3a"
+    },
+    {
+      "path": "scripts/topology-smoke.py",
+      "sha256": "e0026e7806d05d5bce5635da008b5aa8c160024c17031dfece16f74516a6a66a"
+    },
+    {
+      "path": "tools/paygov/domaingen.py",
+      "sha256": "402c99a625a83a16b009f11757bcc4ae0f989fe3e49ae1b3678a785ac7339b08"
+    },
+    {
+      "path": "tools/paygov/topogen.py",
+      "sha256": "5e80f426e6ee081e16d63c5c472d5531b15c00de62930368754a89f11a287af0"
+    },
+    {
+      "path": "tools/paygov/topology.py",
+      "sha256": "d1ec698bacafb33ce64943832ddfed9b6fd1b2fcdf39e13cc428f8d6d38e4c2a"
+    },
+    {
+      "path": "tools/tests/test_b14_topology.py",
+      "sha256": "de9532d6504fc6c2b959018220e90acbd50bd127d521d311ef8c986f1852792d"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B12": "9bf3d0e7dfaa2d4f7a4c5bf34d222e5d1e07f05aa6959972622bfb956e9c5d16"
+  }
+}

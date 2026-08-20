@@ -14,9 +14,33 @@
       "save_to": "runtime/dependency-b20.json"
     },
     {
-      "purpose": "full governance regression suite (verbose log + machine summary)",
+      "purpose": "full governance regression suite (verbose log + machine summary) (shard 1/4)",
       "expect": 0,
-      "command": "python3 scripts/test-summary.py --out evidence/B21/test-results/summary.json --log evidence/B21/test-results/unittest.log",
+      "command": "python3 scripts/test-summary.py --out evidence/B21/test-results/summary-1of4.json --log evidence/B21/test-results/unittest-1of4.log --shard 1/4",
+      "save_to": "test-results/summary-1of4.log"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary) (shard 2/4)",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --out evidence/B21/test-results/summary-2of4.json --log evidence/B21/test-results/unittest-2of4.log --shard 2/4",
+      "save_to": "test-results/summary-2of4.log"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary) (shard 3/4)",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --out evidence/B21/test-results/summary-3of4.json --log evidence/B21/test-results/unittest-3of4.log --shard 3/4",
+      "save_to": "test-results/summary-3of4.log"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary) (shard 4/4)",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --out evidence/B21/test-results/summary-4of4.json --log evidence/B21/test-results/unittest-4of4.log --shard 4/4",
+      "save_to": "test-results/summary-4of4.log"
+    },
+    {
+      "purpose": "full governance regression suite (verbose log + machine summary) (merge; missing shard fails)",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --merge evidence/B21/test-results/summary-1of4.json evidence/B21/test-results/summary-2of4.json evidence/B21/test-results/summary-3of4.json evidence/B21/test-results/summary-4of4.json --out evidence/B21/test-results/summary.json --log evidence/B21/test-results/unittest.log",
       "save_to": "test-results/summary.log"
     },
     {
@@ -200,10 +224,28 @@
       "save_to": "security/governance-report.json"
     },
     {
-      "purpose": "runtime fail-closed proof against corrupted governance surfaces",
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces (shard 1/4)",
       "expect": 0,
-      "command": "python3 scripts/negative-controls.py",
-      "save_to": "security/negative-controls.log"
+      "command": "python3 scripts/negative-controls.py --shard 1/4",
+      "save_to": "security/negative-controls-1of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces (shard 2/4)",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 2/4",
+      "save_to": "security/negative-controls-2of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces (shard 3/4)",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 3/4",
+      "save_to": "security/negative-controls-3of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof against corrupted governance surfaces (shard 4/4)",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 4/4",
+      "save_to": "security/negative-controls-4of4.log"
     },
     {
       "purpose": "every new rule code remains load-bearing (deletion knockout)",

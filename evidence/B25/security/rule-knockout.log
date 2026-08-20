@@ -1,0 +1,18 @@
+[OK  ] MERCHANT_SELF_VERIFIED: removing it breaks 1 module(s)
+[OK  ] MERCHANT_AUTHORITY_INCOMPLETE: removing it breaks 1 module(s)
+[OK  ] MERCHANT_VERIFICATION_FOREVER: removing it breaks 1 module(s)
+[OK  ] MERCHANT_SELF_ATTESTED_FACT: removing it breaks 1 module(s)
+[OK  ] MERCHANT_DOC_NO_EXPIRY: removing it breaks 1 module(s)
+[OK  ] MERCHANT_ACCOUNT_PROOF_STALE: removing it breaks 1 module(s)
+[OK  ] MERCHANT_COMPANY_NO_UBO: removing it breaks 1 module(s)
+[OK  ] MERCHANT_UBO_DEPTH: removing it breaks 1 module(s)
+[OK  ] MERCHANT_SANCTIONS_AUTO: removing it breaks 1 module(s)
+[OK  ] MERCHANT_SCREENING_ONCE: removing it breaks 1 module(s)
+[OK  ] MERCHANT_PROHIBITED_CATEGORY_ALLOWED: removing it breaks 1 module(s)
+[OK  ] MERCHANT_CURRENCY_UNKNOWN: removing it breaks 1 module(s)
+[OK  ] MERCHANT_RISK_LIMITS_INVERTED: removing it breaks 1 module(s)
+[OK  ] MERCHANT_HIGH_RISK_SINGLE_APPROVER: removing it breaks 1 module(s)
+[OK  ] MERCHANT_ACCOUNT_CHANGE_NO_HOLD: removing it breaks 1 module(s)
+[OK  ] MERCHANT_ACCOUNT_CHANGE_SINGLE_PERSON: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

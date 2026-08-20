@@ -1,0 +1,18 @@
+[OK  ] ID_BEARER_TOKEN: removing it breaks 1 module(s)
+[OK  ] ID_FORBIDDEN_ALGORITHM: removing it breaks 1 module(s)
+[OK  ] ID_FLOW: removing it breaks 1 module(s)
+[OK  ] ID_FORBIDDEN_FLOW: removing it breaks 1 module(s)
+[OK  ] ID_PKCE: removing it breaks 1 module(s)
+[OK  ] ID_REDIRECT_MATCH: removing it breaks 1 module(s)
+[OK  ] ID_REVOCATION_CHECK: removing it breaks 1 module(s)
+[OK  ] ID_STATIC_SERVICE_ACCOUNT: removing it breaks 1 module(s)
+[OK  ] ID_RECOVERY_DOWNGRADE: removing it breaks 1 module(s)
+[OK  ] ID_RECOVERY_SMS: removing it breaks 1 module(s)
+[OK  ] ID_RECOVERY_DELAY: removing it breaks 1 module(s)
+[OK  ] ID_RECOVERY_UNCOVERED: removing it breaks 1 module(s)
+[OK  ] ID_PRINCIPAL_UNBACKED: removing it breaks 1 module(s)
+[OK  ] ID_LIFETIME_EXCEEDS_SESSION: removing it breaks 1 module(s)
+[OK  ] ID_TOKEN_LIFETIME: removing it breaks 1 module(s)
+[OK  ] ID_GENERATED_DRIFT: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

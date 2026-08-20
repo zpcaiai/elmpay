@@ -1,0 +1,10 @@
+[OK  ] MONEY_EXPONENT: removing it breaks 1 module(s)
+[OK  ] MONEY_VECTORS: removing it breaks 1 module(s)
+[OK  ] MONEY_VECTORS_DRIFT: removing it breaks 1 module(s)
+[OK  ] MONEY_FLOAT_LITERAL: removing it breaks 2 module(s)
+[OK  ] MONEY_COVERAGE: removing it breaks 1 module(s)
+[OK  ] MONEY_SOURCE: removing it breaks 1 module(s)
+[OK  ] MONEY_ROUNDING: removing it breaks 1 module(s)
+[OK  ] MONEY_NUMERIC: removing it breaks 1 module(s)
+
+codes=8 load_bearing=8 seam_not_applicable=0 not_load_bearing=0

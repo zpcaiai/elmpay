@@ -1,0 +1,2 @@
+up-to-date  contracts/merchant/profile-model.json
+up-to-date  docs/merchant/MERCHANT_PROFILE.md

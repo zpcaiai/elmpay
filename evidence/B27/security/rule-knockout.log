@@ -1,0 +1,18 @@
+[OK  ] CAP_IMPLICIT_ALLOW: removing it breaks 1 module(s)
+[OK  ] CAP_SILENT_FALLBACK: removing it breaks 1 module(s)
+[OK  ] CAP_AUTH_NEVER_EXPIRES: removing it breaks 1 module(s)
+[OK  ] CAP_CAPTURE_AFTER_EXPIRY: removing it breaks 1 module(s)
+[OK  ] CAP_NO_REAUTHORIZATION: removing it breaks 1 module(s)
+[OK  ] CAP_OVER_CAPTURE: removing it breaks 1 module(s)
+[OK  ] CAP_AUTH_WINDOW_WITHOUT_AUTH: removing it breaks 1 module(s)
+[OK  ] CAP_REFUND_PROMISED_BEYOND_WINDOW: removing it breaks 1 module(s)
+[OK  ] CAP_OVER_REFUND: removing it breaks 1 module(s)
+[OK  ] CAP_REFUND_ELSEWHERE: removing it breaks 1 module(s)
+[OK  ] CAP_DISPUTE_AUTO_ACCEPT: removing it breaks 1 module(s)
+[OK  ] CAP_DISPUTE_DEADLINE_INTERNAL: removing it breaks 1 module(s)
+[OK  ] CAP_DISPUTE_NO_EVIDENCE: removing it breaks 1 module(s)
+[OK  ] CAP_CURRENCY_UNSETTLEABLE: removing it breaks 1 module(s)
+[OK  ] CAP_REGION_METHOD_UNSUPPORTED: removing it breaks 1 module(s)
+[OK  ] CAP_SCA_DISABLED: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

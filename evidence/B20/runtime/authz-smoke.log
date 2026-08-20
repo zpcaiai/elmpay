@@ -1,0 +1,24 @@
+[OK ] 正常路径：财务批准由管理员发起的退款 — ALLOW
+[OK ] 每一次判定都留下审计记录（含规则版本）
+[OK ] 默认拒绝：客服没有批准权限 — DENY_NOT_GRANTED
+[OK ] 拒绝也要留审计
+[OK ] 跨租户读取被拒 — DENY_CROSS_TENANT
+[OK ] 对象属于别的租户时被拒 — DENY_OBJECT_OWNERSHIP
+[OK ] 没有审批的资金动作被拒 — DENY_MISSING_APPROVAL
+[OK ] 自己批准自己被拒 — DENY_SELF_APPROVAL
+[OK ] 发起人不能同时是复核人（对象级职责分离） — DENY_SEPARATION_OF_DUTIES
+[OK ] 审批未绑定本次请求时被拒（防重放到另一笔） — DENY_APPROVAL_NOT_BOUND
+[OK ] 过期审批被拒 — DENY_APPROVAL_EXPIRED
+[OK ] 审批人本身没有该权限时被拒 — DENY_APPROVER_NOT_PERMITTED
+[OK ] 卡号对任何角色都不可读 — DENY_FORBIDDEN_FIELD
+[OK ] 客服看到脱敏后的银行账号，联系方式按角色放行 — ('bank_account_number',)
+[OK ] 财务可以看到银行账号全文 — ()
+[OK ] 没有提权时改配置被拒 — DENY_NOT_GRANTED
+[OK ] 提权后改配置放行，且审计里带着票据 — ALLOW
+[OK ] 提权到点后自动失效 — DENY_ELEVATION_EXPIRED
+[OK ] 提权被撤销后立即失效 — DENY_ELEVATION_REVOKED
+[OK ] 非法提权申请在签发环节就被拒 — []
+[OK ] 审计员不可提权
+[OK ] 紧急通道时限比常规提权更短
+
+checks=22 failures=0

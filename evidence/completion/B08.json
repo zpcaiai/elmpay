@@ -1,0 +1,60 @@
+{
+  "batch_id": "B08",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T10:48:22Z",
+  "completed_at": "2026-08-19T10:49:31Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/sql/schema.sql",
+      "sha256": "8fd7a4775c18379b81781a5a93292c00a0f5fae028a587c72f3e59e0e2bf3aa7"
+    },
+    {
+      "path": "docs/domain/DOMAIN_MODEL.md",
+      "sha256": "bbbdb1168b7660421cc27fb5362e083622dd947759f9942571d7b50c88811655"
+    },
+    {
+      "path": "docs/domain/GLOSSARY.md",
+      "sha256": "e1114df754cd2e6d01c28ab95b49489632fb1eeca207001d3551be36cf3f6721"
+    },
+    {
+      "path": "governance/domain-model.json",
+      "sha256": "93feae8838977c88e6040d0eefb2b25239c5276bc73a072a65b82cb1c7964ae8"
+    },
+    {
+      "path": "governance/glossary.json",
+      "sha256": "701eb82b50132338528436c7893eafaf9b43cad5df141352a95725305d207ed5"
+    },
+    {
+      "path": "scripts/render-domain.py",
+      "sha256": "5759734c2ef172f5b51c4db792de1d4dd01d1ad1d7fc8a4a7c16153122776cd5"
+    },
+    {
+      "path": "tools/paygov/domain.py",
+      "sha256": "c9eb149f64dcdb838f7c31a2a0b7c1ca63ba6206a1350e3e91cf028a6c9de809"
+    },
+    {
+      "path": "tools/paygov/domaingen.py",
+      "sha256": "402c99a625a83a16b009f11757bcc4ae0f989fe3e49ae1b3678a785ac7339b08"
+    },
+    {
+      "path": "tools/tests/test_b08_domain.py",
+      "sha256": "938775d856c7e977311dcab38f0c2a6c587ff7765067afd90d8b070fbafcb3aa"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B07": "b27314bc01a579f0b757d2666832f8a0f674211e74d68e2439c3b9d1b5ef9745"
+  }
+}

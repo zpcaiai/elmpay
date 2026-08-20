@@ -1,0 +1,8 @@
+up-to-date  docs/adr/README.md
+up-to-date  docs/domain/DOMAIN_MODEL.md
+up-to-date  docs/domain/GLOSSARY.md
+up-to-date  docs/requirements/REQUIREMENTS_BASELINE.md
+up-to-date  docs/requirements/SERVICE_BOUNDARIES.md
+up-to-date  docs/security/THREAT_MODEL.md
+up-to-date  docs/toolchain/VERSION_CATALOG.md
+up-to-date  docs/traceability/MATRIX.md

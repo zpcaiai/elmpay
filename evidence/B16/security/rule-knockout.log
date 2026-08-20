@@ -1,0 +1,18 @@
+[OK  ] ZT_NETWORK_TRUST: removing it breaks 1 module(s)
+[OK  ] ZT_DENY_BY_DEFAULT: removing it breaks 1 module(s)
+[OK  ] ZT_STATIC_CREDENTIAL: removing it breaks 1 module(s)
+[OK  ] ZT_AUDIT_ALLOW_ONLY: removing it breaks 1 module(s)
+[OK  ] ZT_AUDIT_MUTABLE: removing it breaks 1 module(s)
+[OK  ] ZT_FOUR_EYES: removing it breaks 1 module(s)
+[OK  ] ZT_STEP_UP: removing it breaks 1 module(s)
+[OK  ] ZT_ADMIN_MFA: removing it breaks 1 module(s)
+[OK  ] ZT_DEVICE_POSTURE: removing it breaks 1 module(s)
+[OK  ] ZT_TENANT_BINDING: removing it breaks 1 module(s)
+[OK  ] ZT_INTERNAL_TRUST: removing it breaks 1 module(s)
+[OK  ] ZT_BOUNDARY_UNGOVERNED: removing it breaks 1 module(s)
+[OK  ] ZT_BREAK_GLASS_UNGOVERNED: removing it breaks 1 module(s)
+[OK  ] ZT_CREDENTIAL_LIFETIME: removing it breaks 1 module(s)
+[OK  ] ZT_HIGH_RISK_UNCOVERED: removing it breaks 1 module(s)
+[OK  ] ZT_GENERATED_DRIFT: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

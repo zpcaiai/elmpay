@@ -1,10 +1,10 @@
 {
   "batch_id": "B01",
   "status": "passed",
-  "commit_sha": "e7a2c85b9a0253c0286d2c08ea9b37e24a01f6ab",
+  "commit_sha": "65559c799c487c16ce85271f846bcd005131f371",
   "environment": "integration",
-  "started_at": "2026-08-18T12:56:43Z",
-  "completed_at": "2026-08-18T12:57:09Z",
+  "started_at": "2026-08-20T03:18:18Z",
+  "completed_at": "2026-08-20T03:20:06Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -26,11 +26,11 @@
     },
     {
       "path": "tools/paygov/requirements.py",
-      "sha256": "9abe7f7a68134bb0c31ce932003301fbc6ed3e43f9cc0843be6e36b9d5e9a827"
+      "sha256": "43dd3d3effa06b03345b0a0b8ccce8186fd5b04b3f3e625bb58c8b90fd1fbf38"
     },
     {
       "path": "tools/paygov/boundaries.py",
-      "sha256": "53e28f8b7da45991c6973a7964ee2e2efba3e8dd174470abe3cba8751ee4312b"
+      "sha256": "8f92e4fec7ccd665a3b09a782d0ff89f6bb1946939014ef9403e5948a41a7d91"
     },
     {
       "path": "tools/paygov/catalogue.py",
@@ -38,11 +38,11 @@
     },
     {
       "path": "tools/paygov/render.py",
-      "sha256": "1367eeb70f7bd38589d37b05003ef1a00cb18de49a855b80da9566706eef404a"
+      "sha256": "05f32ab05325620ec8e82fa2db2390cd4de102a7a1f6d931039b4b144208b987"
     },
     {
       "path": "tools/paygov/docs.py",
-      "sha256": "2dc7262561b9889b6149ceae51a2390a7c520bee608919f7d69309f4f37f0fe2"
+      "sha256": "e628ab0b976d34eb73690ac412ffbdc4d275afa112a3101232fd09d4f7a80662"
     },
     {
       "path": "tools/tests/test_b01_requirements.py",
@@ -54,7 +54,7 @@
     },
     {
       "path": "tools/tests/test_b01_docs_drift.py",
-      "sha256": "79b43231656c5c2a34435e8c69a55b393de0336997534a91f1dad18378b2056e"
+      "sha256": "d2535391fb2fc8422d9049def45b2ef1a2aac5fc8b0454b35ec9c61f2f541662"
     },
     {
       "path": "scripts/render-docs.py",
@@ -66,7 +66,7 @@
     }
   ],
   "tests": {
-    "passed": 306,
+    "passed": 2772,
     "failed": 0,
     "skipped_critical": 0
   },
@@ -75,6 +75,6 @@
     "accepted_findings": 0
   },
   "dependency_hashes": {
-    "B00": "44b228a1a7067cf693967341abbc9ab6f0ebf2b94c8d8731ccfdf183b480d01c"
+    "B00": "1b16d7e2239709b1629d6a57bb2f772fe159ebe351bbdef259afb87ab70c1fb0"
   }
 }

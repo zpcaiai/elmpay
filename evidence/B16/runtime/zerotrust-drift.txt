@@ -1,0 +1,2 @@
+up-to-date  contracts/security/zero-trust-matrix.json
+up-to-date  docs/security/ZERO_TRUST.md

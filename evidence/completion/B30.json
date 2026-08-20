@@ -1,0 +1,68 @@
+{
+  "batch_id": "B30",
+  "status": "passed",
+  "commit_sha": "c72dd1370dac632dafd88ecb696b957abd547c54",
+  "environment": "integration",
+  "started_at": "2026-08-19T16:33:42Z",
+  "completed_at": "2026-08-19T16:34:55Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/onboarding/workflow.json",
+      "sha256": "560a3a90ed4f0e88b568a227f3c205d16f1fb683ffd174b9cd2cdce2343df5df"
+    },
+    {
+      "path": "docs/onboarding/ONBOARDING_WORKFLOW.md",
+      "sha256": "09675fda467bff94e67e20d6d3784e8a8dbbefaa3416d769b06549ffd589c837"
+    },
+    {
+      "path": "governance/onboarding-workflow.json",
+      "sha256": "92e7869ee1d5b1b994080ddd76ad2fc3f664adda50185dd00144707132a66e35"
+    },
+    {
+      "path": "libs/onboarding/reference/__init__.py",
+      "sha256": "bcbe38b1938bad8ff2b88dc553d235e20fef23a8fe1d51085581412b541c2091"
+    },
+    {
+      "path": "libs/onboarding/reference/workflow.py",
+      "sha256": "54ac629907b48bcf36a563069fc79d9dcf6b51ee3224365f444ef7f1438e35fe"
+    },
+    {
+      "path": "scripts/onboarding-smoke.py",
+      "sha256": "6f3e955cb1d2928fba614758d243a4fa27b101574b9a60b9d960923509a94b82"
+    },
+    {
+      "path": "scripts/render-onboarding.py",
+      "sha256": "b61d2ad593f0e1b3dcaaf29f4547170496f91f7ff43db053a79c4aa4e84bd3d3"
+    },
+    {
+      "path": "tools/negative/b30.py",
+      "sha256": "3a6d00f96a87e497a363bdb09acbc5ef73c48ed70bcdd336215ac8bd89abb856"
+    },
+    {
+      "path": "tools/paygov/onboarding.py",
+      "sha256": "61956edf8786b8a481f10eac9ebbcc21ad2f4bbbcd8d1e4a19dd8022db654db6"
+    },
+    {
+      "path": "tools/paygov/onboardinggen.py",
+      "sha256": "8c13741dcfcf278e372de5edb4810d68e760e748be2977254db5d60a3b19c2ce"
+    },
+    {
+      "path": "tools/tests/test_b30_onboarding.py",
+      "sha256": "0de077f87e58f3ac153ee6e1ff2f906a7bcad26d1393442a9a21754e2ba69928"
+    }
+  ],
+  "tests": {
+    "passed": 2450,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B28": "fa1f5c0d04df09202157b32f368fd4e7932e7c29c28bbe652145f8b3d44c840f"
+  }
+}

@@ -1,0 +1,18 @@
+[OK  ] KEY_EXPORTABLE_ROOT: removing it breaks 1 module(s)
+[OK  ] KEY_QUORUM: removing it breaks 1 module(s)
+[OK  ] KEY_AAD_MISSING: removing it breaks 1 module(s)
+[OK  ] KEY_NONCE_REUSE: removing it breaks 1 module(s)
+[OK  ] KEY_UNWRAPPED_STORED: removing it breaks 1 module(s)
+[OK  ] KEY_DEK_SCOPE: removing it breaks 1 module(s)
+[OK  ] KEY_PLAINTEXT_TTL: removing it breaks 1 module(s)
+[OK  ] KEY_APP_HOLDS_MATERIAL: removing it breaks 1 module(s)
+[OK  ] KEY_USE_UNAUDITED: removing it breaks 1 module(s)
+[OK  ] KEY_NO_SHREDDING: removing it breaks 1 module(s)
+[OK  ] KEY_ROTATION_OVERLAP: removing it breaks 1 module(s)
+[OK  ] KEY_WEAK_ALGORITHM_ALLOWED: removing it breaks 1 module(s)
+[OK  ] KEY_PROVIDER_UNMANAGED: removing it breaks 1 module(s)
+[OK  ] KEY_FIELD_UNPROTECTED: removing it breaks 1 module(s)
+[OK  ] KEY_NEVER_STORED_ENCRYPTED: removing it breaks 1 module(s)
+[OK  ] KEY_GENERATED_DRIFT: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

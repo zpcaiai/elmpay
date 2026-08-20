@@ -1,0 +1,14 @@
+[OK  ] API_MUTATION_NOT_IDEMPOTENT: removing it breaks 1 module(s)
+[OK  ] API_TRANSITION_ACTOR: removing it breaks 1 module(s)
+[OK  ] API_TRANSITION_KEY_MISMATCH: removing it breaks 1 module(s)
+[OK  ] API_ERROR_RETRYABLE: removing it breaks 1 module(s)
+[OK  ] API_ERROR_LEAK: removing it breaks 1 module(s)
+[OK  ] API_SIGNATURE: removing it breaks 1 module(s)
+[OK  ] API_MONEY_SHAPE: removing it breaks 1 module(s)
+[OK  ] API_BREAKING_REMOVAL: removing it breaks 1 module(s)
+[OK  ] API_BREAKING_IDEMPOTENCY: removing it breaks 1 module(s)
+[OK  ] API_BREAKING_ERRORS: removing it breaks 1 module(s)
+[OK  ] API_GENERATED_DRIFT: removing it breaks 1 module(s)
+[OK  ] API_PAGINATION: removing it breaks 1 module(s)
+
+codes=12 load_bearing=12 seam_not_applicable=0 not_load_bearing=0

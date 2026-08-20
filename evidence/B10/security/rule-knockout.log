@@ -1,0 +1,12 @@
+[OK  ] STATE_UNTRUSTED_SUCCESS: removing it breaks 2 module(s)
+[OK  ] STATE_IDEMPOTENCY: removing it breaks 1 module(s)
+[OK  ] STATE_UNDECLARED_COMPENSATION: removing it breaks 1 module(s)
+[OK  ] STATE_COMPENSATION_WITHOUT_EFFECT: removing it breaks 1 module(s)
+[OK  ] STATE_UNREACHABLE: removing it breaks 2 module(s)
+[OK  ] STATE_DEAD_END: removing it breaks 1 module(s)
+[OK  ] STATE_TERMINAL_EXIT: removing it breaks 1 module(s)
+[OK  ] STATE_NONDETERMINISTIC: removing it breaks 1 module(s)
+[OK  ] STATE_DOC_DRIFT: removing it breaks 1 module(s)
+[OK  ] STATE_MACHINE_COVERAGE: removing it breaks 1 module(s)
+
+codes=10 load_bearing=10 seam_not_applicable=0 not_load_bearing=0

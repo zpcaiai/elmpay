@@ -1,0 +1,18 @@
+[OK  ] MFA_MISCLASSIFIED: removing it breaks 1 module(s)
+[OK  ] MFA_SOLE_FACTOR: removing it breaks 1 module(s)
+[OK  ] MFA_WEAK_FOR_PRIVILEGED: removing it breaks 1 module(s)
+[OK  ] MFA_SINGLE_AUTHENTICATOR: removing it breaks 1 module(s)
+[OK  ] MFA_NO_TRANSACTION_BINDING: removing it breaks 1 module(s)
+[OK  ] MFA_DOWNGRADE_FALLBACK: removing it breaks 1 module(s)
+[OK  ] MFA_CHALLENGE_REPLAY: removing it breaks 1 module(s)
+[OK  ] MFA_SIGN_COUNT: removing it breaks 1 module(s)
+[OK  ] MFA_USER_VERIFICATION: removing it breaks 1 module(s)
+[OK  ] MFA_ORIGIN: removing it breaks 1 module(s)
+[OK  ] MFA_ROLE_UNCOVERED: removing it breaks 1 module(s)
+[OK  ] MFA_RECOVERY_BYPASS: removing it breaks 1 module(s)
+[OK  ] MFA_PUSH_FATIGUE: removing it breaks 1 module(s)
+[OK  ] MFA_GENERATED_DRIFT: removing it breaks 1 module(s)
+[OK  ] MFA_PRIVILEGED_CLASS: removing it breaks 1 module(s)
+[OK  ] MFA_FACTOR_UNBACKED: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

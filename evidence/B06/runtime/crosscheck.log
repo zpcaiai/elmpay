@@ -1,4 +1,95 @@
 status  upstream={'completed': 6, 'total': 128, 'ready': ['B06'], 'remaining': 122} local={'completed': 6, 'total': 128, 'ready': ['B06'], 'remaining': 122}
-cross-checked 7 batch(es) individually
+cross-checked 33 batch(es) individually
 
-mismatches=0
+mismatches=0 local_only_findings=91
+  LOCAL-ONLY (stricter than upstream): B06: declared command was never executed: python3 -m tools.paygov.cli list-validators --repo .
+  LOCAL-ONLY (stricter than upstream): B06: declared command was never executed: python3 -m tools.paygov.cli verify evidence --repo . --budget-seconds 0
+  LOCAL-ONLY (stricter than upstream): B06: declared command was never executed: python3 -m tools.paygov.cli verify-all --repo .
+  LOCAL-ONLY (stricter than upstream): B06: declared command was never executed: python3 -m tools.paygov.cli verify-all --repo . > /tmp/B06-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B06-2.json && diff /tmp/B06-1.json /tmp/B06-2.json && echo IDENTICAL
+  LOCAL-ONLY (stricter than upstream): B06: declared command was never executed: python3 scripts/batch.py crosscheck
+  LOCAL-ONLY (stricter than upstream): B06: declared command was never executed: python3 scripts/negative-controls.py
+  LOCAL-ONLY (stricter than upstream): B06: declared command was never executed: python3 scripts/render-docs.py --check
+  LOCAL-ONLY (stricter than upstream): B06: completion records 1679 passing tests but the runner produced 2753
+  LOCAL-ONLY (stricter than upstream): B07: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B07/test-results/summary.json --log evidence/B07/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B08: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B08/test-results/summary.json --log evidence/B08/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B09: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B09/test-results/summary.json --log evidence/B09/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B10: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B10/test-results/summary.json --log evidence/B10/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B11: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B11/test-results/summary.json --log evidence/B11/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B12: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B12/test-results/summary.json --log evidence/B12/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B13: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B13/test-results/summary.json --log evidence/B13/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B14: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B14/test-results/summary.json --log evidence/B14/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B15: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B15/test-results/summary.json --log evidence/B15/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B16: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B16/test-results/summary.json --log evidence/B16/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B17: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B17/test-results/summary.json --log evidence/B17/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B18: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B18/test-results/summary.json --log evidence/B18/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B19: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B19/test-results/summary.json --log evidence/B19/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B20: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B20/test-results/summary.json --log evidence/B20/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B21: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B21/test-results/summary.json --log evidence/B21/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B22: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B22/test-results/summary.json --log evidence/B22/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B23: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B23/test-results/summary.json --log evidence/B23/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B24: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B24/test-results/summary.json --log evidence/B24/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B25: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B25/test-results/summary.json --log evidence/B25/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B26: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B26/test-results/summary.json --log evidence/B26/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B27: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B27/test-results/summary.json --log evidence/B27/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B28: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B28/test-results/summary.json --log evidence/B28/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B29: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B29/test-results/summary.json --log evidence/B29/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B30: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B30/test-results/summary.json --log evidence/B30/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B31: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B31/test-results/summary.json --log evidence/B31/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 -m tools.paygov.cli list-validators --repo .
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 -m tools.paygov.cli verify payment-intent --repo . --budget-seconds 0
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 -m tools.paygov.cli verify-all --repo .
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 -m tools.paygov.cli verify-all --repo . > /tmp/B32-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B32-2.json && diff /tmp/B32-1.json /tmp/B32-2.json && echo IDENTICAL
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/accounts-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/api-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/audit-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/authz-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/baseline-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/batch.py crosscheck
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/capabilities-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/certs-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/events-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/fees-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/identity-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/intent-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/isolation-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/kms-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/merchant-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/mfa-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/migration-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/money-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/negative-controls.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/onboarding-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-accounts.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-api.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-audit.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-authz.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-baseline.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-capabilities.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-certs.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-data.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-docs.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-domain.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-events.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-fees.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-identity.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-intent.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-isolation.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-keys.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-merchant.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-mfa.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-migration.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-money-vectors.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-onboarding.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-routing.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-states.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-tenants.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-topology.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/render-zerotrust.py --check
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/routing-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/rule-knockout.py --codes INTENT_AMOUNT_MUTABLE,INTENT_SNAPSHOT_INCOMPLETE,INTENT_EXPONENT_SOURCE,INTENT_FIELD_UNKNOWN,INTENT_STATES_DIVERGE,INTENT_SUCCESS_DIVERGE,INTENT_EXPIRY_EXTENDABLE,INTENT_EXPIRED_LIVES,INTENT_EXPIRY_LAZY,INTENT_NO_IDEMPOTENCY,INTENT_IDEMPOTENCY_SCOPE,INTENT_RETURN_PAGE_EVIDENCE,INTENT_METHODS_UNFROZEN,INTENT_METHODS_WIDENED,INTENT_OWNS_ORDER,INTENT_ORDER_NOT_UNIQUE --out evidence/B32/security/rule-knockout.json
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/state-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/tenancy-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/tenants-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/test-summary-mp.py --out evidence/B32/test-results/summary.json --log evidence/B32/test-results/unittest.log
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/topology-smoke.py
+  LOCAL-ONLY (stricter than upstream): B32: declared command was never executed: python3 scripts/zerotrust-smoke.py

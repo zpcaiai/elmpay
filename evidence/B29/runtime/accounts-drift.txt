@@ -1,0 +1,2 @@
+up-to-date  contracts/provider/account-binding.json
+up-to-date  docs/provider/PROVIDER_ACCOUNTS.md

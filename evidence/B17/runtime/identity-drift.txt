@@ -1,0 +1,2 @@
+up-to-date  contracts/security/identity.json
+up-to-date  docs/security/IDENTITY.md

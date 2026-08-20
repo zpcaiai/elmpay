@@ -1,10 +1,10 @@
 {
   "batch_id": "B06",
   "status": "passed",
-  "commit_sha": "e7a2c85b9a0253c0286d2c08ea9b37e24a01f6ab",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
   "environment": "integration",
-  "started_at": "2026-08-18T13:01:34Z",
-  "completed_at": "2026-08-18T13:02:04Z",
+  "started_at": "2026-08-19T10:46:02Z",
+  "completed_at": "2026-08-19T10:47:15Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -14,27 +14,31 @@
     },
     {
       "path": "scripts/batch.py",
-      "sha256": "b9ad46e3c809018d23d2b523be8b2f9f24f339193ce8a97f184a095af1760da7"
+      "sha256": "a0f028915862753421f1d5cff2b00be0e9b2881864fb6f0dc53ffb83a45b14fb"
+    },
+    {
+      "path": "scripts/rule-knockout.py",
+      "sha256": "2cbd63ee383f8d1bf0013e0479a863c7375935de24ca64e4a33072e69c1e1399"
     },
     {
       "path": "tools/paygov/evidence.py",
-      "sha256": "f2ee3e12af48146c3b79289b07e4bea76bab9e02c993e3577110c63c6b665021"
+      "sha256": "29c43af370f01ad5f7f8eab9bda03da013a5a35a703bdf7ad9bcc1e3c92b7411"
     },
     {
       "path": "tools/paygov/orchestration.py",
-      "sha256": "3cf287141865c145d99e8836c0c68ef9e05a23a2df0c951153948723777863c8"
+      "sha256": "1e3803fa15029495bc4d6c72dfc497f3de00f72c23d39d79f39b7497c3fe1d3d"
     },
     {
       "path": "tools/tests/test_b06_evidence.py",
-      "sha256": "23e512dbee878b212b4f3c27ec5cafd15723fcbd8500149658e59c2cffe2dcd5"
+      "sha256": "5a1d5a36a6dbd5912c012549257168b1bc3c25d3971ae6cd9ebcd704361f3b80"
     },
     {
       "path": "tools/tests/test_b06_orchestration.py",
-      "sha256": "3419ebcc39007661dd5f755e591c169fcae1e802861a207c2b03b1dc7c3fdd67"
+      "sha256": "04973cc57772a995342eac4ec1e568190acec4ba272e1ef93bad6903db08bd9c"
     }
   ],
   "tests": {
-    "passed": 306,
+    "passed": 1679,
     "failed": 0,
     "skipped_critical": 0
   },
@@ -43,7 +47,7 @@
     "accepted_findings": 0
   },
   "dependency_hashes": {
-    "B02": "b557d1e7faa8dace3c56069830449545ec816d3743e7f7cf9546fad29c2ececf",
-    "B05": "2ee2a84b92a5e50dd8df9b25ee89d300cd57603b981458c45fad3a185ffaf74b"
+    "B02": "5a807988833d74befcb6e7158d6a17d82ca305e5441ac08b95710baa67cb7074",
+    "B05": "12d73c7df1b154916827cd42ab81cf986858f546a9d469e2a7a970d4b624d8ec"
   }
 }

@@ -1,0 +1,4 @@
+status  upstream={'completed': 24, 'total': 128, 'ready': ['B24'], 'remaining': 104} local={'completed': 24, 'total': 128, 'ready': ['B24'], 'remaining': 104}
+cross-checked 24 batch(es) individually
+
+mismatches=0 local_only_findings=0

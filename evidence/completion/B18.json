@@ -1,0 +1,64 @@
+{
+  "batch_id": "B18",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T14:44:03Z",
+  "completed_at": "2026-08-19T14:45:19Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/security/mfa-matrix.json",
+      "sha256": "d347dfe7f8618b577fbe8a1b96fb34ccc9f4dbf3ba9879df767df4a9a443a799"
+    },
+    {
+      "path": "docs/security/MFA.md",
+      "sha256": "d9d170bfced159fb627c2db9ecd552fd9332861f986bfc1486809b9a4d715d59"
+    },
+    {
+      "path": "governance/mfa.json",
+      "sha256": "643da9f14e70951447d0211366bd2f7d28a5fff77a4efda9e577c75a49504f1b"
+    },
+    {
+      "path": "libs/mfa/reference/__init__.py",
+      "sha256": "a4f0fb93a756aca97155c3584f29530c26669b3c0c223960baf409cf64d64d31"
+    },
+    {
+      "path": "libs/mfa/reference/webauthn.py",
+      "sha256": "a251ab029d0769360053b5eaada597b2613002c77503ad20f1f9c210a6afa6dd"
+    },
+    {
+      "path": "scripts/mfa-smoke.py",
+      "sha256": "6e8796cc06f9ebff5e8116abaea812df8dab5cee3129ce0040a06dd4405d0dcd"
+    },
+    {
+      "path": "scripts/render-mfa.py",
+      "sha256": "b327db36e040fe68667c14ba973a25da8b8feb6ee34546cbacd3128bc87d8a78"
+    },
+    {
+      "path": "tools/paygov/mfa.py",
+      "sha256": "5abdc2075794cdece1d72af67d24751b186b831ba22b4a50e63a80f4b588b222"
+    },
+    {
+      "path": "tools/paygov/mfagen.py",
+      "sha256": "68e883dc0b77919f1001a006ba6a0c3763f147efcd52d815f2f4caf56444a12d"
+    },
+    {
+      "path": "tools/tests/test_b18_mfa.py",
+      "sha256": "04ff5c4c5795d0193062294ea3842069abd77276ddfcdf018309f737716fe014"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B16": "bd841ac262497415382b83eed906850e5af653e85450819db637ab3dd3f96023"
+  }
+}

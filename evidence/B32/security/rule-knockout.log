@@ -1,0 +1,18 @@
+[OK  ] INTENT_AMOUNT_MUTABLE: removing it breaks 1 module(s)
+[OK  ] INTENT_SNAPSHOT_INCOMPLETE: removing it breaks 1 module(s)
+[OK  ] INTENT_EXPONENT_SOURCE: removing it breaks 1 module(s)
+[OK  ] INTENT_FIELD_UNKNOWN: removing it breaks 1 module(s)
+[OK  ] INTENT_STATES_DIVERGE: removing it breaks 1 module(s)
+[OK  ] INTENT_SUCCESS_DIVERGE: removing it breaks 1 module(s)
+[OK  ] INTENT_EXPIRY_EXTENDABLE: removing it breaks 1 module(s)
+[OK  ] INTENT_EXPIRED_LIVES: removing it breaks 1 module(s)
+[OK  ] INTENT_EXPIRY_LAZY: removing it breaks 1 module(s)
+[OK  ] INTENT_NO_IDEMPOTENCY: removing it breaks 1 module(s)
+[OK  ] INTENT_IDEMPOTENCY_SCOPE: removing it breaks 1 module(s)
+[OK  ] INTENT_RETURN_PAGE_EVIDENCE: removing it breaks 1 module(s)
+[OK  ] INTENT_METHODS_UNFROZEN: removing it breaks 1 module(s)
+[OK  ] INTENT_METHODS_WIDENED: removing it breaks 1 module(s)
+[OK  ] INTENT_OWNS_ORDER: removing it breaks 1 module(s)
+[OK  ] INTENT_ORDER_NOT_UNIQUE: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

@@ -1,0 +1,18 @@
+[OK  ] AUTHZ_SOD_VIOLATION: removing it breaks 1 module(s)
+[OK  ] AUTHZ_SOD_MISSING: removing it breaks 1 module(s)
+[OK  ] AUTHZ_MONEY_NO_DUAL_CONTROL: removing it breaks 1 module(s)
+[OK  ] AUTHZ_DUAL_BINDING: removing it breaks 1 module(s)
+[OK  ] AUTHZ_DUAL_SELF_APPROVAL: removing it breaks 1 module(s)
+[OK  ] AUTHZ_DUAL_TTL: removing it breaks 1 module(s)
+[OK  ] AUTHZ_STANDING_PRIVILEGE: removing it breaks 1 module(s)
+[OK  ] AUTHZ_STANDING_ELEVATED: removing it breaks 1 module(s)
+[OK  ] AUTHZ_FIELD_PAN_READABLE: removing it breaks 1 module(s)
+[OK  ] AUTHZ_FIELD_MASK: removing it breaks 2 module(s)
+[OK  ] AUTHZ_DEFAULT_DECISION: removing it breaks 2 module(s)
+[OK  ] AUTHZ_ROLE_NO_MFA: removing it breaks 1 module(s)
+[OK  ] AUTHZ_ROLE_NO_RECOVERY: removing it breaks 1 module(s)
+[OK  ] AUTHZ_ROLE_NO_ZT_PRINCIPAL: removing it breaks 1 module(s)
+[OK  ] AUTHZ_AUDITOR_ELEVATABLE: removing it breaks 1 module(s)
+[OK  ] AUTHZ_GENERATED_DRIFT: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

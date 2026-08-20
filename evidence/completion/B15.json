@@ -1,0 +1,65 @@
+{
+  "batch_id": "B15",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T10:57:23Z",
+  "completed_at": "2026-08-19T10:58:49Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/migration/plan.json",
+      "sha256": "5a34b027af4bafbb5d4bd1b6927243abf0fdd662e8e208dcdd26d52416f9acc7"
+    },
+    {
+      "path": "docs/migration/MIGRATION_RUNBOOK.md",
+      "sha256": "a71f508dff3a19ff6d4b8b552a6deca102b775f203ff98ca389dd815b87923ab"
+    },
+    {
+      "path": "governance/migration-plan.json",
+      "sha256": "fbd2b09a1dad6b3c4d8c38e269d4de6f23ce45940ff867e45eb04122f3d6ed3b"
+    },
+    {
+      "path": "libs/migration/reference/__init__.py",
+      "sha256": "9929969481ed243996f6ae70be4dbf4febb55e87c9946937fb4a569a50d7c560"
+    },
+    {
+      "path": "libs/migration/reference/dualwrite.py",
+      "sha256": "e189564be79be9ba9a7a314894377892c5799ec2ec90df14f43b2c050c25c138"
+    },
+    {
+      "path": "scripts/migration-smoke.py",
+      "sha256": "e14d546b5f574a9a6fab95312b84b9148f5e35acd09f7551db6aa4f8a4a3c368"
+    },
+    {
+      "path": "scripts/render-migration.py",
+      "sha256": "70f88fc523763e0ff02d0aa0331f8bc16e8f8d3e65882563242dd239e57da204"
+    },
+    {
+      "path": "tools/paygov/miggen.py",
+      "sha256": "f0132057a219d38cbe636a2c226f00a4fd6492afb9cfb6f24738db74d9f20a3b"
+    },
+    {
+      "path": "tools/paygov/migration.py",
+      "sha256": "1037237ab09a88b60c8c2fcedb4d0999a323240311329233e2a9d468cf724fb4"
+    },
+    {
+      "path": "tools/tests/test_b15_migration.py",
+      "sha256": "b7f7f7ab878470d7752c85a8a8c27f23c9b5b49765ea27b6412eb7420d2bcde0"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B14": "13903cd1adeb70ee1130a5bc49ee5bf08a25c0b8a973ebbf09d285b631b5b227",
+    "B13": "800135021ecbf7b0b932b0b78da3376a3240acb87a678667b323a65e9363d17c"
+  }
+}

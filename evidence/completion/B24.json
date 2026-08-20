@@ -1,0 +1,68 @@
+{
+  "batch_id": "B24",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T14:56:40Z",
+  "completed_at": "2026-08-19T14:57:48Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/tenancy/registry.json",
+      "sha256": "c3beff041574562907dd704a062328f9500efb95c6534c4caee3146ecf52e3a5"
+    },
+    {
+      "path": "docs/tenancy/TENANT_REGISTRY.md",
+      "sha256": "6eed6fb18dfc8dd2e4dbb7c68ba81d23e9175ecd94a0149e9785c08f5777d5ba"
+    },
+    {
+      "path": "governance/tenant-registry.json",
+      "sha256": "5b65a04526599bf9ae40a30bf4df557d1a3a6f33b4d2988f6316e38654ab3357"
+    },
+    {
+      "path": "libs/registry/reference/__init__.py",
+      "sha256": "3b8365b87752d23f2a0e3cdff4661d93c16fd8cb975df3ea9724de8d99e22277"
+    },
+    {
+      "path": "libs/registry/reference/tenants.py",
+      "sha256": "c55167e710d1daa5564f3e6711dc2a99573025b3a5a3d2d9c702639201c93762"
+    },
+    {
+      "path": "scripts/render-tenants.py",
+      "sha256": "e23df01c6e0e4d39fc559caad5f4e5895019c1efe7d7163b6a8af74f44ddade2"
+    },
+    {
+      "path": "scripts/tenants-smoke.py",
+      "sha256": "cd3f4116262d3abef140ed0b5b7e898822354e8672d71501b97b3bbcdce6f0a1"
+    },
+    {
+      "path": "tools/negative/b24.py",
+      "sha256": "1f4244d08d4b8cbfd30e518ba655218236f05bbfb569c377784d3c56876917a3"
+    },
+    {
+      "path": "tools/paygov/tenants.py",
+      "sha256": "b1cdc4dcc417d5bbb19d8b4c4bbbf056124b8ee7bef8f663f9c93cc1a72dac5d"
+    },
+    {
+      "path": "tools/paygov/tenantsgen.py",
+      "sha256": "5abd1236244177edd41417091f3a76dbc08e2ae29e6f26b197d4a1cd9a4268a8"
+    },
+    {
+      "path": "tools/tests/test_b24_tenants.py",
+      "sha256": "cdb95ed2530778f71d88320f369a72a525c2a33df8ab604e849deecfa09bf8d1"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B23": "aa7be88c6772e7dce5b0d382ba93c7de60b35e8fe759f3d2ee66b9c6fcb101f8"
+  }
+}

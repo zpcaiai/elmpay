@@ -1,0 +1,64 @@
+{
+  "batch_id": "B12",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T10:53:10Z",
+  "completed_at": "2026-08-19T10:54:27Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/events/catalog.json",
+      "sha256": "9bbbf802cba083fe58cdec37936fbff7018d82e382f0bf8f9fb6a92695cd8ab7"
+    },
+    {
+      "path": "docs/events/EVENT_CATALOG.md",
+      "sha256": "4acf58f2c305bdf7c4cd5a78071a0d4b15028e1bd832afc2b43dfacde741924f"
+    },
+    {
+      "path": "governance/event-catalog.json",
+      "sha256": "54b989b5a9de78db15da5ab0df38c432891ac8f23bab8beb3e3280641a4e7617"
+    },
+    {
+      "path": "libs/eventing/reference/__init__.py",
+      "sha256": "1d532d0e3d275bb54c0e37760673901a0cb1d766b45c7440488d01468dc26a03"
+    },
+    {
+      "path": "libs/eventing/reference/eventing.py",
+      "sha256": "1d46a98729245de5516c641c171593148cfa0227ed1f591261284bba2f4d045f"
+    },
+    {
+      "path": "scripts/events-smoke.py",
+      "sha256": "70036e29c79faf5f39fdef982f95a51a014223685fc53b4da22ea644a2ee05aa"
+    },
+    {
+      "path": "scripts/render-events.py",
+      "sha256": "8bbb59bfce400cd0dd19dc532ce3692e91fca835a2ea55a6e30d13e3a785b6f6"
+    },
+    {
+      "path": "tools/paygov/eventgen.py",
+      "sha256": "f06134c38a211e793d2bf5af5af3ec7ff2860b782bf72d40ac995a2da5ab806b"
+    },
+    {
+      "path": "tools/paygov/events.py",
+      "sha256": "8814232f0f516d006b81de9e2e892f213daaea7b49dcf65fa8cb61104571b347"
+    },
+    {
+      "path": "tools/tests/test_b12_events.py",
+      "sha256": "53bd001d895f31f0ee44cf6a463dcf892ab201b44fc97eb5882607792645267f"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B10": "d2821c2bbd36ee1083549ec605b7a7ec6fb9410dae79c0e0be06302025dd6b0a"
+  }
+}

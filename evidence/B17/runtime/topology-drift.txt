@@ -1,0 +1,2 @@
+up-to-date  contracts/topology/graph.json
+up-to-date  docs/architecture/SERVICE_TOPOLOGY.md

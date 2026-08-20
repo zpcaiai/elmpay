@@ -1,0 +1,37 @@
+== 1. 每一期都只调用渠道一次
+[OK ] legacy_only: 渠道调用 1 次，记录 1 份 — calls=1 records=1
+[OK ] dual_write_legacy_authoritative: 渠道调用 1 次，记录 2 份 — calls=1 records=2
+[OK ] dual_write_platform_authoritative: 渠道调用 1 次，记录 2 份 — calls=1 records=2
+[OK ] platform_only: 渠道调用 1 次，记录 1 份 — calls=1 records=1
+
+== 2. 重复调用渠道必须被挡住
+[OK ] 同一笔支付第二次调用渠道必须失败 — provider called 2 times for 'ord-x'; dual write means two re
+
+== 3. 每一期回退都保全两侧的支付事实
+[OK ] 逐期回退到第一期，两侧记录数不变 — (2, 3) -> (2, 3)
+[OK ] 回退路径与阶段顺序相反 — ['dual_write_platform_authoritative', 'dual_write_legacy_authoritative', 'legacy_only']
+
+== 4. 业务订单数据不得越界
+[OK ] 平台必须拒绝字段 sku
+[OK ] 平台必须拒绝字段 item_count
+[OK ] 平台必须拒绝字段 shipping_address
+[OK ] 平台必须拒绝字段 product_name
+
+== 5. 分歧检测
+[OK ] 两侧一致时无分歧
+[OK ] 金额分歧必须被发现 — [{'key': ('proj-1', 'ord-d'), 'fields': ['amount_minor'], 'legacy': {'amount_minor': 19999}, 'platform': {'amount_minor': 19998}}]
+[OK ] 比对字段包含金额与币种 — ['amount_minor', 'currency', 'status', 'external_reference']
+
+== 6. 回填幂等且可续跑
+[OK ] 重跑回填不产生新写入 — writes=50 first=50
+[OK ] 回填校验：笔数与总额都对得上 — {'count_ok': True, 'totals_ok': True, 'expected_count': 50, 'actual_count': 50, 'expected_totals': {'CNY': 62500, 'JPY': 65000}, 'actual_totals': {'CNY': 62500, 'JPY': 65000}}
+[OK ] 崩溃后从断点续跑，结果与干净跑一致 — checkpoint=lp-0019 rows=50
+[OK ] 续跑后校验仍然通过
+
+== 7. 计划本身的硬性约束
+[OK ] 计划声明每笔支付只调用渠道一次
+[OK ] 每一期的回退都保全支付事实
+[OK ] 平台不得访问旧系统数据库
+[OK ] 切换粒度是项目而不是全局
+
+checks=22 failures=0

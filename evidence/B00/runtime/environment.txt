@@ -1,4 +1,4 @@
-Python 3.10.12 (main, Jun 22 2026, 18:55:27) [GCC 11.4.0]
-Linux claude 6.8.0-136-generic #136~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul  3 15:42:07 UTC  aarch64 aarch64 aarch64 GNU/Linux
-git version 2.34.1
-repo=e7a2c85
+Python 3.14.6 (main, Jun 10 2026, 10:03:53) [Clang 21.0.0 (clang-2100.0.123.102)]
+Darwin StephendeMacBook-Air.local 25.6.0 Darwin Kernel Version 25.6.0: Sat Jul 11 15:23:52 PDT 2026; root:xnu-12377.161.13~4/RELEASE_ARM64_T8122 arm64
+git version 2.50.1 (Apple Git-155)
+repo=0962756

@@ -1,0 +1,3 @@
+up-to-date  contracts/sql/partitions.sql
+up-to-date  contracts/sql/rls.sql
+up-to-date  docs/data/DATA_ARCHITECTURE.md

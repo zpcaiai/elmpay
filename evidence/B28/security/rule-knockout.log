@@ -1,0 +1,18 @@
+[OK  ] ROUTE_NONDETERMINISTIC: removing it breaks 1 module(s)
+[OK  ] ROUTE_DECISION_UNVERSIONED: removing it breaks 1 module(s)
+[OK  ] ROUTE_VERSION_MUTABLE: removing it breaks 1 module(s)
+[OK  ] ROUTE_ACTIVATION_SINGLE_PERSON: removing it breaks 1 module(s)
+[OK  ] ROUTE_UNREPLAYABLE: removing it breaks 1 module(s)
+[OK  ] ROUTE_NO_TIE_BREAK: removing it breaks 1 module(s)
+[OK  ] ROUTE_PRIORITY_COLLISION: removing it breaks 1 module(s)
+[OK  ] ROUTE_TARGET_INCAPABLE: removing it breaks 1 module(s)
+[OK  ] ROUTE_NO_EXPLORATION: removing it breaks 1 module(s)
+[OK  ] ROUTE_SAMPLE_TOO_SMALL: removing it breaks 1 module(s)
+[OK  ] ROUTE_RANDOM_SPLIT: removing it breaks 1 module(s)
+[OK  ] ROUTE_SPLIT_KEY: removing it breaks 1 module(s)
+[OK  ] ROUTE_AUTO_PROMOTE: removing it breaks 1 module(s)
+[OK  ] ROUTE_ROLLBACK_GATED: removing it breaks 1 module(s)
+[OK  ] ROUTE_SHADOW_MOVES_MONEY: removing it breaks 1 module(s)
+[OK  ] ROUTE_RETRY_CHANGES_PROVIDER: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

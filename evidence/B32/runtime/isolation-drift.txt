@@ -1,0 +1,2 @@
+up-to-date  contracts/tenancy/isolation.json
+up-to-date  docs/tenancy/TENANT_ISOLATION.md

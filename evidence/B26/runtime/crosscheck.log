@@ -1,0 +1,13 @@
+status  upstream={'completed': 26, 'total': 128, 'ready': ['B26'], 'remaining': 102} local={'completed': 26, 'total': 128, 'ready': ['B26'], 'remaining': 102}
+cross-checked 27 batch(es) individually
+
+mismatches=0 local_only_findings=9
+  LOCAL-ONLY (stricter than upstream): B26: declared command was never executed: python3 -m tools.paygov.cli list-validators --repo .
+  LOCAL-ONLY (stricter than upstream): B26: declared command was never executed: python3 -m tools.paygov.cli verify provider-accounts --repo . --budget-seconds 0
+  LOCAL-ONLY (stricter than upstream): B26: declared command was never executed: python3 -m tools.paygov.cli verify-all --repo .
+  LOCAL-ONLY (stricter than upstream): B26: declared command was never executed: python3 -m tools.paygov.cli verify-all --repo . > /tmp/B26-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B26-2.json && diff /tmp/B26-1.json /tmp/B26-2.json && echo IDENTICAL
+  LOCAL-ONLY (stricter than upstream): B26: declared command was never executed: python3 scripts/batch.py crosscheck
+  LOCAL-ONLY (stricter than upstream): B26: declared command was never executed: python3 scripts/money-smoke.py
+  LOCAL-ONLY (stricter than upstream): B26: declared command was never executed: python3 scripts/negative-controls.py
+  LOCAL-ONLY (stricter than upstream): B26: declared command was never executed: python3 scripts/rule-knockout.py --codes ACCOUNT_CALLBACK_GUESSED,ACCOUNT_NO_QUARANTINE,ACCOUNT_QUARANTINE_AUTO_REPLAY,ACCOUNT_ATTRIBUTION_HEURISTIC,ACCOUNT_CALLBACK_UNSIGNED,ACCOUNT_RETURN_PAGE_EVIDENCE,ACCOUNT_SHARED_CREDENTIAL,ACCOUNT_PLAINTEXT_CREDENTIAL,ACCOUNT_LEASE_UNBOUNDED,ACCOUNT_ROTATION_NO_OVERLAP,ACCOUNT_ROTATION_SLOWER_THAN_KEY,ACCOUNT_BINDING_MUTABLE,ACCOUNT_ACTIVATION_UNPROVEN,ACCOUNT_SUSPENDED_BLOCKS_CALLBACKS,ACCOUNT_REVOKED_ACTIVE,ACCOUNT_ROTATION_SINGLE_PERSON --out evidence/B26/security/rule-knockout.json
+  LOCAL-ONLY (stricter than upstream): B26: completion records 1975 passing tests but the runner produced 2101

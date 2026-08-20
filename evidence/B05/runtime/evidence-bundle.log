@@ -1,5 +1,22 @@
   [LATER] B05: after B05 in manifest order, out of scope
   [LATER] B06: after B05 in manifest order, out of scope
+  [LATER] B07: after B05 in manifest order, out of scope
+  [LATER] B08: after B05 in manifest order, out of scope
+  [LATER] B09: after B05 in manifest order, out of scope
+  [LATER] B10: after B05 in manifest order, out of scope
+  [LATER] B11: after B05 in manifest order, out of scope
+  [LATER] B12: after B05 in manifest order, out of scope
+  [LATER] B13: after B05 in manifest order, out of scope
+  [LATER] B14: after B05 in manifest order, out of scope
+  [LATER] B15: after B05 in manifest order, out of scope
+  [LATER] B16: after B05 in manifest order, out of scope
+  [LATER] B17: after B05 in manifest order, out of scope
+  [LATER] B18: after B05 in manifest order, out of scope
+  [LATER] B19: after B05 in manifest order, out of scope
+  [LATER] B20: after B05 in manifest order, out of scope
+  [LATER] B21: after B05 in manifest order, out of scope
+  [LATER] B22: after B05 in manifest order, out of scope
+  [LATER] B23: after B05 in manifest order, out of scope
   [OK ] B00
   [OK ] B01
   [OK ] B02
@@ -9,7 +26,7 @@
   "bundle": "build/evidence-bundle.tar.gz",
   "batches": 5,
   "excluded_from_validation": [],
-  "files": 139,
-  "commit_sha": "e7a2c85b9a0253c0286d2c08ea9b37e24a01f6ab",
-  "bundle_sha256": "ddaf78242f221cd4e5f7d0253e4003f70595bb059fdd07db5c4c6844ea2bce5a"
+  "files": 764,
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "bundle_sha256": "3889f4bcb5aca7b2fa9383c60f553a04600a30ff68f5b1c4727fb02c8a10a8e1"
 }

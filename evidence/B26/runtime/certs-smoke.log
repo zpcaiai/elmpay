@@ -1,0 +1,25 @@
+[OK ] 刚签发时状态正常 — OK
+[OK ] 进入提前量后提示续期 — RENEW_DUE
+[OK ] 到期后不再接受 — EXPIRED
+[OK ] 轮换当天新旧两个版本都能验签 — [1, 2]
+[OK ] 重叠期内旧版本仍可验签
+[OK ] 重叠期结束后旧版本被拒
+[OK ] 新版本继续可用
+[OK ] 轮换后整体状态恢复正常 — OK
+[OK ] 重叠期不会把旧材料的寿命拖过它自己的到期日
+[OK ] 连续续期失败达到阈值即升级人工 — [False, True]
+[OK ] 续期成功后计数归零
+[OK ] 撤销前重叠期内可验签
+[OK ] 撤销立即生效，重叠期不保护它
+[OK ] 撤销只影响那一个版本
+[OK ] CAA 之外的签发方被拒
+[OK ] CAA 之内的签发方被接受
+[OK ] 全部域名都有注册商锁与 DNSSEC
+[OK ] 到期清单包含需要处理的材料（未轮换的实例） — ['edge-tls', 'internal-mtls', 'token-signing']
+[OK ] 刚签发时没有任何材料到期 — []
+[OK ] 恢复需要法定人数
+[OK ] 法定人数满足时可恢复
+[OK ] 短寿命材料全部自动续期 — ['internal-mtls']
+[OK ] 人工续期材料的提前量都不少于 30 天 — ['provider-signing-wechat', 'provider-signing-alipay', 'workload-ca-root', 'apple-pay-processing']
+
+checks=23 failures=0

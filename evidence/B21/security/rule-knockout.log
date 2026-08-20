@@ -1,0 +1,18 @@
+[OK  ] CERT_RENEW_MARGIN: removing it breaks 1 module(s)
+[OK  ] CERT_NO_OVERLAP: removing it breaks 1 module(s)
+[OK  ] CERT_MANUAL_SHORT_LIVED: removing it breaks 1 module(s)
+[OK  ] CERT_NO_REVOCATION: removing it breaks 1 module(s)
+[OK  ] CERT_NO_ESCALATION: removing it breaks 1 module(s)
+[OK  ] CERT_NO_CT_MONITORING: removing it breaks 1 module(s)
+[OK  ] DOMAIN_NO_LOCK: removing it breaks 1 module(s)
+[OK  ] DOMAIN_NO_CAA: removing it breaks 1 module(s)
+[OK  ] DOMAIN_NO_DNSSEC: removing it breaks 1 module(s)
+[OK  ] CERT_UNREHEARSED_RECOVERY: removing it breaks 1 module(s)
+[OK  ] CERT_RECOVERY_QUORUM: removing it breaks 1 module(s)
+[OK  ] CERT_KEY_UNMANAGED: removing it breaks 1 module(s)
+[OK  ] CERT_PROVIDER_UNTRACKED: removing it breaks 1 module(s)
+[OK  ] CERT_STAGES: removing it breaks 1 module(s)
+[OK  ] CERT_OVERLAP_TOO_LONG: removing it breaks 1 module(s)
+[OK  ] CERT_GENERATED_DRIFT: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

@@ -1,0 +1,2 @@
+up-to-date  contracts/payment/intent.json
+up-to-date  docs/payment/PAYMENT_INTENT.md

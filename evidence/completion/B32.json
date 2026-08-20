@@ -1,0 +1,72 @@
+{
+  "batch_id": "B32",
+  "status": "passed",
+  "commit_sha": "a0aeefb19215802b858b557435bec2c3faf2a328",
+  "environment": "integration",
+  "started_at": "2026-08-20T00:31:50Z",
+  "completed_at": "2026-08-20T00:34:11Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/payment/intent.json",
+      "sha256": "0b09ca53114137c607235a77c9264b9579dd39d44bc5690070cf558198787e11"
+    },
+    {
+      "path": "docs/payment/PAYMENT_INTENT.md",
+      "sha256": "498d51ecf14b79f38394e03cf4ae3cc9b3d609cd2c20c707d13c98a9c67d0f76"
+    },
+    {
+      "path": "governance/payment-intent.json",
+      "sha256": "0c12de6cb27a1f2d2148596af3b5ce4b635b6c939c2c2f5a6c7d17bb4f4bd615"
+    },
+    {
+      "path": "libs/intent/reference/__init__.py",
+      "sha256": "29f9a13a15ae8a8c509107164d1940c1f8a57c58fe525a18453dc4746647db82"
+    },
+    {
+      "path": "libs/intent/reference/intent.py",
+      "sha256": "85e590baf0092354fa10d133d1bfd8d4519e5f7a6d5c2afa6476fed90ed97383"
+    },
+    {
+      "path": "scripts/intent-smoke.py",
+      "sha256": "142dd334b28b6465589146e88e5b67ace8446cf21a7fc0718890c9e945c3ec8f"
+    },
+    {
+      "path": "scripts/render-intent.py",
+      "sha256": "b1f1cbb316e337ebe2362159982c69b2c9e3d6762eca52563b44157b7a5f49fc"
+    },
+    {
+      "path": "scripts/test-summary-mp.py",
+      "sha256": "33e2e0ee05ad25415043225d9a1628ba4e78faab048c3ee282c56a3fdb158b7d"
+    },
+    {
+      "path": "tools/negative/b32.py",
+      "sha256": "61728732f78cf8d65be4017439c32a9ca9373648ffc04db0eb55b868c692a2e5"
+    },
+    {
+      "path": "tools/paygov/intent.py",
+      "sha256": "cd12815179bd426305ff484522c014a07f101a25a003ea74997cac7b6db077fd"
+    },
+    {
+      "path": "tools/paygov/intentgen.py",
+      "sha256": "24e88c035aa6e1e799346b1ce4a3b00d216f3927515ed488dec6f0d209133915"
+    },
+    {
+      "path": "tools/tests/test_b32_intent.py",
+      "sha256": "53d8106b721b6a943de11edd9453f0f6896899fb6856ba2feb18964736e4e970"
+    }
+  ],
+  "tests": {
+    "passed": 2649,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B31": "1b6e115b26ac4f34e0efc79aa0e8763bbbdc9019664c5806fd4c2c8528571799"
+  }
+}

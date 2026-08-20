@@ -1,0 +1,17 @@
+status  upstream={'completed': 13, 'total': 128, 'ready': ['B13', 'B14'], 'remaining': 115} local={'completed': 13, 'total': 128, 'ready': ['B13', 'B14'], 'remaining': 115}
+cross-checked 24 batch(es) individually
+
+mismatches=0 local_only_findings=13
+  LOCAL-ONLY (stricter than upstream): B13: declared command was never executed: python3 -m tools.paygov.cli list-validators --repo .
+  LOCAL-ONLY (stricter than upstream): B13: declared command was never executed: python3 -m tools.paygov.cli verify data-architecture --repo . --budget-seconds 0
+  LOCAL-ONLY (stricter than upstream): B13: declared command was never executed: python3 -m tools.paygov.cli verify-all --repo .
+  LOCAL-ONLY (stricter than upstream): B13: declared command was never executed: python3 -m tools.paygov.cli verify-all --repo . > /tmp/B13-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B13-2.json && diff /tmp/B13-1.json /tmp/B13-2.json && echo IDENTICAL
+  LOCAL-ONLY (stricter than upstream): B13: declared command was never executed: python3 scripts/batch.py crosscheck
+  LOCAL-ONLY (stricter than upstream): B13: declared command was never executed: python3 scripts/negative-controls.py
+  LOCAL-ONLY (stricter than upstream): B13: declared command was never executed: python3 scripts/rule-knockout.py --codes DATA_RLS_MISSING,DATA_RLS_FORCE,DATA_RLS_PREDICATE,DATA_RLS_EXEMPTION,DATA_LEDGER_MUTABLE,DATA_LEDGER_MUTABLE_UNJUSTIFIED,DATA_RETENTION_FLOOR,DATA_RETENTION_ORDER,DATA_OWNER,DATA_INDEX_TENANT,DATA_SHARD_KEY,DATA_BREAK_GLASS,DATA_EVENTING_TABLE,DATA_EVENTING_OWNER,DATA_DELETION_STRATEGY,DATA_GENERATED_DRIFT --out evidence/B13/security/rule-knockout.json
+  LOCAL-ONLY (stricter than upstream): B22: declared command was never executed: python3 -m tools.paygov.cli list-validators --repo .
+  LOCAL-ONLY (stricter than upstream): B22: declared command was never executed: python3 -m tools.paygov.cli verify security-baseline --repo . --budget-seconds 0
+  LOCAL-ONLY (stricter than upstream): B22: declared command was never executed: python3 -m tools.paygov.cli verify-all --repo . > /tmp/B22-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B22-2.json && diff /tmp/B22-1.json /tmp/B22-2.json && echo IDENTICAL
+  LOCAL-ONLY (stricter than upstream): B22: declared command was never executed: python3 scripts/negative-controls.py
+  LOCAL-ONLY (stricter than upstream): B22: declared command was never executed: python3 scripts/rule-knockout.py --codes BASE_RULE_UNKNOWN,BASE_TEST_MISSING,BASE_GAP_NO_OWNER,BASE_GAP_NO_REVIEW,BASE_GAP_WITH_REFS,BASE_FALSE_COMPLIANCE,BASE_COVERAGE_BELOW_FLOOR,BASE_TOO_MANY_GAPS,BASE_NO_ENFORCEMENT,BASE_STANDARD_UNKNOWN,BASE_STANDARD_VERSION,BASE_STANDARD_UNUSED,BASE_ENFORCEMENT_KIND,BASE_COVERAGE_POLICY,BASE_GAP_NO_REASON,BASE_GENERATED_DRIFT --out evidence/B22/security/rule-knockout.json
+  LOCAL-ONLY (stricter than upstream): B22: completion records 1502 passing tests but the runner produced 1679

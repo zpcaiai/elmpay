@@ -1,0 +1,64 @@
+{
+  "batch_id": "B19",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T14:45:19Z",
+  "completed_at": "2026-08-19T14:46:24Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/security/authorization-matrix.json",
+      "sha256": "7cb66bc074380ae989527c4fb20b2f01bc8145c213e6f33ce05c6772cb31f800"
+    },
+    {
+      "path": "docs/security/AUTHORIZATION.md",
+      "sha256": "b487a5753eda62e2f0dd5b8173c15c913d512c79122c6ee93f85dc50b16cee59"
+    },
+    {
+      "path": "governance/authorization.json",
+      "sha256": "2d8af9d786896f07bffa54967519ed9df0895e897087ff1b4b2c12956e8f79a4"
+    },
+    {
+      "path": "libs/authz/reference/__init__.py",
+      "sha256": "353eae439aa60dd8ab5901601baaebcd02ed9e83d7097e3dc888fdc682396b38"
+    },
+    {
+      "path": "libs/authz/reference/decision.py",
+      "sha256": "97cf49a542c63104fdb7f1f66b7210d655059e4314cf11dbb1ba00fc0f965af3"
+    },
+    {
+      "path": "scripts/authz-smoke.py",
+      "sha256": "c0b79bd65b15afc6a0ab3dc3bf745d7a3850a05ada5b5a212021d72a4c155245"
+    },
+    {
+      "path": "scripts/render-authz.py",
+      "sha256": "84cec9792d47540d8aed9ae47fef13886c7bac8db6f9062a71bdf57cc935697c"
+    },
+    {
+      "path": "tools/paygov/authz.py",
+      "sha256": "1636e3d3f4f00fece0ee3a2ff4356c67faa90cad13909f1308347a168fbe2bff"
+    },
+    {
+      "path": "tools/paygov/authzgen.py",
+      "sha256": "886d2143fc6c3cb70dbe25daeaf4426ab0339e4936db8350139b838296619842"
+    },
+    {
+      "path": "tools/tests/test_b19_authz.py",
+      "sha256": "1870bbd7787b4cd873c255262356eec4d57efe4149b95078540fbd918946d1d5"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B18": "7557036f042321400336b3f04014401155fbbfbdc51c3a6f3e6ea78379b70dc5"
+  }
+}

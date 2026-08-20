@@ -1,0 +1,18 @@
+[OK  ] MIG_DOUBLE_CHARGE: removing it breaks 1 module(s)
+[OK  ] MIG_LEGACY_DB_ACCESS: removing it breaks 1 module(s)
+[OK  ] MIG_ADAPTER_LEAK: removing it breaks 1 module(s)
+[OK  ] MIG_ADAPTER_IDEMPOTENCY: removing it breaks 1 module(s)
+[OK  ] MIG_ROLLBACK_DESTRUCTIVE: removing it breaks 1 module(s)
+[OK  ] MIG_BACKFILL_WRITES: removing it breaks 1 module(s)
+[OK  ] MIG_BACKFILL_VERIFICATION: removing it breaks 1 module(s)
+[OK  ] MIG_DIVERGENCE: removing it breaks 1 module(s)
+[OK  ] MIG_DIVERGENCE_ABORT: removing it breaks 1 module(s)
+[OK  ] MIG_CUTOVER_GRANULARITY: removing it breaks 1 module(s)
+[OK  ] MIG_KILL_SWITCH: removing it breaks 1 module(s)
+[OK  ] MIG_PHASE_ORDER: removing it breaks 1 module(s)
+[OK  ] MIG_AUTHORITY: removing it breaks 1 module(s)
+[OK  ] MIG_LEGACY_IN_PLATFORM: removing it breaks 1 module(s)
+[OK  ] MIG_OWNERSHIP_OVERLAP: removing it breaks 1 module(s)
+[OK  ] MIG_GENERATED_DRIFT: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

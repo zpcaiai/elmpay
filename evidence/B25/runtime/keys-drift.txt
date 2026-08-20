@@ -1,0 +1,2 @@
+up-to-date  contracts/security/key-inventory.json
+up-to-date  docs/security/KEY_MANAGEMENT.md

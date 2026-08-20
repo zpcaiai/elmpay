@@ -1,0 +1,68 @@
+{
+  "batch_id": "B29",
+  "status": "passed",
+  "commit_sha": "0a6a4970d89afa1f299c5e623079284c7bf83b14",
+  "environment": "integration",
+  "started_at": "2026-08-19T16:21:10Z",
+  "completed_at": "2026-08-19T16:22:30Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/pricing/fee-model.json",
+      "sha256": "c472e094a75c1886fa4149ac9558acb26950702b6d7794c38f34082290ce52a1"
+    },
+    {
+      "path": "docs/pricing/FEE_MODEL.md",
+      "sha256": "9c1c8fb20cff648658881176a1d9f8b7256bbe14bbb94e689aca4493181454a9"
+    },
+    {
+      "path": "governance/fee-model.json",
+      "sha256": "af0bec502ad646539013731bbc3bf7934a106cd96abe8a49c7a1d4cb3dcc6f6b"
+    },
+    {
+      "path": "libs/pricing/reference/__init__.py",
+      "sha256": "b1edf7a81bd11155aec789c89f5565659609aec55fccf1ba6e07d5ff1b05e355"
+    },
+    {
+      "path": "libs/pricing/reference/fees.py",
+      "sha256": "45381549c6b71734e8a7c61e1ae2b67a9a325f3dee910ca9949864a5628d6fbf"
+    },
+    {
+      "path": "scripts/fees-smoke.py",
+      "sha256": "37c7ffb155302192b827a7a083e6918da404e206250d7837c94a1d057f8d2b30"
+    },
+    {
+      "path": "scripts/render-fees.py",
+      "sha256": "039952ca44dd56ce4c0ae4ae74296da9ef4eea93157b7c0ff2485706b570f672"
+    },
+    {
+      "path": "tools/negative/b29.py",
+      "sha256": "349c018552c8be5d518d8f5146224eacf58500c08e16a5f61b5f7343305351c8"
+    },
+    {
+      "path": "tools/paygov/fees.py",
+      "sha256": "c016a0fa14793d9794883b5f0d31cf0bcb69bb045b8ad46292c44d456a1d9475"
+    },
+    {
+      "path": "tools/paygov/feesgen.py",
+      "sha256": "52c1b0309bd3b4400055fa6ad10d8d809a85af1785bae0d34202d72cd605a1fa"
+    },
+    {
+      "path": "tools/tests/test_b29_fees.py",
+      "sha256": "b8b5faab3bc4da08611765be7197af8cb43d277d5c7cb412b3ddbfdc2b78ddd2"
+    }
+  ],
+  "tests": {
+    "passed": 2343,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B28": "fa1f5c0d04df09202157b32f368fd4e7932e7c29c28bbe652145f8b3d44c840f"
+  }
+}

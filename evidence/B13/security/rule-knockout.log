@@ -1,0 +1,18 @@
+[OK  ] DATA_RLS_MISSING: removing it breaks 1 module(s)
+[OK  ] DATA_RLS_FORCE: removing it breaks 1 module(s)
+[OK  ] DATA_RLS_PREDICATE: removing it breaks 1 module(s)
+[OK  ] DATA_RLS_EXEMPTION: removing it breaks 1 module(s)
+[OK  ] DATA_LEDGER_MUTABLE: removing it breaks 1 module(s)
+[OK  ] DATA_LEDGER_MUTABLE_UNJUSTIFIED: removing it breaks 1 module(s)
+[OK  ] DATA_RETENTION_FLOOR: removing it breaks 1 module(s)
+[OK  ] DATA_RETENTION_ORDER: removing it breaks 1 module(s)
+[OK  ] DATA_OWNER: removing it breaks 1 module(s)
+[OK  ] DATA_INDEX_TENANT: removing it breaks 1 module(s)
+[OK  ] DATA_SHARD_KEY: removing it breaks 1 module(s)
+[OK  ] DATA_BREAK_GLASS: removing it breaks 1 module(s)
+[OK  ] DATA_EVENTING_TABLE: removing it breaks 1 module(s)
+[OK  ] DATA_EVENTING_OWNER: removing it breaks 1 module(s)
+[OK  ] DATA_DELETION_STRATEGY: removing it breaks 1 module(s)
+[OK  ] DATA_GENERATED_DRIFT: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

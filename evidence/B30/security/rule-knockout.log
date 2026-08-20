@@ -1,0 +1,18 @@
+[OK  ] ONB_MANUAL_COMPLETION: removing it breaks 1 module(s)
+[OK  ] ONB_REPLAYS_SIDE_EFFECTS: removing it breaks 1 module(s)
+[OK  ] ONB_NOT_RESUMABLE: removing it breaks 1 module(s)
+[OK  ] ONB_STEP_NOT_IDEMPOTENT: removing it breaks 1 module(s)
+[OK  ] ONB_APPROVAL_UNBOUND: removing it breaks 1 module(s)
+[OK  ] ONB_DIGEST_INCOMPLETE: removing it breaks 1 module(s)
+[OK  ] ONB_APPROVAL_NEVER_EXPIRES: removing it breaks 1 module(s)
+[OK  ] ONB_APPROVAL_SURVIVES_CHANGE: removing it breaks 1 module(s)
+[OK  ] ONB_SINGLE_EYE: removing it breaks 1 module(s)
+[OK  ] ONB_SELF_APPROVAL: removing it breaks 1 module(s)
+[OK  ] ONB_CREDENTIAL_ECHO: removing it breaks 1 module(s)
+[OK  ] ONB_DOMAIN_WILDCARD: removing it breaks 1 module(s)
+[OK  ] ONB_CALLBACK_SSRF: removing it breaks 1 module(s)
+[OK  ] ONB_NO_LIMITS_AT_GO_LIVE: removing it breaks 1 module(s)
+[OK  ] ONB_SUSPEND_NEEDS_APPROVAL: removing it breaks 1 module(s)
+[OK  ] ONB_REINSTATE_SINGLE_PERSON: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

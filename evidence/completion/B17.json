@@ -1,0 +1,64 @@
+{
+  "batch_id": "B17",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T14:42:26Z",
+  "completed_at": "2026-08-19T14:44:03Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/security/identity.json",
+      "sha256": "8018734c7d5812ca4aabb5ddbd6296d40702d7b351e0c908b86ac0820c70eb70"
+    },
+    {
+      "path": "docs/security/IDENTITY.md",
+      "sha256": "603bf1ef341ecb3002724b13a8071beb207865c9937bf095eec22e1aab67cb57"
+    },
+    {
+      "path": "governance/identity.json",
+      "sha256": "81a97f299fbef6b13c8a0c9d2dd14e75dd83f06429603e6f6aa558761d21d475"
+    },
+    {
+      "path": "libs/identity/reference/__init__.py",
+      "sha256": "54ca3afbce19f124fd6f2d99987e36c7c98fb82bb38e8c4f9e5ff78e540a9c96"
+    },
+    {
+      "path": "libs/identity/reference/tokens.py",
+      "sha256": "5a6180bd43f8d034a511215aedc2190b45b5b53101f5e568a625de2a26b40a9a"
+    },
+    {
+      "path": "scripts/identity-smoke.py",
+      "sha256": "efb98071e680c087d17357dcd4a98c64b8c54f7e5ef80f1723f810a740ca5db9"
+    },
+    {
+      "path": "scripts/render-identity.py",
+      "sha256": "a267fc901b30095f54f3c857732624143c98ce54375d4bc60a1219113ba49737"
+    },
+    {
+      "path": "tools/paygov/identity.py",
+      "sha256": "2aaad40973b2571370fd6addff5c82ead69e5c2005f24b3dcfc371950f899dec"
+    },
+    {
+      "path": "tools/paygov/idgen.py",
+      "sha256": "e0416e84f01d19ab45023e47cdd5aaaa9d97c632a209bab4aa2c347328f7ebf0"
+    },
+    {
+      "path": "tools/tests/test_b17_identity.py",
+      "sha256": "da9a4334cb01cca8ac07379acba119f00217ab3e5d2567916338fd80ccdd5c7d"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B16": "bd841ac262497415382b83eed906850e5af653e85450819db637ab3dd3f96023"
+  }
+}

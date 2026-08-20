@@ -1,0 +1,43 @@
+== 1. 一次真实收银请求的最坏耗时
+[OK ] checkout-web 的最坏同步耗时不超过自身预算 — worst=3000ms budget=3200ms
+[OK ] edge-gateway 的最坏同步耗时不超过自身预算 — worst=2650ms budget=3000ms
+[OK ] payment-core 的最坏同步耗时不超过自身预算 — worst=1950ms budget=2500ms
+
+== 2. 逐个打掉依赖，检查声明的失败模式
+[OK ] edge-gateway 依赖 payment-core 不可用时为 fail_closed — fail_closed
+[OK ] edge-gateway 依赖 merchant-config 不可用时为 fail_closed — fail_closed
+[OK ] payment-core 依赖 risk-engine 不可用时为 fail_closed — fail_closed
+[OK ] payment-core 依赖 merchant-config 不可用时为 fail_closed — fail_closed
+[OK ] payment-core 依赖 wechat-pay 不可用时为 degrade — degrade
+[OK ] payment-core 依赖 alipay 不可用时为 degrade — degrade
+[OK ] payment-core 依赖 stripe 不可用时为 degrade — degrade
+[OK ] payment-core 依赖 paypal 不可用时为 degrade — degrade
+[OK ] payment-core 依赖 apple-pay 不可用时为 degrade — degrade
+[OK ] risk-engine 依赖 merchant-config 不可用时为 fail_closed — fail_closed
+[OK ] webhook-ingress 依赖 wechat-pay 不可用时为 degrade — degrade
+[OK ] webhook-ingress 依赖 alipay 不可用时为 degrade — degrade
+[OK ] webhook-ingress 依赖 stripe 不可用时为 degrade — degrade
+[OK ] checkout-web 依赖 payment-core 不可用时为 fail_closed — fail_closed
+
+== 3. 爆炸半径：谁挂了会带走谁
+       merchant-config 挂 → 同步受影响：edge-gateway, payment-core, reconciliation-service, risk-engine, webhook-delivery, worker-scheduler
+       payment-core 挂 → 同步受影响：admin-web, checkout-web, edge-gateway, worker-scheduler
+       risk-engine 挂 → 同步受影响：payment-core
+[OK ] 账本不可用不会同步拖垮任何服务 — []
+[OK ] 商户配置是叶子节点，自身没有同步依赖 — 被 6 个服务同步依赖
+
+== 4. 隔板算术：一个依赖打满不能吃掉调用方的全部并发
+[OK ] admin-web: 单个依赖的隔板不超过全部隔板之和的 80% — largest=50 total=50 deps=1
+[OK ] checkout-web: 单个依赖的隔板不超过全部隔板之和的 80% — largest=200 total=200 deps=1
+[OK ] edge-gateway: 单个依赖的隔板不超过全部隔板之和的 80% — largest=400 total=500 deps=2
+[OK ] payment-core: 单个依赖的隔板不超过全部隔板之和的 80% — largest=200 total=900 deps=7
+[OK ] reconciliation-service: 单个依赖的隔板不超过全部隔板之和的 80% — largest=20 total=20 deps=1
+[OK ] risk-engine: 单个依赖的隔板不超过全部隔板之和的 80% — largest=100 total=100 deps=1
+[OK ] webhook-delivery: 单个依赖的隔板不超过全部隔板之和的 80% — largest=50 total=50 deps=1
+[OK ] webhook-ingress: 单个依赖的隔板不超过全部隔板之和的 80% — largest=50 total=150 deps=3
+[OK ] worker-scheduler: 单个依赖的隔板不超过全部隔板之和的 80% — largest=50 total=70 deps=2
+
+== 5. 同步图必须无环
+[OK ] 同步依赖图无环 — []
+
+checks=29 failures=0

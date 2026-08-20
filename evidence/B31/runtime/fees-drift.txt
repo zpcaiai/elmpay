@@ -1,0 +1,2 @@
+up-to-date  contracts/pricing/fee-model.json
+up-to-date  docs/pricing/FEE_MODEL.md

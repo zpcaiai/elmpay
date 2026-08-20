@@ -1,0 +1,68 @@
+{
+  "batch_id": "B27",
+  "status": "passed",
+  "commit_sha": "47133260f3006fbae0f827f847696d986d2c06ed",
+  "environment": "integration",
+  "started_at": "2026-08-19T15:52:04Z",
+  "completed_at": "2026-08-19T15:53:19Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/provider/capability-matrix.json",
+      "sha256": "1f299e5fb630c757154eb3130e0346b46e9a4560737e7b1c506e770fecb4f7bd"
+    },
+    {
+      "path": "docs/provider/PROVIDER_CAPABILITIES.md",
+      "sha256": "6f60cbf2316a384a8a379536b5deadb133452dae7137b4cffacf8e9561542663"
+    },
+    {
+      "path": "governance/provider-capabilities.json",
+      "sha256": "fe2183f6fd03933ee3e6a609be90624b0ba8fa4aeb570eef57f93c1e63089bd4"
+    },
+    {
+      "path": "libs/capability/reference/__init__.py",
+      "sha256": "75f85a77ac8d952c8ae2889131f1a7b5745fae0271803c63e0a4a0708126db92"
+    },
+    {
+      "path": "libs/capability/reference/matrix.py",
+      "sha256": "573eced881863db1f80e86f1f649a38175743d0bc3715fe1b20352da5cc3768f"
+    },
+    {
+      "path": "scripts/capabilities-smoke.py",
+      "sha256": "d4387147c6adc89762417143fdb3b1c3c9247d7650a5da12fe58e1f887c94f2e"
+    },
+    {
+      "path": "scripts/render-capabilities.py",
+      "sha256": "281bdfc424e3c01ff6282c2938015b0135bfda5822b94c7cbf998791a93585d2"
+    },
+    {
+      "path": "tools/negative/b27.py",
+      "sha256": "6ce38abc87e76eea205e2a39527d2a17dbc0c72af2b23dd8887369145d911ae2"
+    },
+    {
+      "path": "tools/paygov/capabilities.py",
+      "sha256": "c33719f2d27138357699fdedd473707ae7bf117b767c975805311e6544c8e34e"
+    },
+    {
+      "path": "tools/paygov/capabilitiesgen.py",
+      "sha256": "280247ce5b412b1247baf72bef83a375bd7b3cd203e673d292dbad88f499e8e8"
+    },
+    {
+      "path": "tools/tests/test_b27_capabilities.py",
+      "sha256": "4d8af88305f4902671cf54b2a67713eef835e134493ed98646933ce306823b65"
+    }
+  ],
+  "tests": {
+    "passed": 2101,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B26": "196e7ece56b7230b0a1f883e7b594caf332804386e17c7fa076fbb0bed4d308e"
+  }
+}

@@ -1,0 +1,4 @@
+up-to-date  contracts/api/errors.json
+up-to-date  contracts/api/openapi.json
+up-to-date  contracts/api/transition-vectors.json
+up-to-date  docs/api/API_CONTRACT.md

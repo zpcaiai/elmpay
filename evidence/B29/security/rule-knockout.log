@@ -1,0 +1,18 @@
+[OK  ] FEE_BOOK_IS_TRUTH: removing it breaks 1 module(s)
+[OK  ] FEE_MISMATCH_IGNORED: removing it breaks 1 module(s)
+[OK  ] FEE_SILENT_OVERWRITE: removing it breaks 1 module(s)
+[OK  ] FEE_TOLERANCE_NONZERO: removing it breaks 1 module(s)
+[OK  ] FEE_TAX_AS_REVENUE: removing it breaks 1 module(s)
+[OK  ] FEE_TAX_ON_PAYMENT: removing it breaks 1 module(s)
+[OK  ] FEE_COST_AS_REVENUE: removing it breaks 1 module(s)
+[OK  ] FEE_INTERNAL_COST_CHARGED: removing it breaks 1 module(s)
+[OK  ] FEE_ROUNDING_UNDECLARED: removing it breaks 1 module(s)
+[OK  ] FEE_NO_REMAINDER_OWNER: removing it breaks 1 module(s)
+[OK  ] FEE_SPLIT_UNBALANCED: removing it breaks 1 module(s)
+[OK  ] FEE_BASIS_UNKNOWN: removing it breaks 1 module(s)
+[OK  ] FEE_UNCAPPED_PERCENT: removing it breaks 1 module(s)
+[OK  ] FEE_SCHEDULE_UNREACHABLE: removing it breaks 1 module(s)
+[OK  ] FEE_PROVIDER_NO_COST: removing it breaks 1 module(s)
+[OK  ] FEE_IMPLICIT_CONVERSION: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

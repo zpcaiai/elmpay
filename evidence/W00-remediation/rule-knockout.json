@@ -1,0 +1,12 @@
+{
+  "codes_checked": 208,
+  "load_bearing": 204,
+  "method": "每条规则在临时副本中被抑制后，重跑声称覆盖它的测试模块；测试仍通过即判定该规则不承重。抑制接缝只存在于临时副本。",
+  "not_load_bearing": [],
+  "seam_not_applicable": [
+    "CLI_NO_REPO",
+    "CLI_UNKNOWN_VALIDATOR",
+    "VALIDATOR_ABORTED",
+    "VALIDATOR_CRASHED"
+  ]
+}

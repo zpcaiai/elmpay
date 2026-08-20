@@ -1,0 +1,127 @@
+[baseline    ] shard=4/4 exit=0 expected=0
+[OK ] B21 a material loses its revocation route: exit=2 expected=2 code=CERT_NO_REVOCATION
+[OK ] B21 CAA records dropped: exit=2 expected=2 code=DOMAIN_NO_CAA
+[OK ] B21 a certificate points at an unmanaged key: exit=2 expected=2 code=CERT_KEY_UNMANAGED
+[OK ] B22 a requirement maps to a deleted test: exit=2 expected=2 code=BASE_TEST_MISSING
+[OK ] B22 mobile requirements claim compliance: exit=2 expected=2 code=BASE_FALSE_COMPLIANCE
+[OK ] B22 a requirement cites an unregistered standard: exit=2 expected=2 code=BASE_STANDARD_UNKNOWN
+[OK ] B23 the anchor interval becomes a week: exit=2 expected=2 code=AUDIT_ANCHOR_INTERVAL
+[OK ] B23 card data allowed into the audit log: exit=2 expected=2 code=AUDIT_FORBIDDEN_FIELD
+[OK ] B23 crypto-shredding removed while PII stays: exit=2 expected=2 code=AUDIT_NO_SHREDDING
+[OK ] B24 a suspended tenant can no longer refund: exit=2 expected=2 code=TENANT_SUSPENDED_BLOCKS_REFUNDS
+[OK ] B24 test and live share keys: exit=2 expected=2 code=TENANT_ENV_SHARES_KEYS
+[OK ] B24 closure no longer waits for settlement: exit=2 expected=2 code=TENANT_CLOSE_BEFORE_SETTLEMENT
+[OK ] B24 quota ceilings fall below their defaults: exit=2 expected=2 code=TENANT_QUOTA_CEILING
+[OK ] B25 the authority record loses its expiry field: exit=2 expected=2 code=MERCHANT_AUTHORITY_INCOMPLETE
+[OK ] B25 the payout account proof outlives the other documents: exit=2 expected=2 code=MERCHANT_ACCOUNT_PROOF_STALE
+[OK ] B25 screening happens once at signup: exit=2 expected=2 code=MERCHANT_SCREENING_ONCE
+[OK ] B25 one person onboards a high-risk merchant: exit=2 expected=2 code=MERCHANT_HIGH_RISK_SINGLE_APPROVER
+[OK ] B25 KYB records are dropped before the regulator allows: exit=2 expected=2 code=MERCHANT_RETENTION_SHORT
+[OK ] B26 attribution must no longer be deterministic: exit=2 expected=2 code=ACCOUNT_CALLBACK_GUESSED
+[OK ] B26 provider callbacks stop being signed: exit=2 expected=2 code=ACCOUNT_CALLBACK_UNSIGNED
+[OK ] B26 one credential is shared across tenants: exit=2 expected=2 code=ACCOUNT_SHARED_CREDENTIAL
+[OK ] B26 credentials outlive the key that wraps them: exit=2 expected=2 code=ACCOUNT_ROTATION_SLOWER_THAN_KEY
+[OK ] B26 a provider names a key that does not exist: exit=2 expected=2 code=ACCOUNT_PROVIDER_KEY_UNKNOWN
+[OK ] B26 a revoked binding still receives callbacks: exit=2 expected=2 code=ACCOUNT_REVOKED_ACTIVE
+[OK ] B26 binding changes map to a nonexistent audit class: exit=2 expected=2 code=ACCOUNT_AUDIT_CLASS_UNKNOWN
+[OK ] B27 a provider reroutes while it is down: exit=2 expected=2 code=CAP_SILENT_FALLBACK
+[OK ] B27 capture exceeds the authorised amount: exit=2 expected=2 code=CAP_OVER_CAPTURE
+[OK ] B27 a refund may exceed what was captured: exit=2 expected=2 code=CAP_OVER_REFUND
+[OK ] B27 the dispute evidence pack loses the delivery proof: exit=2 expected=2 code=CAP_DISPUTE_NO_EVIDENCE
+[OK ] B27 a region promises a method the matrix cannot deliver: exit=2 expected=2 code=CAP_REGION_METHOD_UNSUPPORTED
+[OK ] B27 matrix changes map to a nonexistent audit class: exit=2 expected=2 code=CAP_AUDIT_CLASS_UNKNOWN
+[OK ] B28 a published configuration version becomes editable: exit=2 expected=2 code=ROUTE_VERSION_MUTABLE
+[OK ] B28 a decision becomes unreplayable: exit=2 expected=2 code=ROUTE_UNREPLAYABLE
+[OK ] B28 a rule routes to a provider with no binding: exit=2 expected=2 code=ROUTE_PROVIDER_UNKNOWN
+[OK ] B28 a provider is judged on ten payments: exit=2 expected=2 code=ROUTE_SAMPLE_TOO_SMALL
+[OK ] B28 the canary splits on the user instead of the payment: exit=2 expected=2 code=ROUTE_SPLIT_KEY
+[OK ] B28 the shadow evaluator may move money: exit=2 expected=2 code=ROUTE_SHADOW_MOVES_MONEY
+[OK ] B29 the book value becomes the truth: exit=2 expected=2 code=FEE_BOOK_IS_TRUTH
+[OK ] B29 tax is counted as revenue: exit=2 expected=2 code=FEE_TAX_AS_REVENUE
+[OK ] B29 internal cost is charged to the merchant: exit=2 expected=2 code=FEE_INTERNAL_COST_CHARGED
+[OK ] B29 the rounded parts need not add up: exit=2 expected=2 code=FEE_SPLIT_UNBALANCED
+[OK ] B29 a fixed fee becomes a decimal: exit=2 expected=2 code=FEE_FIXED_NOT_INTEGER
+[OK ] B29 the split loses a party: exit=2 expected=2 code=FEE_SPLIT_PARTY_MISSING
+[OK ] B29 the meter cannot be recomputed: exit=2 expected=2 code=FEE_METERING_UNRECOMPUTABLE
+[OK ] B30 workflow state stops surviving a restart: exit=2 expected=2 code=ONB_NOT_RESUMABLE
+[OK ] B30 the approval digest drops the payout account: exit=2 expected=2 code=ONB_DIGEST_INCOMPLETE
+[OK ] B30 the approval permission drops dual control: exit=2 expected=2 code=ONB_SINGLE_EYE
+[OK ] B30 a merchant may go live with no limits: exit=2 expected=2 code=ONB_NO_LIMITS_AT_GO_LIVE
+[OK ] B30 credentials are stored outside the binding: exit=2 expected=2 code=ONB_CREDENTIAL_SIDE_PATH
+[OK ] B30 a callback may point at a private address: exit=2 expected=2 code=ONB_CALLBACK_SSRF
+[OK ] B30 go-live no longer needs a proven round trip: exit=2 expected=2 code=ONB_GO_LIVE_UNPROVEN
+[OK ] B31 a surface loses its probe: exit=2 expected=2 code=ISO_NO_PROBE
+[OK ] B31 a surface defaults to allow: exit=2 expected=2 code=ISO_DEFAULT_ALLOW
+[OK ] B31 a query with no tenant returns everything: exit=2 expected=2 code=ISO_NO_SESSION_TENANT
+[OK ] B31 tenants share a cache namespace: exit=2 expected=2 code=ISO_CACHE_SHARED
+[OK ] B31 logs lose their tenant field: exit=2 expected=2 code=ISO_LOG_UNSCOPED
+[OK ] B31 one export may span tenants: exit=2 expected=2 code=ISO_EXPORT_MULTI_TENANT
+[OK ] B32 the amount snapshot becomes mutable: exit=2 expected=2 code=INTENT_AMOUNT_MUTABLE
+[OK ] B32 a second currency precision table appears: exit=2 expected=2 code=INTENT_EXPONENT_SOURCE
+[OK ] B32 the success states disagree with B10: exit=2 expected=2 code=INTENT_SUCCESS_DIVERGE
+[OK ] B32 an intent may live for a week: exit=2 expected=2 code=INTENT_EXPIRY_TOO_LONG
+[OK ] B32 concurrent confirmations are no longer serialised: exit=2 expected=2 code=INTENT_CONCURRENT_CONFIRM
+[OK ] B32 payment methods may be widened afterwards: exit=2 expected=2 code=INTENT_METHODS_WIDENED
+[OK ] B32 order content reaches the entity: exit=2 expected=2 code=INTENT_ORDER_CONTENT_ALLOWED
+[OK ] B32 intent events are recorded as configuration changes: exit=2 expected=2 code=INTENT_AUDIT_CLASS_TOO_WEAK
+[OK ] B33 B10 makes unknown a terminal state: exit=2 expected=2 code=ATTEMPT_UNKNOWN_IS_FINAL
+[OK ] B33 a retry writes over the previous attempt: exit=2 expected=2 code=ATTEMPT_REUSED
+[OK ] B33 the whole request is stored: exit=2 expected=2 code=ATTEMPT_STORES_PAYLOAD
+[OK ] B33 a definitive decline becomes retryable: exit=2 expected=2 code=ATTEMPT_FINAL_RETRYABLE
+[OK ] B33 an unmapped provider code defaults to failed: exit=2 expected=2 code=ATTEMPT_UNMAPPED_IS_SUCCESS
+[OK ] B33 a final attempt may be overwritten: exit=2 expected=2 code=ATTEMPT_FINAL_OVERWRITTEN
+[OK ] B33 B32 accepts the client return page: exit=2 expected=2 code=ATTEMPT_RETURN_PAGE_EVIDENCE
+[OK ] NN-05 float money model: exit=2 expected=2 code=CONFIG_MONEY
+[OK ] NN-01 business order table claimed: exit=2 expected=2 code=MODULE_BUSINESS_TABLE
+[OK ] B01 requirement becomes an orphan: exit=2 expected=2 code=BOUNDARY_REQ_UNCLAIMED
+[OK ] B02 critical risk accepted instead of fixed: exit=2 expected=2 code=THREAT_RISK_SEVERITY
+[OK ] B03 container image pinned by tag only: exit=2 expected=2 code=TOOLCHAIN_DIGEST
+[OK ] B04 inline password in the local platform: exit=2 expected=2 code=DEV_INLINE_SECRET
+[OK ] B04 required service removed: exit=2 expected=2 code=DEV_REQUIRED_SERVICE
+[OK ] B05 action pinned to a movable tag: exit=2 expected=2 code=CI_ACTION_PIN
+[OK ] B05 pipeline granted write access to contents: exit=2 expected=2 code=CI_PERMISSIONS
+[OK ] B06 sharded proof drops one of its shards: exit=2 expected=2 code=EVIDENCE_SHARD_INCOMPLETE
+[OK ] B07 control left unclaimed by any requirement: exit=2 expected=2 code=TRACE_CONTROL_UNCOVERED
+[OK ] B08 monetary field silently becomes floating point: exit=2 expected=2 code=DOMAIN_MONEY_TYPE
+[OK ] B08 entity dropped from the ubiquitous language: exit=2 expected=2 code=DOMAIN_GLOSSARY
+[OK ] B09 metadata source repointed at an unvalidated file: exit=2 expected=2 code=MONEY_SOURCE
+[OK ] B10 timeout redefined as an outright failure: exit=2 expected=2 code=STATE_SET
+[OK ] B11 idempotency scope drifts from the state machine: exit=2 expected=2 code=API_TRANSITION_KEY_MISMATCH
+[OK ] B11 API money becomes a decimal: exit=2 expected=2 code=API_MONEY_SHAPE
+[OK ] B12 ordering switched from revision to wall clock: exit=2 expected=2 code=EVENT_ORDERING
+[OK ] B12 dead letter destination removed: exit=2 expected=2 code=OUTBOX_DEAD_LETTER
+[OK ] B13 ledger entries become mutable: exit=2 expected=2 code=DATA_LEDGER_MUTABLE
+[OK ] B13 tenant index no longer leads with tenant_id: exit=2 expected=2 code=DATA_INDEX_TENANT
+[OK ] B14 provider timeout redefined as a decline: exit=2 expected=2 code=TOPO_CONNECTOR_DEGRADATION
+[OK ] B14 service reaches into another service tables: exit=2 expected=2 code=TOPO_TABLE_ACCESS
+[OK ] B15 adapter invents its own idempotency key: exit=2 expected=2 code=MIG_ADAPTER_IDEMPOTENCY
+[OK ] B15 cutover switched to a global flip: exit=2 expected=2 code=MIG_CUTOVER_GRANULARITY
+[OK ] B16 audit reduced to denials only: exit=2 expected=2 code=ZT_AUDIT_ALLOW_ONLY
+[OK ] B16 mutual TLS dropped between internal zones: exit=2 expected=2 code=ZT_INTERNAL_TRUST
+[OK ] B17 implicit flow re-enabled: exit=2 expected=2 code=ID_FLOW
+[OK ] B17 operator recovery downgraded to SMS: exit=2 expected=2 code=ID_RECOVERY_SMS
+[OK ] B18 SMS one-time codes relabelled as phishing-resistant: exit=2 expected=2 code=MFA_MISCLASSIFIED
+[OK ] B18 step-up stops binding the transaction: exit=2 expected=2 code=MFA_NO_TRANSACTION_BINDING
+[OK ] B18 user verification relaxed to discouraged: exit=2 expected=2 code=MFA_USER_VERIFICATION
+[OK ] B18 push-fatigue protection switched off: exit=2 expected=2 code=MFA_PUSH_FATIGUE
+[OK ] B19 self-approval quietly permitted: exit=2 expected=2 code=AUTHZ_DUAL_SELF_APPROVAL
+[OK ] B19 an elevation-only permission handed out standing: exit=2 expected=2 code=AUTHZ_STANDING_ELEVATED
+[OK ] B19 break-glass use no longer reviewed: exit=2 expected=2 code=AUTHZ_BREAK_GLASS_REVIEW
+[OK ] B19 a privileged role loses its MFA requirement: exit=2 expected=2 code=AUTHZ_ROLE_NO_MFA
+[OK ] B20 additional authenticated data dropped: exit=2 expected=2 code=KEY_AAD_MISSING
+[OK ] B20 one data key for the whole table: exit=2 expected=2 code=KEY_DEK_SCOPE
+[OK ] B20 crypto-shredding removed: exit=2 expected=2 code=KEY_NO_SHREDDING
+[OK ] B20 a channel private key stops being managed: exit=2 expected=2 code=KEY_PROVIDER_UNMANAGED
+[OK ] B22 baseline document hand-edited: exit=2 expected=2 code=BASE_GENERATED_DRIFT
+[OK ] B26 provider account document hand-edited: exit=2 expected=2 code=ACCOUNT_GENERATED_DRIFT
+[OK ] B30 onboarding document hand-edited: exit=2 expected=2 code=ONB_GENERATED_DRIFT
+[OK ] B02 ADR loses its alternatives section: exit=2 expected=2 code=ADR_SECTION
+[OK ] B10 state machine document hand-edited: exit=2 expected=2 code=STATE_DOC_DRIFT
+[OK ] B14 cross-module foreign key reintroduced: exit=2 expected=2 code=TOPO_FOREIGN_KEY_CROSS_MODULE
+[OK ] B18 MFA document hand-edited: exit=2 expected=2 code=MFA_GENERATED_DRIFT
+[OK ] exhausted budget fails closed: exit=3 expected=3
+[OK ] subprocess pass: exit=0 expected=0
+[OK ] subprocess governance problem: exit=2 expected=2
+[OK ] subprocess budget exhausted: exit=3 expected=3
+
+shard=4/4 scenarios=125 rejection_scenarios=120 baseline_timeout_and_subprocess=5 failures=0

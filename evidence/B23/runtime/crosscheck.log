@@ -1,0 +1,12 @@
+status  upstream={'completed': 23, 'total': 128, 'ready': ['B23'], 'remaining': 105} local={'completed': 23, 'total': 128, 'ready': ['B23'], 'remaining': 105}
+cross-checked 24 batch(es) individually
+
+mismatches=0 local_only_findings=8
+  LOCAL-ONLY (stricter than upstream): B23: declared command was never executed: python3 -m tools.paygov.cli list-validators --repo .
+  LOCAL-ONLY (stricter than upstream): B23: declared command was never executed: python3 -m tools.paygov.cli verify audit-log --repo . --budget-seconds 0
+  LOCAL-ONLY (stricter than upstream): B23: declared command was never executed: python3 -m tools.paygov.cli verify-all --repo .
+  LOCAL-ONLY (stricter than upstream): B23: declared command was never executed: python3 -m tools.paygov.cli verify-all --repo . > /tmp/B23-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B23-2.json && diff /tmp/B23-1.json /tmp/B23-2.json && echo IDENTICAL
+  LOCAL-ONLY (stricter than upstream): B23: declared command was never executed: python3 scripts/batch.py crosscheck
+  LOCAL-ONLY (stricter than upstream): B23: declared command was never executed: python3 scripts/negative-controls.py
+  LOCAL-ONLY (stricter than upstream): B23: declared command was never executed: python3 scripts/rule-knockout.py --codes AUDIT_NO_CHAIN,AUDIT_NO_SEQUENCE,AUDIT_NO_ANCHOR,AUDIT_ANCHOR_INTERVAL,AUDIT_NO_WITNESS,AUDIT_ANCHOR_KEY_UNMANAGED,AUDIT_MISSING_FIELD,AUDIT_FORBIDDEN_FIELD,AUDIT_MUTABLE_STORAGE,AUDIT_SHARED_CREDENTIALS,AUDIT_NO_SHREDDING,AUDIT_SHRED_LOSES_PROOF,AUDIT_READER_ELEVATABLE,AUDIT_ACTION_UNLOGGED,AUDIT_UNREHEARSED,AUDIT_GENERATED_DRIFT --out evidence/B23/security/rule-knockout.json
+  LOCAL-ONLY (stricter than upstream): B23: completion records 1589 passing tests but the runner produced 1679

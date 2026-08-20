@@ -1,0 +1,18 @@
+[OK  ] ACCOUNT_CALLBACK_GUESSED: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_NO_QUARANTINE: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_QUARANTINE_AUTO_REPLAY: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_ATTRIBUTION_HEURISTIC: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_CALLBACK_UNSIGNED: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_RETURN_PAGE_EVIDENCE: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_SHARED_CREDENTIAL: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_PLAINTEXT_CREDENTIAL: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_LEASE_UNBOUNDED: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_ROTATION_NO_OVERLAP: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_ROTATION_SLOWER_THAN_KEY: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_BINDING_MUTABLE: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_ACTIVATION_UNPROVEN: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_SUSPENDED_BLOCKS_CALLBACKS: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_REVOKED_ACTIVE: removing it breaks 1 module(s)
+[OK  ] ACCOUNT_ROTATION_SINGLE_PERSON: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

@@ -1,0 +1,68 @@
+{
+  "batch_id": "B25",
+  "status": "passed",
+  "commit_sha": "adaac320386b43f366d8408f72c971ae56c301e5",
+  "environment": "integration",
+  "started_at": "2026-08-19T15:20:54Z",
+  "completed_at": "2026-08-19T15:22:06Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/merchant/profile-model.json",
+      "sha256": "d5faca603fa3f5c17196c6735880e13757f69d19eb196488a0cbcc073796df3b"
+    },
+    {
+      "path": "docs/merchant/MERCHANT_PROFILE.md",
+      "sha256": "5e985436902e397e136ce4185c9fc6c4b1ab27d99b9d262e44e4ed05d3eab4d8"
+    },
+    {
+      "path": "governance/merchant-profile.json",
+      "sha256": "f0e637e87a6fb066eef16fce040c64712f3d67b8ce5e1aba4c540b3f876419aa"
+    },
+    {
+      "path": "libs/merchant/reference/__init__.py",
+      "sha256": "c77529e763e84eba53e53d8864b9178d56b6b992e60ce6c5bd62b12f4a5539bc"
+    },
+    {
+      "path": "libs/merchant/reference/profile.py",
+      "sha256": "5dce0332e8cc9d10db3011c2f41b6957838e52a2c6c360bae46efa2ef45fabe2"
+    },
+    {
+      "path": "scripts/merchant-smoke.py",
+      "sha256": "df57ae8981947bc6589db26478244abff5930691316bc77cc5c11ac94b1789b9"
+    },
+    {
+      "path": "scripts/render-merchant.py",
+      "sha256": "afdcb26e68d1a38028f284b76e9279e8fe7d7c53d4a8f2afdd1183eb685cf052"
+    },
+    {
+      "path": "tools/negative/b25.py",
+      "sha256": "86e66bbbd6b58e25c3bfe95c093fdd998bd7639682c0f83be677c0695d5333c3"
+    },
+    {
+      "path": "tools/paygov/merchant.py",
+      "sha256": "b2abd793e7bbe2155b171d0225c37718509dc3c677655b7e721f60332ad3872e"
+    },
+    {
+      "path": "tools/paygov/merchantgen.py",
+      "sha256": "7776a9df4997158dcb2c682a8ce33315ce7e7755ce9524ccb8c47ef2f14abca4"
+    },
+    {
+      "path": "tools/tests/test_b25_merchant.py",
+      "sha256": "2b835be5674da2e0b4c4dc9db08306831041e75d08363586b165f3a50687fc03"
+    }
+  ],
+  "tests": {
+    "passed": 1830,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B24": "4c2ae853139fb02d6ff30b046ff3f2d443c2ac1e761be5cee71364c037930f3d"
+  }
+}

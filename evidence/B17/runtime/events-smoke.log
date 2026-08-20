@@ -1,0 +1,30 @@
+== 故障 1：状态变更与 outbox 写入之间进程崩溃
+[OK ] 崩溃必须让整个事务不发生 — process died before COMMIT: neither the state change nor the event exists
+[OK ] 崩溃后没有发出任何事件
+
+== 故障 2：Broker 短暂不可用后恢复
+[OK ] 不可用期间不投递也不丢弃 — {'published': 0, 'dead_lettered': 0}
+[OK ] 恢复后补投全部事件 — {'published': 2, 'dead_lettered': 0}
+
+== 故障 3：Broker 一直不可用，必须进死信而不是消失
+[OK ] 重试用尽后进入死信 — 2
+[OK ] 死信事件不会被静默丢弃
+[OK ] 死信事件从未被标记为已发布
+
+== 故障 4：至少一次传输把同一事件投递两次
+[OK ] 重复投递不产生第二次业务效果 — 2
+[OK ] 重复被计数而不是被忽略 — 2
+
+== 故障 5：事件乱序到达
+[OK ] 乱序后最终状态仍是最高 revision — {('PaymentIntent', 'pi_1'): 2}
+[OK ] 落后的 revision 被丢弃并计数 — 1
+[OK ] 乱序不会让已捕获退回已授权 — payment_intent.captured
+
+== 故障 6：同一 event_id 带来了不同的 payload
+[OK ] 同一 event_id 同一 payload 是重放
+[OK ] 同一 event_id 不同 payload 必须报错 — event 'evt_1' from 'wechat' was seen with a different body; that is a contradiction, not a replay
+
+== 不变量：唯一键 (aggregate_id, revision) 挡住重复写入
+[OK ] 重复 revision 必须被唯一键拒绝 — revision 2 is not ahead of 2; the unique key (aggregate_id, 
+
+checks=15 failures=0

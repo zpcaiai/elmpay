@@ -233,13 +233,13 @@
     }
   ],
   "adversaries": 10,
-  "as_of": "2026-08-18",
+  "as_of": "2026-08-20",
   "assets": 11,
   "expired_exceptions": [],
   "residual_risks": [
     {
       "compensating_controls": 3,
-      "days_to_expiry": 90,
+      "days_to_expiry": 88,
       "due_date": "2026-11-16",
       "id": "RR-01",
       "owner": "payment-platform-security",
@@ -248,7 +248,7 @@
     },
     {
       "compensating_controls": 3,
-      "days_to_expiry": 60,
+      "days_to_expiry": 58,
       "due_date": "2026-10-17",
       "id": "RR-02",
       "owner": "payment-platform-platform-eng",
@@ -257,7 +257,7 @@
     },
     {
       "compensating_controls": 2,
-      "days_to_expiry": 180,
+      "days_to_expiry": 178,
       "due_date": "2027-02-14",
       "id": "RR-03",
       "owner": "payment-platform-security",
@@ -266,7 +266,7 @@
     },
     {
       "compensating_controls": 2,
-      "days_to_expiry": 120,
+      "days_to_expiry": 118,
       "due_date": "2026-12-16",
       "id": "RR-04",
       "owner": "payment-platform-connectors",
@@ -275,7 +275,7 @@
     },
     {
       "compensating_controls": 4,
-      "days_to_expiry": 30,
+      "days_to_expiry": 28,
       "due_date": "2026-09-17",
       "id": "RR-05",
       "owner": "payment-platform-security",
@@ -284,7 +284,7 @@
     },
     {
       "compensating_controls": 4,
-      "days_to_expiry": 120,
+      "days_to_expiry": 118,
       "due_date": "2026-12-16",
       "id": "RR-06",
       "owner": "payment-platform-platform-eng",

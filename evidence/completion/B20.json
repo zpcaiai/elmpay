@@ -1,0 +1,64 @@
+{
+  "batch_id": "B20",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T14:46:24Z",
+  "completed_at": "2026-08-19T14:47:49Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/security/key-inventory.json",
+      "sha256": "e002f6d8904b5de687184d16361a6bb35058028b60c3c595a33a27a937daa181"
+    },
+    {
+      "path": "docs/security/KEY_MANAGEMENT.md",
+      "sha256": "802f1484a35ec4f90432f8e9221f3afea17523e3dacb06e770b0ce54677e112a"
+    },
+    {
+      "path": "governance/key-management.json",
+      "sha256": "ab2df5246cb9ef0b667d2c615005ebb32cd63bf50ebf0d6adbe212c5950f6f4d"
+    },
+    {
+      "path": "libs/kms/reference/__init__.py",
+      "sha256": "61e675de3df38242a66d7cd0feae074ebc6d45d0bedf4408956fde14ca95c28a"
+    },
+    {
+      "path": "libs/kms/reference/envelope.py",
+      "sha256": "8148f9b5eb6c70a45e0a5b7de71055eabc58f6e690eca5c439190904a3dc5caf"
+    },
+    {
+      "path": "scripts/kms-smoke.py",
+      "sha256": "00bec2591d17c67ff4b749b64080693bb72d65d7e940d4e2b17468fde268e8d1"
+    },
+    {
+      "path": "scripts/render-keys.py",
+      "sha256": "154a41acb8e94e07d72c7fa5f162ba88fc8f650d332d3c884d30cadd332d3abc"
+    },
+    {
+      "path": "tools/paygov/keys.py",
+      "sha256": "0eb71eb1c3e3a4ff672f2cd5e32116c8ebb9c03d9d24f537b3984521a9d39912"
+    },
+    {
+      "path": "tools/paygov/keysgen.py",
+      "sha256": "b31a3c00cad137d2daaefef7623b53edf3a6f89b0720820f6babdddd31ad9855"
+    },
+    {
+      "path": "tools/tests/test_b20_keys.py",
+      "sha256": "093ffc56744504416b73884107c2dddf5a3e59aca0885baa98ddf2f6ed0a8ce9"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B18": "7557036f042321400336b3f04014401155fbbfbdc51c3a6f3e6ea78379b70dc5"
+  }
+}

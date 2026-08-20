@@ -1,0 +1,42 @@
+== 场景 1：一笔需要 3DS 的卡支付，走完 created → captured
+[OK ] 初始状态是 created — created
+[OK ] 渠道要求持卡人验证 — requires_action
+[OK ] 已验签事件写入授权 — authorized
+[OK ] 捕获后进入终态 captured — captured terminal=True
+
+== 场景 2：渠道重发 webhook（幂等）
+[OK ] 重放同一事件是无操作，不是错误 — history=3
+
+== 场景 3：模型要挡住的三种攻击
+[OK ] created 状态下不能直接跳到捕获 — EVENT_NOT_ALLOWED: payment-intent: event 'provider.captured' is not allowed in state 'created'
+[OK ] 商户不能冒充渠道事件写入捕获（NN-03：回跳不是凭据） — WRONG_ACTOR: payment-intent: 'provider.captured' is driven by 'provider-event', not 'merchant'
+[OK ] 即使转移表被改坏，未受信参与者也写不进成功状态 — UNTRUSTED_SUCCESS: payment-intent: 'merchant' may not assert success state 'captured'
+[OK ] 终态之后不能再被推动 — TERMINAL: payment-intent: 'captured' is terminal; 'merchant.void' cannot apply
+
+== 场景 4：超时不等于失败（AC-01）
+[OK ] 超时落到 unknown 而不是 failed — unknown
+[OK ] unknown 不是终态，必须被定责
+[OK ] 对账把 unknown 定责为成功 — succeeded
+
+== 场景 5：退款的职责分离（NN-11）
+[OK ] 退款需要审批 — approved
+[OK ] 退款成功是终态 — succeeded
+[OK ] 钱已离开后不能靠改状态收回 — TERMINAL: refund: 'succeeded' is terminal; 'merchant.cancel_refund' cannot apply
+
+== 场景 6：争议举证超时视同败诉（AC-06）
+[OK ] 沉默不是中立：举证超时判负 — lost
+
+== 场景 7：订阅的补偿式回边
+[OK ] 扣款失败进入 past_due — past_due
+[OK ] 补扣成功可以回到 active（唯一的补偿式回边） — active
+
+== 场景 8：每台机器都能从初始状态走到某个终态
+[OK ] dispute 可以走到终态 — terminal=['lost', 'withdrawn', 'won']
+[OK ] payment-attempt 可以走到终态 — terminal=['failed', 'succeeded']
+[OK ] payment-intent 可以走到终态 — terminal=['canceled', 'captured', 'expired', 'failed']
+[OK ] reconciliation-exception 可以走到终态 — terminal=['resolved', 'written_off']
+[OK ] reconciliation-run 可以走到终态 — terminal=['completed', 'failed']
+[OK ] refund 可以走到终态 — terminal=['canceled', 'failed', 'succeeded']
+[OK ] subscription 可以走到终态 — terminal=['canceled', 'ended']
+
+checks=25 failures=0

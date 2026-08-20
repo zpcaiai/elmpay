@@ -1,0 +1,64 @@
+{
+  "batch_id": "B16",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T14:41:32Z",
+  "completed_at": "2026-08-19T14:42:25Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/security/zero-trust-matrix.json",
+      "sha256": "a80ccd089ed9c51d42cd85ffffad9a2eb138c75e22075fa3bf8c856007ca2c9d"
+    },
+    {
+      "path": "docs/security/ZERO_TRUST.md",
+      "sha256": "673b36c4ff046960455a85e35df35b096fc00b71393c9d1fc7c1af2c520878f4"
+    },
+    {
+      "path": "governance/zero-trust.json",
+      "sha256": "23c93a328c9c6592b23afb072813ec29f146816529202ed281b1cb0a3b7f0bb7"
+    },
+    {
+      "path": "libs/zerotrust/reference/__init__.py",
+      "sha256": "16643db582e5b7a4cb7e102cfb34dc97cbb90a66c21b0a654ffbe9199eeff572"
+    },
+    {
+      "path": "libs/zerotrust/reference/decision.py",
+      "sha256": "63b109eefe62ed3bbd25037227e2e33fb194dbe33f5eae249cc66f0d3d4f2d58"
+    },
+    {
+      "path": "scripts/render-zerotrust.py",
+      "sha256": "c72bdfa037e969c3056640d797494f2242c9bfb94dd3610786faa5e9ad1865c8"
+    },
+    {
+      "path": "scripts/zerotrust-smoke.py",
+      "sha256": "62496b024d8c1f532c9618f60a4a1bbde9ffcd72720e11f85873f6a1c4a473d2"
+    },
+    {
+      "path": "tools/paygov/zerotrust.py",
+      "sha256": "9bf35d68ae02e85e435f4bfac1b5e0c27ace5a40d8286f69f3c57470f1c6c4f4"
+    },
+    {
+      "path": "tools/paygov/ztgen.py",
+      "sha256": "3f752de5595df6943dae1ae17f5f0619b2864aa998d8d6e24cc884c332ff2d93"
+    },
+    {
+      "path": "tools/tests/test_b16_zerotrust.py",
+      "sha256": "5de6b8fc6ab2a9097841ea3909ae0e65e4e676ce68845bd97398c06c790fbd52"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B15": "5ee36ed9538ff35fe3bff9d453c795df660dfdffaafdc80e197ea3a847c16590"
+  }
+}

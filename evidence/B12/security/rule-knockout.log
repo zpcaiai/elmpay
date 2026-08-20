@@ -1,0 +1,16 @@
+[OK  ] OUTBOX_NOT_TRANSACTIONAL: removing it breaks 1 module(s)
+[OK  ] OUTBOX_UNIQUE_KEY: removing it breaks 1 module(s)
+[OK  ] OUTBOX_DEAD_LETTER: removing it breaks 1 module(s)
+[OK  ] INBOX_UNIQUE_KEY: removing it breaks 1 module(s)
+[OK  ] INBOX_PAYLOAD_HASH: removing it breaks 1 module(s)
+[OK  ] INBOX_RETENTION: removing it breaks 1 module(s)
+[OK  ] EVENT_ORDERING: removing it breaks 1 module(s)
+[OK  ] EVENT_DELIVERY: removing it breaks 1 module(s)
+[OK  ] EVENT_FORBIDDEN_FIELD: removing it breaks 1 module(s)
+[OK  ] EVENT_SUCCESS_UNPUBLISHED: removing it breaks 1 module(s)
+[OK  ] EVENT_MONEY_TYPE: removing it breaks 1 module(s)
+[OK  ] EVENT_ORDER_TOLERANCE: removing it breaks 1 module(s)
+[OK  ] EVENT_GENERATED_DRIFT: removing it breaks 1 module(s)
+[OK  ] EVENT_TRANSITION_AGGREGATE: removing it breaks 1 module(s)
+
+codes=14 load_bearing=14 seam_not_applicable=0 not_load_bearing=0

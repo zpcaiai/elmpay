@@ -1,10 +1,10 @@
 {
   "batch_id": "B02",
   "status": "passed",
-  "commit_sha": "e7a2c85b9a0253c0286d2c08ea9b37e24a01f6ab",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
   "environment": "integration",
-  "started_at": "2026-08-18T12:57:34Z",
-  "completed_at": "2026-08-18T12:58:00Z",
+  "started_at": "2026-08-19T10:41:50Z",
+  "completed_at": "2026-08-19T10:42:52Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
@@ -70,11 +70,11 @@
     },
     {
       "path": "tools/paygov/adr.py",
-      "sha256": "73099e094d1e2f05e78b7dcc3475c0af0419b643a6c642ad9cf6a1904bac73f8"
+      "sha256": "1a0292539ed38e4a81ef5e3bbfc8eea3667ed5ce04a737ebaf98c6f7eb5d9019"
     },
     {
       "path": "tools/paygov/threat.py",
-      "sha256": "77ec890e1fbc36a141d9c28e8bbff74b017af900e6f2f8798409c47302ac52fd"
+      "sha256": "5f8a12162397949d1e525efd8d83ae406030dda5c8e1a691cef16e246603deed"
     },
     {
       "path": "tools/tests/test_b02_adr.py",
@@ -86,7 +86,7 @@
     }
   ],
   "tests": {
-    "passed": 306,
+    "passed": 1679,
     "failed": 0,
     "skipped_critical": 0
   },
@@ -95,6 +95,6 @@
     "accepted_findings": 0
   },
   "dependency_hashes": {
-    "B01": "cc8cb50cda30a4238de0e0d675d249d0bad7bd24d3165251798447475d968aaa"
+    "B01": "dedd112a4a6da1baa6b0bff6aca54cb366d5703c870d298b2f433b2e0f928b03"
   }
 }

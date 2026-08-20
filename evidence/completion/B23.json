@@ -1,0 +1,69 @@
+{
+  "batch_id": "B23",
+  "status": "passed",
+  "commit_sha": "344af4f03f60d66dd29d63e9563261aa523ff346",
+  "environment": "integration",
+  "started_at": "2026-08-19T14:54:04Z",
+  "completed_at": "2026-08-19T14:56:39Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/security/audit-contract.json",
+      "sha256": "cfb810dc09853a79c2eb71314e7bc010ed459e70327ddfeac5f09924606fabd5"
+    },
+    {
+      "path": "docs/security/AUDIT_LOG.md",
+      "sha256": "2c95932b623ba1cc2ee2450ace1f32bc2c71f7d3ed226ffaac47c7e07201ba8c"
+    },
+    {
+      "path": "governance/audit-log.json",
+      "sha256": "21456df90e6785633ddd8843fa6f13b671465035ff8b2025944eb1926f88cbe8"
+    },
+    {
+      "path": "libs/audit/reference/__init__.py",
+      "sha256": "583e319e1b8a12c82b67b561c4a9a22bd9f4be7ad1e71c7de92b00a119e5ce8f"
+    },
+    {
+      "path": "libs/audit/reference/chain.py",
+      "sha256": "f39be1d55d0f6b75579259bc49816f52bb12c37237530e9a6d2ff651dfb99520"
+    },
+    {
+      "path": "scripts/audit-smoke.py",
+      "sha256": "2187e106b6825cb51012bf1ae94743047756eca40444b6e1988176a9261066f8"
+    },
+    {
+      "path": "scripts/render-audit.py",
+      "sha256": "182a300d1fb7b813f4deb411052cc242b88ee680064be896bd11c9fe6fa1df79"
+    },
+    {
+      "path": "tools/negative/b23.py",
+      "sha256": "90a714fe4a221ed3019db24c20dda90b2ed4933eef99176c9968137b2962bf70"
+    },
+    {
+      "path": "tools/paygov/audit.py",
+      "sha256": "d9d3fb0f458e8343be5b5219ba8d882a523e4bcaec51a853e63f89999187d65d"
+    },
+    {
+      "path": "tools/paygov/auditgen.py",
+      "sha256": "521025658710dc5f756dcde6519852f5a6f237889a4d5262d314e19b2b2a034a"
+    },
+    {
+      "path": "tools/tests/test_b23_audit.py",
+      "sha256": "b2ea9a901095a3041eb7ca264de63c1aafc935a4c820f2a71345e6804cc60ee1"
+    }
+  ],
+  "tests": {
+    "passed": 1679,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B22": "80447b9b6f17e878b720e1fefaca7e444de867f087aaf6ce0b023fea2f44c2b8",
+    "B21": "40e23196667ba9257d61bd7cb634e3e20700aade6842c356642a170f24fd9035"
+  }
+}

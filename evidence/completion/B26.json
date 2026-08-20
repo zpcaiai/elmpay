@@ -1,0 +1,68 @@
+{
+  "batch_id": "B26",
+  "status": "passed",
+  "commit_sha": "47133260f3006fbae0f827f847696d986d2c06ed",
+  "environment": "integration",
+  "started_at": "2026-08-19T15:49:22Z",
+  "completed_at": "2026-08-19T15:51:57Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/provider/account-binding.json",
+      "sha256": "a45a1ef70505cfdcbaf13aee25da1e624e38dd51edadf01cc7bbc0b80aa1e862"
+    },
+    {
+      "path": "docs/provider/PROVIDER_ACCOUNTS.md",
+      "sha256": "b371f26d05d0f7f9c118e89f6fc4d00063acd4c98fb50261bfad064000ad9bcf"
+    },
+    {
+      "path": "governance/provider-accounts.json",
+      "sha256": "97470ef624a0b1022938fdab283505fbc030748e79d380c09bd222cdd8883cda"
+    },
+    {
+      "path": "libs/provider/reference/__init__.py",
+      "sha256": "10001f221ff537a3521cf68129cc5a367d4f41354aacaa65bb9c5d17857038fb"
+    },
+    {
+      "path": "libs/provider/reference/binding.py",
+      "sha256": "2cabfb54624e37f9fe6a5e66b9f0daff0f7fd015dc1385f5987749a8bd829bce"
+    },
+    {
+      "path": "scripts/accounts-smoke.py",
+      "sha256": "cd73ed5c5d7fee5406627c1a4271092e2aadb3053037e87a1cda9a15d6951e5a"
+    },
+    {
+      "path": "scripts/render-accounts.py",
+      "sha256": "eb97b51304db3483fa9e53435f1a3c83d77392f71dffec8d847277fbb840104e"
+    },
+    {
+      "path": "tools/negative/b26.py",
+      "sha256": "450f05a90684832cd595847686e4d57816262b5f1578c36b192d876d094b6b4e"
+    },
+    {
+      "path": "tools/paygov/accounts.py",
+      "sha256": "85ef8a9907c55f1911420e33287ecdcf1fcc96bf4a9047128d1c24562b440800"
+    },
+    {
+      "path": "tools/paygov/accountsgen.py",
+      "sha256": "e40ae58a169edf88a40937a5c507bd4a1cb7a1b5d43c9692ad7c396dbeb438e1"
+    },
+    {
+      "path": "tools/tests/test_b26_accounts.py",
+      "sha256": "e6aea957fda80e13da11428e0b44b60051144f332ea9b208789c308446c4a00b"
+    }
+  ],
+  "tests": {
+    "passed": 2101,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B24": "4c2ae853139fb02d6ff30b046ff3f2d443c2ac1e761be5cee71364c037930f3d"
+  }
+}

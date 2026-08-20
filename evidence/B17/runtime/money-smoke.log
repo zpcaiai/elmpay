@@ -1,0 +1,15 @@
+== scenario: marketplace capture, fee, three-way split, partial refund, FX report
+[OK ] 买家支付 199.99 CNY 解析为最小单位 — minor=19999
+[OK ] 手续费 2.9% + 0.30 计算为整数 — fee=6.10
+[OK ] 净额 + 手续费 == 总额（无凭空产生的钱） — net=193.89
+[OK ] 三方分账后总和守恒 — 96.94 + 58.17 + 38.78
+[OK ] 分账无零头丢失（最大余数法）
+[OK ] 部分退款后剩余净额正确 — remaining=96.95
+[OK ] 退款不会退回手续费
+[OK ] CNY→JPY 跨指数换算（2 位→0 位小数） — jpy=3900
+[OK ] CNY→KWD 跨指数换算（2 位→3 位小数） — kwd=85.996
+[OK ] 零小数币种拒绝小数输入 — JPY has 0 minor digits; '1999.5' would need 1 and cannot be represented exactly
+[OK ] 1 JPY 分给 3 方仍然守恒 — [1, 0, 0]
+[OK ] 负数（拒付）舍入对称 — minor=-580
+
+checks=12 failures=0

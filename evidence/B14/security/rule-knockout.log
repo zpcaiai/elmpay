@@ -1,0 +1,18 @@
+[OK  ] TOPO_SYNC_CYCLE: removing it breaks 1 module(s)
+[OK  ] TOPO_BUDGET_EXCEEDED: removing it breaks 1 module(s)
+[OK  ] TOPO_TIMEOUT_TOO_TIGHT: removing it breaks 1 module(s)
+[OK  ] TOPO_CONNECTOR_RETRY: removing it breaks 1 module(s)
+[OK  ] TOPO_CONNECTOR_DEGRADATION: removing it breaks 1 module(s)
+[OK  ] TOPO_CONNECTOR_OPERATION: removing it breaks 1 module(s)
+[OK  ] TOPO_FAIL_OPEN: removing it breaks 1 module(s)
+[OK  ] TOPO_FAILURE_MODE: removing it breaks 1 module(s)
+[OK  ] TOPO_CIRCUIT_BREAKER: removing it breaks 1 module(s)
+[OK  ] TOPO_BULKHEAD: removing it breaks 1 module(s)
+[OK  ] TOPO_TABLE_ACCESS: removing it breaks 1 module(s)
+[OK  ] TOPO_FOREIGN_KEY_CROSS_MODULE: removing it breaks 1 module(s)
+[OK  ] TOPO_SYNC_DEPTH: removing it breaks 1 module(s)
+[OK  ] TOPO_DEP_UNDECLARED: removing it breaks 1 module(s)
+[OK  ] TOPO_EVENT_PRODUCER: removing it breaks 1 module(s)
+[OK  ] TOPO_GENERATED_DRIFT: removing it breaks 1 module(s)
+
+codes=16 load_bearing=16 seam_not_applicable=0 not_load_bearing=0

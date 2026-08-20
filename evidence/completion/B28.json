@@ -1,0 +1,68 @@
+{
+  "batch_id": "B28",
+  "status": "passed",
+  "commit_sha": "f6ff2436d3013ec21e649601bbbfd6dbb55d8545",
+  "environment": "integration",
+  "started_at": "2026-08-19T16:05:50Z",
+  "completed_at": "2026-08-19T16:09:06Z",
+  "executor": "claude-agent",
+  "reviewer": "Ethan",
+  "artifacts": [
+    {
+      "path": "contracts/routing/policy.json",
+      "sha256": "ca634c891f1afbbcb4ab66be4a110f2403f1be059eba54f81cc519f7b314fbd6"
+    },
+    {
+      "path": "docs/routing/ROUTING_POLICY.md",
+      "sha256": "16a6bf6a1d2a4f3d75f6d3aea61d55f7d6c16c78ec92dd391023709fd6d05261"
+    },
+    {
+      "path": "governance/routing-policy.json",
+      "sha256": "f0b2b63fec06979758fc82605c237104198d5d0dec3ca1896bdcf3aa1897cf3f"
+    },
+    {
+      "path": "libs/routing/reference/__init__.py",
+      "sha256": "c8af926d05bae244f03f5e2e38cc65a2ec7d136beeab2acb38aac405516ce910"
+    },
+    {
+      "path": "libs/routing/reference/router.py",
+      "sha256": "adac325e9ef5db21a2e4a0ebc47ba8819a1b9e9d7b9ee77e1ce79a245dd2fbf5"
+    },
+    {
+      "path": "scripts/render-routing.py",
+      "sha256": "079cee2e3bc5c7797ac07c69769e22535ef036505d1e8531ad309786372eb8c6"
+    },
+    {
+      "path": "scripts/routing-smoke.py",
+      "sha256": "b6461971d48ec6cd0091e4f26a22f5bdd5af19992d84078c1042be3cf820be1a"
+    },
+    {
+      "path": "tools/negative/b28.py",
+      "sha256": "282e266c9c248c4a3256081a8cba125a34826c5a01ba1bca8423d3538774d663"
+    },
+    {
+      "path": "tools/paygov/routing.py",
+      "sha256": "1fbfe256e0dbc8d2e2ca414a472708b8bfd68df73cf5cb318d3f12b52b7542b2"
+    },
+    {
+      "path": "tools/paygov/routinggen.py",
+      "sha256": "eb41db79d75c605b42414a8fbc2793b506bf5e6e2efbbc01f4ad18f34cabef18"
+    },
+    {
+      "path": "tools/tests/test_b28_routing.py",
+      "sha256": "23521f4733df731249edd1ba41a43d346d68ffb709650e1f3a15e9672f6af5e6"
+    }
+  ],
+  "tests": {
+    "passed": 2228,
+    "failed": 0,
+    "skipped_critical": 0
+  },
+  "security": {
+    "blocking_findings": 0,
+    "accepted_findings": 0
+  },
+  "dependency_hashes": {
+    "B26": "196e7ece56b7230b0a1f883e7b594caf332804386e17c7fa076fbb0bed4d308e"
+  }
+}
