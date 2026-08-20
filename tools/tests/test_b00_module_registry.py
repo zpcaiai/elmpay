@@ -15,10 +15,13 @@ class ModuleRegistryHappyPath(FixtureTestCase):
     def test_real_registry_passes(self):
         self.assertEqual(modules.validate(REAL_ROOT, Budget().start()), [])
 
-    def test_every_declared_module_directory_exists(self):
+    def test_every_declared_module_directory_has_portable_content(self):
         registry = self.fixture.read("governance/module-registry.json")
         for module in registry["modules"]:
-            self.assertTrue((REAL_ROOT / module["path"]).is_dir(), module["path"])
+            path = REAL_ROOT / module["path"]
+            self.assertTrue(path.is_dir(), module["path"])
+            self.assertTrue(any(item.is_file() and item.stat().st_size > 0
+                                for item in path.rglob("*")), module["path"])
 
     def test_table_ownership_is_exclusive(self):
         registry = self.fixture.read("governance/module-registry.json")
@@ -108,6 +111,15 @@ class ModuleRegistryRejects(FixtureTestCase):
     def test_rejects_module_with_missing_directory(self):
         self.fixture.mutate(self.REL,
                             lambda d: self._module(d, "money").__setitem__("path", "libs/does-not-exist"))
+        self.assertIn("MODULE_PATH", self.codes(self._validate()))
+
+    def test_rejects_module_directory_that_would_disappear_from_a_git_checkout(self):
+        empty = self.fixture.root / "libs/empty-boundary"
+        empty.mkdir(parents=True)
+        self.fixture.mutate(
+            self.REL,
+            lambda d: self._module(d, "money").__setitem__("path", "libs/empty-boundary"),
+        )
         self.assertIn("MODULE_PATH", self.codes(self._validate()))
 
     def test_rejects_duplicate_module_name(self):

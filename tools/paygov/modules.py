@@ -74,8 +74,14 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
                            f"unknown layer '{module['layer']}'", "NN-12")
         problems += expect(bool(str(module["owner"]).strip()), "MODULE_OWNER", scope,
                            "module must declare an owner", "NN-11")
-        problems += expect((root / module["path"]).is_dir(), "MODULE_PATH", scope,
-                           f"declared path '{module['path']}' does not exist", "NN-12")
+        module_path = root / module["path"]
+        path_is_materialized = module_path.is_dir() and any(
+            candidate.is_file() and candidate.stat().st_size > 0
+            for candidate in module_path.rglob("*")
+        )
+        problems += expect(path_is_materialized, "MODULE_PATH", scope,
+                           f"declared path '{module['path']}' does not exist or has no "
+                           "version-controlled boundary content", "NN-12")
         problems += expect(isinstance(module["slo"], dict) and bool(module["slo"]),
                            "MODULE_SLO", scope, "module must declare an SLO", "NN-12")
         problems += expect(isinstance(module["threats"], list) and bool(module["threats"]),
