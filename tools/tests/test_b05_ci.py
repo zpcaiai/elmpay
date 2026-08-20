@@ -60,6 +60,13 @@ class PipelineHappyPath(FixtureTestCase):
     def test_generation_is_deterministic(self):
         self.assertEqual(cigen.render_all(REAL_ROOT), cigen.render_all(REAL_ROOT))
 
+    def test_generated_step_name_keeps_the_shard_suffix_inside_yaml_quotes(self):
+        text = cigen.workflow(REAL_ROOT)
+        governance = self.fixture.read("governance/ci-pipeline.json")["stages"][0]
+        expected = f"      - name: '{governance['purpose']} (1/{len(governance['commands'])})'"
+        self.assertIn(expected, text)
+        self.assertNotIn(f"      - name: '{governance['purpose']}' (1/", text)
+
     def test_governance_verifies_the_skill_package_and_installed_mirrors(self):
         doc = self.fixture.read("governance/ci-pipeline.json")
         commands = set(next(s for s in doc["stages"] if s["id"] == "governance")["commands"])

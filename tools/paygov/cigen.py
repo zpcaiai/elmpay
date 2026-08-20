@@ -70,7 +70,8 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
                   "        with:",
                   "          cache-read-only: true"]
         for index, command in enumerate(stage["commands"], 1):
-            lines += [f'      - name: {_quote(stage["purpose"])} ({index}/{len(stage["commands"])})',
+            step_name = f'{stage["purpose"]} ({index}/{len(stage["commands"])})'
+            lines += [f'      - name: {_quote(step_name)}',
                       "        run: |",
                       f'          {command}']
         if stage["artifacts"]:
