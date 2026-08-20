@@ -46,6 +46,12 @@ class PipelineHappyPath(FixtureTestCase):
         self.assertIn("release-gate:", text)
         self.assertIn("release gate blocked", text)
 
+    def test_release_gate_uses_actions_expression_string_literals(self):
+        text = cigen.workflow(REAL_ROOT)
+        self.assertIn("contains(needs.*.result, 'failure')", text)
+        self.assertIn("join(needs.*.result, ',')", text)
+        self.assertNotIn('contains(needs.*.result, "failure")', text)
+
     def test_workflow_does_not_use_dangerous_triggers(self):
         text = cigen.workflow(REAL_ROOT)
         self.assertNotIn("pull_request_target", text)

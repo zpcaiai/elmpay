@@ -422,10 +422,10 @@ jobs:
     steps:
       - name: 'Every required stage must have succeeded'
         run: |
-          echo 'needs result: ${{ join(needs.*.result, ",") }}'
-          if [[ '${{ contains(needs.*.result, "failure") }}' == 'true' ]] || \
-             [[ '${{ contains(needs.*.result, "cancelled") }}' == 'true' ]] || \
-             [[ '${{ contains(needs.*.result, "skipped") }}' == 'true' ]]; then
+          echo "needs result: ${{ join(needs.*.result, ',') }}"
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == 'true' ]] || \
+             [[ "${{ contains(needs.*.result, 'cancelled') }}" == 'true' ]] || \
+             [[ "${{ contains(needs.*.result, 'skipped') }}" == 'true' ]]; then
             echo 'release gate blocked: a required stage did not succeed' >&2
             exit 1
           fi
