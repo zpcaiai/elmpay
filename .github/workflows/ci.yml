@@ -16,7 +16,7 @@ on:
 permissions:
   actions: none
   contents: read
-  id-token: write
+  id-token: none
   packages: none
 
 concurrency:
@@ -54,7 +54,7 @@ jobs:
           diff -qr .payment-platform/skill-package/skills .claude/skills
       - name: '校验技能包镜像、章程、红线、模块边界、需求、威胁模型、工具链与本地平台声明 (4/8)'
         run: |
-          python3 -m tools.paygov.cli verify-all --repo .
+          python3 -m tools.paygov.cli verify-all --repo . --out governance-report.json
       - name: '校验技能包镜像、章程、红线、模块边界、需求、威胁模型、工具链与本地平台声明 (5/8)'
         run: |
           python3 scripts/render-docs.py --check
@@ -73,7 +73,7 @@ jobs:
           name: governance-artifacts
           path: |
             governance-report.json
-          if-no-files-found: warn
+          if-no-files-found: error
 
   unit-test:
     name: '单元与属性测试'
@@ -104,7 +104,7 @@ jobs:
           path: |
             build/test-summary.json
             build/unittest.log
-          if-no-files-found: warn
+          if-no-files-found: error
 
   build:
     name: '编译与制品构建'
@@ -122,19 +122,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
         with:
           cache-read-only: true
-      - name: '以固定工具链编译全部模块并产出不可变制品 (1/1)'
+      - name: '以固定工具链构建声明的 Gradle leaf，并生成待签名制品 manifest (1/2)'
         run: |
           ./gradlew --no-daemon --console=plain build -x test
+      - name: '以固定工具链构建声明的 Gradle leaf，并生成待签名制品 manifest (2/2)'
+        run: |
+          scripts/stage-signing-artifacts.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         if: always()
         with:
           name: build-artifacts
           path: |
-            build/libs/*.jar
-          if-no-files-found: warn
+            build/signing-inputs/
+          if-no-files-found: error
 
   static-analysis:
-    name: '静态分析'
+    name: '构建检查与模块边界验证'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [build]
@@ -149,22 +152,22 @@ jobs:
       - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
         with:
           cache-read-only: true
-      - name: 'SAST、编译告警即错误、架构依赖规则检查 (1/2)'
+      - name: '执行 Gradle check、编译告警即错误与模块边界治理；当前不宣称生产源码 SAST (1/2)'
         run: |
           ./gradlew --no-daemon check -x test
-      - name: 'SAST、编译告警即错误、架构依赖规则检查 (2/2)'
+      - name: '执行 Gradle check、编译告警即错误与模块边界治理；当前不宣称生产源码 SAST (2/2)'
         run: |
-          python3 -m tools.paygov.cli verify module-registry --repo .
+          python3 -m tools.paygov.cli verify module-registry --repo . --out build/static-analysis.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         if: always()
         with:
           name: static-analysis-artifacts
           path: |
-            build/reports/
-          if-no-files-found: warn
+            build/static-analysis.json
+          if-no-files-found: error
 
   secret-scan:
-    name: '密钥扫描'
+    name: '仓库凭证模式与卫生治理'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [governance]
@@ -179,19 +182,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
         with:
           cache-read-only: true
-      - name: '扫描源码、配置、测试夹具与制品中的凭证材料 (1/1)'
+      - name: '扫描已跟踪源码与配置中的凭证模式和仓库卫生；不宣称 Git 历史或构建制品扫描 (1/1)'
         run: |
-          python3 -m tools.paygov.cli verify repo-hygiene --repo .
+          python3 -m tools.paygov.cli verify repo-hygiene --repo . --out secret-scan.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         if: always()
         with:
           name: secret-scan-artifacts
           path: |
             secret-scan.json
-          if-no-files-found: warn
+          if-no-files-found: error
 
   dependency-scan:
-    name: '依赖与供应链扫描'
+    name: '依赖漏洞聚合扫描'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     needs: [build]
@@ -206,19 +209,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
         with:
           cache-read-only: true
-      - name: '已知漏洞、许可证与来源校验；发现阻断级问题即失败 (1/1)'
+      - name: '对全部 Gradle 项目执行已知漏洞聚合检查；数据源、分析或报告错误即失败 (1/1)'
         run: |
-          ./gradlew --no-daemon dependencyCheckAnalyze
+          ./gradlew --no-daemon dependencyCheckAggregate
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         if: always()
         with:
           name: dependency-scan-artifacts
           path: |
             build/reports/dependency-check-report.json
-          if-no-files-found: warn
+          if-no-files-found: error
 
   container-scan:
-    name: '容器镜像扫描'
+    name: '容器工具链与本地平台治理'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [build]
@@ -233,19 +236,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
         with:
           cache-read-only: true
-      - name: '基础镜像与运行时层漏洞扫描，镜像必须摘要固定 (1/1)'
+      - name: '验证镜像摘要声明和本地平台配置；当前没有 OCI 产品镜像，因而不宣称镜像漏洞扫描 (1/1)'
         run: |
-          python3 -m tools.paygov.cli verify toolchain dev-platform --repo .
+          python3 -m tools.paygov.cli verify toolchain dev-platform --repo . --out container-scan.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         if: always()
         with:
           name: container-scan-artifacts
           path: |
             container-scan.json
-          if-no-files-found: warn
+          if-no-files-found: error
 
   iac-scan:
-    name: '基础设施即代码扫描'
+    name: '本地平台配置治理'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [governance]
@@ -260,16 +263,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
         with:
           cache-read-only: true
-      - name: 'Kubernetes、Terraform 与 compose 的策略即代码检查 (1/1)'
+      - name: '验证 compose、本地模拟器、数据边界和摘要固定声明；不宣称生产 Kubernetes/Terraform 扫描 (1/1)'
         run: |
-          python3 -m tools.paygov.cli verify dev-platform --repo .
+          python3 -m tools.paygov.cli verify dev-platform --repo . --out iac-scan.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         if: always()
         with:
           name: iac-scan-artifacts
           path: |
             iac-scan.json
-          if-no-files-found: warn
+          if-no-files-found: error
 
   sbom:
     name: 'SBOM 生成'
@@ -287,7 +290,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
         with:
           cache-read-only: true
-      - name: '为每个制品生成 SBOM 并随制品一同归档 (1/1)'
+      - name: '生成覆盖声明 Gradle 项目的聚合 CycloneDX JSON；不把聚合 BOM 冒充逐制品 SBOM (1/1)'
         run: |
           ./gradlew --no-daemon cyclonedxBom
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
@@ -296,25 +299,37 @@ jobs:
           name: sbom-artifacts
           path: |
             build/reports/bom.json
-          if-no-files-found: warn
+          if-no-files-found: error
 
   sign:
     name: '制品签名与来源证明'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    needs: [sbom, unit-test, static-analysis, dependency-scan, container-scan, iac-scan, secret-scan]
+    needs: [build, sbom, unit-test, static-analysis, dependency-scan, container-scan, iac-scan, secret-scan, negative-controls, rule-knockout]
+    if: github.event_name == 'push' && github.repository == 'zpcaiai/elmpay' && github.ref == 'refs/heads/main' && vars.ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN == 'true'
+    permissions:
+      actions: none
+      contents: read
+      id-token: write
+      packages: none
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
-          distribution: temurin
-          java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+          name: build-artifacts
+          path: build/signing-inputs
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
-          cache-read-only: true
-      - name: '对制品与镜像签名并生成 SLSA provenance (1/1)'
+          name: sbom-artifacts
+          path: build/reports
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6  # v4.1.2
+        with:
+          cosign-release: 'v3.0.6'
+      - name: '按校验后的全制品 manifest 对 JAR、manifest 与 SBOM 文件执行无密钥 blob 签名并生成 SLSA Build L1 provenance (1/1)'
+        env:
+          ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN: ${{ vars.ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN }}
         run: |
           scripts/sign-artifacts.sh
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
@@ -324,7 +339,7 @@ jobs:
           path: |
             build/provenance.intoto.jsonl
             build/signatures/
-          if-no-files-found: warn
+          if-no-files-found: error
 
   negative-controls:
     name: '运行期 fail-closed 验证'
@@ -351,7 +366,7 @@ jobs:
           name: negative-controls-artifacts
           path: |
             negative-controls.log
-          if-no-files-found: warn
+          if-no-files-found: error
 
   evidence-archive:
     name: '证据归档'
@@ -369,13 +384,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
         with:
           cache-read-only: true
-      - name: '交叉校验两套编排实现、逐批次校验完成证据（含产物摘要与依赖哈希），并归档为不可变制品；任一批次不通过则拒绝出包 (1/3)'
+      - name: '交叉校验两套编排实现和逐批完成证据，并生成受 GitHub retention 约束的仓库证据 tarball；任一批次不通过则拒绝出包 (1/3)'
         run: |
           python3 scripts/batch.py crosscheck
-      - name: '交叉校验两套编排实现、逐批次校验完成证据（含产物摘要与依赖哈希），并归档为不可变制品；任一批次不通过则拒绝出包 (2/3)'
+      - name: '交叉校验两套编排实现和逐批完成证据，并生成受 GitHub retention 约束的仓库证据 tarball；任一批次不通过则拒绝出包 (2/3)'
         run: |
           python3 scripts/validate-all.py
-      - name: '交叉校验两套编排实现、逐批次校验完成证据（含产物摘要与依赖哈希），并归档为不可变制品；任一批次不通过则拒绝出包 (3/3)'
+      - name: '交叉校验两套编排实现和逐批完成证据，并生成受 GitHub retention 约束的仓库证据 tarball；任一批次不通过则拒绝出包 (3/3)'
         run: |
           python3 scripts/archive-evidence.py --out build/evidence-bundle.tar.gz
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
@@ -384,7 +399,7 @@ jobs:
           name: evidence-archive-artifacts
           path: |
             build/evidence-bundle.tar.gz
-          if-no-files-found: warn
+          if-no-files-found: error
 
   rule-knockout:
     name: '规则承重验证'
@@ -411,21 +426,94 @@ jobs:
           name: rule-knockout-artifacts
           path: |
             build/rule-knockout.json
-          if-no-files-found: warn
+          if-no-files-found: error
 
   release-gate:
-    name: 'Release gate (fail closed)'
+    name: 'Terminal release / validation gate (fail closed)'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [governance, build, unit-test, static-analysis, secret-scan, dependency-scan, container-scan, iac-scan, sbom, sign, negative-controls, evidence-archive, rule-knockout]
     if: always()
     steps:
-      - name: 'Every required stage must have succeeded'
+      - name: 'Enforce release context or validation-only context'
+        # Per-stage checks replace contains(needs.*.result, 'failure').
+        # Per-stage diagnostics replace join(needs.*.result, ',').
+        env:
+          ELMPAY_GATE_EVENT_NAME: ${{ github.event_name }}
+          ELMPAY_GATE_REPOSITORY: ${{ github.repository }}
+          ELMPAY_GATE_REF: ${{ github.ref }}
+          ELMPAY_SIGNING_OPT_IN: ${{ vars.ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN }}
+          ELMPAY_NEEDS_GOVERNANCE: ${{ needs['governance'].result }}
+          ELMPAY_NEEDS_BUILD: ${{ needs['build'].result }}
+          ELMPAY_NEEDS_UNIT_TEST: ${{ needs['unit-test'].result }}
+          ELMPAY_NEEDS_STATIC_ANALYSIS: ${{ needs['static-analysis'].result }}
+          ELMPAY_NEEDS_SECRET_SCAN: ${{ needs['secret-scan'].result }}
+          ELMPAY_NEEDS_DEPENDENCY_SCAN: ${{ needs['dependency-scan'].result }}
+          ELMPAY_NEEDS_CONTAINER_SCAN: ${{ needs['container-scan'].result }}
+          ELMPAY_NEEDS_IAC_SCAN: ${{ needs['iac-scan'].result }}
+          ELMPAY_NEEDS_SBOM: ${{ needs['sbom'].result }}
+          ELMPAY_NEEDS_SIGN: ${{ needs['sign'].result }}
+          ELMPAY_NEEDS_NEGATIVE_CONTROLS: ${{ needs['negative-controls'].result }}
+          ELMPAY_NEEDS_EVIDENCE_ARCHIVE: ${{ needs['evidence-archive'].result }}
+          ELMPAY_NEEDS_RULE_KNOCKOUT: ${{ needs['rule-knockout'].result }}
         run: |
-          echo "needs result: ${{ join(needs.*.result, ',') }}"
-          if [[ "${{ contains(needs.*.result, 'failure') }}" == 'true' ]] || \
-             [[ "${{ contains(needs.*.result, 'cancelled') }}" == 'true' ]] || \
-             [[ "${{ contains(needs.*.result, 'skipped') }}" == 'true' ]]; then
-            echo 'release gate blocked: a required stage did not succeed' >&2
-            exit 1
+          set -euo pipefail
+
+          TRUSTED_EVENT="push"
+          TRUSTED_REPOSITORY="zpcaiai/elmpay"
+          TRUSTED_REF="refs/heads/main"
+          REQUIRED_STAGES=(governance build unit-test static-analysis secret-scan dependency-scan container-scan iac-scan sbom sign negative-controls evidence-archive rule-knockout)
+          RELEASE_ONLY_STAGES=(sign evidence-archive)
+          NON_RELEASE_REQUIRED_STAGES=(governance build unit-test static-analysis secret-scan dependency-scan container-scan iac-scan sbom negative-controls rule-knockout)
+
+          for variable in ELMPAY_GATE_EVENT_NAME ELMPAY_GATE_REPOSITORY ELMPAY_GATE_REF; do
+            if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+              echo "release gate blocked: required context '${variable}' is missing" >&2
+              exit 1
+            fi
+          done
+
+          stage_result() {
+            local stage="$1"
+            local variable="ELMPAY_NEEDS_${stage^^}"
+            variable="${variable//-/_}"
+            if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+              echo "release gate blocked: result for '${stage}' is missing" >&2
+              return 1
+            fi
+            printf '%s' "${!variable}"
+          }
+
+          if [[ "${ELMPAY_GATE_EVENT_NAME}" == "${TRUSTED_EVENT}" &&
+                "${ELMPAY_GATE_REPOSITORY}" == "${TRUSTED_REPOSITORY}" &&
+                "${ELMPAY_GATE_REF}" == "${TRUSTED_REF}" ]]; then
+            if [[ "${ELMPAY_SIGNING_OPT_IN:-}" != 'true' ]]; then
+              echo 'release gate blocked: public Sigstore metadata disclosure was not explicitly opted in' >&2
+              exit 1
+            fi
+            for stage in "${REQUIRED_STAGES[@]}"; do
+              result="$(stage_result "${stage}")"
+              if [[ "${result}" != 'success' ]]; then
+                echo "release gate blocked: required stage '${stage}' was '${result}'" >&2
+                exit 1
+              fi
+            done
+            echo 'release-eligible: trusted main push, explicit Sigstore opt-in and all required stages succeeded'
+            exit 0
           fi
+
+          for stage in "${RELEASE_ONLY_STAGES[@]}"; do
+            result="$(stage_result "${stage}")"
+            if [[ "${result}" != 'skipped' ]]; then
+              echo "validation gate blocked: release-only stage '${stage}' unexpectedly ran as '${result}'" >&2
+              exit 1
+            fi
+          done
+          for stage in "${NON_RELEASE_REQUIRED_STAGES[@]}"; do
+            result="$(stage_result "${stage}")"
+            if [[ "${result}" != 'success' ]]; then
+              echo "validation gate blocked: required stage '${stage}' was '${result}'" >&2
+              exit 1
+            fi
+          done
+          echo 'validated-not-release-eligible: validation succeeded; signing and release evidence were intentionally skipped'

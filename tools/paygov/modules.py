@@ -12,7 +12,8 @@ splittable later (charter §3):
 """
 from __future__ import annotations
 
-from pathlib import Path
+import re
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .errors import BudgetExceeded, Problem
@@ -24,6 +25,14 @@ REQUIRED_FIELDS = ("name", "layer", "path", "owner", "owned_tables", "depends_on
                    "inbound", "outbound", "slo", "threats", "migration")
 # Tables that belong to the business projects and must never be owned here (NN-01).
 FORBIDDEN_TABLE_PREFIXES = ("business_order", "order_item", "inventory", "product", "shipment")
+MODULE_PATH_FORMAT = re.compile(
+    r"^(?:apps|connectors|libs|services)/[a-z0-9]+(?:-[a-z0-9]+)*$")
+LAYER_DIRECTORY = {
+    "app": "apps",
+    "connector": "connectors",
+    "lib": "libs",
+    "service": "services",
+}
 
 
 # Registered automatically: tools/paygov/registry.py discovers every module in
@@ -74,14 +83,38 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
                            f"unknown layer '{module['layer']}'", "NN-12")
         problems += expect(bool(str(module["owner"]).strip()), "MODULE_OWNER", scope,
                            "module must declare an owner", "NN-11")
-        module_path = root / module["path"]
-        path_is_materialized = module_path.is_dir() and any(
-            candidate.is_file() and candidate.stat().st_size > 0
+        raw_path = module["path"]
+        pure_path = PurePosixPath(raw_path) if isinstance(raw_path, str) else None
+        path_is_safe = bool(
+            isinstance(raw_path, str)
+            and MODULE_PATH_FORMAT.fullmatch(raw_path)
+            and pure_path is not None
+            and pure_path.parts[0] == LAYER_DIRECTORY.get(module["layer"])
+            and pure_path.name == name
+        )
+        resolved_root = root.resolve()
+        module_path = resolved_root
+        if path_is_safe and pure_path is not None:
+            for part in pure_path.parts:
+                module_path /= part
+                if module_path.is_symlink():
+                    path_is_safe = False
+                    break
+        if path_is_safe:
+            try:
+                module_path.resolve(strict=False).relative_to(resolved_root)
+            except ValueError:
+                path_is_safe = False
+        path_is_materialized = path_is_safe and module_path.is_dir() and any(
+            candidate.is_file() and not candidate.is_symlink()
+            and candidate.stat().st_size > 0
+            and candidate.resolve().is_relative_to(module_path.resolve())
             for candidate in module_path.rglob("*")
         )
         problems += expect(path_is_materialized, "MODULE_PATH", scope,
-                           f"declared path '{module['path']}' does not exist or has no "
-                           "version-controlled boundary content", "NN-12")
+                           f"declared path '{raw_path}' must be a canonical, layer-matched, "
+                           "non-symlink module directory with version-controlled boundary "
+                           "content", "NN-12")
         problems += expect(isinstance(module["slo"], dict) and bool(module["slo"]),
                            "MODULE_SLO", scope, "module must declare an SLO", "NN-12")
         problems += expect(isinstance(module["threats"], list) and bool(module["threats"]),

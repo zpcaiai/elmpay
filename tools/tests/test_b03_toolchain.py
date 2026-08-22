@@ -66,6 +66,8 @@ class ToolchainHappyPath(FixtureTestCase):
     def test_default_version_catalog_is_not_imported_twice(self):
         text = (REAL_ROOT / "settings.gradle.kts").read_text(encoding="utf-8")
         self.assertNotIn('create("libs")', text)
+        self.assertIn("gradlePluginPortal()", text)
+        self.assertIn("mavenCentral()", text)
 
     def test_gradle_wrapper_is_pinned_and_executable(self):
         wrapper = REAL_ROOT / "gradlew"
@@ -92,6 +94,43 @@ class ToolchainHappyPath(FixtureTestCase):
             hashlib.sha256(jar.read_bytes()).hexdigest(),
             "423cb469ccc0ecc31f0e4e1c309976198ccb734cdcbb7029d4bda0f18f57e8d9",
         )
+
+    def test_security_build_plugins_are_catalogue_pinned(self):
+        text = (REAL_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+        catalog = self.fixture.read("governance/version-catalog.json")
+        entries = {entry["id"]: entry for entry in catalog["entries"]}
+        self.assertIn(
+            f'id("org.owasp.dependencycheck") version '
+            f'"{entries["owasp-dependency-check"]["version"]}"',
+            text,
+        )
+        self.assertIn(
+            f'id("org.cyclonedx.bom") version "{entries["cyclonedx-gradle"]["version"]}"',
+            text,
+        )
+        self.assertIn('failBuildOnCVSS.set(0.0f)', text)
+        self.assertIn('jsonOutput.set(layout.buildDirectory.file("reports/bom.json"))', text)
+        self.assertIn("xmlOutput.unsetConvention()", text)
+
+    def test_only_declared_gradle_leaf_modules_can_emit_jars(self):
+        text = (REAL_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+        catalog = self.fixture.read("governance/version-catalog.json")
+        registry = {
+            module["name"]: module["path"]
+            for module in self.fixture.read("governance/module-registry.json")["modules"]
+        }
+        expected = {
+            ":" + registry[name].replace("/", ":")
+            for name in catalog["modules_by_build_system"]["gradle"]
+        }
+        self.assertIn("base", text)
+        self.assertNotIn("    java\n", text)
+        self.assertIn("if (path !in javaModulePaths) return@subprojects", text)
+        self.assertIn('tasks.register("test")', text)
+        for project in expected:
+            self.assertEqual(text.count(f'    "{project}"'), 1)
+        for aggregator in ('":"', '":apps"', '":connectors"', '":libs"', '":services"'):
+            self.assertNotIn(f'    {aggregator}', text)
 
 
 class ToolchainRejects(FixtureTestCase):

@@ -129,6 +129,22 @@ class ModuleRegistryRejects(FixtureTestCase):
         )
         self.assertIn("MODULE_PATH", self.codes(self._validate()))
 
+    def test_rejects_shell_metacharacters_even_when_the_path_is_materialized(self):
+        unsafe = "libs/money'"
+        self.fixture.write(f"{unsafe}/README.md", "unsafe boundary\n")
+        self.fixture.mutate(
+            self.REL,
+            lambda d: self._module(d, "money").__setitem__("path", unsafe),
+        )
+        self.assertIn("MODULE_PATH", self.codes(self._validate()))
+
+    def test_rejects_a_symlinked_module_boundary(self):
+        original = self.fixture.root / "libs/money"
+        target = self.fixture.root / "libs/money-real"
+        original.rename(target)
+        original.symlink_to(target, target_is_directory=True)
+        self.assertIn("MODULE_PATH", self.codes(self._validate()))
+
     def test_rejects_duplicate_module_name(self):
         def duplicate(d):
             clone = dict(self._module(d, "money"))

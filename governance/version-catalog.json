@@ -66,6 +66,28 @@
       "upgrade_policy": "wrapper 校验和锁定；升级需绿色 CI 两轮"
     },
     {
+      "id": "owasp-dependency-check",
+      "name": "OWASP Dependency-Check Gradle Plugin",
+      "category": "build-plugin",
+      "version": "13.0.0",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://plugins.gradle.org/plugin/org.owasp.dependencycheck",
+      "owner": "payment-platform-appsec",
+      "upgrade_policy": "跟随 NVD API 与上游安全修复；升级需依赖扫描门禁绿色"
+    },
+    {
+      "id": "cyclonedx-gradle",
+      "name": "CycloneDX Gradle Plugin",
+      "category": "build-plugin",
+      "version": "3.4.1",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://plugins.gradle.org/plugin/org.cyclonedx.bom",
+      "owner": "payment-platform-appsec",
+      "upgrade_policy": "跟随 CycloneDX schema 与插件安全修复；升级需 SBOM 门禁绿色"
+    },
+    {
       "id": "kotlin",
       "name": "Kotlin (仅构建脚本)",
       "category": "build",

@@ -46,11 +46,18 @@ class PipelineHappyPath(FixtureTestCase):
         self.assertIn("release-gate:", text)
         self.assertIn("release gate blocked", text)
 
-    def test_release_gate_uses_actions_expression_string_literals(self):
+    def test_release_gate_uses_event_aware_environment_inputs(self):
         text = cigen.workflow(REAL_ROOT)
-        self.assertIn("contains(needs.*.result, 'failure')", text)
-        self.assertIn("join(needs.*.result, ',')", text)
-        self.assertNotIn('contains(needs.*.result, "failure")', text)
+        self.assertIn("ELMPAY_GATE_EVENT_NAME: ${{ github.event_name }}", text)
+        self.assertIn(
+            "ELMPAY_NEEDS_DEPENDENCY_SCAN: ${{ needs['dependency-scan'].result }}",
+            text,
+        )
+        self.assertIn("validated-not-release-eligible", text)
+        self.assertIn("release-eligible", text)
+        script = cigen.release_gate_script(REAL_ROOT)
+        self.assertNotIn("${{", script)
+        self.assertNotIn("contains(needs.*.result", script)
 
     def test_workflow_does_not_use_dangerous_triggers(self):
         text = cigen.workflow(REAL_ROOT)
@@ -82,6 +89,37 @@ class PipelineHappyPath(FixtureTestCase):
         text = cigen.sign_script(REAL_ROOT)
         self.assertIn("refusing to emit an unsigned artefact", text)
         self.assertIn("set -euo pipefail", text)
+
+    def test_dependency_and_sbom_stages_invoke_registered_gradle_tasks(self):
+        doc = self.fixture.read("governance/ci-pipeline.json")
+        by_id = {stage["id"]: stage for stage in doc["stages"]}
+        self.assertEqual(
+            by_id["dependency-scan"]["commands"],
+            ["./gradlew --no-daemon dependencyCheckAggregate"],
+        )
+        self.assertEqual(
+            by_id["sbom"]["commands"],
+            ["./gradlew --no-daemon cyclonedxBom"],
+        )
+
+    def test_required_stages_emit_the_machine_reports_they_upload(self):
+        doc = self.fixture.read("governance/ci-pipeline.json")
+        by_id = {stage["id"]: stage for stage in doc["stages"]}
+        for stage in by_id.values():
+            if stage["required"]:
+                self.assertEqual(stage.get("if_no_files_found"), "error", stage["id"])
+                self.assertTrue(stage["artifacts"], stage["id"])
+        for stage_id, expected in ci.MACHINE_REPORT_STAGES.items():
+            self.assertIn(expected["command"], by_id[stage_id]["commands"])
+            self.assertEqual(by_id[stage_id]["artifacts"], [expected["artifact"]])
+
+    def test_pipeline_does_not_claim_unimplemented_product_scanners(self):
+        doc = self.fixture.read("governance/ci-pipeline.json")
+        by_id = {stage["id"]: stage for stage in doc["stages"]}
+        self.assertIn("不宣称生产源码 SAST", by_id["static-analysis"]["purpose"])
+        self.assertIn("不宣称镜像漏洞扫描", by_id["container-scan"]["purpose"])
+        self.assertIn("不宣称生产 Kubernetes/Terraform 扫描", by_id["iac-scan"]["purpose"])
+        self.assertIn("不把聚合 BOM 冒充逐制品 SBOM", by_id["sbom"]["purpose"])
 
 
 class PipelineRejects(FixtureTestCase):

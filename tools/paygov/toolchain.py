@@ -34,6 +34,10 @@ DIGEST = re.compile(r"^sha256:[a-f0-9]{64}$")
 VALID_PIN = {"exact", "digest"}
 VALID_VERIFICATION = {"verified", "unverified-offline"}
 EXPECTED_JAVA_MAJOR = "25"
+SECURITY_BUILD_PLUGINS = {
+    "owasp-dependency-check": "org.owasp.dependencycheck",
+    "cyclonedx-gradle": "org.cyclonedx.bom",
+}
 
 
 # Registered automatically: tools/paygov/registry.py discovers every module in
@@ -117,6 +121,7 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     problems += _build_systems(root, build_systems, where)
     problems += _java_version(doc, where)
     problems += _gradle_wrapper(root, doc, where)
+    problems += _security_build_controls(root, doc, where)
     problems += _generated(root, budget)
     return problems
 
@@ -215,9 +220,142 @@ def _gradle_wrapper(root: Path, doc: dict, where: str) -> list[Problem]:
     return problems
 
 
+def _without_kotlin_comments(text: str) -> str:
+    """Remove comments so a disabled control cannot satisfy a text invariant."""
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    return re.sub(r"//[^\n]*", "", text)
+
+
+def _kotlin_blocks(text: str, opener: str) -> list[str]:
+    """Return the bodies of simple named Kotlin DSL blocks.
+
+    The generated build file is intentionally small.  A brace walk is more
+    useful here than loose substring checks because it proves the settings are
+    inside the task/extension they are supposed to govern and ignores comments
+    that merely quote the desired value.
+    """
+    bodies: list[str] = []
+    pattern = re.compile(opener + r"\s*\{")
+    for match in pattern.finditer(text):
+        start = text.find("{", match.start())
+        depth = 0
+        for index in range(start, len(text)):
+            char = text[index]
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    bodies.append(text[start + 1:index])
+                    break
+    return bodies
+
+
+def _security_build_controls(root: Path, doc: dict, where: str) -> list[Problem]:
+    """Validate fail-closed SCA/SBOM semantics independently of the generator.
+
+    ``BUILD_DRIFT`` catches hand edits, but it cannot catch a future edit that
+    weakens both ``buildgen.py`` and its generated output.  These invariants
+    therefore inspect the effective generated build file as a second line of
+    defence.
+    """
+    path = root / "build.gradle.kts"
+    try:
+        code = _without_kotlin_comments(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError) as exc:
+        return [Problem("TOOLCHAIN_SECURITY_BUILD", "build.gradle.kts",
+                        f"security build controls are unreadable: {exc}", "NN-12")]
+
+    problems: list[Problem] = []
+    entries = {entry.get("id"): entry for entry in doc.get("entries", [])
+               if isinstance(entry, dict)}
+    for entry_id, plugin_id in SECURITY_BUILD_PLUGINS.items():
+        entry = entries.get(entry_id)
+        scope = f"{where}#{entry_id}"
+        problems += expect(isinstance(entry, dict), "TOOLCHAIN_SECURITY_PLUGIN", scope,
+                           f"catalogue must pin the '{plugin_id}' build plugin", "NN-12")
+        if not isinstance(entry, dict):
+            continue
+        problems += expect(entry.get("pin_type") == "exact"
+                           and entry.get("category") == "build-plugin",
+                           "TOOLCHAIN_SECURITY_PLUGIN", scope,
+                           "security build plugins require an exact, owned build-plugin pin",
+                           "NN-12")
+        version = str(entry.get("version", ""))
+        pattern = re.compile(r'id\(\s*"' + re.escape(plugin_id)
+                             + r'"\s*\)\s*version\s*"([^"]+)"')
+        problems += expect(pattern.findall(code) == [version],
+                           "TOOLCHAIN_SECURITY_PLUGIN", "build.gradle.kts",
+                           f"root build must apply exactly one catalogue-pinned "
+                           f"'{plugin_id}' plugin at version '{version}'", "NN-12")
+
+    dependency_blocks = _kotlin_blocks(code, r"\bdependencyCheck")
+    problems += expect(len(dependency_blocks) == 1, "TOOLCHAIN_SECURITY_GATE",
+                       "build.gradle.kts#dependencyCheck",
+                       "root build must have exactly one dependencyCheck control block", "NN-12")
+    if len(dependency_blocks) == 1:
+        body = re.sub(r"\s+", "", dependency_blocks[0])
+        problems += expect(body.count('format.set("JSON")') == 1
+                           and body.count("format.set(") == 1,
+                           "TOOLCHAIN_SECURITY_REPORT", "build.gradle.kts#dependencyCheck",
+                           "dependency scan must emit exactly one JSON report", "NN-12")
+        problems += expect(
+            body.count('outputDirectory.set(layout.buildDirectory.dir("reports"))') == 1
+            and body.count("outputDirectory.set(") == 1,
+            "TOOLCHAIN_SECURITY_REPORT", "build.gradle.kts#dependencyCheck",
+            "dependency scan JSON must be written under build/reports", "NN-12")
+        problems += expect(body.count("failBuildOnCVSS.set(0.0f)") == 1
+                           and body.count("failBuildOnCVSS.set(") == 1,
+                           "TOOLCHAIN_SECURITY_GATE", "build.gradle.kts#dependencyCheck",
+                           "every known vulnerability, including unscored findings, must block",
+                           "NN-12")
+        problems += expect(body.count("failOnError.set(true)") == 1
+                           and body.count("failOnError.set(") == 1,
+                           "TOOLCHAIN_SECURITY_GATE", "build.gradle.kts#dependencyCheck",
+                           "feed, analysis and report errors must fail the build", "NN-12")
+        problems += expect("autoUpdate.set(false)" not in body and "autoUpdate=false" not in body,
+                           "TOOLCHAIN_SECURITY_GATE", "build.gradle.kts#dependencyCheck",
+                           "live vulnerability data updates cannot be disabled without a "
+                           "separately verified data source", "NN-12")
+        problems += expect("skip.set(true)" not in body and "skip=true" not in body,
+                           "TOOLCHAIN_SECURITY_COVERAGE", "build.gradle.kts#dependencyCheck",
+                           "dependency analysis cannot be skipped", "NN-12")
+        for restricted in ("skipProjects", "scanProjects", "skipConfigurations",
+                           "scanConfigurations"):
+            problems += expect(restricted not in body, "TOOLCHAIN_SECURITY_COVERAGE",
+                               "build.gradle.kts#dependencyCheck",
+                               f"'{restricted}' would narrow the declared multi-project scan",
+                               "NN-12")
+
+    cyclonedx_blocks = _kotlin_blocks(code, r"\btasks\.cyclonedxBom")
+    problems += expect(len(cyclonedx_blocks) == 1, "TOOLCHAIN_SECURITY_REPORT",
+                       "build.gradle.kts#cyclonedxBom",
+                       "root build must configure exactly one aggregate CycloneDX task", "NN-12")
+    if len(cyclonedx_blocks) == 1:
+        body = re.sub(r"\s+", "", cyclonedx_blocks[0])
+        problems += expect(
+            body.count('jsonOutput.set(layout.buildDirectory.file("reports/bom.json"))') == 1
+            and body.count("jsonOutput.set(") == 1,
+            "TOOLCHAIN_SECURITY_REPORT", "build.gradle.kts#cyclonedxBom",
+            "aggregate SBOM must be written to build/reports/bom.json", "NN-12")
+        problems += expect(body.count("xmlOutput.unsetConvention()") == 1,
+                           "TOOLCHAIN_SECURITY_REPORT", "build.gradle.kts#cyclonedxBom",
+                           "aggregate SBOM must disable the unused XML output explicitly",
+                           "NN-12")
+        problems += expect("enabled=false" not in body,
+                           "TOOLCHAIN_SECURITY_COVERAGE", "build.gradle.kts#cyclonedxBom",
+                           "aggregate SBOM generation cannot be disabled", "NN-12")
+    return problems
+
+
 def _generated(root: Path, budget: Budget) -> list[Problem]:
     problems: list[Problem] = []
-    for rel, expected in sorted(buildgen.render_all(root).items()):
+    try:
+        rendered = buildgen.render_all(root)
+    except (KeyError, TypeError, ValueError, OSError) as exc:
+        return [Problem("BUILD_GENERATOR", str(PATH),
+                        f"generated build inputs are incomplete or invalid: {exc}", "NN-12")]
+    for rel, expected in sorted(rendered.items()):
         budget.check(rel)
         path = root / rel
         if not path.is_file():

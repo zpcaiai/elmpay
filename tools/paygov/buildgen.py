@@ -76,7 +76,14 @@ def settings_gradle(root: Path, budget: Budget | None = None) -> str:
     # Gradle automatically imports gradle/libs.versions.toml as the ``libs``
     # catalogue. Importing it explicitly calls ``from`` a second time and makes
     # every clean build fail before task configuration begins.
-    lines = [BANNER_SLASH, 'rootProject.name = "elmpay"', ""]
+    lines = [BANNER_SLASH,
+             "pluginManagement {",
+             "    repositories {",
+             "        gradlePluginPortal()",
+             "        mavenCentral()",
+             "    }",
+             "}", "",
+             'rootProject.name = "elmpay"', ""]
     for name in doc["modules_by_build_system"]["gradle"]:
         path = paths[name]
         project = ":" + path.replace("/", ":")
@@ -91,11 +98,28 @@ def settings_gradle(root: Path, budget: Budget | None = None) -> str:
 def build_gradle(root: Path, budget: Budget | None = None) -> str:
     budget = budget or Budget().start()
     doc = _catalog(root, budget)
+    registry = load_json(root / "governance/module-registry.json", budget)
+    paths = {module["name"]: module["path"] for module in registry["modules"]}
+    entries = _entries(doc)
     major = java_major(doc)
-    return BANNER_SLASH + f"""
+    dependency_check = entries["owasp-dependency-check"]["version"]
+    cyclonedx = entries["cyclonedx-gradle"]["version"]
+    java_projects = [":" + paths[name].replace("/", ":")
+                     for name in doc["modules_by_build_system"]["gradle"]]
+    project_literals = ",\n".join(f'    "{project}"' for project in java_projects)
+    return BANNER_SLASH + f"""import org.gradle.api.plugins.JavaPluginExtension
+
 plugins {{
-    java
+    base
+    id("org.owasp.dependencycheck") version "{dependency_check}"
+    id("org.cyclonedx.bom") version "{cyclonedx}"
 }}
+
+// Only declared leaf modules produce release JARs. Root and namespace parent
+// projects are lifecycle aggregators and must never emit empty, unsigned JARs.
+val javaModulePaths = setOf(
+{project_literals}
+)
 
 allprojects {{
     group = "com.elmpay"
@@ -103,9 +127,10 @@ allprojects {{
 }}
 
 subprojects {{
+    if (path !in javaModulePaths) return@subprojects
     apply(plugin = "java")
 
-    java {{
+    extensions.configure<JavaPluginExtension> {{
         toolchain {{
             // Pinned by governance/version-catalog.json (entry: jdk)
             languageVersion.set(JavaLanguageVersion.of({major}))
@@ -122,6 +147,33 @@ subprojects {{
         // A skipped critical test must never look like a pass (NN-12).
         systemProperty("junit.jupiter.execution.parallel.enabled", "true")
     }}
+}}
+
+tasks.named("assemble") {{
+    dependsOn(javaModulePaths.map {{ project(it).tasks.named("assemble") }})
+}}
+
+tasks.named("check") {{
+    dependsOn(javaModulePaths.map {{ project(it).tasks.named("check") }})
+}}
+
+tasks.register("test") {{
+    group = "verification"
+    description = "Runs tests for every declared Gradle leaf module."
+    dependsOn(javaModulePaths.map {{ project(it).tasks.named("test") }})
+}}
+
+dependencyCheck {{
+    // BLOCK-01: any known vulnerability blocks this reference build.
+    format.set("JSON")
+    outputDirectory.set(layout.buildDirectory.dir("reports"))
+    failBuildOnCVSS.set(0.0f)
+    failOnError.set(true)
+}}
+
+tasks.cyclonedxBom {{
+    jsonOutput.set(layout.buildDirectory.file("reports/bom.json"))
+    xmlOutput.unsetConvention()
 }}
 """
 

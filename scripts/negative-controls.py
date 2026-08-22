@@ -82,6 +82,7 @@ COPIED = _discovered() + (
     "platform/dev/simulators/paypal/Dockerfile",
     "platform/dev/simulators/apple-pay/Dockerfile",
     ".github/workflows/ci.yml",
+    "scripts/stage-signing-artifacts.sh",
     "scripts/sign-artifacts.sh",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",

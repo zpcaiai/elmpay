@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT))
 
 from tools.paygov.cigen import render_all  # noqa: E402
 
-EXECUTABLE = {"scripts/sign-artifacts.sh"}
+EXECUTABLE = {"scripts/sign-artifacts.sh", "scripts/stage-signing-artifacts.sh"}
 
 
 def main() -> int:

@@ -30,6 +30,12 @@ PATH = Path("governance/ci-pipeline.json")
 WORKFLOW = Path(".github/workflows/ci.yml")
 ACTION_SHA = re.compile(r"^[0-9a-f]{40}$")
 RELEASE_GATES = {"RG0", "RG1", "RG2", "RG3", "RG4", "RG5", "RG6", "RG7"}
+EXPECTED_RUNNER = "ubuntu-24.04"
+EXPECTED_REQUIRED_STAGES = {
+    "governance", "build", "unit-test", "static-analysis", "secret-scan",
+    "dependency-scan", "container-scan", "iac-scan", "sbom", "sign",
+    "negative-controls", "evidence-archive", "rule-knockout",
+}
 FORBIDDEN_IN_WORKFLOW = ("pull_request_target", "continue-on-error: true",
                          "permissions: write-all", "${{ secrets.")
 REQUIRED_BLOCKING_TOPICS = {
@@ -45,6 +51,100 @@ REQUIRED_SKILL_COMMANDS = {
     "diff -qr .payment-platform/skill-package/skills .agents/skills",
     "diff -qr .payment-platform/skill-package/skills .claude/skills",
 }
+SUPPLY_CHAIN_STAGES = {
+    "dependency-scan": {
+        "command": "./gradlew --no-daemon dependencyCheckAggregate",
+        "artifact": "build/reports/dependency-check-report.json",
+    },
+    "sbom": {
+        "command": "./gradlew --no-daemon cyclonedxBom",
+        "artifact": "build/reports/bom.json",
+    },
+}
+MACHINE_REPORT_STAGES = {
+    "governance": {
+        "command": ("python3 -m tools.paygov.cli verify-all --repo . "
+                    "--out governance-report.json"),
+        "artifact": "governance-report.json",
+    },
+    "static-analysis": {
+        "command": ("python3 -m tools.paygov.cli verify module-registry --repo . "
+                    "--out build/static-analysis.json"),
+        "artifact": "build/static-analysis.json",
+    },
+    "secret-scan": {
+        "command": ("python3 -m tools.paygov.cli verify repo-hygiene --repo . "
+                    "--out secret-scan.json"),
+        "artifact": "secret-scan.json",
+    },
+    "container-scan": {
+        "command": ("python3 -m tools.paygov.cli verify toolchain dev-platform --repo . "
+                    "--out container-scan.json"),
+        "artifact": "container-scan.json",
+    },
+    "iac-scan": {
+        "command": ("python3 -m tools.paygov.cli verify dev-platform --repo . "
+                    "--out iac-scan.json"),
+        "artifact": "iac-scan.json",
+    },
+}
+SIGNING_ACTION_PINS = {
+    "actions/download-artifact": {
+        "ref": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+        "version_comment": "v8.0.1",
+    },
+    "sigstore/cosign-installer": {
+        "ref": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+        "version_comment": "v4.1.2",
+    },
+}
+EXPECTED_SIGNING_POLICY = {
+    "trusted_event": "push",
+    "trusted_repository": "zpcaiai/elmpay",
+    "trusted_ref": "refs/heads/main",
+    "trusted_workflow": ".github/workflows/ci.yml",
+    "public_sigstore_opt_in_variable":
+        "ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN",
+    "cosign_release": "v3.0.6",
+    "oidc_issuer": "https://token.actions.githubusercontent.com",
+    "slsa_build_level": 1,
+    "predicate_type": "https://slsa.dev/provenance/v1",
+    "build_type": "https://slsa-framework.github.io/github-actions-buildtypes/workflow/v1",
+    "validation_only_skipped_stages": ["sign", "evidence-archive"],
+    "validation_only_outcome": "validated-not-release-eligible",
+    "artifact_project_source":
+        "governance/version-catalog.json#modules_by_build_system.gradle",
+    "artifact_manifest": "build/signing-inputs/artifact-manifest.json",
+    "artifact_manifest_sha256": "build/signing-inputs/artifact-manifest.sha256",
+}
+EXPECTED_SIGNING_PERMISSIONS = {
+    "actions": "none",
+    "contents": "read",
+    "id-token": "write",
+    "packages": "none",
+}
+EXPECTED_GLOBAL_PERMISSIONS = {
+    "actions": "none",
+    "contents": "read",
+    "id-token": "none",
+    "packages": "none",
+}
+EXPECTED_SIGNING_NEEDS = {
+    "build",
+    "sbom",
+    "unit-test",
+    "static-analysis",
+    "dependency-scan",
+    "container-scan",
+    "iac-scan",
+    "secret-scan",
+    "negative-controls",
+    "rule-knockout",
+}
+EXPECTED_SIGNING_DOWNLOADS = [
+    {"name": "build-artifacts", "path": "build/signing-inputs"},
+    {"name": "sbom-artifacts", "path": "build/reports"},
+]
 
 
 # Registered automatically: tools/paygov/registry.py discovers every module in
@@ -71,6 +171,9 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     if not isinstance(stages, list) or not stages or not isinstance(required, list):
         return problems + [Problem("CI_SHAPE", where,
                                    "pipeline needs 'stages' and 'required_stages'", "NN-12")]
+    problems += expect(doc.get("runner") == EXPECTED_RUNNER, "CI_RUNNER", where,
+                       "keyless CI must use the audited GitHub-hosted runner label",
+                       "NN-11")
 
     by_id: dict[str, dict] = {}
     for stage in stages:
@@ -90,6 +193,12 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
         if stage.get("required"):
             problems += expect(stage.get("fail_closed") is True, "CI_FAIL_OPEN", scope,
                                "a required stage must be fail-closed", "NN-12")
+            problems += expect(isinstance(stage.get("artifacts"), list)
+                               and bool(stage["artifacts"])
+                               and stage.get("if_no_files_found") == "error",
+                               "CI_ARTIFACT_MISSING", scope,
+                               "a required stage must retain evidence and fail when it is absent",
+                               "NN-12")
 
     for name in required:
         problems += expect(name in by_id, "CI_REQUIRED_STAGE", where,
@@ -98,6 +207,21 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
             problems += expect(by_id[name].get("required") is True, "CI_REQUIRED_STAGE", where,
                                f"stage '{name}' is listed as required but not marked required",
                                "NN-12")
+    problems += expect(len(required) == len(set(required)), "CI_REQUIRED_STAGE", where,
+                       "required_stages must not contain duplicate stage ids", "NN-12")
+    declared_required = {sid for sid, stage in by_id.items() if stage.get("required") is True}
+    problems += expect(set(required) == declared_required, "CI_REQUIRED_STAGE", where,
+                       "required_stages must exactly equal the stages marked required",
+                       "NN-12")
+    problems += expect(set(required) == EXPECTED_REQUIRED_STAGES
+                       and len(required) == len(EXPECTED_REQUIRED_STAGES),
+                       "CI_REQUIRED_STAGE", where,
+                       "the complete audited required-stage set must remain present",
+                       "NN-12")
+    problems += expect(set(by_id) == EXPECTED_REQUIRED_STAGES,
+                       "CI_REQUIRED_STAGE", where,
+                       "stages must exactly match the audited required-stage set",
+                       "NN-12")
 
     problems += _graph(by_id, where)
     problems += _actions(doc, where)
@@ -105,7 +229,10 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     problems += _quality_gates(doc, where)
     problems += _blocking(doc, by_id, where)
     problems += _skill_package(by_id, where)
-    problems += _generated(root, budget)
+    problems += _machine_reports(by_id, where)
+    problems += _supply_chain_stages(by_id, where)
+    problems += _signing(doc, by_id, where)
+    problems += _generated(root, budget, doc)
     return problems
 
 
@@ -157,8 +284,15 @@ def _permissions(doc: dict, where: str) -> list[Problem]:
     if not isinstance(permissions, dict) or not permissions:
         return [Problem("CI_PERMISSIONS", where, "'permissions' must be declared", "NN-12")]
     problems: list[Problem] = []
+    problems += expect(permissions == EXPECTED_GLOBAL_PERMISSIONS,
+                       "CI_PERMISSIONS", where,
+                       "global permissions must be the exact audited read/none set",
+                       "NN-11")
     problems += expect(permissions.get("contents") == "read", "CI_PERMISSIONS", where,
                        "the pipeline must not have write access to repository contents", "NN-11")
+    problems += expect(permissions.get("id-token") == "none", "CI_PERMISSIONS", where,
+                       "OIDC must be disabled globally and granted only to the signing job",
+                       "NN-11")
     for key, value in sorted(permissions.items()):
         problems += expect(value != "write-all", "CI_PERMISSIONS", where,
                            f"'{key}' must not be write-all", "NN-11")
@@ -222,7 +356,254 @@ def _skill_package(by_id: dict[str, dict], where: str) -> list[Problem]:
             for command in missing]
 
 
-def _generated(root: Path, budget: Budget) -> list[Problem]:
+def _supply_chain_stages(by_id: dict[str, dict], where: str) -> list[Problem]:
+    """Keep SCA and SBOM stages tied to their aggregate, machine-readable gates.
+
+    Merely having a stage named ``dependency-scan`` is not sufficient.  The
+    single-project ``dependencyCheckAnalyze`` task silently omits dependencies
+    declared by sibling projects, while an upload path that differs from the
+    generated Gradle report turns a successful scan into missing evidence.
+    These are governance semantics, so changing the declaration and regenerating
+    the workflow together must still fail validation.
+    """
+    problems: list[Problem] = []
+    for sid, expected in SUPPLY_CHAIN_STAGES.items():
+        stage = by_id.get(sid)
+        scope = f"{where}#{sid}"
+        if not isinstance(stage, dict):
+            problems.append(Problem("CI_SUPPLY_CHAIN_STAGE", scope,
+                                    "required supply-chain stage is missing", "NN-12"))
+            continue
+
+        problems += expect(stage.get("required") is True
+                           and stage.get("fail_closed") is True,
+                           "CI_SUPPLY_CHAIN_GATE", scope,
+                           "dependency and SBOM stages must remain required and fail-closed",
+                           "NN-12")
+
+        commands = stage.get("commands")
+        problems += expect(isinstance(commands, list) and expected["command"] in commands,
+                           "CI_SUPPLY_CHAIN_TASK", scope,
+                           f"stage must execute the fail-closed aggregate task "
+                           f"'{expected['command']}' as its own command", "NN-12")
+        if isinstance(commands, list):
+            problems += expect(not any("dependencyCheckAnalyze" in str(command)
+                                       for command in commands),
+                               "CI_SUPPLY_CHAIN_TASK", scope,
+                               "single-project dependencyCheckAnalyze cannot replace the "
+                               "multi-project aggregate scan", "NN-12")
+
+        artifacts = stage.get("artifacts")
+        problems += expect(isinstance(artifacts, list) and expected["artifact"] in artifacts,
+                           "CI_SUPPLY_CHAIN_ARTIFACT", scope,
+                           f"stage must retain machine-readable evidence at "
+                           f"'{expected['artifact']}'", "NN-12")
+        problems += expect("build" in stage.get("needs", []),
+                           "CI_SUPPLY_CHAIN_COVERAGE", scope,
+                           "supply-chain analysis must run after the complete multi-project "
+                           "build graph", "NN-12")
+        problems += expect(stage.get("if_no_files_found") == "error",
+                           "CI_ARTIFACT_MISSING", scope,
+                           "machine-readable supply-chain evidence must fail when absent",
+                           "NN-12")
+    return problems
+
+
+def _machine_reports(by_id: dict[str, dict], where: str) -> list[Problem]:
+    """Bind validator-backed CI stages to the JSON they claim to upload."""
+    problems: list[Problem] = []
+    for stage_id, expected in MACHINE_REPORT_STAGES.items():
+        stage = by_id.get(stage_id)
+        scope = f"{where}#{stage_id}"
+        if not isinstance(stage, dict):
+            problems.append(Problem("CI_MACHINE_REPORT", scope,
+                                    "machine-report stage is missing", "NN-12"))
+            continue
+        problems += expect(expected["command"] in stage.get("commands", []),
+                           "CI_MACHINE_REPORT", scope,
+                           f"stage must atomically write '{expected['artifact']}'", "NN-12")
+        problems += expect(stage.get("artifacts") == [expected["artifact"]],
+                           "CI_MACHINE_REPORT", scope,
+                           "uploaded report path must exactly match the validator output",
+                           "NN-12")
+    return problems
+
+
+def _signing(doc: dict, by_id: dict[str, dict], where: str) -> list[Problem]:
+    """Pin the narrow, consent-gated keyless signing trust boundary.
+
+    This is intentionally a Build L1 blob-signing control.  It must not be
+    broadened into an image-signing or stronger SLSA claim merely by editing
+    the declaration and regenerating the workflow.
+    """
+    policy = doc.get("signing_policy")
+    if not isinstance(policy, dict):
+        return [Problem("CI_SIGNING_POLICY", where,
+                        "'signing_policy' must declare the trusted signing boundary",
+                        "NN-11")]
+
+    problems: list[Problem] = []
+    scope = f"{where}#signing_policy"
+    for key, expected in EXPECTED_SIGNING_POLICY.items():
+        problems += expect(policy.get(key) == expected, "CI_SIGNING_POLICY", scope,
+                           f"'{key}' must remain {expected!r}", "NN-11")
+
+    problems += expect(policy.get("job_permissions") == EXPECTED_SIGNING_PERMISSIONS,
+                       "CI_SIGNING_PERMISSIONS", scope,
+                       "only the signing job may request id-token: write, with all other "
+                       "permissions explicitly read or none", "NN-11")
+    problems += expect(policy.get("downloads") == EXPECTED_SIGNING_DOWNLOADS,
+                       "CI_SIGNING_INPUT", scope,
+                       "the signing job must download the exact build and SBOM artifacts",
+                       "NN-12")
+
+    build = by_id.get("build")
+    build_scope = f"{where}#build"
+    problems += expect(isinstance(build, dict)
+                       and "scripts/stage-signing-artifacts.sh" in build.get("commands", []),
+                       "CI_SIGNING_INPUT", build_scope,
+                       "build must stage every declared Gradle artifact into a manifest",
+                       "NN-12")
+    problems += expect(isinstance(build, dict)
+                       and build.get("artifacts") == ["build/signing-inputs/"],
+                       "CI_SIGNING_INPUT", build_scope,
+                       "build upload must preserve the manifested artifact paths",
+                       "NN-12")
+
+    listed_actions = doc.get("actions")
+    actions = ({action.get("name"): action for action in listed_actions
+                if isinstance(action, dict)}
+               if isinstance(listed_actions, list) else {})
+    for name, expected in SIGNING_ACTION_PINS.items():
+        action = actions.get(name)
+        action_scope = f"{where}#{name}"
+        problems += expect(isinstance(action, dict), "CI_SIGNING_ACTION", action_scope,
+                           f"required signing action '{name}' is missing", "NN-12")
+        if isinstance(action, dict):
+            problems += expect(action.get("ref") == expected["ref"],
+                               "CI_SIGNING_ACTION", action_scope,
+                               f"'{name}' must remain pinned to the audited commit",
+                               "NN-12")
+            problems += expect(action.get("version_comment") == expected["version_comment"],
+                               "CI_SIGNING_ACTION", action_scope,
+                               f"'{name}' version annotation must match the audited release",
+                               "NN-12")
+
+    sign = by_id.get("sign")
+    sign_scope = f"{where}#sign"
+    if not isinstance(sign, dict):
+        return problems + [Problem("CI_SIGNING_STAGE", sign_scope,
+                                   "required signing stage is missing", "NN-12")]
+
+    required_stages = doc.get("required_stages", [])
+    problems += expect("sign" in required_stages,
+                       "CI_SIGNING_REQUIRED", sign_scope,
+                       "the signing stage must remain in required_stages", "NN-12")
+    problems += expect(sign.get("required") is True and sign.get("fail_closed") is True,
+                       "CI_SIGNING_REQUIRED", sign_scope,
+                       "the signing stage must remain required and fail-closed", "NN-12")
+
+    needs = sign.get("needs")
+    problems += expect(isinstance(needs, list) and set(needs) == EXPECTED_SIGNING_NEEDS
+                       and len(needs) == len(EXPECTED_SIGNING_NEEDS),
+                       "CI_SIGNING_INPUT", sign_scope,
+                       "signing must depend on the exact complete pre-sign gate set",
+                       "NN-12")
+    problems += expect(sign.get("commands") == ["scripts/sign-artifacts.sh"],
+                       "CI_SIGNING_COMMAND", sign_scope,
+                       "signing must use the generated fail-closed signing script",
+                       "NN-12")
+    artifacts = sign.get("artifacts")
+    problems += expect(isinstance(artifacts, list)
+                       and "build/provenance.intoto.jsonl" in artifacts
+                       and "build/signatures/" in artifacts,
+                       "CI_SIGNING_OUTPUT", sign_scope,
+                       "signing must retain the verified in-toto provenance and Sigstore bundles",
+                       "NN-12")
+
+    purpose = str(sign.get("purpose", ""))
+    problems += expect("SLSA Build L1" in purpose,
+                       "CI_SIGNING_CLAIM", sign_scope,
+                       "the signing claim must be limited explicitly to SLSA Build L1",
+                       "NN-12")
+    problems += expect("image" not in purpose.lower() and "镜像" not in purpose,
+                       "CI_SIGNING_CLAIM", sign_scope,
+                       "the pipeline does not build or sign a container image and must not claim it",
+                       "NN-12")
+
+    archive = by_id.get("evidence-archive")
+    archive_scope = f"{where}#evidence-archive"
+    problems += expect(isinstance(archive, dict)
+                       and archive.get("required") is True
+                       and archive.get("fail_closed") is True
+                       and "evidence-archive" in required_stages,
+                       "CI_SIGNING_REQUIRED", archive_scope,
+                       "evidence archive must remain a required, fail-closed release stage",
+                       "NN-12")
+    problems += expect(isinstance(archive, dict)
+                       and "sign" in archive.get("needs", []),
+                       "CI_SIGNING_CHAIN", archive_scope,
+                       "evidence archive must depend directly on verified signing output",
+                       "NN-12")
+
+    for sid in ("build", "sbom", "sign"):
+        stage = by_id.get(sid)
+        missing_scope = f"{where}#{sid}"
+        problems += expect(isinstance(stage, dict)
+                           and stage.get("if_no_files_found") == "error",
+                           "CI_ARTIFACT_MISSING", missing_scope,
+                           "critical build, SBOM and signing evidence must fail when absent",
+                           "NN-12")
+    return problems
+
+
+def _terminal_gate(text: str, doc: dict, where: str) -> list[Problem]:
+    marker = "\n  release-gate:\n"
+    if marker not in text:
+        return [Problem("CI_RELEASE_GATE_CONTEXT", where,
+                        "generated workflow has no terminal release gate", "NN-12")]
+    gate = text.split(marker, 1)[1]
+    run = gate.split("        run: |\n", 1)[1] if "        run: |\n" in gate else ""
+    signing = doc["signing_policy"]
+    required = doc["required_stages"]
+    release_only = signing["validation_only_skipped_stages"]
+    non_release = [stage for stage in required if stage not in set(release_only)]
+    problems: list[Problem] = []
+    required_snippets = [
+        "    if: always()",
+        "ELMPAY_GATE_EVENT_NAME: ${{ github.event_name }}",
+        "ELMPAY_GATE_REPOSITORY: ${{ github.repository }}",
+        "ELMPAY_GATE_REF: ${{ github.ref }}",
+        f"ELMPAY_SIGNING_OPT_IN: "
+        f"${{{{ vars.{signing['public_sigstore_opt_in_variable']} }}}}",
+        f"REQUIRED_STAGES=({' '.join(required)})",
+        f"RELEASE_ONLY_STAGES=({' '.join(release_only)})",
+        f"NON_RELEASE_REQUIRED_STAGES=({' '.join(non_release)})",
+        f"{signing['validation_only_outcome']}: validation succeeded",
+        "release-eligible: trusted main push",
+    ]
+    for snippet in required_snippets:
+        problems += expect(snippet in gate, "CI_RELEASE_GATE_CONTEXT", where,
+                           f"terminal gate is missing fail-closed logic: {snippet}", "NN-12")
+    for stage_id in required:
+        env_name = _result_environment_name(stage_id)
+        expression = f"${{{{ needs['{stage_id}'].result }}}}"
+        problems += expect(f"{env_name}: {expression}" in gate,
+                           "CI_RELEASE_GATE_CONTEXT", where,
+                           f"terminal gate does not receive result for '{stage_id}' via env",
+                           "NN-12")
+    problems += expect(bool(run) and "${{" not in run,
+                       "CI_RELEASE_GATE_INJECTION", where,
+                       "GitHub expressions must enter through step env, never shell source",
+                       "NN-11")
+    return problems
+
+
+def _result_environment_name(stage_id: str) -> str:
+    return "ELMPAY_NEEDS_" + stage_id.upper().replace("-", "_")
+
+
+def _generated(root: Path, budget: Budget, doc: dict) -> list[Problem]:
     problems: list[Problem] = []
     rendered = cigen.render_all(root)
     for rel, expected in sorted(rendered.items()):
@@ -248,4 +629,5 @@ def _generated(root: Path, budget: Budget) -> list[Problem]:
             if not ACTION_SHA.match(ref):
                 problems.append(Problem("CI_ACTION_PIN", str(WORKFLOW),
                                         f"action reference '{ref}' is not a commit SHA", "NN-12"))
+    problems += _terminal_gate(text, doc, str(WORKFLOW))
     return problems

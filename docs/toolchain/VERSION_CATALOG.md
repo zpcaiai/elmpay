@@ -14,6 +14,8 @@
 | spring-boot | Spring Boot | framework | 4.1.3 | exact | payment-platform-architecture | 次版本季度评估；破坏性变更需 ADR 与迁移批次 |
 | spring-cloud | Spring Cloud | framework | 2026.0.2 | exact | payment-platform-architecture | 跟随 Spring Boot 版本矩阵 |
 | gradle | Gradle | build | 9.2.1 | exact | payment-platform-platform-eng | wrapper 校验和锁定；升级需绿色 CI 两轮 |
+| owasp-dependency-check | OWASP Dependency-Check Gradle Plugin | build-plugin | 13.0.0 | exact | payment-platform-appsec | 跟随 NVD API 与上游安全修复；升级需依赖扫描门禁绿色 |
+| cyclonedx-gradle | CycloneDX Gradle Plugin | build-plugin | 3.4.1 | exact | payment-platform-appsec | 跟随 CycloneDX schema 与插件安全修复；升级需 SBOM 门禁绿色 |
 | kotlin | Kotlin (仅构建脚本) | build | 2.3.0 | exact | payment-platform-platform-eng | 仅用于 Gradle KTS，不用于生产代码 |
 | postgresql | PostgreSQL | database | 18.2 | exact | payment-platform-sre | 次版本一月内跟进；大版本升级需 B90 演练 |
 | flyway | Flyway | migration | 11.9.0 | exact | payment-platform-architecture | 迁移必须可回滚或前向兼容 |

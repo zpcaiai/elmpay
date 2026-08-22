@@ -2,6 +2,13 @@
 // Source of truth: governance/version-catalog.json
 // Regenerate with: python3 scripts/render-build.py
 
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
 rootProject.name = "elmpay"
 
 include(":libs:money")

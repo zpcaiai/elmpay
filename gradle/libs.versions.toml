@@ -3,6 +3,7 @@
 # Regenerate with: python3 scripts/render-build.py
 
 [versions]
+cyclonedxGradle = "3.4.1"
 flyway = "11.9.0"
 gradle = "9.2.1"
 grpcJava = "1.72.0"
@@ -17,6 +18,7 @@ kubernetes = "1.36.2"
 minioImage = "2026-07-11T00-00-00Z"
 node = "24.9.0"
 opentelemetryJava = "2.20.0"
+owaspDependencyCheck = "13.0.0"
 pnpm = "10.14.0"
 postgresImage = "18.2-bookworm"
 postgresql = "18.2"

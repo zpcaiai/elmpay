@@ -74,6 +74,7 @@ GENERATED_BUILD_FILES = (
     "platform/dev/simulators/paypal/Dockerfile",
     "platform/dev/simulators/apple-pay/Dockerfile",
     ".github/workflows/ci.yml",
+    "scripts/stage-signing-artifacts.sh",
     "scripts/sign-artifacts.sh",
 )
 

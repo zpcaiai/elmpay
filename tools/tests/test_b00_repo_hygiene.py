@@ -276,6 +276,14 @@ class NegativeControlSharding(FixtureTestCase):
             self.assertTrue(any(rel.startswith(prefix) and blob
                                 for rel, blob in nc._SNAPSHOT.items()), module_path)
 
+    def test_negative_fixture_carries_every_generated_ci_target(self):
+        from tools.paygov import cigen
+
+        nc = _negative_controls()
+        for relative in cigen.TARGETS:
+            self.assertIn(relative, nc._SNAPSHOT)
+            self.assertTrue(nc._SNAPSHOT[relative], relative)
+
     def test_offset_keeps_the_second_list_from_piling_onto_one_shard(self):
         nc = _negative_controls()
         # Both scenario lists are sliced with the same partition; the offset is
