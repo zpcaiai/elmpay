@@ -129,6 +129,13 @@ EXPECTED_GLOBAL_PERMISSIONS = {
     "id-token": "none",
     "packages": "none",
 }
+EXPECTED_GRADLE_CACHE_POLICY = {
+    "writer_stage": "build",
+    "trusted_event": "push",
+    "trusted_repository": "zpcaiai/elmpay",
+    "trusted_ref": "refs/heads/main",
+    "all_other_stages_read_only": True,
+}
 EXPECTED_SIGNING_NEEDS = {
     "build",
     "sbom",
@@ -226,6 +233,7 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     problems += _graph(by_id, where)
     problems += _actions(doc, where)
     problems += _permissions(doc, where)
+    problems += _gradle_cache_policy(doc, by_id, where)
     problems += _quality_gates(doc, where)
     problems += _blocking(doc, by_id, where)
     problems += _skill_package(by_id, where)
@@ -296,6 +304,31 @@ def _permissions(doc: dict, where: str) -> list[Problem]:
     for key, value in sorted(permissions.items()):
         problems += expect(value != "write-all", "CI_PERMISSIONS", where,
                            f"'{key}' must not be write-all", "NN-11")
+    return problems
+
+
+def _gradle_cache_policy(doc: dict, by_id: dict[str, dict], where: str) -> list[Problem]:
+    """Permit one cache writer only after trusted main governance succeeds.
+
+    Cold, parallel Gradle jobs can otherwise hammer Maven Central while a
+    blanket writable cache would let untrusted pull requests publish inputs
+    consumed by later builds.  The build job is the sole writer because every
+    Gradle security/SBOM job already depends on its successful completion.
+    """
+    policy = doc.get("gradle_cache_policy")
+    scope = f"{where}#gradle_cache_policy"
+    problems = expect(policy == EXPECTED_GRADLE_CACHE_POLICY,
+                      "CI_GRADLE_CACHE", scope,
+                      "only the trusted main build job may populate the Gradle cache",
+                      "NN-11")
+    if not isinstance(policy, dict):
+        return problems
+    writer = policy.get("writer_stage")
+    problems += expect(writer in by_id and writer == "build"
+                       and by_id.get("build", {}).get("needs") == ["governance"],
+                       "CI_GRADLE_CACHE", scope,
+                       "the cache writer must be the governed build stage",
+                       "NN-11")
     return problems
 
 

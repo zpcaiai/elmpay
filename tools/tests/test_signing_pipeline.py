@@ -14,6 +14,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 
 from tools.paygov import ci, cigen
 from tools.paygov.repo import Budget
@@ -546,17 +547,27 @@ class SigningGovernanceRejects(FixtureTestCase):
                 self.fixture.restore()
 
     def test_rejects_terminal_context_or_expression_in_shell_source(self):
-        doc = self.fixture.read(self.REL)
-        original = cigen.workflow(self.fixture.root)
+        rendered = cigen.render_all(self.fixture.root)
+        original = rendered[".github/workflows/ci.yml"]
         broken_context = original.replace(
             "ELMPAY_GATE_EVENT_NAME: ${{ github.event_name }}",
             "ELMPAY_GATE_EVENT: ${{ github.event_name }}", 1)
-        problems = ci._terminal_gate(broken_context, doc, ".github/workflows/ci.yml")
+        with patch.object(
+            cigen,
+            "render_all",
+            return_value={**rendered, ".github/workflows/ci.yml": broken_context},
+        ):
+            problems = self._validate()
         self.assertIn("CI_RELEASE_GATE_CONTEXT", self.codes(problems))
         injected = original.replace(
             "          set -euo pipefail",
             f"          set -euo pipefail\n          echo ${{{{ vars.{OPT_IN} }}}}", 1)
-        problems = ci._terminal_gate(injected, doc, ".github/workflows/ci.yml")
+        with patch.object(
+            cigen,
+            "render_all",
+            return_value={**rendered, ".github/workflows/ci.yml": injected},
+        ):
+            problems = self._validate()
         self.assertIn("CI_RELEASE_GATE_INJECTION", self.codes(problems))
 
 

@@ -70,6 +70,18 @@ class PipelineHappyPath(FixtureTestCase):
         jdk = next(e for e in catalog["entries"] if e["id"] == "jdk")["version"].split("+")[0]
         self.assertIn(f"java-version: '{jdk}'", text)
 
+    def test_only_trusted_main_build_can_write_the_gradle_cache(self):
+        text = cigen.workflow(REAL_ROOT)
+        expression = (
+            "cache-read-only: ${{ github.event_name != 'push' || "
+            "github.repository != 'zpcaiai/elmpay' || "
+            "github.ref != 'refs/heads/main' }}"
+        )
+        self.assertEqual(text.count(expression), 1)
+        build_job = text.split("\n  build:\n", 1)[1].split("\n  static-analysis:\n", 1)[0]
+        self.assertIn(expression, build_job)
+        self.assertIn("cache-read-only: true", text)
+
     def test_generation_is_deterministic(self):
         self.assertEqual(cigen.render_all(REAL_ROOT), cigen.render_all(REAL_ROOT))
 
@@ -175,6 +187,14 @@ class PipelineRejects(FixtureTestCase):
     def test_rejects_write_all_permission(self):
         self.fixture.mutate(self.REL, lambda d: d["permissions"].__setitem__("packages", "write-all"))
         self.assertIn("CI_PERMISSIONS", self.codes(self._validate()))
+
+    def test_rejects_an_untrusted_or_second_gradle_cache_writer(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: data["gradle_cache_policy"].__setitem__(
+                "writer_stage", "dependency-scan"),
+        )
+        self.assertIn("CI_GRADLE_CACHE", self.codes(self._validate()))
 
     def test_rejects_removed_blocking_condition(self):
         self.fixture.mutate(self.REL,

@@ -17,6 +17,13 @@
     "packages": "none",
     "actions": "none"
   },
+  "gradle_cache_policy": {
+    "writer_stage": "build",
+    "trusted_event": "push",
+    "trusted_repository": "zpcaiai/elmpay",
+    "trusted_ref": "refs/heads/main",
+    "all_other_stages_read_only": true
+  },
   "signing_policy": {
     "trusted_event": "push",
     "trusted_repository": "zpcaiai/elmpay",

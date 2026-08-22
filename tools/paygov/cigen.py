@@ -125,6 +125,7 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
     budget = budget or Budget().start()
     doc = load_json(root / PIPELINE, budget)
     signing = doc["signing_policy"]
+    cache_policy = doc["gradle_cache_policy"]
     entries = {e["id"]: e for e in load_json(root / CATALOG, budget)["entries"]}
     actions = {a["name"]: a for a in doc["actions"]}
     java_version = entries["jdk"]["version"].split("+", 1)[0]
@@ -191,6 +192,14 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
                 f'          cosign-release: {_quote(signing["cosign_release"])}',
             ]
         else:
+            if stage["id"] == cache_policy["writer_stage"]:
+                cache_read_only = (
+                    "${{ github.event_name != '" + cache_policy["trusted_event"]
+                    + "' || github.repository != '" + cache_policy["trusted_repository"]
+                    + "' || github.ref != '" + cache_policy["trusted_ref"] + "' }}"
+                )
+            else:
+                cache_read_only = "true"
             lines += [
                 f'      - uses: {setup_java["name"]}@{setup_java["ref"]}  # {setup_java["version_comment"]}',
                 "        with:",
@@ -198,7 +207,7 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
                 f'          java-version: {_quote(java_version)}',
                 f'      - uses: {setup_gradle["name"]}@{setup_gradle["ref"]}  # {setup_gradle["version_comment"]}',
                 "        with:",
-                "          cache-read-only: true",
+                f"          cache-read-only: {cache_read_only}",
             ]
         for index, command in enumerate(stage["commands"], 1):
             step_name = f'{stage["purpose"]} ({index}/{len(stage["commands"])})'
