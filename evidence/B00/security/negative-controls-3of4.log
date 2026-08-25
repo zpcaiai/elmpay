@@ -88,44 +88,45 @@
 [OK ] B04 host port collision: exit=2 expected=2 code=DEV_PORT_CONFLICT
 [OK ] B05 dependency scanning removed from the pipeline: exit=2 expected=2 code=CI_REQUIRED_STAGE
 [OK ] B05 installed skill mirror verification removed: exit=2 expected=2 code=CI_SKILL_PACKAGE
-[OK ] B06 sharded proof drops one of its shards: exit=2 expected=2 code=EVIDENCE_SHARD_INCOMPLETE
-[OK ] B07 control left unclaimed by any requirement: exit=2 expected=2 code=TRACE_CONTROL_UNCOVERED
-[OK ] B08 monetary field silently becomes floating point: exit=2 expected=2 code=DOMAIN_MONEY_TYPE
-[OK ] B08 entity dropped from the ubiquitous language: exit=2 expected=2 code=DOMAIN_GLOSSARY
-[OK ] B09 metadata source repointed at an unvalidated file: exit=2 expected=2 code=MONEY_SOURCE
-[OK ] B10 timeout redefined as an outright failure: exit=2 expected=2 code=STATE_SET
-[OK ] B11 idempotency scope drifts from the state machine: exit=2 expected=2 code=API_TRANSITION_KEY_MISMATCH
-[OK ] B11 API money becomes a decimal: exit=2 expected=2 code=API_MONEY_SHAPE
-[OK ] B12 ordering switched from revision to wall clock: exit=2 expected=2 code=EVENT_ORDERING
-[OK ] B12 dead letter destination removed: exit=2 expected=2 code=OUTBOX_DEAD_LETTER
-[OK ] B13 ledger entries become mutable: exit=2 expected=2 code=DATA_LEDGER_MUTABLE
-[OK ] B13 tenant index no longer leads with tenant_id: exit=2 expected=2 code=DATA_INDEX_TENANT
-[OK ] B14 provider timeout redefined as a decline: exit=2 expected=2 code=TOPO_CONNECTOR_DEGRADATION
-[OK ] B14 service reaches into another service tables: exit=2 expected=2 code=TOPO_TABLE_ACCESS
-[OK ] B15 adapter invents its own idempotency key: exit=2 expected=2 code=MIG_ADAPTER_IDEMPOTENCY
-[OK ] B15 cutover switched to a global flip: exit=2 expected=2 code=MIG_CUTOVER_GRANULARITY
-[OK ] B16 audit reduced to denials only: exit=2 expected=2 code=ZT_AUDIT_ALLOW_ONLY
-[OK ] B16 mutual TLS dropped between internal zones: exit=2 expected=2 code=ZT_INTERNAL_TRUST
-[OK ] B17 implicit flow re-enabled: exit=2 expected=2 code=ID_FLOW
-[OK ] B17 operator recovery downgraded to SMS: exit=2 expected=2 code=ID_RECOVERY_SMS
-[OK ] B18 SMS one-time codes relabelled as phishing-resistant: exit=2 expected=2 code=MFA_MISCLASSIFIED
-[OK ] B18 step-up stops binding the transaction: exit=2 expected=2 code=MFA_NO_TRANSACTION_BINDING
-[OK ] B18 user verification relaxed to discouraged: exit=2 expected=2 code=MFA_USER_VERIFICATION
-[OK ] B18 push-fatigue protection switched off: exit=2 expected=2 code=MFA_PUSH_FATIGUE
-[OK ] B19 self-approval quietly permitted: exit=2 expected=2 code=AUTHZ_DUAL_SELF_APPROVAL
-[OK ] B19 an elevation-only permission handed out standing: exit=2 expected=2 code=AUTHZ_STANDING_ELEVATED
-[OK ] B19 break-glass use no longer reviewed: exit=2 expected=2 code=AUTHZ_BREAK_GLASS_REVIEW
-[OK ] B19 a privileged role loses its MFA requirement: exit=2 expected=2 code=AUTHZ_ROLE_NO_MFA
-[OK ] B20 additional authenticated data dropped: exit=2 expected=2 code=KEY_AAD_MISSING
-[OK ] B20 one data key for the whole table: exit=2 expected=2 code=KEY_DEK_SCOPE
-[OK ] B20 crypto-shredding removed: exit=2 expected=2 code=KEY_NO_SHREDDING
-[OK ] B20 a channel private key stops being managed: exit=2 expected=2 code=KEY_PROVIDER_UNMANAGED
-[OK ] B22 baseline document hand-edited: exit=2 expected=2 code=BASE_GENERATED_DRIFT
-[OK ] B26 provider account document hand-edited: exit=2 expected=2 code=ACCOUNT_GENERATED_DRIFT
-[OK ] B30 onboarding document hand-edited: exit=2 expected=2 code=ONB_GENERATED_DRIFT
+[OK ] B06 evidence policy renames the reviewer: exit=2 expected=2 code=EVIDENCE_PRINCIPAL
+[OK ] B07 non-negotiable left unclaimed by any requirement: exit=2 expected=2 code=TRACE_RULE_UNCOVERED
+[OK ] B07 generated file claimed by two generators: exit=2 expected=2 code=SSOT_DOUBLE_GENERATOR
+[OK ] B08 entity claims a table its module does not own: exit=2 expected=2 code=DOMAIN_TABLE_OWNERSHIP
+[OK ] B09 currency rounding switched to an unknown mode: exit=2 expected=2 code=MONEY_ROUNDING
+[OK ] B10 backwards edge disguised as forward progress: exit=2 expected=2 code=STATE_UNDECLARED_COMPENSATION
+[OK ] B11 merchant endpoint wired to a provider-only transition: exit=2 expected=2 code=API_TRANSITION_ACTOR
+[OK ] B11 webhook signature verification removed: exit=2 expected=2 code=API_SIGNATURE
+[OK ] B12 inbox deduplication key weakened: exit=2 expected=2 code=INBOX_UNIQUE_KEY
+[OK ] B12 successful capture stops publishing an event: exit=2 expected=2 code=EVENT_SUCCESS_UNPUBLISHED
+[OK ] B13 tenant predicate widened to true: exit=2 expected=2 code=DATA_RLS_PREDICATE
+[OK ] B13 break-glass access loses its second approver: exit=2 expected=2 code=DATA_BREAK_GLASS
+[OK ] B14 mutating provider call given retries: exit=2 expected=2 code=TOPO_CONNECTOR_RETRY
+[OK ] B14 circuit breaker removed from a synchronous call: exit=2 expected=2 code=TOPO_CIRCUIT_BREAKER
+[OK ] B15 adapter starts passing order line data: exit=2 expected=2 code=MIG_ADAPTER_LEAK
+[OK ] B15 divergence detection drops the amount: exit=2 expected=2 code=MIG_DIVERGENCE
+[OK ] B16 static long-lived service credentials allowed: exit=2 expected=2 code=ZT_STATIC_CREDENTIAL
+[OK ] B16 tenant binding removed from a merchant decision: exit=2 expected=2 code=ZT_TENANT_BINDING
+[OK ] B17 symmetric signing permitted for a provider: exit=2 expected=2 code=ID_FORBIDDEN_ALGORITHM
+[OK ] B17 revocation checked only at login: exit=2 expected=2 code=ID_REVOCATION_CHECK
+[OK ] B17 a zero-trust principal loses its identity: exit=2 expected=2 code=ID_PRINCIPAL_UNBACKED
+[OK ] B18 break-glass drops to a single registered key: exit=2 expected=2 code=MFA_SINGLE_AUTHENTICATOR
+[OK ] B18 signature counter regression no longer means cloning: exit=2 expected=2 code=MFA_SIGN_COUNT
+[OK ] B18 operator recovery accepts a weaker factor: exit=2 expected=2 code=MFA_RECOVERY_BYPASS
+[OK ] B19 approvals stop being bound to the request: exit=2 expected=2 code=AUTHZ_DUAL_BINDING
+[OK ] B19 standing privileged access re-enabled: exit=2 expected=2 code=AUTHZ_STANDING_PRIVILEGE
+[OK ] B19 the auditor becomes elevatable: exit=2 expected=2 code=AUTHZ_AUDITOR_ELEVATABLE
+[OK ] B19 authorisation becomes allow-by-default: exit=2 expected=2 code=AUTHZ_DEFAULT_DECISION
+[OK ] B20 root key operations no longer need a quorum: exit=2 expected=2 code=KEY_QUORUM
+[OK ] B20 the unwrapped data key may be stored: exit=2 expected=2 code=KEY_UNWRAPPED_STORED
+[OK ] B20 key use stops being audited: exit=2 expected=2 code=KEY_USE_UNAUDITED
+[OK ] B20 a broken primitive is un-banned: exit=2 expected=2 code=KEY_WEAK_ALGORITHM_ALLOWED
+[OK ] B21 certificate document hand-edited: exit=2 expected=2 code=CERT_GENERATED_DRIFT
+[OK ] B25 merchant profile document hand-edited: exit=2 expected=2 code=MERCHANT_GENERATED_DRIFT
+[OK ] B29 fee document hand-edited: exit=2 expected=2 code=FEE_GENERATED_DRIFT
+[OK ] B33 attempt document hand-edited: exit=2 expected=2 code=ATTEMPT_GENERATED_DRIFT
 [OK ] B02 ADR loses its alternatives section: exit=2 expected=2 code=ADR_SECTION
 [OK ] B10 state machine document hand-edited: exit=2 expected=2 code=STATE_DOC_DRIFT
 [OK ] B14 cross-module foreign key reintroduced: exit=2 expected=2 code=TOPO_FOREIGN_KEY_CROSS_MODULE
 [OK ] B18 MFA document hand-edited: exit=2 expected=2 code=MFA_GENERATED_DRIFT
 
-shard=3/4 scenarios=129 rejection_scenarios=128 baseline_timeout_and_subprocess=1 failures=0
+shard=3/4 scenarios=130 rejection_scenarios=129 baseline_timeout_and_subprocess=1 failures=0
