@@ -2,8 +2,9 @@
 
 Dependency-Check validates and imports the feed itself.  This preflight has a
 smaller, separate responsibility: refuse to start an expensive aggregate scan
-when the official mirror's ``modified`` metadata is unavailable, malformed, or
-older than the governed freshness budget.
+when the official mirror's ``modified`` metadata or Dependency-Check cache
+manifest is unavailable, inconsistent, malformed, or older than the governed
+freshness budget.
 """
 from __future__ import annotations
 
@@ -11,19 +12,15 @@ import argparse
 import json
 import re
 import sys
-# ``datetime.UTC`` is an alias added in Python 3.11. The toolchain
-# interpreter is not pinned anywhere in governance/version-catalog.json, so
-# it varies by execution environment — this workspace runs 3.10.12, where
-# the alias does not exist and importing it took the whole validator
-# registry down with it. ``timezone.utc`` is the same object on every
-# version.
-from datetime import datetime, timezone
+# ``datetime.UTC`` was added in Python 3.11; the governed compatibility floor
+# is Python 3.10, where ``timezone.utc`` is the portable equivalent.
+from datetime import datetime, timedelta, timezone
 
 UTC = timezone.utc
 from pathlib import Path
 from typing import Callable
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .repo import load_json, repo_root
 
@@ -63,6 +60,13 @@ class FeedUnavailable(FeedPreflightError):
     code = "NVD_FEED_UNAVAILABLE"
 
 
+class _RejectRedirects(HTTPRedirectHandler):
+    """Reject redirects before urllib can contact the advertised target."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
+        raise FeedUnavailable("metadata endpoint redirects are forbidden")
+
+
 def _policy(root: Path) -> dict:
     document = load_json(root / CATALOG)
     entries = document.get("entries") if isinstance(document, dict) else None
@@ -88,6 +92,16 @@ def metadata_url(template: str) -> str:
     return template[: -len(suffix)] + "modified.meta"
 
 
+def cache_properties_url(template: str) -> str:
+    suffix = "nvdcve-{0}.json.gz"
+    if template.count("{0}") != 1 or not template.endswith(suffix):
+        raise FeedPolicyError(
+            "data-feed URL must end in the single filename template "
+            "'nvdcve-{0}.json.gz'"
+        )
+    return template[: -len(suffix)] + "cache.properties"
+
+
 def _download_metadata(url: str, timeout_seconds: int) -> bytes:
     request = Request(
         url,
@@ -97,7 +111,8 @@ def _download_metadata(url: str, timeout_seconds: int) -> bytes:
         },
     )
     try:
-        with urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310
+        opener = build_opener(_RejectRedirects())
+        with opener.open(request, timeout=timeout_seconds) as response:  # noqa: S310
             status = getattr(response, "status", None)
             final_url = response.geturl()
             if status != 200:
@@ -142,6 +157,72 @@ def parse_metadata(content: bytes) -> dict[str, str]:
     return values
 
 
+def parse_cache_properties(content: bytes) -> dict[str, str]:
+    """Parse only the strict Java-properties subset published by the mirror."""
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise FeedPreflightError("cache.properties is not valid UTF-8") from exc
+    values: dict[str, str] = {}
+    for raw_line in text.splitlines():
+        if not raw_line or raw_line.startswith(("#", "!")):
+            continue
+        if "=" not in raw_line:
+            raise FeedPreflightError("cache.properties contains a malformed line")
+        key, value = raw_line.split("=", 1)
+        if "\\" in key:
+            raise FeedPreflightError(
+                f"cache.properties key '{key}' contains an unsupported escape"
+            )
+        if not key or key in values:
+            raise FeedPreflightError(
+                f"cache.properties contains duplicate or empty field '{key}'"
+            )
+        if "\\" in value.replace("\\:", ""):
+            raise FeedPreflightError(
+                f"cache.properties field '{key}' contains an unsupported escape"
+            )
+        values[key] = value.replace("\\:", ":")
+    required = {
+        "prefix",
+        "cache.is.new",
+        "lastModifiedDate",
+        "lastModifiedDate.modified",
+    }
+    if not required.issubset(values):
+        raise FeedPreflightError("cache.properties is missing governed fields")
+    if values["prefix"] != "nvdcve-" or values["cache.is.new"] != "false":
+        raise FeedPreflightError("cache.properties does not describe the governed ready cache")
+    current = _parse_timestamp(values["lastModifiedDate"])
+    modified = _parse_timestamp(values["lastModifiedDate.modified"])
+    if current != modified:
+        raise FeedPreflightError("cache.properties modified timestamps disagree")
+    feed_year_keys = [
+        f"lastModifiedDate.{year}" for year in range(2002, current.year + 1)
+    ]
+    missing_year_keys = [key for key in feed_year_keys if key not in values]
+    if missing_year_keys:
+        raise FeedPreflightError(
+            "cache.properties is missing continuous feed-year field "
+            f"'{missing_year_keys[0]}'"
+        )
+    expected_keys = required | set(feed_year_keys)
+    unexpected_keys = sorted(set(values) - expected_keys)
+    if unexpected_keys:
+        raise FeedPreflightError(
+            "cache.properties contains unsupported field "
+            f"'{unexpected_keys[0]}'"
+        )
+    for key in feed_year_keys:
+        _parse_timestamp(values[key])
+    year_key = f"lastModifiedDate.{current.year}"
+    if values.get(year_key) != values["lastModifiedDate"]:
+        raise FeedPreflightError(
+            f"cache.properties current-year timestamp '{year_key}' disagrees"
+        )
+    return values
+
+
 def _parse_timestamp(value: str) -> datetime:
     if not value.endswith("Z"):
         raise FeedPreflightError("lastModifiedDate must be an explicit UTC timestamp")
@@ -164,24 +245,34 @@ def check(
     url = metadata_url(policy["url_template"])
     metadata = parse_metadata(fetcher(url, policy["request_timeout_seconds"]))
     modified = _parse_timestamp(metadata["lastModifiedDate"])
+    cache_url = cache_properties_url(policy["url_template"])
+    cache = parse_cache_properties(fetcher(cache_url, policy["request_timeout_seconds"]))
+    cache_modified = _parse_timestamp(cache["lastModifiedDate.modified"])
+    if cache_modified != modified.replace(microsecond=0):
+        raise FeedPreflightError(
+            "modified metadata and Dependency-Check cache.properties timestamps disagree"
+        )
     checked_at = now or datetime.now(UTC)
     if checked_at.tzinfo != UTC:
         raise FeedPreflightError("preflight clock must use UTC")
-    age_seconds = int((checked_at - modified).total_seconds())
-    if age_seconds < -FUTURE_TOLERANCE_SECONDS:
+    age = checked_at - modified
+    if age < -timedelta(seconds=FUTURE_TOLERANCE_SECONDS):
         raise FeedPreflightError("feed metadata timestamp is implausibly in the future")
-    if age_seconds > policy["max_age_hours"] * 3600:
+    if age > timedelta(hours=policy["max_age_hours"]):
         raise FeedPreflightError(
             f"feed metadata is older than {policy['max_age_hours']} hours"
         )
+    age_seconds = int(age.total_seconds())
     return {
         "ok": True,
         "feed_url_template": policy["url_template"],
         "metadata_url": url,
+        "cache_properties_url": cache_url,
         "feed_last_modified": metadata["lastModifiedDate"],
+        "cache_last_modified": cache["lastModifiedDate.modified"],
         "feed_age_seconds": age_seconds,
         "max_age_hours": policy["max_age_hours"],
-        "feed_sha256": metadata["sha256"],
+        "declared_feed_sha256": metadata["sha256"],
         "feed_size": int(metadata["size"]),
         "feed_gzip_size": int(metadata["gzSize"]),
         "checked_at": checked_at.isoformat().replace("+00:00", "Z"),

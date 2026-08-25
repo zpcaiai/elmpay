@@ -189,6 +189,7 @@ def tool_versions(root: Path, budget: Budget | None = None) -> str:
     budget = budget or Budget().start()
     entries = _entries(_catalog(root, budget))
     lines = [BANNER_HASH,
+             f'python {entries["python-toolchain"]["version"]}',
              f'java temurin-{entries["jdk"]["version"]}',
              f'gradle {entries["gradle"]["version"]}',
              f'nodejs {entries["node"]["version"]}',

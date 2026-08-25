@@ -345,6 +345,19 @@ def _above_floor_uses(tree: ast.AST, wanted: dict[str, list[str]]) -> set[str]:
     rule that fires on a docstring teaches people to work around it.
     """
     hits: set[str] = set()
+    # Resolve imported module aliases before inspecting attributes.  A single
+    # ast.walk pass is deliberately not used for this: the rule must not depend
+    # on traversal order when the dereference sits in a nested scope.
+    module_aliases: dict[str, set[str]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Import):
+            continue
+        for alias_node in node.names:
+            module = alias_node.name
+            if module in wanted:
+                local_name = alias_node.asname or module.split(".", 1)[0]
+                module_aliases.setdefault(local_name, set()).add(module)
+
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module:
             for alias_node in node.names:
@@ -357,8 +370,14 @@ def _above_floor_uses(tree: ast.AST, wanted: dict[str, list[str]]) -> set[str]:
                 if alias_node.name in wanted.get("", []):
                     hits.add(alias_node.name)
         elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-            if node.attr in wanted.get(node.value.id, []):
-                hits.add(f"{node.value.id}.{node.attr}")
+            # Preserve detection of the canonical module name even if an
+            # unusual loader supplies it without a local import, while mapping
+            # ordinary ``import module as alias`` uses back to that canonical
+            # name for policy lookup and diagnostics.
+            modules = module_aliases.get(node.value.id, {node.value.id})
+            for module in modules:
+                if node.attr in wanted.get(module, []):
+                    hits.add(f"{module}.{node.attr}")
     return hits
 
 
@@ -418,8 +437,15 @@ def _interpreter_controls(root: Path, doc: dict, where: str) -> list[Problem]:
         wanted.setdefault(module, []).append(name)
         added_in[symbol] = item["added_in"]
 
-    scan_key = (floor[:2], tuple(sorted((mod, tuple(sorted(names)))
-                                        for mod, names in wanted.items())))
+    # Every value that can affect either parsing or the emitted diagnostic is
+    # part of the policy key.  A long-lived validator process must not reuse a
+    # verdict after the catalogue changes a feature version or symbol policy.
+    scan_key = (
+        floor[:2],
+        str(entry["minimum_supported"]),
+        tuple(sorted((mod, tuple(sorted(names))) for mod, names in wanted.items())),
+        tuple(sorted(added_in.items())),
+    )
     for path in _toolchain_sources(root):
         rel = path.relative_to(root).as_posix()
         problems += _scan_source(path, rel, scan_key, wanted, added_in,
@@ -430,23 +456,25 @@ def _interpreter_controls(root: Path, doc: dict, where: str) -> list[Problem]:
 # Parsing every toolchain source is cheap once and ruinous 500 times: the
 # negative-control harness runs the whole gate per scenario, so an uncached
 # scan turned a 13-second shard into a 40-second one and pushed the fail-closed
-# proof back over the execution ceiling. Keyed on identity *and* content stamp,
-# so an edited file is always re-read.
+# proof back over the execution ceiling. Keyed on identity, a SHA-256 digest of
+# the bytes actually parsed, and the complete scan policy, so a same-size edit
+# with a restored timestamp cannot reuse a stale verdict.
 _SCAN_CACHE: dict[tuple, list[tuple[str, str]]] = {}
 
 
 def _scan_source(path: Path, rel: str, scan_key: tuple, wanted: dict[str, list[str]],
                  added_in: dict[str, str], floor_text: str) -> list[Problem]:
     try:
-        stat = path.stat()
-        stamp: tuple = (stat.st_mtime_ns, stat.st_size)
-    except OSError as exc:
+        content = path.read_bytes()
+        source = content.decode("utf-8")
+    except (OSError, UnicodeError) as exc:
         return [Problem("TOOLCHAIN_PYTHON_FLOOR", rel,
                         f"toolchain source is unreadable: {exc}", "NN-12")]
-    key = (str(path), stamp, scan_key)
+    digest = hashlib.sha256(content).hexdigest()
+    key = (str(path), rel, digest, scan_key)
     cached = _SCAN_CACHE.get(key)
     if cached is None:
-        cached = _scan_uncached(path, rel, wanted, added_in, floor_text, scan_key[0])
+        cached = _scan_uncached(source, rel, wanted, added_in, floor_text, scan_key[0])
         if len(_SCAN_CACHE) > 20000:      # a long-lived process, not a leak
             _SCAN_CACHE.clear()
         _SCAN_CACHE[key] = cached
@@ -454,13 +482,9 @@ def _scan_source(path: Path, rel: str, scan_key: tuple, wanted: dict[str, list[s
             for where, message in cached]
 
 
-def _scan_uncached(path: Path, rel: str, wanted: dict[str, list[str]],
+def _scan_uncached(source: str, rel: str, wanted: dict[str, list[str]],
                    added_in: dict[str, str], floor_text: str,
                    feature_version: tuple[int, int]) -> list[tuple[str, str]]:
-    try:
-        source = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
-        return [(rel, f"toolchain source is unreadable: {exc}")]
     try:
         tree = ast.parse(source, filename=rel, feature_version=feature_version)
     except SyntaxError as exc:

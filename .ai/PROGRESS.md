@@ -1,18 +1,19 @@
 # elmpay live implementation status
 
-Snapshot: 2026-08-20, Asia/Shanghai. This file is a handoff summary, not completion evidence.
+Snapshot: 2026-08-26, Asia/Shanghai. This file is a handoff summary, not completion evidence.
 Always prefer the live commands below.
 
 ## Confirmed now
 
 - The vendored skill package verifies as `128` batches and `65` skills; `.agents/skills` and
   `.claude/skills` match it byte-for-byte.
-- Git history was recovered through B07 and `git status` works. B08-B33 implementation work is in
-  the current working tree and is not represented by the current HEAD.
+- Git history is operational. Governance, generated contracts, executable reference semantics,
+  and tests through B33 are versioned. Evidence replay is commit-bound and must be rerun whenever
+  the final code SHA changes.
 - The repository contains governance, generated contracts/docs, executable reference semantics,
   and tests through B33. B33 payment-attempt automation is green at reference-model scope.
-- `.ai/rebaseline.py` is the sole supported resumable evidence workflow. Its state is currently
-  absent; no migration or evidence resume was executed during this implementation pass.
+- `.ai/rebaseline.py` is the sole supported resumable evidence workflow. A B00 replay bound to the
+  final hardening SHA stops at independent review; replay is not approval.
 - Both orchestrators currently report `completed=0/128`, `ready=[B00]`. `crosscheck` has zero
   upstream/local mismatches and reports stricter local findings against stale legacy evidence.
 

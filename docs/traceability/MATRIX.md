@@ -4,7 +4,7 @@
 
 # 双向追踪矩阵（B07）
 
-需求 53 条 · 能力 18 项 · ADR 13 条 · 红线 15 条 · 控制 20 条。
+需求 53 条 · 能力 18 项 · ADR 14 条 · 红线 15 条 · 控制 20 条。
 
 批次证据到控制的映射不在本文档中——它随证据变化，放进受哈希固定的文档会造成
 “完成一个批次即让该批次失效”的循环。见 `evidence/*/runtime/trace-graph.json`。
@@ -61,7 +61,7 @@
 | PAY-REQ-0046 | 可观测性与脱敏 | CAP-16 | `observability` | NN-14 CTRL-015 | B96 B108 | — |
 | PAY-REQ-0047 | SLO 与错误预算 | CAP-16 | `observability` | CTRL-012 | B97 | — |
 | PAY-REQ-0048 | 备份恢复与演练 | CAP-16 | `worker-scheduler` | CTRL-013 | B90 B95 | — |
-| PAY-REQ-0049 | 证据与独立评审 | CAP-17 | `payment-core` | NN-12 CTRL-020 | B06 B119 B127 | 0010 0011 0012 0013 |
+| PAY-REQ-0049 | 证据与独立评审 | CAP-17 | `payment-core` | NN-12 CTRL-020 | B06 B119 B127 | 0010 0011 0012 0013 0014 |
 | PAY-REQ-0050 | 受监管能力边界 | CAP-17 | `merchant-config` | NN-13 | B107 | — |
 | PAY-REQ-0051 | 安全例外与剩余风险台账 | CAP-17 | `security` | NN-15 | B02 B110 | — |
 | PAY-REQ-0052 | 第三方与供应商风险 | CAP-17 | `merchant-config` | CTRL-019 | B111 | — |

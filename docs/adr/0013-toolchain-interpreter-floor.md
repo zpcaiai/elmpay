@@ -1,6 +1,6 @@
 # ADR-0013: 治理工具链的解释器地板固定为 Python 3.10
 
-- 状态：accepted
+- 状态：superseded
 - 日期：2026-08-20
 - 批次：B03
 - 决策者：payment-platform-platform-eng payment-platform-architecture

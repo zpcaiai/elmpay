@@ -25,9 +25,39 @@ class SupplyChainPipelineRejects(FixtureTestCase):
         self.fixture.mutate(
             self.REL,
             lambda data: self._stage(data, "dependency-scan").__setitem__(
-                "commands", ["./gradlew --no-daemon dependencyCheckAnalyze"]),
+                "commands", [
+                    "python3 -m tools.paygov.nvdfeed --repo .",
+                    "./gradlew --no-daemon dependencyCheckAnalyze",
+                ]),
         )
         self.assertIn("CI_SUPPLY_CHAIN_TASK", self.codes(self._validate()))
+
+    def test_rejects_removed_nvd_feed_preflight(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "dependency-scan").__setitem__(
+                "commands", ["./gradlew --no-daemon dependencyCheckAggregate"]),
+        )
+        self.assertIn("CI_SUPPLY_CHAIN_TASK", self.codes(self._validate()))
+
+    def test_rejects_nvd_feed_preflight_after_the_scan(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "dependency-scan").__setitem__(
+                "commands", [
+                    "./gradlew --no-daemon dependencyCheckAggregate",
+                    "python3 -m tools.paygov.nvdfeed --repo .",
+                ]),
+        )
+        self.assertIn("CI_SUPPLY_CHAIN_TASK", self.codes(self._validate()))
+
+    def test_rejects_shortened_dependency_scan_timeout(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "dependency-scan").__setitem__(
+                "timeout_minutes", 25),
+        )
+        self.assertIn("CI_SUPPLY_CHAIN_TIMEOUT", self.codes(self._validate()))
 
     def test_rejects_missing_dependency_check_json_artifact(self):
         self.fixture.mutate(

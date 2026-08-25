@@ -318,12 +318,12 @@
       "name": "Python（治理工具链运行时）",
       "category": "runtime-platform",
       "version": "3.12.7",
-      "minimum_supported": "3.10",
+      "minimum_supported": "3.10.12",
       "pin_type": "exact",
       "digest": "",
       "source": "https://www.python.org/downloads/",
       "owner": "payment-platform-platform-eng",
-      "upgrade_policy": "version 是产出证据的参考解释器；minimum_supported 是兼容地板，工具链源码不得使用高于地板的语法或标准库符号。抬高地板需 ADR，因为它会把仍在产出证据的执行环境挡在门外。",
+      "upgrade_policy": "version 是产出证据的精确参考解释器；minimum_supported 是精确运行地板，其主次版本同时约束源码语法和标准库符号。两者均在 CI 真实执行；变更任一版本需 ADR。",
       "above_floor_symbols": [
         {
           "symbol": "datetime.UTC",

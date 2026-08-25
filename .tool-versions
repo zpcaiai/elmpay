@@ -2,6 +2,7 @@
 # Source of truth: governance/version-catalog.json
 # Regenerate with: python3 scripts/render-build.py
 
+python 3.12.7
 java temurin-25.0.4+7
 gradle 9.2.1
 nodejs 24.9.0

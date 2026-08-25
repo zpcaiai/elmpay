@@ -36,6 +36,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -75,6 +78,36 @@ jobs:
             governance-report.json
           if-no-files-found: error
 
+  python-floor:
+    name: 'Python 兼容地板门禁'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [governance]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.10.12'
+      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+        with:
+          cache-read-only: true
+      - name: '在精确固定的最旧受支持 Python 上执行完整治理校验，阻断语法、标准库与裁决行为漂移 (1/1)'
+        run: |
+          python3 -m tools.paygov.cli verify-all --repo . --out python-floor-report.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        if: always()
+        with:
+          name: python-floor-artifacts
+          path: |
+            python-floor-report.json
+          if-no-files-found: error
+
   unit-test:
     name: '单元与属性测试'
     runs-on: ubuntu-24.04
@@ -84,6 +117,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -115,6 +151,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -145,6 +184,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -175,6 +217,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -196,12 +241,15 @@ jobs:
   dependency-scan:
     name: '依赖漏洞聚合扫描'
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 45
     needs: [build]
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -209,9 +257,24 @@ jobs:
       - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
         with:
           cache-read-only: true
-      - name: '对全部 Gradle 项目执行已知漏洞聚合检查；数据源、分析或报告错误即失败 (1/1)'
+      - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        id: dependency-check-cache
+        with:
+          path: ~/.gradle/dependency-check-data/11.0
+          key: dependency-check-13.0.0-data-11.0-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            dependency-check-13.0.0-data-11.0-${{ runner.os }}-${{ runner.arch }}-
+      - name: '对全部 Gradle 项目执行已知漏洞聚合检查；数据源、分析或报告错误即失败 (1/2)'
+        run: |
+          python3 -m tools.paygov.nvdfeed --repo .
+      - name: '对全部 Gradle 项目执行已知漏洞聚合检查；数据源、分析或报告错误即失败 (2/2)'
         run: |
           ./gradlew --no-daemon dependencyCheckAggregate
+      - uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
+        if: success() && github.event_name == 'push' && github.repository == 'zpcaiai/elmpay' && github.ref == 'refs/heads/main'
+        with:
+          path: ~/.gradle/dependency-check-data/11.0
+          key: ${{ steps.dependency-check-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         if: always()
         with:
@@ -229,6 +292,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -256,6 +322,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -283,6 +352,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -305,7 +377,7 @@ jobs:
     name: '制品签名与来源证明'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    needs: [build, sbom, unit-test, static-analysis, dependency-scan, container-scan, iac-scan, secret-scan, negative-controls, rule-knockout]
+    needs: [build, sbom, python-floor, unit-test, static-analysis, dependency-scan, container-scan, iac-scan, secret-scan, negative-controls, rule-knockout]
     if: github.event_name == 'push' && github.repository == 'zpcaiai/elmpay' && github.ref == 'refs/heads/main' && vars.ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN == 'true'
     permissions:
       actions: none
@@ -316,6 +388,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           name: build-artifacts
@@ -350,6 +425,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -377,6 +455,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -410,6 +491,9 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
           persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
         with:
           distribution: temurin
@@ -432,7 +516,7 @@ jobs:
     name: 'Terminal release / validation gate (fail closed)'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    needs: [governance, build, unit-test, static-analysis, secret-scan, dependency-scan, container-scan, iac-scan, sbom, sign, negative-controls, evidence-archive, rule-knockout]
+    needs: [governance, python-floor, build, unit-test, static-analysis, secret-scan, dependency-scan, container-scan, iac-scan, sbom, sign, negative-controls, evidence-archive, rule-knockout]
     if: always()
     steps:
       - name: 'Enforce release context or validation-only context'
@@ -444,6 +528,7 @@ jobs:
           ELMPAY_GATE_REF: ${{ github.ref }}
           ELMPAY_SIGNING_OPT_IN: ${{ vars.ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN }}
           ELMPAY_NEEDS_GOVERNANCE: ${{ needs['governance'].result }}
+          ELMPAY_NEEDS_PYTHON_FLOOR: ${{ needs['python-floor'].result }}
           ELMPAY_NEEDS_BUILD: ${{ needs['build'].result }}
           ELMPAY_NEEDS_UNIT_TEST: ${{ needs['unit-test'].result }}
           ELMPAY_NEEDS_STATIC_ANALYSIS: ${{ needs['static-analysis'].result }}
@@ -462,9 +547,9 @@ jobs:
           TRUSTED_EVENT="push"
           TRUSTED_REPOSITORY="zpcaiai/elmpay"
           TRUSTED_REF="refs/heads/main"
-          REQUIRED_STAGES=(governance build unit-test static-analysis secret-scan dependency-scan container-scan iac-scan sbom sign negative-controls evidence-archive rule-knockout)
+          REQUIRED_STAGES=(governance python-floor build unit-test static-analysis secret-scan dependency-scan container-scan iac-scan sbom sign negative-controls evidence-archive rule-knockout)
           RELEASE_ONLY_STAGES=(sign evidence-archive)
-          NON_RELEASE_REQUIRED_STAGES=(governance build unit-test static-analysis secret-scan dependency-scan container-scan iac-scan sbom negative-controls rule-knockout)
+          NON_RELEASE_REQUIRED_STAGES=(governance python-floor build unit-test static-analysis secret-scan dependency-scan container-scan iac-scan sbom negative-controls rule-knockout)
 
           for variable in ELMPAY_GATE_EVENT_NAME ELMPAY_GATE_REPOSITORY ELMPAY_GATE_REF; do
             if [[ ! -v "${variable}" || -z "${!variable}" ]]; then

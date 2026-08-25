@@ -36,7 +36,7 @@
 | keycloak-image | Keycloak 容器镜像（本地 OIDC） | container | 27.0.2 | digest | payment-platform-security | 仅用于 local/integration 的 OIDC 提供方；摘要待 B04 在联网构建代理上锁定 |
 | minio-image | MinIO 容器镜像（本地对象存储） | container | 2026-07-11T00-00-00Z | digest | payment-platform-sre | 仅用于 local/integration 的对象存储；摘要待 B04 锁定 |
 | python-sim | Python（渠道模拟器运行时） | runtime-platform | 3.12.7 | exact | payment-platform-platform-eng | 模拟器仅使用标准库，保持离线可运行 |
-| python-toolchain | Python（治理工具链运行时） | runtime-platform | 3.12.7 | exact | payment-platform-platform-eng | version 是产出证据的参考解释器；minimum_supported 是兼容地板，工具链源码不得使用高于地板的语法或标准库符号。抬高地板需 ADR，因为它会把仍在产出证据的执行环境挡在门外。 |
+| python-toolchain | Python（治理工具链运行时） | runtime-platform | 3.12.7 | exact | payment-platform-platform-eng | version 是产出证据的精确参考解释器；minimum_supported 是精确运行地板，其主次版本同时约束源码语法和标准库符号。两者均在 CI 真实执行；变更任一版本需 ADR。 |
 
 ## 构建系统归属
 

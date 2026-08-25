@@ -400,6 +400,51 @@ class ToolchainInterpreter(FixtureTestCase):
                            "import datetime\n\nprint(datetime.UTC)\n")
         self.assertIn("TOOLCHAIN_PYTHON_FLOOR", self.codes(self._validate()))
 
+    def test_rejects_an_above_floor_symbol_reached_through_module_alias(self):
+        self.fixture.write("scripts/regression-module-alias.py",
+                           "import datetime as dt\n\nprint(dt.UTC)\n")
+        problems = self._validate()
+        self.assertIn("TOOLCHAIN_PYTHON_FLOOR", self.codes(problems))
+        self.assertTrue(any("datetime.UTC" in p.message for p in problems))
+
+    def test_alias_reuse_cannot_overwrite_an_earlier_module_candidate(self):
+        self.fixture.write(
+            "scripts/regression-module-alias-collision.py",
+            "import datetime as x\nprint(x.UTC)\nimport itertools as x\n",
+        )
+        problems = self._validate()
+        self.assertIn("TOOLCHAIN_PYTHON_FLOOR", self.codes(problems))
+        self.assertTrue(any("datetime.UTC" in p.message for p in problems))
+
+    def test_rejects_an_aliased_from_import_of_an_above_floor_symbol(self):
+        self.fixture.write("scripts/regression-from-alias.py",
+                           "from datetime import UTC as timezone_utc\n\n"
+                           "print(timezone_utc)\n")
+        problems = self._validate()
+        self.assertIn("TOOLCHAIN_PYTHON_FLOOR", self.codes(problems))
+        self.assertTrue(any("datetime.UTC" in p.message for p in problems))
+
+    def test_scan_cache_is_bound_to_content_not_size_and_mtime(self):
+        rel = "scripts/regression-cache.py"
+        safe = "import datetime\nprint(datetime.max)\n"
+        above_floor = "import datetime\nprint(datetime.UTC)\n"
+        self.assertEqual(len(safe.encode("utf-8")), len(above_floor.encode("utf-8")))
+
+        self.fixture.write(rel, safe)
+        self.assertNotIn("TOOLCHAIN_PYTHON_FLOOR", self.codes(self._validate()))
+        path = self.fixture.root / rel
+        original = path.stat()
+
+        self.fixture.write(rel, above_floor)
+        os.utime(path, ns=(original.st_atime_ns, original.st_mtime_ns))
+        restored = path.stat()
+        self.assertEqual(restored.st_size, original.st_size)
+        self.assertEqual(restored.st_mtime_ns, original.st_mtime_ns)
+
+        problems = self._validate()
+        self.assertIn("TOOLCHAIN_PYTHON_FLOOR", self.codes(problems))
+        self.assertTrue(any("datetime.UTC" in p.message for p in problems))
+
     def test_rejects_an_above_floor_module_import(self):
         self.fixture.write("scripts/regression-tomllib.py", "import tomllib\n")
         self.assertIn("TOOLCHAIN_PYTHON_FLOOR", self.codes(self._validate()))

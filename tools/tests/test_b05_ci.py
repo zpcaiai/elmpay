@@ -20,7 +20,8 @@ class PipelineHappyPath(FixtureTestCase):
         doc = self.fixture.read("governance/ci-pipeline.json")
         ids = {s["id"] for s in doc["stages"]}
         for family in ("build", "static-analysis", "unit-test", "dependency-scan", "secret-scan",
-                       "container-scan", "iac-scan", "sbom", "sign", "evidence-archive"):
+                       "container-scan", "iac-scan", "sbom", "python-floor", "sign",
+                       "evidence-archive"):
             self.assertIn(family, ids, family)
 
     def test_every_required_stage_is_fail_closed(self):
@@ -70,16 +71,62 @@ class PipelineHappyPath(FixtureTestCase):
         jdk = next(e for e in catalog["entries"] if e["id"] == "jdk")["version"].split("+")[0]
         self.assertIn(f"java-version: '{jdk}'", text)
 
-    def test_only_trusted_main_build_can_write_the_gradle_cache(self):
+    def test_workflow_runs_exact_reference_and_floor_pythons(self):
+        text = cigen.workflow(REAL_ROOT)
+        catalog = self.fixture.read("governance/version-catalog.json")
+        python = next(e for e in catalog["entries"] if e["id"] == "python-toolchain")
+        pipeline = self.fixture.read("governance/ci-pipeline.json")
+        action = next(a for a in pipeline["actions"]
+                      if a["name"] == "actions/setup-python")
+        self.assertEqual(python["version"], "3.12.7")
+        self.assertEqual(python["minimum_supported"], "3.10.12")
+        self.assertEqual(action["ref"], "5fda3b95a4ea91299a34e894583c3862153e4b97")
+        self.assertEqual(text.count(f"uses: actions/setup-python@{action['ref']}"),
+                         len(pipeline["stages"]))
+        floor_job = text.split("\n  python-floor:\n", 1)[1].split("\n  unit-test:\n", 1)[0]
+        self.assertIn("python-version: '3.10.12'", floor_job)
+        self.assertEqual(text.count("python-version: '3.10.12'"), 1)
+        self.assertEqual(text.count("python-version: '3.12.7'"),
+                         len(pipeline["stages"]) - 1)
+
+    def test_tool_versions_pins_the_reference_python(self):
+        text = (REAL_ROOT / ".tool-versions").read_text(encoding="utf-8")
+        self.assertIn("python 3.12.7\n", text)
+        self.assertNotIn("python 3.10.12", text)
+
+    def test_signing_waits_for_the_floor_interpreter_gate(self):
+        doc = self.fixture.read("governance/ci-pipeline.json")
+        sign = next(stage for stage in doc["stages"] if stage["id"] == "sign")
+        self.assertIn("python-floor", sign["needs"])
+
+    def test_failed_dependency_scan_cannot_publish_its_cache(self):
         text = cigen.workflow(REAL_ROOT)
         expression = (
             "cache-read-only: ${{ github.event_name != 'push' || "
             "github.repository != 'zpcaiai/elmpay' || "
             "github.ref != 'refs/heads/main' }}"
         )
+        save_condition = (
+            "if: success() && github.event_name == 'push' && "
+            "github.repository == 'zpcaiai/elmpay' && "
+            "github.ref == 'refs/heads/main'"
+        )
         self.assertEqual(text.count(expression), 1)
         build_job = text.split("\n  build:\n", 1)[1].split("\n  static-analysis:\n", 1)[0]
+        dependency_job = text.split("\n  dependency-scan:\n", 1)[1].split(
+            "\n  container-scan:\n", 1)[0]
         self.assertIn(expression, build_job)
+        self.assertNotIn(expression, dependency_job)
+        self.assertIn("cache-read-only: true", dependency_job)
+        self.assertNotIn("dependency-check-data/11.0", build_job)
+        self.assertEqual(dependency_job.count("~/.gradle/dependency-check-data/11.0"), 2)
+        self.assertIn("uses: actions/cache/restore@", dependency_job)
+        self.assertIn("uses: actions/cache/save@", dependency_job)
+        self.assertIn(save_condition, dependency_job)
+        self.assertLess(dependency_job.index("uses: actions/cache/restore@"),
+                        dependency_job.index("tools.paygov.nvdfeed"))
+        self.assertLess(dependency_job.index("dependencyCheckAggregate"),
+                        dependency_job.index("uses: actions/cache/save@"))
         self.assertIn("cache-read-only: true", text)
 
     def test_generation_is_deterministic(self):
@@ -107,7 +154,10 @@ class PipelineHappyPath(FixtureTestCase):
         by_id = {stage["id"]: stage for stage in doc["stages"]}
         self.assertEqual(
             by_id["dependency-scan"]["commands"],
-            ["./gradlew --no-daemon dependencyCheckAggregate"],
+            [
+                "python3 -m tools.paygov.nvdfeed --repo .",
+                "./gradlew --no-daemon dependencyCheckAggregate",
+            ],
         )
         self.assertEqual(
             by_id["sbom"]["commands"],
@@ -153,6 +203,77 @@ class PipelineRejects(FixtureTestCase):
         problems = self._validate()
         self.assertIn("CI_ACTION_PIN", self.codes(problems))
 
+    def test_rejects_a_different_setup_python_commit(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: next(action for action in data["actions"]
+                              if action["name"] == "actions/setup-python")
+            .__setitem__("ref", "0" * 40),
+        )
+        self.assertIn("CI_PYTHON_ACTION", self.codes(self._validate()))
+
+    def test_rejects_python_reference_version_drift(self):
+        self.fixture.mutate(
+            "governance/version-catalog.json",
+            lambda data: next(entry for entry in data["entries"]
+                              if entry["id"] == "python-toolchain")
+            .__setitem__("version", "3.12.8"),
+        )
+        self.assertIn("CI_PYTHON_TOOLCHAIN", self.codes(self._validate()))
+
+    def test_rejects_python_floor_version_drift(self):
+        self.fixture.mutate(
+            "governance/version-catalog.json",
+            lambda data: next(entry for entry in data["entries"]
+                              if entry["id"] == "python-toolchain")
+            .__setitem__("minimum_supported", "3.10.13"),
+        )
+        self.assertIn("CI_PYTHON_TOOLCHAIN", self.codes(self._validate()))
+
+    def test_rejects_missing_python_catalogue_entry_without_crashing(self):
+        self.fixture.mutate(
+            "governance/version-catalog.json",
+            lambda data: data.__setitem__(
+                "entries",
+                [entry for entry in data["entries"]
+                 if entry.get("id") != "python-toolchain"],
+            ),
+        )
+        problems = self._validate()
+        self.assertIn("CI_PYTHON_TOOLCHAIN", self.codes(problems))
+        self.assertIn("CI_DRIFT", self.codes(problems))
+
+    def test_rejects_null_jdk_version_without_crashing(self):
+        self.fixture.mutate(
+            "governance/version-catalog.json",
+            lambda data: next(entry for entry in data["entries"]
+                              if entry["id"] == "jdk")
+            .__setitem__("version", None),
+        )
+        self.assertIn("CI_DRIFT", self.codes(self._validate()))
+
+    def test_rejects_optional_python_floor_stage(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "python-floor").__setitem__("fail_closed", False),
+        )
+        self.assertIn("CI_PYTHON_FLOOR", self.codes(self._validate()))
+
+    def test_rejects_python_floor_report_path_drift(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "python-floor").__setitem__(
+                "artifacts", ["build/python-floor-report.json"]),
+        )
+        self.assertIn("CI_MACHINE_REPORT", self.codes(self._validate()))
+
+    def test_rejects_signing_detached_from_python_floor(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "sign")["needs"].remove("python-floor"),
+        )
+        self.assertIn("CI_SIGNING_INPUT", self.codes(self._validate()))
+
     def test_rejects_missing_required_stage(self):
         self.fixture.mutate(self.REL, lambda d: d["required_stages"].append("mutation-test"))
         self.assertIn("CI_REQUIRED_STAGE", self.codes(self._validate()))
@@ -188,11 +309,40 @@ class PipelineRejects(FixtureTestCase):
         self.fixture.mutate(self.REL, lambda d: d["permissions"].__setitem__("packages", "write-all"))
         self.assertIn("CI_PERMISSIONS", self.codes(self._validate()))
 
-    def test_rejects_an_untrusted_or_second_gradle_cache_writer(self):
+    def test_rejects_dependency_scan_as_the_setup_gradle_cache_writer(self):
         self.fixture.mutate(
             self.REL,
             lambda data: data["gradle_cache_policy"].__setitem__(
                 "writer_stage", "dependency-scan"),
+        )
+        self.assertIn("CI_GRADLE_CACHE", self.codes(self._validate()))
+
+    def test_rejects_broad_dependency_check_cache_surface(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: data["gradle_cache_policy"].__setitem__(
+                "dependency_data_cache_path", "~/.gradle/dependency-check-data"),
+        )
+        self.assertIn("CI_GRADLE_CACHE", self.codes(self._validate()))
+
+    def test_rejects_dependency_cache_save_that_can_run_after_failure(self):
+        path = self.fixture.root / ".github/workflows/ci.yml"
+        text = path.read_text(encoding="utf-8")
+        trusted_success = (
+            "if: success() && github.event_name == 'push' && "
+            "github.repository == 'zpcaiai/elmpay' && "
+            "github.ref == 'refs/heads/main'"
+        )
+        self.assertIn(trusted_success, text)
+        path.write_text(text.replace(trusted_success, "if: always()", 1), encoding="utf-8")
+        self.assertIn("CI_DRIFT", self.codes(self._validate()))
+
+    def test_rejects_different_dependency_cache_action_commit(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: next(action for action in data["actions"]
+                              if action["name"] == "actions/cache/save")
+            .__setitem__("ref", "0" * 40),
         )
         self.assertIn("CI_GRADLE_CACHE", self.codes(self._validate()))
 

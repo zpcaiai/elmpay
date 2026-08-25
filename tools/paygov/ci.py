@@ -32,7 +32,7 @@ ACTION_SHA = re.compile(r"^[0-9a-f]{40}$")
 RELEASE_GATES = {"RG0", "RG1", "RG2", "RG3", "RG4", "RG5", "RG6", "RG7"}
 EXPECTED_RUNNER = "ubuntu-24.04"
 EXPECTED_REQUIRED_STAGES = {
-    "governance", "build", "unit-test", "static-analysis", "secret-scan",
+    "governance", "python-floor", "build", "unit-test", "static-analysis", "secret-scan",
     "dependency-scan", "container-scan", "iac-scan", "sbom", "sign",
     "negative-controls", "evidence-archive", "rule-knockout",
 }
@@ -53,12 +53,16 @@ REQUIRED_SKILL_COMMANDS = {
 }
 SUPPLY_CHAIN_STAGES = {
     "dependency-scan": {
-        "command": "./gradlew --no-daemon dependencyCheckAggregate",
-        "artifact": "build/reports/dependency-check-report.json",
+        "commands": [
+            "python3 -m tools.paygov.nvdfeed --repo .",
+            "./gradlew --no-daemon dependencyCheckAggregate",
+        ],
+        "artifacts": ["build/reports/dependency-check-report.json"],
+        "timeout_minutes": 45,
     },
     "sbom": {
-        "command": "./gradlew --no-daemon cyclonedxBom",
-        "artifact": "build/reports/bom.json",
+        "commands": ["./gradlew --no-daemon cyclonedxBom"],
+        "artifacts": ["build/reports/bom.json"],
     },
 }
 MACHINE_REPORT_STAGES = {
@@ -66,6 +70,11 @@ MACHINE_REPORT_STAGES = {
         "command": ("python3 -m tools.paygov.cli verify-all --repo . "
                     "--out governance-report.json"),
         "artifact": "governance-report.json",
+    },
+    "python-floor": {
+        "command": ("python3 -m tools.paygov.cli verify-all --repo . "
+                    "--out python-floor-report.json"),
+        "artifact": "python-floor-report.json",
     },
     "static-analysis": {
         "command": ("python3 -m tools.paygov.cli verify module-registry --repo . "
@@ -98,6 +107,16 @@ SIGNING_ACTION_PINS = {
         "version_comment": "v4.1.2",
     },
 }
+PYTHON_ACTION_PIN = {
+    "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+    "version_comment": "v7.0.0",
+}
+CACHE_ACTION_PIN = {
+    "ref": "27d5ce7f107fe9357f9df03efb73ab90386fccae",
+    "version_comment": "v5.0.5",
+}
+EXPECTED_PYTHON_REFERENCE = "3.12.7"
+EXPECTED_PYTHON_FLOOR = "3.10.12"
 EXPECTED_SIGNING_POLICY = {
     "trusted_event": "push",
     "trusted_repository": "zpcaiai/elmpay",
@@ -135,10 +154,22 @@ EXPECTED_GRADLE_CACHE_POLICY = {
     "trusted_repository": "zpcaiai/elmpay",
     "trusted_ref": "refs/heads/main",
     "all_other_stages_read_only": True,
+    "dependency_data_stage": "dependency-scan",
+    "dependency_data_cache_path": "~/.gradle/dependency-check-data/11.0",
+    "dependency_data_cache_key": (
+        "dependency-check-13.0.0-data-11.0-${{ runner.os }}-${{ runner.arch }}-"
+        "${{ github.run_id }}-${{ github.run_attempt }}"
+    ),
+    "dependency_data_restore_key": (
+        "dependency-check-13.0.0-data-11.0-${{ runner.os }}-${{ runner.arch }}-"
+    ),
+    "dependency_data_restore_action": "actions/cache/restore",
+    "dependency_data_save_action": "actions/cache/save",
 }
 EXPECTED_SIGNING_NEEDS = {
     "build",
     "sbom",
+    "python-floor",
     "unit-test",
     "static-analysis",
     "dependency-scan",
@@ -238,6 +269,7 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     problems += _blocking(doc, by_id, where)
     problems += _skill_package(by_id, where)
     problems += _machine_reports(by_id, where)
+    problems += _python_toolchain(root, budget, doc, by_id, where)
     problems += _supply_chain_stages(by_id, where)
     problems += _signing(doc, by_id, where)
     problems += _generated(root, budget, doc)
@@ -308,26 +340,45 @@ def _permissions(doc: dict, where: str) -> list[Problem]:
 
 
 def _gradle_cache_policy(doc: dict, by_id: dict[str, dict], where: str) -> list[Problem]:
-    """Permit one cache writer only after trusted main governance succeeds.
+    """Save Dependency-Check state only after a successful trusted scan.
 
     Cold, parallel Gradle jobs can otherwise hammer Maven Central while a
     blanket writable cache would let untrusted pull requests publish inputs
-    consumed by later builds.  The build job is the sole writer because every
-    Gradle security/SBOM job already depends on its successful completion.
+    consumed by later builds. The governed build is the only setup-gradle
+    writer. The SCA job restores its isolated NVD database read-only, then an
+    explicit save action persists it only after the aggregate scan succeeds on
+    trusted main. A failed or cancelled scan therefore cannot publish a
+    truncated database through setup-gradle's post action.
     """
     policy = doc.get("gradle_cache_policy")
     scope = f"{where}#gradle_cache_policy"
     problems = expect(policy == EXPECTED_GRADLE_CACHE_POLICY,
                       "CI_GRADLE_CACHE", scope,
-                      "only the trusted main build job may populate the Gradle cache",
+                      "ordinary Gradle state and successful Dependency-Check data must use "
+                      "separate governed write paths",
                       "NN-11")
     if not isinstance(policy, dict):
         return problems
     writer = policy.get("writer_stage")
-    problems += expect(writer in by_id and writer == "build"
-                       and by_id.get("build", {}).get("needs") == ["governance"],
+    problems += expect(writer == "build"
+                       and by_id.get("build", {}).get("needs") == ["governance"]
+                       and by_id.get("dependency-scan", {}).get("needs") == ["build"],
                        "CI_GRADLE_CACHE", scope,
-                       "the cache writer must be the governed build stage",
+                       "setup-gradle must have one governed writer and the isolated scan must "
+                       "remain ordered after it",
+                       "NN-11")
+    actions = doc.get("actions")
+    cache_actions = [action for action in actions
+                     if isinstance(action, dict)
+                     and action.get("name") in {"actions/cache/restore", "actions/cache/save"}] \
+        if isinstance(actions, list) else []
+    expected_actions = [
+        {"name": "actions/cache/restore", **CACHE_ACTION_PIN},
+        {"name": "actions/cache/save", **CACHE_ACTION_PIN},
+    ]
+    problems += expect(cache_actions == expected_actions,
+                       "CI_GRADLE_CACHE", scope,
+                       "the isolated dependency cache must use the audited restore/save actions",
                        "NN-11")
     return problems
 
@@ -415,10 +466,10 @@ def _supply_chain_stages(by_id: dict[str, dict], where: str) -> list[Problem]:
                            "NN-12")
 
         commands = stage.get("commands")
-        problems += expect(isinstance(commands, list) and expected["command"] in commands,
+        problems += expect(commands == expected["commands"],
                            "CI_SUPPLY_CHAIN_TASK", scope,
-                           f"stage must execute the fail-closed aggregate task "
-                           f"'{expected['command']}' as its own command", "NN-12")
+                           "stage commands must exactly preserve the governed freshness "
+                           "preflight and aggregate task order", "NN-12")
         if isinstance(commands, list):
             problems += expect(not any("dependencyCheckAnalyze" in str(command)
                                        for command in commands),
@@ -427,10 +478,10 @@ def _supply_chain_stages(by_id: dict[str, dict], where: str) -> list[Problem]:
                                "multi-project aggregate scan", "NN-12")
 
         artifacts = stage.get("artifacts")
-        problems += expect(isinstance(artifacts, list) and expected["artifact"] in artifacts,
+        problems += expect(artifacts == expected["artifacts"],
                            "CI_SUPPLY_CHAIN_ARTIFACT", scope,
-                           f"stage must retain machine-readable evidence at "
-                           f"'{expected['artifact']}'", "NN-12")
+                           f"stage must retain exactly the machine-readable evidence "
+                           f"{expected['artifacts']}", "NN-12")
         problems += expect("build" in stage.get("needs", []),
                            "CI_SUPPLY_CHAIN_COVERAGE", scope,
                            "supply-chain analysis must run after the complete multi-project "
@@ -439,6 +490,70 @@ def _supply_chain_stages(by_id: dict[str, dict], where: str) -> list[Problem]:
                            "CI_ARTIFACT_MISSING", scope,
                            "machine-readable supply-chain evidence must fail when absent",
                            "NN-12")
+        if "timeout_minutes" in expected:
+            problems += expect(stage.get("timeout_minutes") == expected["timeout_minutes"],
+                               "CI_SUPPLY_CHAIN_TIMEOUT", scope,
+                               f"stage timeout must remain exactly "
+                               f"{expected['timeout_minutes']} minutes",
+                               "NN-12")
+    return problems
+
+
+def _python_toolchain(root: Path, budget: Budget, doc: dict,
+                      by_id: dict[str, dict], where: str) -> list[Problem]:
+    """Execute the same governance surface on exact reference and floor Pythons."""
+    scope = f"{where}#python-toolchain"
+    problems: list[Problem] = []
+    try:
+        catalog = load_json(root / "governance/version-catalog.json", budget)
+    except BudgetExceeded:
+        raise
+    except Exception as exc:
+        return [Problem("CI_PYTHON_TOOLCHAIN", scope,
+                        f"version catalogue is unreadable: {exc}", "NN-12")]
+
+    entries = {entry.get("id"): entry for entry in catalog.get("entries", [])
+               if isinstance(entry, dict)}
+    interpreter = entries.get("python-toolchain")
+    problems += expect(isinstance(interpreter, dict), "CI_PYTHON_TOOLCHAIN", scope,
+                       "the CI interpreter must come from python-toolchain in the catalogue",
+                       "NN-12")
+    if isinstance(interpreter, dict):
+        problems += expect(interpreter.get("version") == EXPECTED_PYTHON_REFERENCE,
+                           "CI_PYTHON_TOOLCHAIN", scope,
+                           f"the reference interpreter must remain exactly "
+                           f"{EXPECTED_PYTHON_REFERENCE}", "NN-12")
+        problems += expect(interpreter.get("minimum_supported") == EXPECTED_PYTHON_FLOOR,
+                           "CI_PYTHON_TOOLCHAIN", scope,
+                           f"the compatibility floor must remain exactly "
+                           f"{EXPECTED_PYTHON_FLOOR}", "NN-12")
+
+    listed_actions = doc.get("actions")
+    python_actions = [action for action in listed_actions
+                      if isinstance(action, dict)
+                      and action.get("name") == "actions/setup-python"] \
+        if isinstance(listed_actions, list) else []
+    problems += expect(python_actions == [{"name": "actions/setup-python",
+                                           **PYTHON_ACTION_PIN}],
+                       "CI_PYTHON_ACTION", scope,
+                       "actions/setup-python must appear once at the audited v7 commit",
+                       "NN-12")
+
+    stage = by_id.get("python-floor")
+    stage_scope = f"{where}#python-floor"
+    if not isinstance(stage, dict):
+        return problems + [Problem("CI_PYTHON_FLOOR", stage_scope,
+                                   "required Python floor stage is missing", "NN-12")]
+    problems += expect(stage.get("needs") == ["governance"],
+                       "CI_PYTHON_FLOOR", stage_scope,
+                       "the floor gate must run immediately after governance", "NN-12")
+    problems += expect(stage.get("required") is True and stage.get("fail_closed") is True,
+                       "CI_PYTHON_FLOOR", stage_scope,
+                       "the floor gate must remain required and fail-closed", "NN-12")
+    problems += expect(stage.get("timeout_minutes") == 20,
+                       "CI_PYTHON_FLOOR", stage_scope,
+                       "the complete floor gate must retain its audited 20 minute bound",
+                       "NN-12")
     return problems
 
 
@@ -638,7 +753,15 @@ def _result_environment_name(stage_id: str) -> str:
 
 def _generated(root: Path, budget: Budget, doc: dict) -> list[Problem]:
     problems: list[Problem] = []
-    rendered = cigen.render_all(root)
+    try:
+        rendered = cigen.render_all(root)
+    except (AttributeError, IndexError, KeyError, TypeError, ValueError, OSError) as exc:
+        return [Problem(
+            "CI_DRIFT",
+            str(WORKFLOW),
+            f"generated CI inputs are incomplete or invalid: {exc}",
+            "NN-12",
+        )]
     for rel, expected in sorted(rendered.items()):
         budget.check(rel)
         path = root / rel

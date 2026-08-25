@@ -51,6 +51,7 @@ EXPECTED_CODES = {
     "B05 required CI stage turned fail-open": "CI_FAIL_OPEN",
     "B05 action pinned to a movable tag": "CI_ACTION_PIN",
     "B05 dependency scanning removed from the pipeline": "CI_REQUIRED_STAGE",
+    "B05 NVD freshness preflight removed from dependency scan": "CI_SUPPLY_CHAIN_TASK",
     "B05 blocking security findings allowed above zero": "CI_QUALITY_GATE",
     "B05 evidence blocking condition removed": "CI_BLOCKING_MISSING",
     "B05 pipeline granted write access to contents": "CI_PERMISSIONS",
@@ -289,6 +290,10 @@ SCENARIOS = [
     ("B05 dependency scanning removed from the pipeline", "governance/ci-pipeline.json",
      lambda d: d["stages"].__setitem__(slice(None),
                    [s for s in d["stages"] if s["id"] != "dependency-scan"]), EXIT_PROBLEMS),
+    ("B05 NVD freshness preflight removed from dependency scan", "governance/ci-pipeline.json",
+     lambda d: next(s for s in d["stages"] if s["id"] == "dependency-scan")
+        .__setitem__("commands", ["./gradlew --no-daemon dependencyCheckAggregate"]),
+     EXIT_PROBLEMS),
     ("B05 blocking security findings allowed above zero", "governance/ci-pipeline.json",
      lambda d: d["quality_gates"].__setitem__("blocking_security_findings_max", 3),
      EXIT_PROBLEMS),

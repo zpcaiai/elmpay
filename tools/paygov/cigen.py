@@ -129,6 +129,8 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
     entries = {e["id"]: e for e in load_json(root / CATALOG, budget)["entries"]}
     actions = {a["name"]: a for a in doc["actions"]}
     java_version = entries["jdk"]["version"].split("+", 1)[0]
+    python_reference = entries["python-toolchain"]["version"]
+    python_floor = entries["python-toolchain"]["minimum_supported"]
 
     lines = [BANNER, "name: ci", "", "on:"]
     push = doc["triggers"]["push"]
@@ -150,7 +152,10 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
 
     checkout = actions["actions/checkout"]
     setup_java = actions["actions/setup-java"]
+    setup_python = actions["actions/setup-python"]
     setup_gradle = actions["gradle/actions/setup-gradle"]
+    cache_restore = actions[cache_policy["dependency_data_restore_action"]]
+    cache_save = actions[cache_policy["dependency_data_save_action"]]
     upload = actions["actions/upload-artifact"]
     download = actions["actions/download-artifact"]
     cosign_installer = actions["sigstore/cosign-installer"]
@@ -177,7 +182,10 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
         lines += ["    steps:",
                   f'      - uses: {checkout["name"]}@{checkout["ref"]}  # {checkout["version_comment"]}',
                   "        with:",
-                  "          persist-credentials: false"]
+                  "          persist-credentials: false",
+                  f'      - uses: {setup_python["name"]}@{setup_python["ref"]}  # {setup_python["version_comment"]}',
+                  "        with:",
+                  f'          python-version: {_quote(python_floor if stage["id"] == "python-floor" else python_reference)}']
         if stage["id"] == "sign":
             for item in signing["downloads"]:
                 lines += [
@@ -209,6 +217,16 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
                 "        with:",
                 f"          cache-read-only: {cache_read_only}",
             ]
+            if stage["id"] == cache_policy["dependency_data_stage"]:
+                lines += [
+                    f'      - uses: {cache_restore["name"]}@{cache_restore["ref"]}  # {cache_restore["version_comment"]}',
+                    "        id: dependency-check-cache",
+                    "        with:",
+                    f'          path: {cache_policy["dependency_data_cache_path"]}',
+                    f'          key: {cache_policy["dependency_data_cache_key"]}',
+                    "          restore-keys: |",
+                    f'            {cache_policy["dependency_data_restore_key"]}',
+                ]
         for index, command in enumerate(stage["commands"], 1):
             step_name = f'{stage["purpose"]} ({index}/{len(stage["commands"])})'
             lines.append(f'      - name: {_quote(step_name)}')
@@ -219,6 +237,19 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
                     f'${{{{ vars.{signing["public_sigstore_opt_in_variable"]} }}}}',
                 ]
             lines += ["        run: |", f'          {command}']
+        if stage["id"] == cache_policy["dependency_data_stage"]:
+            save_condition = (
+                "success() && github.event_name == '" + cache_policy["trusted_event"]
+                + "' && github.repository == '" + cache_policy["trusted_repository"]
+                + "' && github.ref == '" + cache_policy["trusted_ref"] + "'"
+            )
+            lines += [
+                f'      - uses: {cache_save["name"]}@{cache_save["ref"]}  # {cache_save["version_comment"]}',
+                f"        if: {save_condition}",
+                "        with:",
+                f'          path: {cache_policy["dependency_data_cache_path"]}',
+                "          key: ${{ steps.dependency-check-cache.outputs.cache-primary-key }}",
+            ]
         if stage["artifacts"]:
             lines += [f'      - uses: {upload["name"]}@{upload["ref"]}  # {upload["version_comment"]}',
                       "        if: always()",

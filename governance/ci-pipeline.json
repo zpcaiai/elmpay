@@ -22,7 +22,13 @@
     "trusted_event": "push",
     "trusted_repository": "zpcaiai/elmpay",
     "trusted_ref": "refs/heads/main",
-    "all_other_stages_read_only": true
+    "all_other_stages_read_only": true,
+    "dependency_data_stage": "dependency-scan",
+    "dependency_data_cache_path": "~/.gradle/dependency-check-data/11.0",
+    "dependency_data_cache_key": "dependency-check-13.0.0-data-11.0-${{ runner.os }}-${{ runner.arch }}-${{ github.run_id }}-${{ github.run_attempt }}",
+    "dependency_data_restore_key": "dependency-check-13.0.0-data-11.0-${{ runner.os }}-${{ runner.arch }}-",
+    "dependency_data_restore_action": "actions/cache/restore",
+    "dependency_data_save_action": "actions/cache/save"
   },
   "signing_policy": {
     "trusted_event": "push",
@@ -62,6 +68,7 @@
   },
   "required_stages": [
     "governance",
+    "python-floor",
     "build",
     "unit-test",
     "static-analysis",
@@ -85,6 +92,21 @@
       "name": "actions/setup-java",
       "ref": "c5195efecf7bdfc987ee8bae7a71cb8b11521c00",
       "version_comment": "v5.0.0"
+    },
+    {
+      "name": "actions/setup-python",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "version_comment": "v7.0.0"
+    },
+    {
+      "name": "actions/cache/restore",
+      "ref": "27d5ce7f107fe9357f9df03efb73ab90386fccae",
+      "version_comment": "v5.0.5"
+    },
+    {
+      "name": "actions/cache/save",
+      "ref": "27d5ce7f107fe9357f9df03efb73ab90386fccae",
+      "version_comment": "v5.0.5"
     },
     {
       "name": "actions/upload-artifact",
@@ -197,6 +219,25 @@
       "timeout_minutes": 10
     },
     {
+      "id": "python-floor",
+      "name": "Python 兼容地板门禁",
+      "purpose": "在精确固定的最旧受支持 Python 上执行完整治理校验，阻断语法、标准库与裁决行为漂移",
+      "needs": [
+        "governance"
+      ],
+      "commands": [
+        "python3 -m tools.paygov.cli verify-all --repo . --out python-floor-report.json"
+      ],
+      "required": true,
+      "fail_closed": true,
+      "gate": "RG1",
+      "artifacts": [
+        "python-floor-report.json"
+      ],
+      "if_no_files_found": "error",
+      "timeout_minutes": 20
+    },
+    {
       "id": "unit-test",
       "name": "单元与属性测试",
       "purpose": "编译并运行全部单元、属性与并发测试，禁止跳过关键测试",
@@ -284,6 +325,7 @@
         "build"
       ],
       "commands": [
+        "python3 -m tools.paygov.nvdfeed --repo .",
         "./gradlew --no-daemon dependencyCheckAggregate"
       ],
       "required": true,
@@ -293,7 +335,7 @@
         "build/reports/dependency-check-report.json"
       ],
       "if_no_files_found": "error",
-      "timeout_minutes": 25
+      "timeout_minutes": 45
     },
     {
       "id": "container-scan",
@@ -359,6 +401,7 @@
       "needs": [
         "build",
         "sbom",
+        "python-floor",
         "unit-test",
         "static-analysis",
         "dependency-scan",
