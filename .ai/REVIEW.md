@@ -33,6 +33,14 @@
 
    然后继续跑 `resume`，该批次的 traceability 与完成文件才会被原子替换。
 
+## 重签在途时不要 commit
+
+`resume` 的状态绑定 Git HEAD。**在命令重放与复核签发之间新建提交，会让状态整体作废**
+（`resume state is stale (git_head)`），必须 `reset` 并把该批次的命令全部重跑一遍。
+
+所以顺序是：先把要提交的代码改动提交干净 → 再跑 `resume` → 期间只 `git add`、不 commit
+→ 拿到签发、批次定稿之后，再一次性提交证据与 `review.json`。
+
 ## 为什么不能批量预生成
 
 绑定里含 `git_head` 与逐产物 SHA-256。上一个批次定稿会改动证据树，下一个批次的绑定
