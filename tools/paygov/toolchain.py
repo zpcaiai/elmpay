@@ -418,29 +418,61 @@ def _interpreter_controls(root: Path, doc: dict, where: str) -> list[Problem]:
         wanted.setdefault(module, []).append(name)
         added_in[symbol] = item["added_in"]
 
+    scan_key = (floor[:2], tuple(sorted((mod, tuple(sorted(names)))
+                                        for mod, names in wanted.items())))
     for path in _toolchain_sources(root):
         rel = path.relative_to(root).as_posix()
-        try:
-            source = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeError) as exc:
-            problems.append(Problem("TOOLCHAIN_PYTHON_FLOOR", rel,
-                                    f"toolchain source is unreadable: {exc}", "NN-12"))
-            continue
-        try:
-            tree = ast.parse(source, filename=rel, feature_version=floor[:2])
-        except SyntaxError as exc:
-            problems.append(Problem(
-                "TOOLCHAIN_PYTHON_FLOOR", f"{rel}:{exc.lineno or 0}",
-                f"syntax requires a newer Python than the declared floor "
-                f"{entry['minimum_supported']}: {exc.msg}", "NN-12"))
-            continue
-        for symbol in sorted(_above_floor_uses(tree, wanted)):
-            problems.append(Problem(
-                "TOOLCHAIN_PYTHON_FLOOR", rel,
-                f"'{symbol}' was added in Python {added_in[symbol]}, above the declared "
-                f"floor {entry['minimum_supported']}; it fails at import time on every "
-                f"environment still running the floor", "NN-12"))
+        problems += _scan_source(path, rel, scan_key, wanted, added_in,
+                                 str(entry["minimum_supported"]))
     return problems
+
+
+# Parsing every toolchain source is cheap once and ruinous 500 times: the
+# negative-control harness runs the whole gate per scenario, so an uncached
+# scan turned a 13-second shard into a 40-second one and pushed the fail-closed
+# proof back over the execution ceiling. Keyed on identity *and* content stamp,
+# so an edited file is always re-read.
+_SCAN_CACHE: dict[tuple, list[tuple[str, str]]] = {}
+
+
+def _scan_source(path: Path, rel: str, scan_key: tuple, wanted: dict[str, list[str]],
+                 added_in: dict[str, str], floor_text: str) -> list[Problem]:
+    try:
+        stat = path.stat()
+        stamp: tuple = (stat.st_mtime_ns, stat.st_size)
+    except OSError as exc:
+        return [Problem("TOOLCHAIN_PYTHON_FLOOR", rel,
+                        f"toolchain source is unreadable: {exc}", "NN-12")]
+    key = (str(path), stamp, scan_key)
+    cached = _SCAN_CACHE.get(key)
+    if cached is None:
+        cached = _scan_uncached(path, rel, wanted, added_in, floor_text, scan_key[0])
+        if len(_SCAN_CACHE) > 20000:      # a long-lived process, not a leak
+            _SCAN_CACHE.clear()
+        _SCAN_CACHE[key] = cached
+    return [Problem("TOOLCHAIN_PYTHON_FLOOR", where, message, "NN-12")
+            for where, message in cached]
+
+
+def _scan_uncached(path: Path, rel: str, wanted: dict[str, list[str]],
+                   added_in: dict[str, str], floor_text: str,
+                   feature_version: tuple[int, int]) -> list[tuple[str, str]]:
+    try:
+        source = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        return [(rel, f"toolchain source is unreadable: {exc}")]
+    try:
+        tree = ast.parse(source, filename=rel, feature_version=feature_version)
+    except SyntaxError as exc:
+        return [(f"{rel}:{exc.lineno or 0}",
+                 f"syntax requires a newer Python than the declared floor "
+                 f"{floor_text}: {exc.msg}")]
+    found = []
+    for symbol in sorted(_above_floor_uses(tree, wanted)):
+        found.append((rel, f"'{symbol}' was added in Python {added_in.get(symbol, '?')}, "
+                           f"above the declared floor {floor_text}; it fails at import time "
+                           f"on every environment still running the floor"))
+    return found
 
 
 def _security_build_controls(root: Path, doc: dict, where: str) -> list[Problem]:
