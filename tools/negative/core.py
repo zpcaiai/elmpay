@@ -36,6 +36,9 @@ EXPECTED_CODES = {
     "B03 container image pinned by tag only": "TOOLCHAIN_DIGEST",
     "B03 dependency loses its owner": "TOOLCHAIN_METADATA",
     "B03 module left without a build system": "TOOLCHAIN_BUILD_SYSTEM",
+    "B03 dependency scan points at an ungoverned NVD mirror": "TOOLCHAIN_SECURITY_DATAFEED",
+    "B03 toolchain interpreter loses its pin": "TOOLCHAIN_INTERPRETER",
+    "B03 toolchain source requires a Python newer than the floor": "TOOLCHAIN_PYTHON_FLOOR",
     "B03 Gradle wrapper launcher is corrupted": "TOOLCHAIN_WRAPPER",
     "B03 Java baseline silently downgraded": "TOOLCHAIN_JDK",
     "B04 inline password in the local platform": "DEV_INLINE_SECRET",
@@ -309,6 +312,12 @@ SCENARIOS = [
      "governance/evidence-policy.json",
      lambda d: d["required_command_classes"].append(
          {"id": "mutation-test", "match": "pitest", "purpose": "mutation coverage"}),
+     EXIT_PROBLEMS),
+    # Unpinning the interpreter is what let a 3.11-only import land in a tree
+    # that still had to run on 3.10.
+    ("B03 toolchain interpreter loses its pin", "governance/version-catalog.json",
+     lambda d: d.__setitem__("entries", [e for e in d["entries"]
+                                         if e.get("id") != "python-toolchain"]),
      EXIT_PROBLEMS),
     ("B06 evidence policy renames the reviewer", "governance/evidence-policy.json",
      lambda d: d["principals"].__setitem__("reviewer", "someone-else"), EXIT_PROBLEMS),
@@ -702,6 +711,17 @@ SCENARIOS = [
 
 
 TEXT_SCENARIOS = [
+    # The governed feed is keyless and public, so nothing about a swapped URL
+    # looks like a credential leak — the only thing standing between the scan
+    # and an ungoverned mirror is this rule.
+    # The regression itself: the floor rule must reject the source, not merely
+    # the catalogue that describes it.
+    ("B03 toolchain source requires a Python newer than the floor",
+     "tools/tests/support.py", "from __future__ import annotations",
+     "from __future__ import annotations\nfrom datetime import UTC", EXIT_PROBLEMS),
+    ("B03 dependency scan points at an ungoverned NVD mirror", "build.gradle.kts",
+     "https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz",
+     "https://mirror.example.invalid/nvdcve-{0}.json.gz", EXIT_PROBLEMS),
     ("B03 Gradle wrapper launcher is corrupted",
      "gradlew", "gradle/wrapper/gradle-wrapper.jar", "gradle/wrapper/broken-wrapper.jar",
      EXIT_PROBLEMS),

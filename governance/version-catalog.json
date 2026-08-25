@@ -74,7 +74,13 @@
       "digest": "",
       "source": "https://plugins.gradle.org/plugin/org.owasp.dependencycheck",
       "owner": "payment-platform-appsec",
-      "upgrade_policy": "跟随 NVD API 与上游安全修复；升级需依赖扫描门禁绿色"
+      "upgrade_policy": "13.0.0 无 key API 回归期间使用 OWASP 官方 cached datafeed；13.0.1+ 发布后升级仍需依赖扫描门禁绿色",
+      "datafeed_policy": {
+        "url_template": "https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz",
+        "documentation": "https://dependency-check.github.io/DependencyCheck/data/mirrornvd.html",
+        "max_age_hours": 48,
+        "request_timeout_seconds": 20
+      }
     },
     {
       "id": "cyclonedx-gradle",
@@ -306,6 +312,84 @@
       "source": "https://www.python.org/downloads/",
       "owner": "payment-platform-platform-eng",
       "upgrade_policy": "模拟器仅使用标准库，保持离线可运行"
+    },
+    {
+      "id": "python-toolchain",
+      "name": "Python（治理工具链运行时）",
+      "category": "runtime-platform",
+      "version": "3.12.7",
+      "minimum_supported": "3.10",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://www.python.org/downloads/",
+      "owner": "payment-platform-platform-eng",
+      "upgrade_policy": "version 是产出证据的参考解释器；minimum_supported 是兼容地板，工具链源码不得使用高于地板的语法或标准库符号。抬高地板需 ADR，因为它会把仍在产出证据的执行环境挡在门外。",
+      "above_floor_symbols": [
+        {
+          "symbol": "datetime.UTC",
+          "added_in": "3.11"
+        },
+        {
+          "symbol": "contextlib.chdir",
+          "added_in": "3.11"
+        },
+        {
+          "symbol": "enum.StrEnum",
+          "added_in": "3.11"
+        },
+        {
+          "symbol": "enum.ReprEnum",
+          "added_in": "3.11"
+        },
+        {
+          "symbol": "hashlib.file_digest",
+          "added_in": "3.11"
+        },
+        {
+          "symbol": "asyncio.TaskGroup",
+          "added_in": "3.11"
+        },
+        {
+          "symbol": "asyncio.timeout",
+          "added_in": "3.11"
+        },
+        {
+          "symbol": "typing.Self",
+          "added_in": "3.11"
+        },
+        {
+          "symbol": "typing.LiteralString",
+          "added_in": "3.11"
+        },
+        {
+          "symbol": "typing.assert_never",
+          "added_in": "3.11"
+        },
+        {
+          "symbol": "tomllib",
+          "added_in": "3.11"
+        },
+        {
+          "symbol": "itertools.batched",
+          "added_in": "3.12"
+        },
+        {
+          "symbol": "typing.override",
+          "added_in": "3.12"
+        },
+        {
+          "symbol": "warnings.deprecated",
+          "added_in": "3.13"
+        },
+        {
+          "symbol": "typing.TypeIs",
+          "added_in": "3.13"
+        },
+        {
+          "symbol": "os.process_cpu_count",
+          "added_in": "3.13"
+        }
+      ]
     }
   ],
   "modules_by_build_system": {

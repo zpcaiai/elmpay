@@ -102,7 +102,9 @@ def build_gradle(root: Path, budget: Budget | None = None) -> str:
     paths = {module["name"]: module["path"] for module in registry["modules"]}
     entries = _entries(doc)
     major = java_major(doc)
-    dependency_check = entries["owasp-dependency-check"]["version"]
+    dependency_check_entry = entries["owasp-dependency-check"]
+    dependency_check = dependency_check_entry["version"]
+    nvd_datafeed = dependency_check_entry["datafeed_policy"]["url_template"]
     cyclonedx = entries["cyclonedx-gradle"]["version"]
     java_projects = [":" + paths[name].replace("/", ":")
                      for name in doc["modules_by_build_system"]["gradle"]]
@@ -169,6 +171,11 @@ dependencyCheck {{
     outputDirectory.set(layout.buildDirectory.dir("reports"))
     failBuildOnCVSS.set(0.0f)
     failOnError.set(true)
+    // Avoid the 13.0.0 empty-key regression without accepting stale data.
+    // CI checks the governed mirror metadata before this aggregate scan.
+    nvd {{
+        datafeedUrl.set("{nvd_datafeed}")
+    }}
 }}
 
 tasks.cyclonedxBom {{

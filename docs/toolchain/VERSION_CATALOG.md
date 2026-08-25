@@ -14,7 +14,7 @@
 | spring-boot | Spring Boot | framework | 4.1.3 | exact | payment-platform-architecture | 次版本季度评估；破坏性变更需 ADR 与迁移批次 |
 | spring-cloud | Spring Cloud | framework | 2026.0.2 | exact | payment-platform-architecture | 跟随 Spring Boot 版本矩阵 |
 | gradle | Gradle | build | 9.2.1 | exact | payment-platform-platform-eng | wrapper 校验和锁定；升级需绿色 CI 两轮 |
-| owasp-dependency-check | OWASP Dependency-Check Gradle Plugin | build-plugin | 13.0.0 | exact | payment-platform-appsec | 跟随 NVD API 与上游安全修复；升级需依赖扫描门禁绿色 |
+| owasp-dependency-check | OWASP Dependency-Check Gradle Plugin | build-plugin | 13.0.0 | exact | payment-platform-appsec | 13.0.0 无 key API 回归期间使用 OWASP 官方 cached datafeed；13.0.1+ 发布后升级仍需依赖扫描门禁绿色 |
 | cyclonedx-gradle | CycloneDX Gradle Plugin | build-plugin | 3.4.1 | exact | payment-platform-appsec | 跟随 CycloneDX schema 与插件安全修复；升级需 SBOM 门禁绿色 |
 | kotlin | Kotlin (仅构建脚本) | build | 2.3.0 | exact | payment-platform-platform-eng | 仅用于 Gradle KTS，不用于生产代码 |
 | postgresql | PostgreSQL | database | 18.2 | exact | payment-platform-sre | 次版本一月内跟进；大版本升级需 B90 演练 |
@@ -36,6 +36,7 @@
 | keycloak-image | Keycloak 容器镜像（本地 OIDC） | container | 27.0.2 | digest | payment-platform-security | 仅用于 local/integration 的 OIDC 提供方；摘要待 B04 在联网构建代理上锁定 |
 | minio-image | MinIO 容器镜像（本地对象存储） | container | 2026-07-11T00-00-00Z | digest | payment-platform-sre | 仅用于 local/integration 的对象存储；摘要待 B04 锁定 |
 | python-sim | Python（渠道模拟器运行时） | runtime-platform | 3.12.7 | exact | payment-platform-platform-eng | 模拟器仅使用标准库，保持离线可运行 |
+| python-toolchain | Python（治理工具链运行时） | runtime-platform | 3.12.7 | exact | payment-platform-platform-eng | version 是产出证据的参考解释器；minimum_supported 是兼容地板，工具链源码不得使用高于地板的语法或标准库符号。抬高地板需 ADR，因为它会把仍在产出证据的执行环境挡在门外。 |
 
 ## 构建系统归属
 

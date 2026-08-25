@@ -82,6 +82,11 @@ dependencyCheck {
     outputDirectory.set(layout.buildDirectory.dir("reports"))
     failBuildOnCVSS.set(0.0f)
     failOnError.set(true)
+    // Avoid the 13.0.0 empty-key regression without accepting stale data.
+    // CI checks the governed mirror metadata before this aggregate scan.
+    nvd {
+        datafeedUrl.set("https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz")
+    }
 }
 
 tasks.cyclonedxBom {

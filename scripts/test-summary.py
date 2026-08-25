@@ -68,10 +68,18 @@ def _classes(suite) -> list[str]:
 def discovered_units() -> list[str]:
     """The work units: one ``module.Class`` per process.
 
-    A module that fails to import has no classes to enumerate, which would make
-    it vanish from the run rather than fail it. Such a module is returned as a
-    unit under its own name so the loader raises inside the worker and the
-    failure lands in the summary.
+    A module that fails to import must still be a unit under its own name, so
+    the loader reproduces the failure inside the worker and it lands in the
+    summary instead of vanishing from the run.
+
+    That needs two guards, not one. ``loadTestsFromName`` raises for some
+    breakages, but for an ImportError it does not raise at all: it substitutes
+    ``unittest.loader._FailedTest``, whose module is ``unittest.loader`` rather
+    than ours. Recording that name collapsed every broken module onto a single
+    unit — and a worker asked to load ``unittest.loader._FailedTest`` builds an
+    empty suite that passes, so four import failures reported as zero. Found by
+    ``TestSummarySharding.test_shards_partition_the_unit_list``, which noticed
+    the duplicate before anything noticed the silence.
     """
     import sys
 
@@ -83,6 +91,8 @@ def discovered_units() -> list[str]:
         try:
             found = _classes(loader.loadTestsFromName(module))
         except Exception:
+            found = []
+        if any(name.startswith("unittest.") for name in found):
             found = []
         units += found or [module]
     return units

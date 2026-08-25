@@ -412,7 +412,24 @@ class TestSummarySharding(FixtureTestCase):
         from_units = set()
         for unit in ts.discovered_units():
             ids(loader.loadTestsFromName(unit), from_units)
-        self.assertEqual(from_units, discovered)
+
+        # A module that fails to import is represented on both sides by
+        # unittest's placeholder case, but the two entry points label it
+        # differently — discovery names it after the dotted module path,
+        # loadTestsFromName after the bare module. Compare real test ids
+        # exactly, and placeholders by the module they stand for. This is not a
+        # weakening: a module that vanished from one side would still leave the
+        # broken-module sets unequal.
+        def split(names):
+            placeholder = "unittest.loader._FailedTest."
+            real = {n for n in names if not n.startswith(placeholder)}
+            broken = {n[len(placeholder):].rsplit(".", 1)[-1] for n in names - real}
+            return real, broken
+
+        real_units, broken_units = split(from_units)
+        real_discovered, broken_discovered = split(discovered)
+        self.assertEqual(real_units, real_discovered)
+        self.assertEqual(broken_units, broken_discovered)
 
     def test_shards_partition_the_unit_list(self):
         ts = _test_summary()

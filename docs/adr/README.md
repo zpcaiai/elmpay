@@ -4,7 +4,7 @@
 
 # 架构决策记录索引
 
-共 12 条 ADR。新增决策必须新建 ADR，不得原地改写既有决策；
+共 13 条 ADR。新增决策必须新建 ADR，不得原地改写既有决策；
 被取代的 ADR 状态改为 `superseded`，并由取代它的 ADR 在“取代”字段中声明。
 
 | ADR | 标题 | 状态 | 日期 | 批次 | 关联控制 |
@@ -21,3 +21,4 @@
 | [ADR-0010](0010-dependency-free-governance.md) | 治理工具链零第三方依赖 | accepted | 2026-08-18 | B02 | NN-12, CTRL-011 |
 | [ADR-0011](0011-evidence-bound-to-commit.md) | 证据绑定提交并支持重新基线 | accepted | 2026-08-18 | B02 | NN-12, CTRL-020 |
 | [ADR-0012](0012-pinned-toolchain-baseline.md) | 单一版本目录驱动的可重复构建基线 | accepted | 2026-08-18 | B03 | NN-12, CTRL-011, CTRL-018 |
+| [ADR-0013](0013-toolchain-interpreter-floor.md) | 治理工具链的解释器地板固定为 Python 3.10 | accepted | 2026-08-20 | B03 | NN-12, CTRL-011, CTRL-018 |

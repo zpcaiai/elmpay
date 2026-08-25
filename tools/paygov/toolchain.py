@@ -7,18 +7,23 @@ Rules, all fail-closed:
 * container images are pinned by digest, not only by tag;
 * every entry has an owner, a source and an upgrade policy;
 * every module in the registry is built by exactly one build system;
-* the generated build files match the catalogue byte for byte.
+* the generated build files match the catalogue byte for byte;
+* the Python that runs this toolchain is itself pinned, and no toolchain source
+  may require a language or standard-library feature newer than the declared
+  compatibility floor.
 """
 from __future__ import annotations
 
+import ast
 import hashlib
 import os
 import re
+import sys
 import zipfile
 from pathlib import Path
 from typing import Any
 
-from . import buildgen, catalogue
+from . import buildgen, catalogue, nvdfeed
 from .errors import BudgetExceeded, Problem
 from .repo import Budget, load_json
 from .structs import SEMVER, expect
@@ -34,6 +39,13 @@ DIGEST = re.compile(r"^sha256:[a-f0-9]{64}$")
 VALID_PIN = {"exact", "digest"}
 VALID_VERIFICATION = {"verified", "unverified-offline"}
 EXPECTED_JAVA_MAJOR = "25"
+INTERPRETER_ID = "python-toolchain"
+# The toolchain is dependency-free Python, so "which Python" is a real pin: the
+# evidence commands for every batch run on it. Sources are checked here rather
+# than only at import time because the two ends of the delivery path do not run
+# the same interpreter — a feature newer than the floor imports cleanly on the
+# reference version and takes the whole validator registry down on the floor.
+TOOLCHAIN_SOURCES = ("tools/**/*.py", "scripts/**/*.py", ".ai/*.py")
 SECURITY_BUILD_PLUGINS = {
     "owasp-dependency-check": "org.owasp.dependencycheck",
     "cyclonedx-gradle": "org.cyclonedx.bom",
@@ -122,6 +134,7 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     problems += _java_version(doc, where)
     problems += _gradle_wrapper(root, doc, where)
     problems += _security_build_controls(root, doc, where)
+    problems += _interpreter_controls(root, doc, where)
     problems += _generated(root, budget)
     return problems
 
@@ -220,10 +233,56 @@ def _gradle_wrapper(root: Path, doc: dict, where: str) -> list[Problem]:
     return problems
 
 
+def _kotlin_string_span(text: str, index: int) -> int:
+    """End offset of the Kotlin string literal starting at *index*."""
+    length = len(text)
+    if text.startswith('"""', index):
+        end = text.find('"""', index + 3)
+        return length if end == -1 else end + 3
+    cursor = index + 1
+    while cursor < length:
+        char = text[cursor]
+        if char == "\\":
+            cursor += 2
+            continue
+        if char == '"':
+            return cursor + 1
+        if char == "\n":            # an unterminated literal ends at the line
+            return cursor
+        cursor += 1
+    return length
+
+
 def _without_kotlin_comments(text: str) -> str:
-    """Remove comments so a disabled control cannot satisfy a text invariant."""
-    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
-    return re.sub(r"//[^\n]*", "", text)
+    """Remove comments so a disabled control cannot satisfy a text invariant.
+
+    String literals are copied through untouched. A regex that deletes from
+    ``//`` to end of line does not know it is inside a string, and every URL in
+    a Gradle file contains ``//``: it turned
+    ``datafeedUrl.set("https://.../nvdcve-{0}.json.gz")`` into
+    ``datafeedUrl.set("https:`` before any check ran, so the governed-feed
+    assertion could not pass however the build file was written. The same blind
+    spot cuts the other way for the checks that assert a token is *absent* —
+    anything after a ``//`` inside a literal became invisible, and an override
+    such as ``apiKey`` smuggled in there would have read as clean.
+    """
+    out: list[str] = []
+    index, length = 0, len(text)
+    while index < length:
+        if text[index] == '"':
+            end = _kotlin_string_span(text, index)
+            out.append(text[index:end])
+            index = end
+        elif text.startswith("/*", index):
+            end = text.find("*/", index + 2)
+            index = length if end == -1 else end + 2
+        elif text.startswith("//", index):
+            end = text.find("\n", index)
+            index = length if end == -1 else end
+        else:
+            out.append(text[index])
+            index += 1
+    return "".join(out)
 
 
 def _kotlin_blocks(text: str, opener: str) -> list[str]:
@@ -239,8 +298,17 @@ def _kotlin_blocks(text: str, opener: str) -> list[str]:
     for match in pattern.finditer(text):
         start = text.find("{", match.start())
         depth = 0
-        for index in range(start, len(text)):
+        index = start
+        # Braces inside string literals are not block delimiters. The governed
+        # feed URL ends in "{0}", which happens to balance; an unbalanced brace
+        # in any literal would silently hand back the wrong block body, and a
+        # check would then be asserting things about the wrong region of the
+        # file rather than failing.
+        while index < len(text):
             char = text[index]
+            if char == '"':
+                index = _kotlin_string_span(text, index)
+                continue
             if char == "{":
                 depth += 1
             elif char == "}":
@@ -248,7 +316,131 @@ def _kotlin_blocks(text: str, opener: str) -> list[str]:
                 if depth == 0:
                     bodies.append(text[start + 1:index])
                     break
+            index += 1
     return bodies
+
+
+
+def _version_tuple(text: str) -> tuple[int, ...] | None:
+    parts = str(text).split(".")
+    if not parts or not all(part.isdigit() for part in parts):
+        return None
+    return tuple(int(part) for part in parts)
+
+
+def _toolchain_sources(root: Path) -> list[Path]:
+    found: list[Path] = []
+    for pattern in TOOLCHAIN_SOURCES:
+        for path in sorted(root.glob(pattern)):
+            if path.is_file() and "__pycache__" not in path.parts:
+                found.append(path)
+    return found
+
+
+def _above_floor_uses(tree: ast.AST, wanted: dict[str, list[str]]) -> set[str]:
+    """Symbols from *wanted* that this module actually imports or dereferences.
+
+    Matched through the syntax tree, not by substring: 'UTC' and 'batched' are
+    ordinary words that appear in prose and in unrelated identifiers, and a
+    rule that fires on a docstring teaches people to work around it.
+    """
+    hits: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            for alias_node in node.names:
+                if alias_node.name in wanted.get(node.module, []):
+                    hits.add(f"{node.module}.{alias_node.name}")
+            if node.module in wanted.get("", []):
+                hits.add(node.module)
+        elif isinstance(node, ast.Import):
+            for alias_node in node.names:
+                if alias_node.name in wanted.get("", []):
+                    hits.add(alias_node.name)
+        elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            if node.attr in wanted.get(node.value.id, []):
+                hits.add(f"{node.value.id}.{node.attr}")
+    return hits
+
+
+def _interpreter_controls(root: Path, doc: dict, where: str) -> list[Problem]:
+    """The interpreter is part of the toolchain, so it is pinned like the rest."""
+    entries = {entry.get("id"): entry for entry in doc.get("entries", [])
+               if isinstance(entry, dict)}
+    entry = entries.get(INTERPRETER_ID)
+    scope = f"{where}#{INTERPRETER_ID}"
+    problems = expect(isinstance(entry, dict), "TOOLCHAIN_INTERPRETER", scope,
+                      "the catalogue must pin the Python that runs this toolchain; "
+                      "without it two execution environments drift apart silently",
+                      "NN-12")
+    if not isinstance(entry, dict):
+        return problems
+
+    reference = _version_tuple(entry.get("version", ""))
+    floor = _version_tuple(entry.get("minimum_supported", ""))
+    problems += expect(floor is not None and len(floor) >= 2, "TOOLCHAIN_INTERPRETER", scope,
+                       "minimum_supported must be a numeric compatibility floor "
+                       "such as '3.10'", "NN-12")
+    if floor is None or reference is None:
+        return problems
+    problems += expect(floor <= reference, "TOOLCHAIN_INTERPRETER", scope,
+                       f"the floor {entry['minimum_supported']} is newer than the reference "
+                       f"interpreter {entry['version']}", "NN-12")
+    problems += expect(sys.version_info[:len(floor)] >= floor, "TOOLCHAIN_INTERPRETER", scope,
+                       f"this gate is running on Python "
+                       f"{'.'.join(str(p) for p in sys.version_info[:3])}, below the declared "
+                       f"floor {entry['minimum_supported']}", "NN-12")
+
+    declared = entry.get("above_floor_symbols")
+    problems += expect(isinstance(declared, list) and declared, "TOOLCHAIN_INTERPRETER", scope,
+                       "above_floor_symbols must list the newer-than-floor symbols the "
+                       "toolchain is not allowed to use", "NN-12")
+    if not isinstance(declared, list):
+        return problems
+
+    wanted: dict[str, list[str]] = {}
+    added_in: dict[str, str] = {}
+    for item in declared:
+        if not isinstance(item, dict) or not isinstance(item.get("symbol"), str):
+            problems.append(Problem("TOOLCHAIN_INTERPRETER", scope,
+                                    "each above_floor_symbols item needs a 'symbol' string",
+                                    "NN-12"))
+            continue
+        symbol = item["symbol"]
+        version = _version_tuple(item.get("added_in", ""))
+        if version is None or version <= floor:
+            problems.append(Problem(
+                "TOOLCHAIN_INTERPRETER", scope,
+                f"'{symbol}' declares added_in={item.get('added_in')!r}, which is not above "
+                f"the floor {entry['minimum_supported']}; the list must stay meaningful",
+                "NN-12"))
+            continue
+        module, _, name = symbol.rpartition(".")
+        wanted.setdefault(module, []).append(name)
+        added_in[symbol] = item["added_in"]
+
+    for path in _toolchain_sources(root):
+        rel = path.relative_to(root).as_posix()
+        try:
+            source = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            problems.append(Problem("TOOLCHAIN_PYTHON_FLOOR", rel,
+                                    f"toolchain source is unreadable: {exc}", "NN-12"))
+            continue
+        try:
+            tree = ast.parse(source, filename=rel, feature_version=floor[:2])
+        except SyntaxError as exc:
+            problems.append(Problem(
+                "TOOLCHAIN_PYTHON_FLOOR", f"{rel}:{exc.lineno or 0}",
+                f"syntax requires a newer Python than the declared floor "
+                f"{entry['minimum_supported']}: {exc.msg}", "NN-12"))
+            continue
+        for symbol in sorted(_above_floor_uses(tree, wanted)):
+            problems.append(Problem(
+                "TOOLCHAIN_PYTHON_FLOOR", rel,
+                f"'{symbol}' was added in Python {added_in[symbol]}, above the declared "
+                f"floor {entry['minimum_supported']}; it fails at import time on every "
+                f"environment still running the floor", "NN-12"))
+    return problems
 
 
 def _security_build_controls(root: Path, doc: dict, where: str) -> list[Problem]:
@@ -289,6 +481,15 @@ def _security_build_controls(root: Path, doc: dict, where: str) -> list[Problem]
                            f"root build must apply exactly one catalogue-pinned "
                            f"'{plugin_id}' plugin at version '{version}'", "NN-12")
 
+    dependency_entry = entries.get("owasp-dependency-check")
+    datafeed_policy = (dependency_entry.get("datafeed_policy")
+                       if isinstance(dependency_entry, dict) else None)
+    problems += expect(datafeed_policy == nvdfeed.EXPECTED_POLICY,
+                       "TOOLCHAIN_SECURITY_DATAFEED",
+                       f"{where}#owasp-dependency-check.datafeed_policy",
+                       "the NVD mirror, freshness budget and request timeout must match the "
+                       "reviewed OWASP data-feed policy", "NN-12")
+
     dependency_blocks = _kotlin_blocks(code, r"\bdependencyCheck")
     problems += expect(len(dependency_blocks) == 1, "TOOLCHAIN_SECURITY_GATE",
                        "build.gradle.kts#dependencyCheck",
@@ -315,8 +516,29 @@ def _security_build_controls(root: Path, doc: dict, where: str) -> list[Problem]
                            "feed, analysis and report errors must fail the build", "NN-12")
         problems += expect("autoUpdate.set(false)" not in body and "autoUpdate=false" not in body,
                            "TOOLCHAIN_SECURITY_GATE", "build.gradle.kts#dependencyCheck",
-                           "live vulnerability data updates cannot be disabled without a "
-                           "separately verified data source", "NN-12")
+                           "live vulnerability data updates cannot be disabled", "NN-12")
+        nvd_blocks = _kotlin_blocks(dependency_blocks[0], r"\bnvd")
+        problems += expect(len(nvd_blocks) == 1,
+                           "TOOLCHAIN_SECURITY_DATAFEED",
+                           "build.gradle.kts#dependencyCheck.nvd",
+                           "dependency scan must configure exactly one governed NVD source",
+                           "NN-12")
+        if len(nvd_blocks) == 1:
+            nvd_body = re.sub(r"\s+", "", nvd_blocks[0])
+            expected_feed = f'datafeedUrl.set("{nvdfeed.DATAFEED_URL}")'
+            problems += expect(nvd_body.count(expected_feed) == 1
+                               and nvd_body.count("datafeedUrl.set(") == 1,
+                               "TOOLCHAIN_SECURITY_DATAFEED",
+                               "build.gradle.kts#dependencyCheck.nvd",
+                               "Dependency-Check must use exactly the governed OWASP data feed",
+                               "NN-12")
+            for credential in ("apiKey", "datafeedUser", "datafeedPassword",
+                               "datafeedBearerToken", "endpoint"):
+                problems += expect(credential not in nvd_body,
+                                   "TOOLCHAIN_SECURITY_DATAFEED",
+                                   "build.gradle.kts#dependencyCheck.nvd",
+                                   f"'{credential}' cannot override the keyless governed feed",
+                                   "NN-12")
         problems += expect("skip.set(true)" not in body and "skip=true" not in body,
                            "TOOLCHAIN_SECURITY_COVERAGE", "build.gradle.kts#dependencyCheck",
                            "dependency analysis cannot be skipped", "NN-12")
