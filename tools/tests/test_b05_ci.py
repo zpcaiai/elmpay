@@ -36,6 +36,27 @@ class PipelineHappyPath(FixtureTestCase):
         for action in doc["actions"]:
             self.assertRegex(action["ref"], r"^[0-9a-f]{40}$", action["name"])
 
+    def test_node24_action_upgrades_are_exactly_pinned(self):
+        doc = self.fixture.read("governance/ci-pipeline.json")
+        actions = {action["name"]: action for action in doc["actions"]}
+        expected = {
+            "actions/setup-java": (
+                "b6effb05e454b25005698d916606bdc6ffcbf961",
+                "v5.7.0",
+            ),
+            "actions/upload-artifact": (
+                "b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+                "v6.0.0",
+            ),
+            "gradle/actions/setup-gradle": (
+                "0723195856401067f7a2779048b490ace7a47d7c",
+                "v5.0.2",
+            ),
+        }
+        for name, (ref, version) in expected.items():
+            self.assertEqual(actions[name]["ref"], ref, name)
+            self.assertEqual(actions[name]["version_comment"], version, name)
+
     def test_batch_mandated_blocking_conditions_exist(self):
         doc = self.fixture.read("governance/ci-pipeline.json")
         ids = {c["id"] for c in doc["blocking_conditions"]}

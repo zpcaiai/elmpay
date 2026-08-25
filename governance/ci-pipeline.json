@@ -90,8 +90,8 @@
     },
     {
       "name": "actions/setup-java",
-      "ref": "c5195efecf7bdfc987ee8bae7a71cb8b11521c00",
-      "version_comment": "v5.0.0"
+      "ref": "b6effb05e454b25005698d916606bdc6ffcbf961",
+      "version_comment": "v5.7.0"
     },
     {
       "name": "actions/setup-python",
@@ -110,8 +110,8 @@
     },
     {
       "name": "actions/upload-artifact",
-      "ref": "ea165f8d65b6e75b540449e92b4886f43607fa02",
-      "version_comment": "v4.6.2"
+      "ref": "b7c566a772e6b6bfb58ed0dc250532a479d7789f",
+      "version_comment": "v6.0.0"
     },
     {
       "name": "actions/download-artifact",
@@ -125,8 +125,8 @@
     },
     {
       "name": "gradle/actions/setup-gradle",
-      "ref": "06832c7b30a0129d7fb559bcc6e43d26f6374244",
-      "version_comment": "v4.3.1"
+      "ref": "0723195856401067f7a2779048b490ace7a47d7c",
+      "version_comment": "v5.0.2"
     }
   ],
   "quality_gates": {

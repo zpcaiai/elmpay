@@ -39,11 +39,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - name: '校验技能包镜像、章程、红线、模块边界、需求、威胁模型、工具链与本地平台声明 (1/8)'
@@ -70,7 +70,7 @@ jobs:
       - name: '校验技能包镜像、章程、红线、模块边界、需求、威胁模型、工具链与本地平台声明 (8/8)'
         run: |
           python3 scripts/batch.py crosscheck
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: governance-artifacts
@@ -90,17 +90,17 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.10.12'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - name: '在精确固定的最旧受支持 Python 上执行完整治理校验，阻断语法、标准库与裁决行为漂移 (1/1)'
         run: |
           python3 -m tools.paygov.cli verify-all --repo . --out python-floor-report.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: python-floor-artifacts
@@ -120,11 +120,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - name: '编译并运行全部单元、属性与并发测试，禁止跳过关键测试 (1/2)'
@@ -133,7 +133,7 @@ jobs:
       - name: '编译并运行全部单元、属性与并发测试，禁止跳过关键测试 (2/2)'
         run: |
           ./gradlew --no-daemon test
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: unit-test-artifacts
@@ -154,11 +154,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: ${{ github.event_name != 'push' || github.repository != 'zpcaiai/elmpay' || github.ref != 'refs/heads/main' }}
       - name: '以固定工具链构建声明的 Gradle leaf，并生成待签名制品 manifest (1/2)'
@@ -167,7 +167,7 @@ jobs:
       - name: '以固定工具链构建声明的 Gradle leaf，并生成待签名制品 manifest (2/2)'
         run: |
           scripts/stage-signing-artifacts.sh
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: build-artifacts
@@ -187,11 +187,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - name: '执行 Gradle check、编译告警即错误与模块边界治理；当前不宣称生产源码 SAST (1/2)'
@@ -200,7 +200,7 @@ jobs:
       - name: '执行 Gradle check、编译告警即错误与模块边界治理；当前不宣称生产源码 SAST (2/2)'
         run: |
           python3 -m tools.paygov.cli verify module-registry --repo . --out build/static-analysis.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: static-analysis-artifacts
@@ -220,17 +220,17 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - name: '扫描已跟踪源码与配置中的凭证模式和仓库卫生；不宣称 Git 历史或构建制品扫描 (1/1)'
         run: |
           python3 -m tools.paygov.cli verify repo-hygiene --repo . --out secret-scan.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: secret-scan-artifacts
@@ -250,11 +250,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
@@ -275,7 +275,7 @@ jobs:
         with:
           path: ~/.gradle/dependency-check-data/11.0
           key: ${{ steps.dependency-check-cache.outputs.cache-primary-key }}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: dependency-scan-artifacts
@@ -295,17 +295,17 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - name: '验证镜像摘要声明和本地平台配置；当前没有 OCI 产品镜像，因而不宣称镜像漏洞扫描 (1/1)'
         run: |
           python3 -m tools.paygov.cli verify toolchain dev-platform --repo . --out container-scan.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: container-scan-artifacts
@@ -325,17 +325,17 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - name: '验证 compose、本地模拟器、数据边界和摘要固定声明；不宣称生产 Kubernetes/Terraform 扫描 (1/1)'
         run: |
           python3 -m tools.paygov.cli verify dev-platform --repo . --out iac-scan.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: iac-scan-artifacts
@@ -355,17 +355,17 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - name: '生成覆盖声明 Gradle 项目的聚合 CycloneDX JSON；不把聚合 BOM 冒充逐制品 SBOM (1/1)'
         run: |
           ./gradlew --no-daemon cyclonedxBom
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: sbom-artifacts
@@ -407,7 +407,7 @@ jobs:
           ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN: ${{ vars.ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN }}
         run: |
           scripts/sign-artifacts.sh
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: sign-artifacts
@@ -428,17 +428,17 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - name: '以真实 CLI 对被破坏的治理面验证门禁确实会失败 (1/1)'
         run: |
           python3 scripts/negative-controls.py > negative-controls.log 2>&1
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: negative-controls-artifacts
@@ -458,11 +458,11 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - name: '交叉校验两套编排实现和逐批完成证据，并生成受 GitHub retention 约束的仓库证据 tarball；任一批次不通过则拒绝出包 (1/3)'
@@ -474,7 +474,7 @@ jobs:
       - name: '交叉校验两套编排实现和逐批完成证据，并生成受 GitHub retention 约束的仓库证据 tarball；任一批次不通过则拒绝出包 (3/3)'
         run: |
           python3 scripts/archive-evidence.py --out build/evidence-bundle.tar.gz
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: evidence-archive-artifacts
@@ -494,17 +494,17 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: '3.12.7'
-      - uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00  # v5.0.0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
         with:
           distribution: temurin
           java-version: '25.0.4'
-      - uses: gradle/actions/setup-gradle@06832c7b30a0129d7fb559bcc6e43d26f6374244  # v4.3.1
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
       - name: '逐条抑制校验规则并重跑其覆盖测试，测试仍通过即说明该规则不承重 (1/1)'
         run: |
           python3 scripts/rule-knockout.py --out build/rule-knockout.json
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
           name: rule-knockout-artifacts
