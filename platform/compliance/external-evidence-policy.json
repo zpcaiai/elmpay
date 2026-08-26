@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "status": "NOT_CERTIFIED",
+  "localValidationMayCertify": false,
+  "independentEvidenceRequired": true,
+  "minimumDistinctVerifiers": 2,
+  "requiredCategories": {
+    "independent_human_review": {
+      "category": "independent_human_review",
+      "requiredRole": "external_verifier",
+      "requiredSource": "INDEPENDENT_REVIEWER",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 24,
+      "requiredFields": ["reviewerId", "implementerId", "scope", "decision", "openFindings", "phishingResistantAuth"]
+    },
+    "provider_certification": {
+      "category": "provider_certification",
+      "requiredRole": "external_verifier",
+      "requiredSource": "PROVIDER_OFFICIAL",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 720,
+      "requiredFields": ["providerId", "officialCertificationId", "environment", "official", "sandboxValidated", "capabilities", "observedTransactionReference"]
+    },
+    "production_kubernetes": {
+      "category": "production_kubernetes",
+      "requiredRole": "external_verifier",
+      "requiredSource": "PRODUCTION_ATTESTATION",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 24,
+      "requiredFields": ["environment", "clusterId", "regions", "commitSha", "artifactDigest", "imageDigests", "gitopsDriftCount", "admissionPolicyPassed", "rolloutStage"]
+    },
+    "dr_exercise": {
+      "category": "dr_exercise",
+      "requiredRole": "external_verifier",
+      "requiredSource": "PRODUCTION_DR_EXERCISE",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 2160,
+      "maximumRpoSeconds": 60,
+      "maximumRtoSeconds": 900,
+      "requiredFields": ["exerciseId", "regions", "measuredRpoSeconds", "measuredRtoSeconds", "failbackPassed", "writeFenceObserved", "providerRoutingVerified", "dataLossDetected"]
+    },
+    "pci_assessor": {
+      "category": "pci_assessor",
+      "requiredRole": "external_verifier",
+      "requiredSource": "PCI_ASSESSOR",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 2160,
+      "requiredFields": ["assessorType", "reportReference", "scope", "status", "assessorIndependent"]
+    },
+    "uat_acceptance": {
+      "category": "uat_acceptance",
+      "requiredRole": "external_verifier",
+      "requiredSource": "UAT_SIGNOFF",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 720,
+      "requiredFields": ["environment", "tenantId", "merchantId", "scenariosTotal", "scenariosPassed", "financeSignoff", "operationsSignoff", "merchantSignoff"]
+    },
+    "penetration_test": {
+      "category": "penetration_test",
+      "requiredRole": "external_verifier",
+      "requiredSource": "INDEPENDENT_PEN_TESTER",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 2160,
+      "requiredFields": ["testerId", "testerIndependent", "scope", "methodology", "reportReference", "findings"]
+    },
+    "shadow_rollout": {
+      "category": "shadow_rollout",
+      "requiredRole": "external_verifier",
+      "requiredSource": "PRODUCTION_ROLLOUT_OBSERVER",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 24,
+      "requiredFields": ["stage", "datasetDigest", "resultDigest", "sampleCount", "mismatchCount", "candidateSideEffects"]
+    },
+    "canary_rollout": {
+      "category": "canary_rollout",
+      "requiredRole": "external_verifier",
+      "requiredSource": "PRODUCTION_ROLLOUT_OBSERVER",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 24,
+      "requiredFields": ["stage", "trafficPercent", "windowMinutes", "errorRateDelta", "latencyP99DeltaMs", "authorizationRateDrop", "autoStopTriggered", "duplicateSideEffectCount", "securityCriticalCount"]
+    },
+    "merchant_acceptance": {
+      "category": "merchant_acceptance",
+      "requiredRole": "external_verifier",
+      "requiredSource": "MERCHANT_SIGNOFF",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 720,
+      "requiredFields": ["merchantId", "acceptanceId", "accepted", "merchantSignoff", "scenarioDigest"]
+    },
+    "legal_compliance": {
+      "category": "legal_compliance",
+      "requiredRole": "external_verifier",
+      "requiredSource": "EXTERNAL_LEGAL_COUNSEL",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 2160,
+      "requiredFields": ["jurisdiction", "decision", "externalAuthority", "reference"]
+    },
+    "regional_market_approval": {
+      "category": "regional_market_approval",
+      "requiredRole": "external_verifier",
+      "requiredSource": "REGIONAL_MARKET_AUTHORITY",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 2160,
+      "requiredFields": ["market", "decision", "externalAuthority", "reference"]
+    }
+  }
+}

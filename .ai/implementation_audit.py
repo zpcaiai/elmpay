@@ -142,7 +142,10 @@ def audit(*, run_checks: bool = False, timeout_seconds: int = 900) -> dict[str, 
         "services/ledger-service/src/main/resources/db/migration/V001__immutable_ledger.sql",
         "services/reconciliation-service/src/main/resources/db/migration/V001__reconciliation.sql",
         "tools/runtime/elmpay_runtime/release.py",
+        "tools/runtime/elmpay_runtime/external_evidence.py",
         "platform/kubernetes/workload-policy.json",
+        "platform/compliance/external-evidence-policy.json",
+        "testing/test_external_evidence.py",
     )
     for relative in required_controls:
         if not (ROOT / relative).is_file():

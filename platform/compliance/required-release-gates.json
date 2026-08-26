@@ -24,5 +24,6 @@
   "minimumDistinctApprovers": 2,
   "maximumApprovalAgeHours": 24,
   "evidenceMustBeIndependent": true,
-  "manifestMustExpire": true
+  "manifestMustExpire": true,
+  "externalEvidenceRequired": true
 }

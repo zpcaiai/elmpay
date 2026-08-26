@@ -56,6 +56,7 @@ def validate_repository(root: Path) -> GateReport:
         "platform/compliance/vendor-policy.json",
         "platform/compliance/control-matrix.json",
         "platform/compliance/required-release-gates.json",
+        "platform/compliance/external-evidence-policy.json",
         "platform/compliance/regional-boundaries.json",
         "platform/compliance/aml-boundary.json",
         "platform/policies/event-resilience.json",
@@ -308,6 +309,25 @@ def _validate_compliance(root: Path, documents: Mapping[str, Any]) -> None:
         raise ValidationError("release gate must require distinct approvers")
     if not gates.get("requiredEvidence"):
         raise ValidationError("release gate requires external evidence categories")
+    if gates.get("externalEvidenceRequired") is not True:
+        raise ValidationError("release gate must require the external evidence bundle")
+    external = documents["platform/compliance/external-evidence-policy.json"]
+    if external.get("schemaVersion") != 1 or external.get("status") != "NOT_CERTIFIED":
+        raise ValidationError("external evidence policy must remain schema v1 and NOT_CERTIFIED")
+    if external.get("localValidationMayCertify") is not False or external.get("independentEvidenceRequired") is not True:
+        raise ValidationError("external evidence policy must be independent and fail closed")
+    if external.get("minimumDistinctVerifiers", 0) < 2:
+        raise ValidationError("external evidence must require two distinct verifiers")
+    categories = external.get("requiredCategories")
+    if not isinstance(categories, dict) or len(categories) < 10:
+        raise ValidationError("external evidence category policy is incomplete")
+    for name, category in categories.items():
+        if not isinstance(category, dict) or category.get("category") != name:
+            raise ValidationError(f"external evidence category metadata invalid: {name}")
+        if category.get("requiredRole") != "external_verifier" or category.get("externalVerifierRequired") is not True:
+            raise ValidationError(f"external evidence category must require external verifier: {name}")
+        if not isinstance(category.get("requiredFields"), list) or not category["requiredFields"]:
+            raise ValidationError(f"external evidence fields missing: {name}")
     regional = documents["platform/compliance/regional-boundaries.json"]
     if regional.get("unknownMarketAction") != "BLOCK_ONBOARDING" or regional.get("localConfigurationMayApproveMarket") is not False:
         raise ValidationError("regional onboarding must fail closed pending external legal review")

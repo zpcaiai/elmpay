@@ -145,6 +145,7 @@ def evaluate_go_no_go(
     capacity: GateReport,
     operations: Mapping[str, Any],
     policy: Mapping[str, Any],
+    external_evidence: GateReport | None = None,
 ) -> GateReport:
     reasons: list[str] = []
     checks: list[str] = []
@@ -165,6 +166,13 @@ def evaluate_go_no_go(
     else:
         checks.append("capacity_gate")
     gate = require_mapping(policy.get("goNoGo"), "goNoGo")
+    if gate.get("requireExternalEvidence") is True:
+        if external_evidence is None:
+            reasons.append("external_evidence_bundle_missing")
+        elif not external_evidence.allowed:
+            reasons.extend(f"external_evidence:{reason}" for reason in external_evidence.reasons)
+        else:
+            checks.append("external_evidence_gate")
     required_operational = {
         "rollbackTestPassed",
         "gitopsDriftCount",
