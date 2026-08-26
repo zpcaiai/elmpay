@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "reconciliation": {
+    "mode": "pull",
+    "intervalSeconds": 60,
+    "prune": true,
+    "selfHeal": true,
+    "detectOutOfBandChanges": true
+  },
+  "source": {
+    "allowedBranches": ["main"],
+    "requireProtectedBranch": true,
+    "requireSignedCommit": true,
+    "requireImmutableImageDigest": true,
+    "requireTwoPersonReview": true
+  },
+  "drift": {
+    "alertAfterSeconds": 120,
+    "blockReleaseWhenPresent": true,
+    "automaticReconciliation": true
+  },
+  "credentials": {
+    "workloadIdentityRequired": true,
+    "staticCloudKeysAllowed": false
+  }
+}

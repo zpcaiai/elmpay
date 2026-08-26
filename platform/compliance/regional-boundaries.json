@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "unknownMarketAction": "BLOCK_ONBOARDING",
+  "markets": [
+    {
+      "market": "CN",
+      "requiredEvidence": ["licensed_entity_mapping", "data_residency_attestation", "legal_approval"],
+      "crossBorderDataDefault": "DENY",
+      "externalLegalValidationRequired": true
+    },
+    {
+      "market": "EU",
+      "requiredEvidence": ["processing_basis", "data_transfer_assessment", "legal_approval"],
+      "crossBorderDataDefault": "DENY",
+      "externalLegalValidationRequired": true
+    },
+    {
+      "market": "US",
+      "requiredEvidence": ["licensed_entity_mapping", "state_scope_review", "legal_approval"],
+      "crossBorderDataDefault": "DENY",
+      "externalLegalValidationRequired": true
+    }
+  ],
+  "localConfigurationMayApproveMarket": false
+}

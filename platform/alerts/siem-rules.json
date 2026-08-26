@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "defaultDisposition": "ALERT",
+  "rules": [
+    {
+      "id": "SIEM-ADMIN-IMPOSSIBLE-TRAVEL",
+      "severity": "high",
+      "eventTypes": ["admin.authentication.succeeded"],
+      "condition": "distinct_countries_per_actor_30m > 1",
+      "response": ["revoke_session", "page_security"]
+    },
+    {
+      "id": "SIEM-FOUR-EYES-BYPASS",
+      "severity": "critical",
+      "eventTypes": ["approval.decided"],
+      "condition": "proposer_id == approver_id OR phishing_resistant != true",
+      "response": ["block_mutation", "page_security", "preserve_evidence"]
+    },
+    {
+      "id": "SIEM-SECRET-ACCESS-SPIKE",
+      "severity": "critical",
+      "eventTypes": ["secret.read"],
+      "condition": "reads_per_actor_5m > baseline_p99",
+      "response": ["revoke_workload_identity", "page_security"]
+    },
+    {
+      "id": "SIEM-GITOPS-DRIFT",
+      "severity": "high",
+      "eventTypes": ["gitops.drift.detected"],
+      "condition": "age_seconds > 120",
+      "response": ["block_release", "reconcile", "page_platform"]
+    }
+  ]
+}

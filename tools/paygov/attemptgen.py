@@ -10,8 +10,8 @@ ATTEMPT = Path("governance/payment-attempt.json")
 MD_BANNER = ("<!-- GENERATED FILE — do not edit by hand.\n"
              "     Source of truth: governance/payment-attempt.json\n"
              "     Regenerate with: python3 scripts/render-attempt.py -->\n")
-BLOCKS = ("attempt", "tenant_scope", "concurrency", "reference_runtime", "request_record",
-          "response_record", "timeout", "retry", "finality", "lifecycle")
+BLOCKS = ("attempt", "tenant_scope", "concurrency", "reference_runtime", "deployable_runtime",
+          "request_record", "response_record", "timeout", "retry", "finality", "lifecycle")
 
 
 def _without_notes(block: dict) -> dict:
@@ -52,6 +52,7 @@ def attempt_markdown(root: Path, budget: Budget | None = None) -> str:
     tenant = model["tenant_scope"]
     concurrency = model["concurrency"]
     runtime = model["reference_runtime"]
+    deployable = model["deployable_runtime"]
     record = model["request_record"]
     response = model["response_record"]
     timeout = model["timeout"]
@@ -87,6 +88,17 @@ def attempt_markdown(root: Path, budget: Budget | None = None) -> str:
            f"- B32 replacement confirmation 已接通："
            f"{'是' if runtime['b32_replacement_confirmation_integrated'] else '**否**'}",
            "", runtime["notes"], "",
+           "## 可部署 Java 运行时", "",
+           f"- 实现：`{deployable['implementation']}`",
+           f"- 迁移：`{deployable['migration']}`",
+           f"- 持久化：{'是' if deployable['durable_storage'] else '否'}；"
+           f"数据库唯一约束：{'是' if deployable['database_unique_constraint'] else '否'}；"
+           f"事务 outbox：{'是' if deployable['transactional_outbox'] else '否'}",
+           f"- 租户 RLS：{'是' if deployable['tenant_rls'] else '否'}；"
+           f"B32 confirm 接入：{'是' if deployable['b32_confirmation_integrated'] else '否'}；"
+           f"UNKNOWN 查询收敛：{'是' if deployable['unknown_query_recovery'] else '否'}",
+           f"- 本地测试等同认证：{'是' if deployable['local_tests_are_certification'] else '**否**'}",
+           "", deployable["notes"], "",
            "## 请求记录", "",
            f"- 存摘要不存报文：{'是' if record['store_digest_not_payload'] else '否'}；"
            f"算法：`{record['digest_algorithm']}`",

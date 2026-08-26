@@ -73,6 +73,16 @@ class AttemptModelHappyPath(FixtureTestCase):
         self.assertFalse(runtime["b32_replacement_confirmation_integrated"])
         self.assertFalse(runtime["production_ready"])
 
+    def test_deployable_runtime_is_separate_durable_and_not_certified_by_local_tests(self):
+        runtime = self.fixture.read(REL)["deployable_runtime"]
+        self.assertTrue(runtime["durable_storage"])
+        self.assertTrue(runtime["database_unique_constraint"])
+        self.assertTrue(runtime["transactional_outbox"])
+        self.assertTrue(runtime["tenant_rls"])
+        self.assertTrue(runtime["b32_confirmation_integrated"])
+        self.assertTrue(runtime["unknown_query_recovery"])
+        self.assertFalse(runtime["local_tests_are_certification"])
+
     def test_the_request_is_stored_as_a_digest(self):
         record = self.fixture.read(REL)["request_record"]
         self.assertTrue(record["store_digest_not_payload"])
@@ -360,6 +370,34 @@ class AttemptGateRejects(FixtureTestCase):
     def test_rejects_unexplained_reference_limits(self):
         self._mutate(lambda d: d["reference_runtime"].__setitem__("notes", ""),
                      "ATTEMPT_REFERENCE_LIMITS_NOTES")
+
+    def test_rejects_missing_deployable_runtime(self):
+        self._mutate(lambda d: d.pop("deployable_runtime"),
+                     "ATTEMPT_DEPLOYABLE_RUNTIME_MISSING")
+
+    def test_rejects_local_tests_as_certification(self):
+        self._mutate(lambda d: d["deployable_runtime"].__setitem__(
+            "local_tests_are_certification", True),
+            "ATTEMPT_LOCAL_TEST_CERTIFICATION_OVERCLAIM")
+
+    def test_rejects_an_unbound_deployable_implementation(self):
+        self._mutate(lambda d: d["deployable_runtime"].__setitem__(
+            "implementation", "services/payment-core"),
+            "ATTEMPT_DEPLOYABLE_RUNTIME_UNBOUND")
+
+    def test_rejects_an_unbound_deployable_migration(self):
+        self._mutate(lambda d: d["deployable_runtime"].__setitem__(
+            "migration", "apps/edge-gateway/src/main/resources/db/migration/V999.sql"),
+            "ATTEMPT_DEPLOYABLE_MIGRATION_UNBOUND")
+
+    def test_rejects_a_missing_deployable_runtime_control(self):
+        self._mutate(lambda d: d["deployable_runtime"].__setitem__(
+            "tenant_rls", False),
+            "ATTEMPT_DEPLOYABLE_CONTROL_MISSING")
+
+    def test_rejects_unexplained_deployable_runtime(self):
+        self._mutate(lambda d: d["deployable_runtime"].__setitem__("notes", ""),
+                     "ATTEMPT_DEPLOYABLE_RUNTIME_NOTES")
 
     # -- request record ---------------------------------------------------
     def test_rejects_storing_the_payload(self):

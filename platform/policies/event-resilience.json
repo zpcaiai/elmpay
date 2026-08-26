@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "delivery": "at-least-once",
+  "consumerIdempotencyRequired": true,
+  "schemaCompatibility": "BACKWARD_TRANSITIVE",
+  "unknownSchemaAction": "QUARANTINE",
+  "maximumAttempts": 12,
+  "retry": { "initialSeconds": 1, "maximumSeconds": 900, "jitter": true },
+  "deadLetter": {
+    "required": true,
+    "replayRequiresDryRun": true,
+    "replayRequiresDistinctApprover": true,
+    "replayPreservesOriginalEventId": true
+  },
+  "encryption": { "inTransit": true, "atRest": true },
+  "orderingKey": "aggregate_id"
+}

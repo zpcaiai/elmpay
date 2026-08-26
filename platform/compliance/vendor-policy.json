@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "defaultAction": "BLOCK_ONBOARDING",
+  "required": [
+    "security_assessment",
+    "data_processing_agreement",
+    "subprocessor_inventory",
+    "incident_notification_sla",
+    "business_continuity_evidence",
+    "exit_plan",
+    "sanctions_screening"
+  ],
+  "reviewMaximumAgeDays": 365,
+  "criticalVendorReviewMaximumAgeDays": 180,
+  "requiresIndependentApprover": true,
+  "expiredReviewAction": "SUSPEND_NEW_TRAFFIC"
+}

@@ -100,6 +100,7 @@ def _validate(root: Path, budget: Budget) -> list[Problem]:
     problems += _tenant_scope(model, where)
     problems += _concurrency(model, where)
     problems += _reference_runtime(model, where)
+    problems += _deployable_runtime(model, where)
     problems += _request_record(model, where)
     problems += _response_record(model, where)
     classes, problems_ = _classes(model, where, budget)
@@ -205,6 +206,43 @@ def _reference_runtime(model: dict, where: str) -> list[Problem]:
     problems += expect(len(str(runtime.get("notes") or "")) >= 20,
                        "ATTEMPT_REFERENCE_LIMITS_NOTES", where,
                        "state why the reference runtime is not production evidence", "NN-14")
+    return problems
+
+
+def _deployable_runtime(model: dict, where: str) -> list[Problem]:
+    """Keep the production implementation claim concrete without certifying it.
+
+    The Python reference remains intentionally process-local.  This separate
+    block binds the deployable Java implementation to its durable migration so
+    future documentation cannot collapse those two very different runtimes.
+    """
+    runtime = model.get("deployable_runtime")
+    if not isinstance(runtime, dict):
+        return [Problem("ATTEMPT_DEPLOYABLE_RUNTIME_MISSING", where,
+                        "declare the durable Java attempt runtime separately from the "
+                        "in-memory reference", "NN-12")]
+    problems = list(expect(
+        runtime.get("implementation") ==
+        "services/payment-core/src/main/java/com/elmpay/payment",
+        "ATTEMPT_DEPLOYABLE_RUNTIME_UNBOUND", where,
+        "bind the deployable runtime to the payment-core implementation", "NN-12"))
+    problems += expect(
+        runtime.get("migration") ==
+        "apps/edge-gateway/src/main/resources/db/migration/V032__payment_runtime.sql",
+        "ATTEMPT_DEPLOYABLE_MIGRATION_UNBOUND", where,
+        "bind the deployable runtime to its checksum-controlled migration", "NN-12")
+    for field in ("durable_storage", "database_unique_constraint", "transactional_outbox",
+                  "tenant_rls", "b32_confirmation_integrated", "unknown_query_recovery"):
+        problems += expect(runtime.get(field) is True,
+                           "ATTEMPT_DEPLOYABLE_CONTROL_MISSING", where,
+                           f"the Java runtime must declare {field}", "NN-03")
+    problems += expect(runtime.get("local_tests_are_certification") is False,
+                       "ATTEMPT_LOCAL_TEST_CERTIFICATION_OVERCLAIM", where,
+                       "repository tests are implementation evidence, not certification",
+                       "NN-12")
+    problems += expect(len(str(runtime.get("notes") or "")) >= 20,
+                       "ATTEMPT_DEPLOYABLE_RUNTIME_NOTES", where,
+                       "explain the durable runtime and its certification boundary", "NN-14")
     return problems
 
 

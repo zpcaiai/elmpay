@@ -153,6 +153,8 @@ def _third_party_imports(root: Path, budget: Budget) -> list[Problem]:
         "csv", "abc", "operator", "difflib", "unicodedata", "ast", "zipfile",
         "hmac", "hashlib", "http", "urllib", "socket", "socketserver", "base64",
         "random", "libs", "decimal", "fractions", "importlib", "pkgutil", "multiprocessing",
+        # First-party, standard-library-only runtime controls under tools/runtime.
+        "elmpay_runtime",
     }
     problems: list[Problem] = []
     scanned = sorted((root / "tools").rglob("*.py")) + \

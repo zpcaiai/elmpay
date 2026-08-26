@@ -33,7 +33,17 @@ attempt 一旦写入终态就不可修改。重试开新的一条，序号单调
 - 运行时审计写入：**否**；生产就绪：**否**
 - B32 replacement confirmation 已接通：**否**
 
-当前 Python 代码只是不变量参考实现：并发保护仅覆盖单进程，记录不持久化，也没有把 attempt 事件写入 B23 审计存储。replacement_request 只建模 B33 attempt 规则，尚未接入 B32 Intents.confirm，也没有验证客户动作主体；因此不能声称更换资金源端到端可用、生产就绪或 B33 完成门已通过。
+libs/attempt/reference 下的 Python 代码仍只是不变量参考实现：并发保护仅覆盖单进程，记录不持久化，也没有把 attempt 事件写入 B23 审计存储。该说明只约束参考实现，不能用来推断 Java 运行时的状态；它也绝不构成 B33 完成或认证证据。
+
+## 可部署 Java 运行时
+
+- 实现：`services/payment-core/src/main/java/com/elmpay/payment`
+- 迁移：`apps/edge-gateway/src/main/resources/db/migration/V032__payment_runtime.sql`
+- 持久化：是；数据库唯一约束：是；事务 outbox：是
+- 租户 RLS：是；B32 confirm 接入：是；UNKNOWN 查询收敛：是
+- 本地测试等同认证：**否**
+
+Java 运行时通过 PostgreSQL 事务、唯一约束、乐观版本和租户 RLS 串行化 attempt，并把规范化结果与 outbox 原子写入；超时或不可验证响应保留 UNKNOWN，后续由服务端查询收敛。仓库内测试只证明本地实现，不替代独立复核、渠道认证或 B33 完成门。
 
 ## 请求记录
 

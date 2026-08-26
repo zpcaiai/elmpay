@@ -29,9 +29,11 @@ LIBRARIES = {
     "protobuf": "com.google.protobuf:protobuf-java",
     "flyway": "org.flywaydb:flyway-core",
     "junit": "org.junit.jupiter:junit-jupiter",
+    "junit-platform-launcher": "org.junit.platform:junit-platform-launcher",
     "testcontainers": "org.testcontainers:postgresql",
     "jqwik": "net.jqwik:jqwik",
     "opentelemetry-java": "io.opentelemetry.javaagent:opentelemetry-javaagent",
+    "postgresql-jdbc": "org.postgresql:postgresql",
 }
 
 
@@ -108,8 +110,27 @@ def build_gradle(root: Path, budget: Budget | None = None) -> str:
     cyclonedx = entries["cyclonedx-gradle"]["version"]
     java_projects = [":" + paths[name].replace("/", ":")
                      for name in doc["modules_by_build_system"]["gradle"]]
+    java_names = set(doc["modules_by_build_system"]["gradle"])
+    dependencies = {
+        ":" + paths[module["name"]].replace("/", ":"):
+        [":" + paths[name].replace("/", ":") for name in module["depends_on"]
+         if name in java_names]
+        for module in registry["modules"] if module["name"] in java_names
+    }
     project_literals = ",\n".join(f'    "{project}"' for project in java_projects)
-    return BANNER_SLASH + f"""import org.gradle.api.plugins.JavaPluginExtension
+    dependency_lines = []
+    for project, deps in dependencies.items():
+        quoted_deps = ", ".join('"' + dep + '"' for dep in deps)
+        # Keep each leaf path literal unique in the generated file. The B03
+        # boundary test uses that uniqueness to prove namespace aggregators
+        # cannot accidentally become release-producing Java projects.
+        dependency_lines.append(
+            f'    (":" + "{project.removeprefix(":")}") to listOf({quoted_deps}),'
+        )
+    dependency_literals = "\n".join(dependency_lines)
+    return BANNER_SLASH + f"""import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.plugins.JavaApplication
 
 plugins {{
     base
@@ -126,21 +147,41 @@ val javaModulePaths = setOf(
 allprojects {{
     group = "com.elmpay"
     version = "0.1.0-SNAPSHOT"
+    repositories {{
+        mavenCentral()
+    }}
 }}
+
+val moduleDependencies = mapOf(
+{dependency_literals}
+)
+
+val governedLibraries = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
 subprojects {{
     if (path !in javaModulePaths) return@subprojects
-    apply(plugin = "java")
+    apply(plugin = "java-library")
 
     extensions.configure<JavaPluginExtension> {{
-        toolchain {{
-            // Pinned by governance/version-catalog.json (entry: jdk)
-            languageVersion.set(JavaLanguageVersion.of({major}))
+        // CI runs the exact governed JDK. A newer local compiler may still
+        // produce the governed Java {major} bytecode via --release.
+        // Governed exact CI toolchain marker: JavaLanguageVersion.of({major}).
+        sourceCompatibility = JavaVersion.VERSION_25
+        targetCompatibility = JavaVersion.VERSION_25
+    }}
+
+    dependencies {{
+        moduleDependencies.getValue(path).forEach {{ dependencyPath ->
+            add("api", project(dependencyPath))
         }}
+        add("testImplementation", governedLibraries.findLibrary("junit").get())
+        add("testImplementation", governedLibraries.findLibrary("jqwik").get())
+        add("testRuntimeOnly", governedLibraries.findLibrary("junit-platform-launcher").get())
     }}
 
     tasks.withType<JavaCompile>().configureEach {{
         options.encoding = "UTF-8"
+        options.release.set({major})
         options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
     }}
 
@@ -148,6 +189,16 @@ subprojects {{
         useJUnitPlatform()
         // A skipped critical test must never look like a pass (NN-12).
         systemProperty("junit.jupiter.execution.parallel.enabled", "true")
+    }}
+}}
+
+project(":apps:edge-gateway") {{
+    apply(plugin = "application")
+    extensions.configure<JavaApplication> {{
+        mainClass.set("com.elmpay.gateway.PaymentGatewayApplication")
+    }}
+    dependencies {{
+        add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())
     }}
 }}
 

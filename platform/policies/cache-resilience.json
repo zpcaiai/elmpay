@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "cacheIsSourceOfTruth": false,
+  "failOpenAllowed": false,
+  "tenantKeyPrefixRequired": true,
+  "tlsRequired": true,
+  "authenticationRequired": true,
+  "maximumStalenessSeconds": 30,
+  "stampedeProtection": {
+    "singleFlight": true,
+    "jitteredExpiry": true,
+    "boundedWaitMilliseconds": 250
+  },
+  "outageAction": "BYPASS_READS_AND_BLOCK_UNSAFE_MUTATIONS"
+}

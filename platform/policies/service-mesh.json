@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "mtlsMode": "STRICT",
+  "identity": "SPIFFE",
+  "plaintextFallbackAllowed": false,
+  "authorizationDefault": "DENY",
+  "certificateRotationHours": 24,
+  "expiredCertificateAction": "DENY_AND_ALERT",
+  "egressDefault": "DENY"
+}

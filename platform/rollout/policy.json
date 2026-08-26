@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "stages": [
+    { "name": "shadow", "minimumMinutes": 60, "trafficPercent": 0, "requiresDiffPass": true },
+    { "name": "canary-1", "minimumMinutes": 30, "trafficPercent": 1, "requiresApproval": true },
+    { "name": "canary-10", "minimumMinutes": 60, "trafficPercent": 10, "requiresApproval": true },
+    { "name": "canary-25", "minimumMinutes": 120, "trafficPercent": 25, "requiresApproval": true },
+    { "name": "production", "minimumMinutes": 0, "trafficPercent": 100, "requiresApproval": true }
+  ],
+  "autoStop": {
+    "errorRateDelta": 0.002,
+    "latencyP99DeltaMs": 100,
+    "authorizationRateDrop": 0.01,
+    "ledgerMismatchCount": 0,
+    "duplicateSideEffectCount": 0,
+    "securityCriticalCount": 0
+  },
+  "goNoGo": {
+    "distinctApprovers": 2,
+    "approvalMaximumAgeHours": 24,
+    "requireRollbackTest": true,
+    "requireCleanGitopsDrift": true,
+    "requireOpenCriticalIncidents": 0,
+    "requireExternalEvidence": true
+  }
+}

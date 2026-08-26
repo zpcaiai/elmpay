@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "windowDays": 28,
+  "services": [
+    {
+      "name": "payment-api-availability",
+      "objective": 0.9995,
+      "sli": "successful_non_rejected_requests / valid_requests",
+      "exclude": ["merchant_validation_rejection"],
+      "burnRates": [
+        { "window": "5m", "threshold": 14.4 },
+        { "window": "1h", "threshold": 6.0 },
+        { "window": "6h", "threshold": 1.0 }
+      ]
+    },
+    {
+      "name": "payment-api-latency",
+      "objective": 0.99,
+      "sli": "requests_under_750ms / valid_requests",
+      "thresholdMs": 750,
+      "burnRates": [
+        { "window": "5m", "threshold": 14.4 },
+        { "window": "1h", "threshold": 6.0 }
+      ]
+    },
+    {
+      "name": "webhook-delivery-latency",
+      "objective": 0.99,
+      "sli": "terminal_webhooks_under_120s / terminal_webhooks",
+      "thresholdSeconds": 120,
+      "burnRates": [
+        { "window": "15m", "threshold": 12.0 },
+        { "window": "2h", "threshold": 3.0 }
+      ]
+    }
+  ]
+}

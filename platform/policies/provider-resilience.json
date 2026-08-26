@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "timeoutMilliseconds": 3000,
+  "maximumAttempts": 3,
+  "retryOnlyIdempotentOperations": true,
+  "circuitBreaker": {
+    "failureRateThreshold": 0.20,
+    "minimumCalls": 20,
+    "openSeconds": 30,
+    "halfOpenCalls": 3
+  },
+  "healthStates": ["HEALTHY", "DEGRADED", "OPEN", "UNKNOWN"],
+  "unknownStateAction": "BLOCK_NEW_ROUTING",
+  "manualOverride": {
+    "requiresDistinctApprover": true,
+    "maximumMinutes": 30,
+    "auditRequired": true
+  }
+}

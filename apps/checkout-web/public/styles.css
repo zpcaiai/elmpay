@@ -1,0 +1,9 @@
+:root { color-scheme: light dark; font: 100%/1.5 system-ui, sans-serif; }
+body { margin: 0; padding: 1rem; background: Canvas; color: CanvasText; }
+main { max-width: 32rem; margin: 3rem auto; border: 1px solid ButtonBorder; border-radius: .75rem; padding: 1.5rem; }
+fieldset { display: grid; gap: .75rem; margin: 1rem 0; }
+label { display: flex; gap: .75rem; padding: .75rem; border: 1px solid ButtonBorder; border-radius: .5rem; }
+button { min-height: 2.75rem; width: 100%; font: inherit; }
+button:focus-visible, input:focus-visible { outline: .2rem solid Highlight; outline-offset: .15rem; }
+#error { color: #b00020; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }

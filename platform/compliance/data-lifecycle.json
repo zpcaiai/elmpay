@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "defaultAction": "DENY_DELETE",
+  "classes": [
+    { "name": "payment-record", "minimumDays": 2555, "maximumDays": 3650, "legalHoldAware": true },
+    { "name": "security-audit", "minimumDays": 365, "maximumDays": 2555, "legalHoldAware": true },
+    { "name": "telemetry-redacted", "minimumDays": 30, "maximumDays": 90, "legalHoldAware": true },
+    { "name": "idempotency-key", "minimumDays": 7, "maximumDays": 30, "legalHoldAware": false }
+  ],
+  "deletion": {
+    "requiresDryRunDigest": true,
+    "requiresDistinctApprover": true,
+    "requiresTenantScope": true,
+    "requiresLegalHoldCheck": true,
+    "requiresExecutionReceipt": true,
+    "requiresBackupExpiryVerification": true
+  }
+}

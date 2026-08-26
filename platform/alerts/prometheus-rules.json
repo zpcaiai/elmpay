@@ -1,0 +1,45 @@
+{
+  "groups": [
+    {
+      "name": "elmpay-slo",
+      "rules": [
+        {
+          "record": "elmpay:slo_error_budget_burn_rate:5m",
+          "expr": "(1 - sum(rate(elmpay_http_requests_total{service=\"payment-api\",valid=\"true\",success=\"true\"}[5m])) / clamp_min(sum(rate(elmpay_http_requests_total{service=\"payment-api\",valid=\"true\"}[5m])), 0.000000001)) / (1 - 0.9995)"
+        },
+        {
+          "record": "elmpay:slo_error_budget_burn_rate:1h",
+          "expr": "(1 - sum(rate(elmpay_http_requests_total{service=\"payment-api\",valid=\"true\",success=\"true\"}[1h])) / clamp_min(sum(rate(elmpay_http_requests_total{service=\"payment-api\",valid=\"true\"}[1h])), 0.000000001)) / (1 - 0.9995)"
+        },
+        {
+          "alert": "PaymentApiFastBurn",
+          "expr": "elmpay:slo_error_budget_burn_rate:5m > 14.4 and elmpay:slo_error_budget_burn_rate:1h > 6",
+          "for": "5m",
+          "labels": { "severity": "page", "owner": "payments" },
+          "annotations": { "runbook": "runbooks/incident-response.md#slo-fast-burn" }
+        },
+        {
+          "alert": "SchedulerFenceRejected",
+          "expr": "increase(elmpay_scheduler_stale_fence_total[5m]) > 0",
+          "for": "0m",
+          "labels": { "severity": "page", "owner": "payments" },
+          "annotations": { "runbook": "runbooks/incident-response.md#stale-fencing-token" }
+        },
+        {
+          "alert": "TelemetryExportBacklog",
+          "expr": "otelcol_exporter_queue_size / otelcol_exporter_queue_capacity > 0.8",
+          "for": "10m",
+          "labels": { "severity": "ticket", "owner": "platform" },
+          "annotations": { "runbook": "runbooks/incident-response.md#telemetry-backlog" }
+        },
+        {
+          "alert": "CapacityHeadroomLow",
+          "expr": "elmpay:capacity_headroom_ratio < 0.30",
+          "for": "30m",
+          "labels": { "severity": "ticket", "owner": "platform" },
+          "annotations": { "runbook": "runbooks/capacity.md" }
+        }
+      ]
+    }
+  ]
+}

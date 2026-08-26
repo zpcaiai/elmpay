@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "requiredEvidence": [
+    "ci_required_checks",
+    "artifact_provenance",
+    "image_signature",
+    "sbom",
+    "vulnerability_scans",
+    "iac_policy",
+    "gitops_drift",
+    "durable_fencing_store",
+    "capacity_headroom",
+    "model_artifact_validation",
+    "mesh_identity",
+    "penetration_test",
+    "dr_exercise",
+    "uat_acceptance",
+    "pci_assessor",
+    "legal_compliance",
+    "regional_market_approval",
+    "provider_certification"
+  ],
+  "requiredApprovalRoles": ["release_manager", "security"],
+  "minimumDistinctApprovers": 2,
+  "maximumApprovalAgeHours": 24,
+  "evidenceMustBeIndependent": true,
+  "manifestMustExpire": true
+}

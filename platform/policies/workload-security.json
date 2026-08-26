@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "enforcement": "deny",
+  "required": {
+    "imageDigest": true,
+    "runAsNonRoot": true,
+    "readOnlyRootFilesystem": true,
+    "allowPrivilegeEscalation": false,
+    "capabilitiesDropAll": true,
+    "seccompRuntimeDefault": true,
+    "hostNetwork": false,
+    "hostPID": false,
+    "hostIPC": false,
+    "privileged": false,
+    "serviceAccountToken": false,
+    "resourceRequestsAndLimits": true,
+    "livenessAndReadinessProbes": true
+  },
+  "exceptions": {
+    "allowed": false,
+    "approvalRequired": true,
+    "maximumHours": 0
+  }
+}

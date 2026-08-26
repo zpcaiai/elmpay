@@ -1,0 +1,6 @@
+**/.build/
+**/.dart_tool/
+**/bin/
+**/obj/
+**/__pycache__/
+*.pyc

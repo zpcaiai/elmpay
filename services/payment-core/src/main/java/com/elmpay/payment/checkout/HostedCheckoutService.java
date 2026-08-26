@@ -1,0 +1,370 @@
+package com.elmpay.payment.checkout;
+
+import com.elmpay.idempotency.RequestFingerprint;
+import com.elmpay.money.Money;
+import com.elmpay.payment.ConfirmationCommand;
+import com.elmpay.payment.ConfirmationMode;
+import com.elmpay.payment.CreateIntentCommand;
+import com.elmpay.payment.PaymentIntent;
+import com.elmpay.payment.PaymentMethodReference;
+import com.elmpay.payment.PaymentService;
+import com.elmpay.security.CanonicalPayload;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Hosted-checkout application service. Checkout state is only a presentation
+ * projection: a successful view is derived exclusively from the authoritative
+ * {@link PaymentService} intent state.
+ */
+public final class HostedCheckoutService {
+    private static final String DEFAULT_DEVICE_CONTEXT = "device-context-not-provided";
+
+    public record CreateCommand(UUID tenantId, UUID projectId, UUID merchantId,
+            String businessOrderNo, long amountMinor, String currency, String returnRouteId,
+            String deviceContextDigest, String idempotencyKey) {
+        public CreateCommand {
+            Objects.requireNonNull(tenantId, "tenantId");
+            Objects.requireNonNull(projectId, "projectId");
+            Objects.requireNonNull(merchantId, "merchantId");
+            requireText(businessOrderNo, "businessOrderNo", 128);
+            if (amountMinor <= 0) {
+                throw new IllegalArgumentException("amount must be a positive integer minor-unit value");
+            }
+            Money.of(amountMinor, currency);
+            if (returnRouteId != null && !returnRouteId.matches("[a-z0-9][a-z0-9._-]{0,63}")) {
+                throw new IllegalArgumentException("return_route_id is invalid");
+            }
+            deviceContextDigest = normalizeDeviceContext(deviceContextDigest);
+            RequestFingerprint.validateKey(idempotencyKey);
+        }
+    }
+
+    public record Created(String checkoutSessionId, Instant expiresAt, URI checkoutUrl,
+            String status) {
+    }
+
+    public record MethodView(String id, String label, boolean eligible, String reason) {
+    }
+
+    public record View(String checkoutSessionId, String paymentIntentId, String businessOrderNo,
+            long amount, String currency, String returnRouteId, Instant expiresAt, String status,
+            String displayAmount, String locale, String direction, List<MethodView> methods,
+            Map<String, String> nextAction) {
+        public View {
+            methods = List.copyOf(methods);
+            nextAction = Map.copyOf(nextAction);
+        }
+    }
+
+    public record ConfirmCommand(String method, String paymentMethodReference, String fingerprint,
+            Map<String, String> providerParameters, String idempotencyKey, String correlationId) {
+        public ConfirmCommand {
+            requireText(method, "payment method", 64);
+            if (!method.matches("[A-Za-z0-9._-]+")) {
+                throw new IllegalArgumentException("payment method is invalid");
+            }
+            if (paymentMethodReference != null && paymentMethodReference.length() > 512) {
+                throw new IllegalArgumentException("payment method reference is too long");
+            }
+            if (fingerprint != null && fingerprint.length() > 128) {
+                throw new IllegalArgumentException("payment method fingerprint is too long");
+            }
+            providerParameters = providerParameters == null ? Map.of()
+                    : Map.copyOf(providerParameters);
+            RequestFingerprint.validateKey(idempotencyKey);
+            requireText(correlationId, "correlationId", 128);
+        }
+    }
+
+    private final PaymentService payments;
+    private final CheckoutSessionRepository repository;
+    private final CheckoutTokenSigner signer;
+    private final Map<String, URI> returnRoutes;
+    private final String defaultReturnRouteId;
+    private final Set<String> allowedMethods;
+    private final URI publicBaseUri;
+    private final Duration sessionTtl;
+    private final String region;
+    private final boolean allowSyntheticPaymentReference;
+    private final Clock clock;
+    private final CheckoutLocalization localization;
+
+    public HostedCheckoutService(PaymentService payments, CheckoutSessionRepository repository,
+            CheckoutTokenSigner signer,
+            Map<String, URI> returnRoutes, String defaultReturnRouteId,
+            Set<String> allowedMethods, URI publicBaseUri, Duration sessionTtl, String region,
+            boolean allowSyntheticPaymentReference, Clock clock) {
+        this.payments = Objects.requireNonNull(payments, "payments");
+        this.repository = Objects.requireNonNull(repository, "repository");
+        this.signer = Objects.requireNonNull(signer, "signer");
+        this.returnRoutes = Map.copyOf(Objects.requireNonNull(returnRoutes, "returnRoutes"));
+        this.returnRoutes.forEach((routeId, returnUri) -> {
+            if (!routeId.matches("[a-z0-9][a-z0-9._-]{0,63}")
+                    || returnUri == null || !returnUri.isAbsolute()
+                    || !"https".equalsIgnoreCase(returnUri.getScheme())
+                    || returnUri.getHost() == null || returnUri.getUserInfo() != null
+                    || returnUri.getFragment() != null) {
+                throw new IllegalArgumentException("checkout return route configuration is invalid");
+            }
+        });
+        if (this.returnRoutes.isEmpty() || !this.returnRoutes.containsKey(defaultReturnRouteId)) {
+            throw new IllegalArgumentException("default return route must be registered");
+        }
+        this.defaultReturnRouteId = defaultReturnRouteId;
+        if (allowedMethods == null || allowedMethods.isEmpty()) {
+            throw new IllegalArgumentException("at least one checkout payment method is required");
+        }
+        this.allowedMethods = allowedMethods.stream().map(HostedCheckoutService::normalizeMethod)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        this.publicBaseUri = validatePublicBase(publicBaseUri);
+        this.sessionTtl = Objects.requireNonNull(sessionTtl, "sessionTtl");
+        if (sessionTtl.compareTo(Duration.ofMinutes(1)) < 0
+                || sessionTtl.compareTo(Duration.ofMinutes(30)) > 0) {
+            throw new IllegalArgumentException("checkout session TTL must be 1-30 minutes");
+        }
+        if (region == null || !region.matches("[A-Za-z]{2}")) {
+            throw new IllegalArgumentException("checkout region must be ISO alpha-2");
+        }
+        this.region = region.toUpperCase(Locale.ROOT);
+        this.allowSyntheticPaymentReference = allowSyntheticPaymentReference;
+        this.clock = Objects.requireNonNull(clock, "clock");
+        this.localization = new CheckoutLocalization("checkout-catalog-2026-08",
+                Map.of("en", Map.of("unused", "unused")),
+                Map.ofEntries(Map.entry("AUD", 2), Map.entry("CAD", 2),
+                        Map.entry("CHF", 2), Map.entry("CNY", 2), Map.entry("EUR", 2),
+                        Map.entry("GBP", 2), Map.entry("HKD", 2), Map.entry("JPY", 0),
+                        Map.entry("KRW", 0), Map.entry("SGD", 2), Map.entry("USD", 2)));
+    }
+
+    /** Creates one immutable payment intent and one signed session per request key. */
+    public Created create(CreateCommand command) {
+        Objects.requireNonNull(command, "command");
+        String routeId = command.returnRouteId() == null ? defaultReturnRouteId
+                : command.returnRouteId();
+        URI returnUri = returnRoutes.get(routeId);
+        if (returnUri == null) {
+            throw new IllegalArgumentException("return route is not registered");
+        }
+        String digest = CanonicalPayload.sha256Hex(Map.ofEntries(
+                Map.entry("tenant_id", command.tenantId().toString()),
+                Map.entry("project_id", command.projectId().toString()),
+                Map.entry("merchant_id", command.merchantId().toString()),
+                Map.entry("business_order_no", command.businessOrderNo()),
+                Map.entry("amount", command.amountMinor()),
+                Map.entry("currency", command.currency().toUpperCase(Locale.ROOT)),
+                Map.entry("return_route_id", routeId),
+                Map.entry("device_context_digest", command.deviceContextDigest())));
+        CheckoutSessionRepository.Record replay = repository.findByCreateKey(command.tenantId(),
+                command.projectId(), command.idempotencyKey()).orElse(null);
+        if (replay != null) {
+            requireSameRequest(replay, digest);
+            return created(replay);
+        }
+        PaymentIntent intent = payments.create(new CreateIntentCommand(command.tenantId(),
+                command.projectId(), command.merchantId(), command.businessOrderNo(),
+                Money.of(command.amountMinor(), command.currency()), allowedMethods,
+                ConfirmationMode.AUTOMATIC, region, sessionTtl, command.idempotencyKey()));
+        Instant now = clock.instant();
+        CheckoutSessionRepository.Record candidate = new CheckoutSessionRepository.Record(
+                UUID.randomUUID().toString(), command.tenantId(), command.projectId(),
+                command.merchantId(), intent.id(), command.businessOrderNo(), command.amountMinor(),
+                command.currency().toUpperCase(Locale.ROOT), routeId, returnUri,
+                command.deviceContextDigest(), now.plus(sessionTtl), signer.activeKeyId(),
+                signer.newNonce(), allowedMethods, command.idempotencyKey(), digest, now);
+        CheckoutSessionRepository.Record winner = repository.createOrGet(candidate);
+        requireSameRequest(winner, digest);
+        return created(winner);
+    }
+
+    public View getForPrincipal(UUID tenantId, UUID projectId, String sessionId) {
+        CheckoutSessionRepository.Record session = requirePrincipalSession(tenantId, projectId,
+                sessionId);
+        return view(session);
+    }
+
+    public View getForBrowser(String sessionId, String accessToken) {
+        return view(requireBrowserSession(sessionId, accessToken));
+    }
+
+    public View confirmForPrincipal(UUID tenantId, UUID projectId, String sessionId,
+            ConfirmCommand command) {
+        return confirm(requirePrincipalSession(tenantId, projectId, sessionId), command);
+    }
+
+    public View confirmForBrowser(String sessionId, String accessToken, ConfirmCommand command) {
+        return confirm(requireBrowserSession(sessionId, accessToken), command);
+    }
+
+    private View confirm(CheckoutSessionRepository.Record session, ConfirmCommand command) {
+        Objects.requireNonNull(command, "command");
+        String method = normalizeMethod(command.method());
+        if (!session.allowedMethods().contains(method)) {
+            throw new IllegalArgumentException("payment method is outside the signed session");
+        }
+        if (!"OPEN".equals(status(session, payments.get(session.tenantId(),
+                session.paymentIntentId())))) {
+            throw new IllegalArgumentException("checkout session is not open");
+        }
+        String reference = command.paymentMethodReference();
+        if (reference == null) {
+            if (!allowSyntheticPaymentReference) {
+                throw new IllegalArgumentException(
+                        "a PSP- or wallet-issued payment method reference is required");
+            }
+            reference = "wallet://hosted-checkout/" + session.sessionId() + "/" + method;
+        }
+        String fingerprint = command.fingerprint();
+        if (fingerprint == null) {
+            fingerprint = "checkout-" + CanonicalPayload.sha256Hex(Map.of(
+                    "session_id", session.sessionId(), "method", method)).substring(0, 32);
+        }
+        var result = payments.confirm(new ConfirmationCommand(session.tenantId(),
+                session.paymentIntentId(), PaymentMethodReference.parse(method, reference,
+                        fingerprint), command.idempotencyKey(), command.correlationId(),
+                session.returnRouteId(), command.providerParameters()));
+        return view(session, result.clientAction());
+    }
+
+    private View view(CheckoutSessionRepository.Record session) {
+        return view(session, Map.of());
+    }
+
+    private View view(CheckoutSessionRepository.Record session,
+            Map<String, String> nextAction) {
+        PaymentIntent intent = payments.get(session.tenantId(), session.paymentIntentId());
+        String status = status(session, intent);
+        List<MethodView> methods = new ArrayList<>();
+        session.allowedMethods().stream().sorted(Comparator.naturalOrder()).forEach(method ->
+                methods.add(new MethodView(method, label(method), "OPEN".equals(status),
+                        "OPEN".equals(status) ? "" : "SESSION_NOT_OPEN")));
+        return new View(session.sessionId(), intent.id().toString(), intent.externalReference(),
+                intent.amount().amountMinor(), intent.amount().currency().code(),
+                session.returnRouteId(), session.expiresAt(), status,
+                localization.formatMoney(intent.amount().amountMinor(),
+                        intent.amount().currency().code(), Locale.US),
+                "en", "ltr", methods, nextAction);
+    }
+
+    private CheckoutSessionRepository.Record requirePrincipalSession(UUID tenantId, UUID projectId,
+            String sessionId) {
+        CheckoutSessionRepository.Record session = repository.find(tenantId, sessionId).orElse(null);
+        if (session == null || !session.projectId().equals(projectId)) {
+            throw new SecurityException("unknown checkout session");
+        }
+        return session;
+    }
+
+    private CheckoutSessionRepository.Record requireBrowserSession(String sessionId,
+            String accessToken) {
+        UUID tenantId = signer.tenantClaim(accessToken);
+        CheckoutSessionRepository.Record session = repository.find(tenantId, sessionId)
+                .orElseThrow(() -> new SecurityException("unknown checkout session"));
+        if (!signer.verify(session, accessToken)) {
+            throw new SecurityException("invalid checkout session token");
+        }
+        return session;
+    }
+
+    private URI checkoutUrl(String sessionId, String token) {
+        // Fragments are never sent in HTTP request targets or Referer headers. The browser
+        // copies this short-lived token into sessionStorage and immediately clears history.
+        return URI.create(publicBaseUri + "#session=" + encode(sessionId)
+                + "&token=" + encode(token));
+    }
+
+    private Created created(CheckoutSessionRepository.Record session) {
+        String token = signer.token(session);
+        return new Created(session.sessionId(), session.expiresAt(),
+                checkoutUrl(session.sessionId(), token), status(session,
+                        payments.get(session.tenantId(), session.paymentIntentId())));
+    }
+
+    private static void requireSameRequest(CheckoutSessionRepository.Record session,
+            String requestDigest) {
+        if (!MessageDigest.isEqual(session.requestDigest().getBytes(StandardCharsets.US_ASCII),
+                requestDigest.getBytes(StandardCharsets.US_ASCII))) {
+            throw new IllegalArgumentException(
+                    "idempotency key was already used with a different checkout request");
+        }
+    }
+
+    private String status(CheckoutSessionRepository.Record session, PaymentIntent intent) {
+        if (!clock.instant().isBefore(session.expiresAt())) {
+            return "EXPIRED";
+        }
+        return switch (intent.state()) {
+            case CREATED -> "OPEN";
+            case REQUIRES_ACTION, AUTHORIZED -> "PENDING";
+            case CAPTURED -> "SUCCEEDED";
+            case FAILED -> "FAILED";
+            case CANCELED -> "CANCELED";
+            case EXPIRED -> "EXPIRED";
+        };
+    }
+
+    private static URI validatePublicBase(URI value) {
+        Objects.requireNonNull(value, "publicBaseUri");
+        if (!value.isAbsolute() || value.getHost() == null || value.getUserInfo() != null
+                || value.getFragment() != null
+                || !("https".equalsIgnoreCase(value.getScheme())
+                || ("http".equalsIgnoreCase(value.getScheme())
+                && ("127.0.0.1".equals(value.getHost()) || "localhost".equals(value.getHost()))))) {
+            throw new IllegalArgumentException("checkout public base must be HTTPS or loopback HTTP");
+        }
+        return value;
+    }
+
+    private static String normalizeMethod(String value) {
+        requireText(value, "payment method", 64);
+        String normalized = value.toLowerCase(Locale.ROOT);
+        if (!normalized.matches("[a-z0-9][a-z0-9._-]{0,63}")) {
+            throw new IllegalArgumentException("payment method is invalid");
+        }
+        return normalized;
+    }
+
+    private static String normalizeDeviceContext(String value) {
+        if (value == null || value.isBlank()) {
+            return DEFAULT_DEVICE_CONTEXT;
+        }
+        if (!value.matches("[A-Za-z0-9._:-]{16,128}")) {
+            throw new IllegalArgumentException("device context digest is invalid");
+        }
+        return value;
+    }
+
+    private static String label(String method) {
+        return switch (method) {
+            case "card", "stripe_card" -> "Card";
+            case "paypal" -> "PayPal";
+            case "apple_pay" -> "Apple Pay";
+            case "wechat_jsapi", "wechat_native", "wechat_h5", "wechat_app" -> "WeChat Pay";
+            case "alipay_web", "alipay_wap", "alipay_app", "alipay_qr" -> "Alipay";
+            default -> method;
+        };
+    }
+
+    private static String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
+    private static void requireText(String value, String name, int maxLength) {
+        if (value == null || value.isBlank() || value.length() > maxLength) {
+            throw new IllegalArgumentException(name + " is required and too long");
+        }
+    }
+}

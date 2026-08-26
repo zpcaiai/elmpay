@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "minimumHeadroomRatio": 0.30,
+  "forecastHorizonDays": 90,
+  "minimumSamples": 3,
+  "resources": [
+    "payment_compute",
+    "database_connections",
+    "kafka_partitions",
+    "telemetry_queue",
+    "provider_rate_limit"
+  ],
+  "missingDataAction": "BLOCK_RELEASE",
+  "lowHeadroomAction": "SCALE_OR_SHED_BEFORE_RELEASE"
+}

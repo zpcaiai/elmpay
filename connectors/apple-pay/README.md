@@ -1,3 +1,5 @@
-# Apple Pay connector boundary
+# Apple Pay connector
 
-This tracked boundary reserves Apple Pay integration. No merchant certificate, domain approval, device certification, or token decryption capability is present; the default design forwards tokenized payloads directly to an approved PSP.
+`ApplePayAdapter` validates eligibility and forwards an opaque wallet envelope directly to an approved Stripe or PayPal processor, then zeroizes its internal token copies. It neither decrypts nor stores wallet tokens and rejects raw card fields. `DataSourceApplePayLifecycle` durably tracks verified domains, KMS/HSM/Vault certificate references with overlap rotation, and hashed PSP merchant-token references.
+
+Direct token decryption is intentionally unsupported. Apple Merchant ID/entitlements, domain approval, certificate issuance, PSP enablement, sandbox cards, and real-device certification remain `NOT_RUN`.

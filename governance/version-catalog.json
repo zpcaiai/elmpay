@@ -116,6 +116,17 @@
       "upgrade_policy": "次版本一月内跟进；大版本升级需 B90 演练"
     },
     {
+      "id": "postgresql-jdbc",
+      "name": "PostgreSQL JDBC Driver",
+      "category": "database-driver",
+      "version": "42.7.7",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://jdbc.postgresql.org/download/",
+      "owner": "payment-platform-architecture",
+      "upgrade_policy": "随 PostgreSQL 安全修复升级；升级需迁移、故障恢复和连接池回归"
+    },
+    {
       "id": "flyway",
       "name": "Flyway",
       "category": "migration",
@@ -204,6 +215,17 @@
       "upgrade_policy": "禁止跳过关键测试"
     },
     {
+      "id": "junit-platform-launcher",
+      "name": "JUnit Platform Launcher",
+      "category": "testing",
+      "version": "1.13.2",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://junit.org/junit5/",
+      "owner": "payment-platform-platform-eng",
+      "upgrade_policy": "与 JUnit Jupiter 5.13.x 保持同一发布列，供 Gradle 测试执行器显式加载"
+    },
+    {
       "id": "testcontainers",
       "name": "Testcontainers",
       "category": "testing",
@@ -218,7 +240,7 @@
       "id": "jqwik",
       "name": "jqwik 属性测试",
       "category": "testing",
-      "version": "1.9.4",
+      "version": "1.9.3",
       "pin_type": "exact",
       "digest": "",
       "source": "https://jqwik.net/",

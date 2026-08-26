@@ -1,7 +1,10 @@
 # `.ai` evidence workflow
 
-`rebaseline.py` is the only supported automation entry point in this directory. It does not
-interpret prose progress as completion and it never creates an independent review attestation.
+`rebaseline.py` is the only supported **evidence mutation** entry point in this directory. It does
+not interpret prose or implementation presence as completion and it never creates an independent
+review attestation. `implementation_audit.py` is read-only: it inventories code, tests and
+migrations for B00-B127. Inventory is not execution; pass `--verify` to run the declared local
+checks. Both modes always keep certification separate.
 
 ## Commands
 
@@ -12,7 +15,14 @@ python3 .ai/rebaseline.py migrate-shards --from B00 --to B33 --shards 4 --dry-ru
 python3 .ai/rebaseline.py migrate-shards --from B00 --to B33 --shards 4
 python3 .ai/rebaseline.py resume --from B00 --to B33 --launch-window-seconds 300
 python3 .ai/rebaseline.py reset --dry-run
+python3 .ai/implementation_audit.py
+python3 .ai/implementation_audit.py --json
+python3 .ai/implementation_audit.py --verify --json
 ```
+
+The default implementation audit reports inventory only and cannot emit an implementation pass.
+An `--verify` pass means its declared repository-local code/test/control commands succeeded; it
+does not change evidence, certified batch counts, release gates or independent-review requirements.
 
 `migrate-shards` validates the entire requested range before its first write. A canonical family
 contains exact, contiguous `1..N` negative-control shards and exact `1..N` test shards followed by

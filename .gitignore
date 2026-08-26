@@ -5,6 +5,7 @@ target/
 dist/
 node_modules/
 .gradle/
+.jqwik-database
 # python
 __pycache__/
 *.pyc

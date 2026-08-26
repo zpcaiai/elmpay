@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "namespace": "elmpay",
+  "services": [
+    {
+      "name": "risk-engine",
+      "port": 8080,
+      "replicas": 3,
+      "serviceAccount": "risk-engine",
+      "cpuRequest": "250m",
+      "cpuLimit": "1",
+      "memoryRequest": "256Mi",
+      "memoryLimit": "512Mi"
+    },
+    {
+      "name": "worker-scheduler",
+      "port": 8080,
+      "replicas": 3,
+      "serviceAccount": "worker-scheduler",
+      "cpuRequest": "200m",
+      "cpuLimit": "750m",
+      "memoryRequest": "256Mi",
+      "memoryLimit": "512Mi"
+    }
+  ],
+  "requiredImageFormat": "^.+@sha256:[0-9a-f]{64}$",
+  "security": {
+    "runAsNonRoot": true,
+    "runAsUser": 10001,
+    "readOnlyRootFilesystem": true,
+    "allowPrivilegeEscalation": false,
+    "dropCapabilities": ["ALL"],
+    "seccompProfile": "RuntimeDefault",
+    "automountServiceAccountToken": false
+  },
+  "availability": {
+    "minimumReplicas": 3,
+    "maxUnavailable": 0,
+    "topologyKeys": ["topology.kubernetes.io/zone", "kubernetes.io/hostname"]
+  }
+}

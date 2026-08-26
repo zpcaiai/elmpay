@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "currency": "USD",
+  "minorUnit": 2,
+  "meters": [
+    { "name": "payment_attempt", "unitPriceMinor": 3, "deduplicateBy": "attempt_id" },
+    { "name": "successful_payment", "unitPriceMinor": 12, "deduplicateBy": "payment_id" },
+    { "name": "webhook_delivery", "unitPriceMinor": 1, "deduplicateBy": "delivery_id" }
+  ],
+  "credits": {
+    "requiresApproval": true,
+    "distinctApprover": true,
+    "maximumPercentOfInvoice": 100
+  }
+}

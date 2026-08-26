@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "mode": "warm-standby",
+  "rpoSeconds": 60,
+  "rtoSeconds": 900,
+  "minimumRegions": 2,
+  "promotion": {
+    "automatic": false,
+    "requiresDistinctApprovers": 2,
+    "requiresReplicationLagAtMostSeconds": 60,
+    "requiresWriteFence": true,
+    "requiresProviderRoutingCheck": true,
+    "requiresRollbackPlan": true
+  },
+  "data": {
+    "ledger": { "consistency": "synchronous", "lossAllowed": false },
+    "paymentState": { "consistency": "synchronous", "lossAllowed": false },
+    "analytics": { "consistency": "asynchronous", "lossAllowed": true }
+  },
+  "exercises": {
+    "maximumAgeDays": 90,
+    "mustMeasureRpo": true,
+    "mustMeasureRto": true,
+    "mustVerifyFailback": true,
+    "externalEvidenceRequired": true
+  }
+}

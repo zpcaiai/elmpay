@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "controls": [
+    { "id": "PCI-NET-01", "policy": "default-deny network and strict mTLS", "validator": "kubernetes", "externalEvidenceRequired": true },
+    { "id": "PCI-ACCESS-02", "policy": "phishing-resistant privileged access and four-eyes", "validator": "admin-domain", "externalEvidenceRequired": true },
+    { "id": "AML-RISK-01", "policy": "versioned explainable decisions", "validator": "risk-engine", "externalEvidenceRequired": true },
+    { "id": "DATA-RET-01", "policy": "retention and legal-hold gate", "validator": "retention", "externalEvidenceRequired": true },
+    { "id": "SUPPLY-01", "policy": "fresh complete vulnerability scans and SBOM", "validator": "release-gate", "externalEvidenceRequired": true },
+    { "id": "DR-01", "policy": "measured RPO RTO and failback", "validator": "dr-plan", "externalEvidenceRequired": true }
+  ],
+  "certification": {
+    "default": "NOT_CERTIFIED",
+    "localValidationMayCertify": false,
+    "humanApprovalRequired": true,
+    "independentEvidenceRequired": true
+  }
+}

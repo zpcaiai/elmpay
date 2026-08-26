@@ -1,0 +1,179 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "items": [
+    {
+      "apiVersion": "v1",
+      "kind": "Namespace",
+      "metadata": {
+        "name": "elmpay",
+        "labels": {
+          "pod-security.kubernetes.io/enforce": "restricted",
+          "pod-security.kubernetes.io/enforce-version": "latest",
+          "istio-injection": "enabled"
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ServiceAccount",
+      "metadata": { "name": "risk-engine", "namespace": "elmpay" },
+      "automountServiceAccountToken": false
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "ServiceAccount",
+      "metadata": { "name": "worker-scheduler", "namespace": "elmpay" },
+      "automountServiceAccountToken": false
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": { "name": "risk-engine", "namespace": "elmpay" },
+      "spec": {
+        "selector": { "app.kubernetes.io/name": "risk-engine" },
+        "ports": [{ "name": "http", "port": 8080, "targetPort": "http" }]
+      }
+    },
+    {
+      "apiVersion": "policy/v1",
+      "kind": "PodDisruptionBudget",
+      "metadata": { "name": "risk-engine", "namespace": "elmpay" },
+      "spec": {
+        "minAvailable": 2,
+        "selector": { "matchLabels": { "app.kubernetes.io/name": "risk-engine" } }
+      }
+    },
+    {
+      "apiVersion": "policy/v1",
+      "kind": "PodDisruptionBudget",
+      "metadata": { "name": "worker-scheduler", "namespace": "elmpay" },
+      "spec": {
+        "minAvailable": 2,
+        "selector": { "matchLabels": { "app.kubernetes.io/name": "worker-scheduler" } }
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": { "name": "default-deny", "namespace": "elmpay" },
+      "spec": {
+        "podSelector": {},
+        "policyTypes": ["Ingress", "Egress"]
+      }
+    },
+    {
+      "apiVersion": "networking.k8s.io/v1",
+      "kind": "NetworkPolicy",
+      "metadata": { "name": "service-allowlist", "namespace": "elmpay" },
+      "spec": {
+        "podSelector": {
+          "matchExpressions": [
+            { "key": "app.kubernetes.io/name", "operator": "In", "values": ["risk-engine", "worker-scheduler"] }
+          ]
+        },
+        "policyTypes": ["Ingress", "Egress"],
+        "ingress": [
+          {
+            "from": [
+              { "namespaceSelector": { "matchLabels": { "elmpay.io/trust-domain": "application" } } }
+            ],
+            "ports": [{ "protocol": "TCP", "port": 8080 }]
+          }
+        ],
+        "egress": [
+          {
+            "to": [
+              {
+                "namespaceSelector": { "matchLabels": { "kubernetes.io/metadata.name": "kube-system" } },
+                "podSelector": { "matchLabels": { "k8s-app": "kube-dns" } }
+              }
+            ],
+            "ports": [
+              { "protocol": "UDP", "port": 53 },
+              { "protocol": "TCP", "port": 53 }
+            ]
+          },
+          {
+            "to": [
+              { "namespaceSelector": { "matchLabels": { "elmpay.io/trust-domain": "data" } } }
+            ],
+            "ports": [
+              { "protocol": "TCP", "port": 5432 },
+              { "protocol": "TCP", "port": 9092 },
+              { "protocol": "TCP", "port": 6379 }
+            ]
+          },
+          {
+            "to": [
+              { "namespaceSelector": { "matchLabels": { "elmpay.io/trust-domain": "observability" } } }
+            ],
+            "ports": [{ "protocol": "TCP", "port": 4317 }]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "security.istio.io/v1",
+      "kind": "PeerAuthentication",
+      "metadata": { "name": "strict-mtls", "namespace": "elmpay" },
+      "spec": { "mtls": { "mode": "STRICT" } }
+    },
+    {
+      "apiVersion": "security.istio.io/v1",
+      "kind": "AuthorizationPolicy",
+      "metadata": { "name": "risk-engine-callers", "namespace": "elmpay" },
+      "spec": {
+        "selector": { "matchLabels": { "app.kubernetes.io/name": "risk-engine" } },
+        "action": "ALLOW",
+        "rules": [
+          {
+            "from": [
+              {
+                "source": {
+                  "principals": [
+                    "cluster.local/ns/elmpay/sa/edge-gateway",
+                    "cluster.local/ns/elmpay/sa/payment-core",
+                    "cluster.local/ns/elmpay/sa/worker-scheduler"
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "security.istio.io/v1",
+      "kind": "AuthorizationPolicy",
+      "metadata": { "name": "worker-scheduler-callers", "namespace": "elmpay" },
+      "spec": {
+        "selector": { "matchLabels": { "app.kubernetes.io/name": "worker-scheduler" } },
+        "action": "ALLOW",
+        "rules": [
+          {
+            "from": [
+              {
+                "source": {
+                  "principals": [
+                    "cluster.local/ns/elmpay/sa/payment-core",
+                    "cluster.local/ns/elmpay/sa/worker-scheduler"
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "networking.istio.io/v1",
+      "kind": "DestinationRule",
+      "metadata": { "name": "elmpay-mtls", "namespace": "elmpay" },
+      "spec": {
+        "host": "*.elmpay.svc.cluster.local",
+        "trafficPolicy": { "tls": { "mode": "ISTIO_MUTUAL" } }
+      }
+    }
+  ]
+}

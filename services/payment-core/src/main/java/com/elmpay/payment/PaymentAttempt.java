@@ -1,0 +1,57 @@
+package com.elmpay.payment;
+
+import java.time.Instant;
+import java.util.Objects;
+import java.util.UUID;
+
+/** One record per provider call. Raw provider payloads and credentials are never retained. */
+public record PaymentAttempt(UUID id, UUID tenantId, UUID intentId, UUID providerAccountId,
+        String provider, AttemptOperation operation, int sequence, String requestDigest,
+        String idempotencyKey,
+        AttemptState state, OutcomeClass outcomeClass, String responseDigest,
+        String providerRequestId, String providerTransactionId, String providerCodeNamespace,
+        String providerCode, Instant startedAt, Instant finishedAt) {
+    public PaymentAttempt {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(tenantId, "tenantId");
+        Objects.requireNonNull(intentId, "intentId");
+        Objects.requireNonNull(providerAccountId, "providerAccountId");
+        Objects.requireNonNull(provider, "provider");
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(requestDigest, "requestDigest");
+        Objects.requireNonNull(idempotencyKey, "idempotencyKey");
+        Objects.requireNonNull(state, "state");
+        Objects.requireNonNull(startedAt, "startedAt");
+        if (provider.isBlank() || sequence < 1 || !requestDigest.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("invalid payment attempt");
+        }
+        if (state == AttemptState.INITIATED && (outcomeClass != null || finishedAt != null)) {
+            throw new IllegalArgumentException("initiated attempt cannot contain a resolution");
+        }
+        if (state != AttemptState.INITIATED && (outcomeClass == null || responseDigest == null
+                || providerRequestId == null || providerCodeNamespace == null
+                || providerCode == null || finishedAt == null)) {
+            throw new IllegalArgumentException("resolved attempt requires normalized evidence");
+        }
+    }
+
+    public static PaymentAttempt begin(AttemptDraft draft, int sequence) {
+        return new PaymentAttempt(UUID.randomUUID(), draft.tenantId(), draft.intentId(),
+                draft.providerAccountId(), draft.provider(), draft.operation(), sequence,
+                draft.requestDigest(), draft.idempotencyKey(), AttemptState.INITIATED,
+                null, null, null, null,
+                null, null, draft.startedAt(), null);
+    }
+
+    public PaymentAttempt resolve(AttemptResolution resolution) {
+        if (state != AttemptState.INITIATED && state != AttemptState.PENDING
+                && state != AttemptState.UNKNOWN) {
+            throw new PaymentCoreException("ATTEMPT_ALREADY_FINAL", "final attempt is immutable");
+        }
+        return new PaymentAttempt(id, tenantId, intentId, providerAccountId, provider, operation,
+                sequence, requestDigest, idempotencyKey, resolution.state(), resolution.outcomeClass(),
+                resolution.responseDigest(), resolution.providerRequestId(),
+                resolution.providerTransactionId(), resolution.providerCodeNamespace(),
+                resolution.providerCode(), startedAt, resolution.finishedAt());
+    }
+}

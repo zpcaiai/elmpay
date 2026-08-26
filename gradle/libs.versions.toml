@@ -8,8 +8,9 @@ flyway = "11.9.0"
 gradle = "9.2.1"
 grpcJava = "1.72.0"
 jdk = "25.0.4+7"
-jqwik = "1.9.4"
+jqwik = "1.9.3"
 junit = "5.13.2"
+junitPlatformLauncher = "1.13.2"
 kafka = "4.2.0"
 kafkaImage = "4.2.0"
 keycloakImage = "27.0.2"
@@ -22,6 +23,7 @@ owaspDependencyCheck = "13.0.0"
 pnpm = "10.14.0"
 postgresImage = "18.2-bookworm"
 postgresql = "18.2"
+postgresqlJdbc = "42.7.7"
 protobuf = "4.30.1"
 pythonSim = "3.12.7"
 pythonToolchain = "3.12.7"
@@ -36,7 +38,9 @@ flyway = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
 grpc-java = { module = "io.grpc:grpc-stub", version.ref = "grpcJava" }
 jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }
 junit = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junitPlatformLauncher" }
 opentelemetry-java = { module = "io.opentelemetry.javaagent:opentelemetry-javaagent", version.ref = "opentelemetryJava" }
+postgresql-jdbc = { module = "org.postgresql:postgresql", version.ref = "postgresqlJdbc" }
 protobuf = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
 spring-boot = { module = "org.springframework.boot:spring-boot-starter", version.ref = "springBoot" }
 spring-cloud = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "springCloud" }

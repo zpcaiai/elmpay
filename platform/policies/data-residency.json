@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "defaultAction": "DENY",
+  "requireTenantRegionBinding": true,
+  "requireEncryptedTransit": true,
+  "requireEncryptedStorage": true,
+  "crossRegionReplication": {
+    "allowed": false,
+    "requiresLegalBasis": true,
+    "requiresFourEyes": true,
+    "requiresDestinationAttestation": true
+  },
+  "logs": {
+    "paymentCredentialsAllowed": false,
+    "personalDataAllowed": false,
+    "tokenizedReferenceAllowed": true
+  }
+}

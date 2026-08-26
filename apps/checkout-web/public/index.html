@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Secure checkout</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/checkout.mjs"></script>
+</head>
+<body>
+  <main id="checkout" aria-labelledby="page-title" aria-busy="true">
+    <h1 id="page-title">Secure checkout</h1>
+    <p id="amount" aria-live="polite"></p>
+    <fieldset id="methods" disabled>
+      <legend>Choose a payment method</legend>
+    </fieldset>
+    <button id="continue" type="button" disabled>Continue securely</button>
+    <p id="status" role="status" aria-live="polite">Loading secure session…</p>
+    <p id="error" role="alert" hidden></p>
+  </main>
+</body>
+</html>

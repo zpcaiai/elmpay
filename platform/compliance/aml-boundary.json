@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "unknownScreeningStateAction": "REVIEW",
+  "sanctions": {
+    "externalProviderRequired": true,
+    "maximumDataAgeHours": 24,
+    "matchAction": "BLOCK_AND_CASE",
+    "providerErrorAction": "REVIEW"
+  },
+  "transactionMonitoring": {
+    "versionedRulesRequired": true,
+    "explanationRequired": true,
+    "caseClosureRequiresDistinctApprover": true,
+    "externalComplianceOwnershipRequired": true
+  },
+  "suspiciousActivityReporting": {
+    "automatedFilingAllowed": false,
+    "authorizedHumanDecisionRequired": true,
+    "externalRegulatoryEvidenceRequired": true
+  }
+}

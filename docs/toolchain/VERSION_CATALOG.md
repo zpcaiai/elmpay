@@ -18,6 +18,7 @@
 | cyclonedx-gradle | CycloneDX Gradle Plugin | build-plugin | 3.4.1 | exact | payment-platform-appsec | 跟随 CycloneDX schema 与插件安全修复；升级需 SBOM 门禁绿色 |
 | kotlin | Kotlin (仅构建脚本) | build | 2.3.0 | exact | payment-platform-platform-eng | 仅用于 Gradle KTS，不用于生产代码 |
 | postgresql | PostgreSQL | database | 18.2 | exact | payment-platform-sre | 次版本一月内跟进；大版本升级需 B90 演练 |
+| postgresql-jdbc | PostgreSQL JDBC Driver | database-driver | 42.7.7 | exact | payment-platform-architecture | 随 PostgreSQL 安全修复升级；升级需迁移、故障恢复和连接池回归 |
 | flyway | Flyway | migration | 11.9.0 | exact | payment-platform-architecture | 迁移必须可回滚或前向兼容 |
 | kafka | Apache Kafka | messaging | 4.2.0 | exact | payment-platform-sre | 仅作可重放事件日志，不作事实源 |
 | redis | Redis | cache | 8.2.1 | exact | payment-platform-sre | 仅限流与可丢失缓存 |
@@ -26,8 +27,9 @@
 | grpc-java | gRPC Java | framework | 1.72.0 | exact | payment-platform-connectors | Provider Adapter 契约实现 |
 | protobuf | Protocol Buffers | framework | 4.30.1 | exact | payment-platform-connectors | 仅相加式 schema 演进 |
 | junit | JUnit | testing | 5.13.2 | exact | payment-platform-platform-eng | 禁止跳过关键测试 |
+| junit-platform-launcher | JUnit Platform Launcher | testing | 1.13.2 | exact | payment-platform-platform-eng | 与 JUnit Jupiter 5.13.x 保持同一发布列，供 Gradle 测试执行器显式加载 |
 | testcontainers | Testcontainers | testing | 1.22.0 | exact | payment-platform-platform-eng | 本地与 CI 使用同一镜像摘要 |
-| jqwik | jqwik 属性测试 | testing | 1.9.4 | exact | payment-platform-finance | 金额、状态机与账本不变量的属性测试 |
+| jqwik | jqwik 属性测试 | testing | 1.9.3 | exact | payment-platform-finance | 金额、状态机与账本不变量的属性测试 |
 | node | Node.js | frontend | 24.9.0 | exact | payment-platform-architecture | 仅用于 checkout-web / admin-web 构建 |
 | pnpm | pnpm | frontend | 10.14.0 | exact | payment-platform-architecture | lockfile 必须提交 |
 | postgres-image | postgres 容器镜像 | container | 18.2-bookworm | digest | payment-platform-sre | 摘要待 B04 在可联网构建代理上锁定 |
