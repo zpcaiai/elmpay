@@ -1,0 +1,366 @@
+{
+  "schema_version": "1.0.0",
+  "name": "ELMPay SOTA full-coverage test matrix",
+  "version": "2026.08.27",
+  "purpose": "Executable local/CI verification plan for every B00-B127 skill batch. Matrix coverage is not certification evidence.",
+  "data_policy": {
+    "default": "synthetic-only",
+    "forbidden": ["production credentials", "real card numbers", "live provider mutations", "customer PII"],
+    "test_environment": "ELMPAY_ENVIRONMENT=TEST"
+  },
+  "coverage": {
+    "required_batch_source": "manifest",
+    "expected_batch_count": 128,
+    "require_exactly_once": true,
+    "completeness_gate": "every manifest batch is covered by exactly one suite"
+  },
+  "quality_gates": {
+    "max_failed": 0,
+    "max_critical_blocked": 0,
+    "line_coverage_min_percent": 80,
+    "mutation_score_min_percent": 60,
+    "ledger_balance_delta": 0,
+    "idempotent_side_effect_duplicates": 0,
+    "security_critical_findings": 0,
+    "external_gate_policy": "blocked-until-independent-evidence"
+  },
+  "suites": [
+    {
+      "id": "TM-B00-B07-GOV",
+      "name": "Governance, SSOT, traceability and evidence controls",
+      "batch_ids": ["B00", "B01", "B02", "B03", "B04", "B05", "B06", "B07"],
+      "level": "governance",
+      "execution": "local",
+      "critical": true,
+      "command": ["python3", "-m", "tools.paygov.cli", "verify-all", "--repo", "."],
+      "timeout_seconds": 180,
+      "target_paths": ["governance", "contracts", "tools/paygov", "docs/charter", ".ai"],
+      "scenarios": [
+        {"id": "GOV-01", "steps": "Load the manifest, registry, requirements, controls and threat model; compare generated documents.", "expected": "No duplicate IDs, dangling references, generated drift or governance problems."},
+        {"id": "GOV-02", "steps": "Corrupt a disposable copy of a required rule and run the validator CLI.", "expected": "The CLI exits non-zero and names the exact rule; no warning-only success."},
+        {"id": "GOV-03", "steps": "Inspect evidence writer paths and current B00 files.", "expected": "This runner writes no evidence/completion/review files and leaves B00 untouched."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json", "build/test-matrix/junit.xml"]
+    },
+    {
+      "id": "TM-B08-B11-DOMAIN",
+      "name": "Money, domain model, state machine and API contracts",
+      "batch_ids": ["B08", "B09", "B10", "B11"],
+      "level": "unit",
+      "execution": "local",
+      "critical": true,
+      "command": ["python3", "-m", "unittest", "tools.tests.test_b08_domain", "tools.tests.test_b09_money", "tools.tests.test_b10_states", "tools.tests.test_b11_api"],
+      "timeout_seconds": 120,
+      "target_paths": ["libs/money", "libs/statemachine", "contracts/api/openapi.json", "tools/tests/test_b08_domain.py", "tools/tests/test_b09_money.py", "tools/tests/test_b10_states.py", "tools/tests/test_b11_api.py"],
+      "scenarios": [
+        {"id": "DOM-01", "steps": "Generate boundary amounts for every supported currency and round-trip through serialization.", "expected": "No float/exponent acceptance; scale and rounding are deterministic."},
+        {"id": "DOM-02", "steps": "Enumerate every payment state transition, including duplicate and illegal transitions.", "expected": "Only declared transitions succeed and illegal transitions fail closed."},
+        {"id": "DOM-03", "steps": "Validate OpenAPI request, response and error fixtures.", "expected": "Schema validation and compatibility checks pass."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B12-B15-DATA",
+      "name": "Events, ownership, partitioning, migration and topology",
+      "batch_ids": ["B12", "B13", "B14", "B15"],
+      "level": "integration",
+      "execution": "local",
+      "critical": true,
+      "command": ["python3", "-m", "unittest", "tools.tests.test_b12_events", "tools.tests.test_b13_data", "tools.tests.test_b14_topology", "tools.tests.test_b15_migration"],
+      "timeout_seconds": 150,
+      "target_paths": ["libs/domain-events", "libs/eventing", "platform", "tools/tests/test_b12_events.py", "tools/tests/test_b13_data.py", "tools/tests/test_b14_topology.py", "tools/tests/test_b15_migration.py"],
+      "scenarios": [
+        {"id": "DATA-01", "steps": "Publish, retry, consume and replay an event envelope with an Inbox/Outbox fixture.", "expected": "Schema, ordering metadata and deduplication are preserved."},
+        {"id": "DATA-02", "steps": "Attempt cross-tenant reads/writes and invalid ownership migrations.", "expected": "Isolation and migration guards reject the operation."},
+        {"id": "DATA-03", "steps": "Render service topology and dependency graph.", "expected": "No forbidden dependency edge or undeclared data owner exists."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B16-B23-SECURITY",
+      "name": "Zero trust, identity, MFA, authorization, keys, certificates and audit",
+      "batch_ids": ["B16", "B17", "B18", "B19", "B20", "B21", "B22", "B23"],
+      "level": "security",
+      "execution": "local",
+      "critical": true,
+      "command": ["python3", "-m", "unittest", "tools.tests.test_b16_zerotrust", "tools.tests.test_b17_identity", "tools.tests.test_b18_mfa", "tools.tests.test_b19_authz", "tools.tests.test_b20_keys", "tools.tests.test_b21_certs", "tools.tests.test_b22_baseline", "tools.tests.test_b23_audit"],
+      "timeout_seconds": 240,
+      "target_paths": ["libs/zerotrust", "libs/identity", "libs/mfa", "libs/authz", "libs/kms", "libs/pki", "libs/security", "libs/audit"],
+      "scenarios": [
+        {"id": "SEC-01", "steps": "Exercise session expiry, revocation, phishing-resistant MFA and recovery paths.", "expected": "Expired/revoked/weak sessions cannot perform privileged mutations."},
+        {"id": "SEC-02", "steps": "Evaluate RBAC/ABAC, separation of duties and time-bounded elevation permutations.", "expected": "Default deny, independent approver and least privilege are enforced."},
+        {"id": "SEC-03", "steps": "Run secret, certificate, baseline and tamper-evident audit fixtures.", "expected": "Hard-coded secrets and tampered audit records are rejected."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B24-B31-MERCHANT",
+      "name": "Tenant, merchant, provider account, capability, routing and onboarding controls",
+      "batch_ids": ["B24", "B25", "B26", "B27", "B28", "B29", "B30", "B31"],
+      "level": "integration",
+      "execution": "local",
+      "critical": true,
+      "command": ["python3", "-m", "unittest", "tools.tests.test_b24_tenants", "tools.tests.test_b25_merchant", "tools.tests.test_b26_accounts", "tools.tests.test_b27_capabilities", "tools.tests.test_b28_routing", "tools.tests.test_b29_fees", "tools.tests.test_b30_onboarding", "tools.tests.test_b31_isolation"],
+      "timeout_seconds": 240,
+      "target_paths": ["libs/tenancy", "libs/merchant", "libs/registry", "libs/capability", "libs/routing", "libs/pricing", "libs/onboarding", "libs/isolation"],
+      "scenarios": [
+        {"id": "MER-01", "steps": "Provision two tenants and bind merchant/provider credentials with synthetic IDs.", "expected": "Credentials, capabilities and configuration are tenant-scoped."},
+        {"id": "MER-02", "steps": "Resolve routes across region, currency, method, risk and maintenance dimensions.", "expected": "Unsupported combinations fail before provider side effects."},
+        {"id": "MER-03", "steps": "Run four-eyes onboarding, fee calculation and isolation probes.", "expected": "Approval, pricing and cross-tenant probes meet policy."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B32-B36-PAYMENT",
+      "name": "Payment intent, attempts, authorization/capture and idempotency",
+      "batch_ids": ["B32", "B33", "B34", "B35", "B36"],
+      "level": "integration",
+      "execution": "local",
+      "critical": true,
+      "command": ["./gradlew", "--no-daemon", "--console=plain", ":services:payment-core:test", ":apps:edge-gateway:test"],
+      "timeout_seconds": 300,
+      "target_paths": ["services/payment-core", "apps/edge-gateway", "libs/attempt", "libs/intent", "libs/idempotency", "libs/capture"],
+      "scenarios": [
+        {"id": "PAY-01", "steps": "Create an intent, authorize, partially capture, cancel and close using deterministic adapters.", "expected": "State transitions, amount bounds and ledger-facing facts are correct."},
+        {"id": "PAY-02", "steps": "Send duplicate create/capture/refund requests concurrently with the same idempotency key.", "expected": "Exactly one side effect and a stable replay response are observed."},
+        {"id": "PAY-03", "steps": "Inject timeout, callback-before-response and provider-unknown outcomes.", "expected": "No optimistic success; retry/unknown semantics are explicit and fail closed."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B37-B39-WEBHOOK",
+      "name": "Provider webhook ingress, business delivery and read models",
+      "batch_ids": ["B37", "B38", "B39"],
+      "level": "contract",
+      "execution": "local",
+      "critical": true,
+      "command": ["./gradlew", "--no-daemon", "--console=plain", ":services:webhook-ingress:test", ":services:webhook-delivery:test", ":apps:edge-gateway:test"],
+      "timeout_seconds": 240,
+      "target_paths": ["services/webhook-ingress", "services/webhook-delivery", "libs/domain-events", ".payment-platform/skill-package/contracts/asyncapi.yaml"],
+      "scenarios": [
+        {"id": "WH-01", "steps": "Replay signed, unsigned, malformed and tenant-mismatched provider callbacks.", "expected": "Signature and binding checks run before state mutation."},
+        {"id": "WH-02", "steps": "Deliver duplicate and out-of-order events through Inbox and consumer retry fixtures.", "expected": "Delivery is idempotent, monotonic where required, and poison messages are quarantined."},
+        {"id": "WH-03", "steps": "Project read-model state after accepted and rejected events.", "expected": "Queries expose only verified payment facts and stable error contracts."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B40-B47-CN-PROVIDERS",
+      "name": "WeChat Pay and Alipay contract, signing and lifecycle tests",
+      "batch_ids": ["B40", "B41", "B42", "B43", "B44", "B45", "B46", "B47"],
+      "level": "contract",
+      "execution": "local",
+      "critical": true,
+      "command": ["./gradlew", "--no-daemon", "--console=plain", ":connectors:wechat-pay:test", ":connectors:alipay:test"],
+      "timeout_seconds": 240,
+      "target_paths": ["connectors/wechat-pay", "connectors/alipay", "platform/dev/simulators/wechat", "platform/dev/simulators/alipay"],
+      "scenarios": [
+        {"id": "CN-01", "steps": "Generate sandbox requests for JSAPI, Native, H5, App, face-to-face and certificate modes.", "expected": "Canonical fields, signing inputs and capability refusal match contracts."},
+        {"id": "CN-02", "steps": "Return provider success, business failure, timeout and malformed notification fixtures.", "expected": "Response parsing preserves UNKNOWN and never treats client display as payment truth."},
+        {"id": "CN-03", "steps": "Exercise refund, close, query and bill-download lifecycle vectors.", "expected": "All side effects are idempotent and bounded by intent/attempt state."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B48-B55-GLOBAL-PROVIDERS",
+      "name": "Stripe, PayPal, Apple Pay, multi-channel simulators and certification contracts",
+      "batch_ids": ["B48", "B49", "B50", "B51", "B52", "B53", "B54", "B55"],
+      "level": "contract",
+      "execution": "local",
+      "critical": true,
+      "command": ["./gradlew", "--no-daemon", "--console=plain", ":connectors:stripe:test", ":connectors:paypal:test", ":connectors:apple-pay:test", ":libs:domain-events:test"],
+      "timeout_seconds": 240,
+      "target_paths": ["connectors/stripe", "connectors/paypal", "connectors/apple-pay", "platform/dev/simulators/stripe", "platform/dev/simulators/paypal", "platform/dev/simulators/apple-pay"],
+      "scenarios": [
+        {"id": "GL-01", "steps": "Run PaymentIntent/Order/merchant-session vectors with tokenized synthetic payment methods.", "expected": "Request/response contracts and capability matrix are deterministic."},
+        {"id": "GL-02", "steps": "Replay provider webhook, refund, dispute and subscription fixtures.", "expected": "Signature, idempotency, ordering and lifecycle mapping are enforced."},
+        {"id": "GL-03", "steps": "Run every local simulator contract and inject unsupported capability combinations.", "expected": "Unsupported combinations fail before network side effects."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B56-B63-CHECKOUT-SDK",
+      "name": "Hosted checkout, links, session integrity, web UI and SDK compatibility",
+      "batch_ids": ["B56", "B57", "B58", "B59", "B60", "B61", "B62", "B63"],
+      "level": "e2e",
+      "execution": "local",
+      "critical": true,
+      "command": ["python3", "scripts/sdk-contract-smoke.py"],
+      "timeout_seconds": 180,
+      "target_paths": ["apps/checkout-web", "apps/admin-web", "sdks/mobile", "sdks/server/node", "sdks/server/python", "sdks/server/dotnet", "scripts/sdk-contract-smoke.py"],
+      "scenarios": [
+        {"id": "UX-01", "steps": "Create hosted checkout/link/QR sessions and tamper with amount, currency, return URL and expiry.", "expected": "Signed sessions reject mutation and expire deterministically."},
+        {"id": "UX-02", "steps": "Run web keyboard, locale, fallback and failure-path tests with synthetic intents.", "expected": "No success is inferred from client state; accessibility and localization contracts pass."},
+        {"id": "UX-03", "steps": "Execute Node, Python, Go, Java, .NET and mobile SDK contract vectors where toolchains are available.", "expected": "SDKs preserve error/idempotency/unknown semantics across languages."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B64-B71-LIFECYCLE",
+      "name": "Refund, disputes, subscriptions, mandates, dunning and lifecycle E2E",
+      "batch_ids": ["B64", "B65", "B66", "B67", "B68", "B69", "B70", "B71"],
+      "level": "integration",
+      "execution": "local",
+      "critical": true,
+      "command": ["./gradlew", "--no-daemon", "--console=plain", ":services:payment-core:test"],
+      "timeout_seconds": 300,
+      "target_paths": ["services/payment-core/src/main/java/com/elmpay/payment/refund", "services/payment-core/src/main/java/com/elmpay/payment/billing", "services/payment-core/src/test"],
+      "scenarios": [
+        {"id": "LIFE-01", "steps": "Approve, reject, partially and fully refund an authorized/captured attempt.", "expected": "Approval controls, amount ceilings and idempotent side effects hold."},
+        {"id": "LIFE-02", "steps": "Open/respond/close disputes and run subscription renewal, cancellation and proration vectors.", "expected": "Deadlines, balances and state transitions remain consistent."},
+        {"id": "LIFE-03", "steps": "Expire mandate, trigger dunning and update token references.", "expected": "No raw card data is stored and retries remain bounded."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B72-B79-FINANCE",
+      "name": "Immutable ledger, posting, fees, settlement, ingestion and reconciliation",
+      "batch_ids": ["B72", "B73", "B74", "B75", "B76", "B77", "B78", "B79"],
+      "level": "integration",
+      "execution": "local",
+      "critical": true,
+      "command": ["./gradlew", "--no-daemon", "--console=plain", ":services:ledger-service:test", ":services:reconciliation-service:test", ":services:payment-core:test"],
+      "timeout_seconds": 300,
+      "target_paths": ["services/ledger-service", "services/reconciliation-service", "services/payment-core/src/main/java/com/elmpay/payment/billing"],
+      "scenarios": [
+        {"id": "FIN-01", "steps": "Post authorization, capture, fee, refund and settlement entries, then replay the same event.", "expected": "Ledger is append-only, balanced and duplicate-safe."},
+        {"id": "FIN-02", "steps": "Apply tax, fee, currency scale, FX and rounding boundary vectors.", "expected": "Zero unexplained balance delta and deterministic rounding."},
+        {"id": "FIN-03", "steps": "Ingest provider/bank files with missing, duplicate and mismatched rows.", "expected": "Three-way reconciliation produces explainable exceptions and audit exports."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B80-B87-RISK",
+      "name": "Real-time risk, signals, rule/ML boundaries, phishing and abuse operations",
+      "batch_ids": ["B80", "B81", "B82", "B83", "B84", "B85", "B86", "B87"],
+      "level": "security",
+      "execution": "local",
+      "critical": true,
+      "command": ["./gradlew", "--no-daemon", "--console=plain", ":services:risk-engine:test"],
+      "timeout_seconds": 240,
+      "target_paths": ["services/risk-engine", "apps/admin-web", "libs/appsec"],
+      "scenarios": [
+        {"id": "RISK-01", "steps": "Evaluate velocity, device, network, account, denylist and allowlist signal permutations.", "expected": "Decisions are explainable, tenant-scoped and fail closed on missing signals."},
+        {"id": "RISK-02", "steps": "Version rules and invoke ML scoring with invalid features, NaN and model timeout.", "expected": "Schema/version/finite-value controls reject unsafe scores."},
+        {"id": "RISK-03", "steps": "Run phishing, e-skimming, bot, credential-stuffing and case-management fixtures.", "expected": "Controls emit actionable signals without leaking sensitive data."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B88-B95-PLATFORM",
+      "name": "Gateway, mesh, database, Kafka, Redis, Kubernetes, multi-region and recovery",
+      "batch_ids": ["B88", "B89", "B90", "B91", "B92", "B93", "B94", "B95"],
+      "level": "integration",
+      "execution": "local",
+      "critical": true,
+      "command": ["./gradlew", "--no-daemon", "--console=plain", ":apps:edge-gateway:test", ":services:worker-scheduler:test"],
+      "timeout_seconds": 240,
+      "target_paths": ["apps/edge-gateway", "services/worker-scheduler", "platform/kubernetes", "platform/dev", "platform/terraform"],
+      "scenarios": [
+        {"id": "PLAT-01", "steps": "Exercise gateway authentication, WAF/rate-limit and mTLS/network-policy fixtures.", "expected": "Unauthenticated, over-limit and unauthorized paths are rejected."},
+        {"id": "PLAT-02", "steps": "Inject database, Kafka, Redis and lock/lease failures into deterministic adapters.", "expected": "Durability, fencing, replay and recovery behavior is explicit."},
+        {"id": "PLAT-03", "steps": "Render digest-pinned workloads and simulate regional failover/write fencing.", "expected": "Policy output is hardened; production K8s/DR remains external evidence, not a local claim."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B96-B103-OPERATIONS",
+      "name": "Telemetry, SLO, funnel metrics, SIEM, incidents, channel health and capacity",
+      "batch_ids": ["B96", "B97", "B98", "B99", "B100", "B101", "B102", "B103"],
+      "level": "performance",
+      "execution": "local",
+      "critical": true,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "testing", "-p", "test_*.py", "-v"],
+      "timeout_seconds": 180,
+      "target_paths": ["tools/runtime", "testing", "platform/observability", "runbooks"],
+      "scenarios": [
+        {"id": "OPS-01", "steps": "Emit redacted logs, metrics and traces for success, failure and unknown payment outcomes.", "expected": "Correlation fields are present and sensitive values are redacted."},
+        {"id": "OPS-02", "steps": "Feed SLI/SLO, error-budget, channel-health and capacity samples at threshold boundaries.", "expected": "Alerts, breaker decisions and go/no-go decisions are deterministic."},
+        {"id": "OPS-03", "steps": "Replay incident, security case, rollback and reconciliation runbook fixtures.", "expected": "Runbooks identify owner, escalation, rollback and evidence outputs."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B104-B111-COMPLIANCE",
+      "name": "PCI, China/global privacy, AML/KYB, data lifecycle, supply chain and vendor risk",
+      "batch_ids": ["B104", "B105", "B106", "B107", "B108", "B109", "B110", "B111"],
+      "level": "security",
+      "execution": "local",
+      "critical": true,
+      "command": ["python3", "-m", "tools.paygov.cli", "verify-all", "--repo", "."],
+      "timeout_seconds": 240,
+      "target_paths": ["governance", "platform/compliance", "docs/security", "scripts/sign-artifacts.sh", "scripts/stage-signing-artifacts.sh"],
+      "scenarios": [
+        {"id": "COMP-01", "steps": "Evaluate PCI/data classification/retention/tokenization and regional processing policy fixtures.", "expected": "Out-of-scope claims are rejected; retention and deletion are explicit."},
+        {"id": "COMP-02", "steps": "Run AML/KYC/KYB/sanctions and privacy boundary cases with synthetic identities.", "expected": "The platform records a boundary decision and never pretends to be a regulated decision maker."},
+        {"id": "COMP-03", "steps": "Validate SBOM, provenance, signature, dependency, secret and vendor-exit controls.", "expected": "Missing or stale supply-chain artifacts fail closed."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json"]
+    },
+    {
+      "id": "TM-B112-B117-QUALITY",
+      "name": "Property/model tests, provider contracts, webhook faults, concurrency, security and performance",
+      "batch_ids": ["B112", "B113", "B114", "B115", "B116", "B117"],
+      "level": "performance",
+      "execution": "local",
+      "critical": true,
+      "command": ["python3", "-m", "unittest", "discover", "-s", "testing", "-p", "test_*.py", "-v"],
+      "timeout_seconds": 180,
+      "target_paths": ["testing", "tools/negative", "tools/runtime", "connectors", "services/webhook-ingress"],
+      "scenarios": [
+        {"id": "QUAL-01", "steps": "Run deterministic property/model vectors for money, state, ledger balance, routing, auth and date boundaries.", "expected": "Invariants hold for generated edge values and counterexamples are reproducible."},
+        {"id": "QUAL-02", "steps": "Fuzz webhook payloads and schedule duplicate, delayed, reordered, replayed and clock-skewed deliveries.", "expected": "Only verified events mutate state; no duplicate side effect is observed."},
+        {"id": "QUAL-03", "steps": "Run SAST/secret/dependency negative controls and load/soak/queue/DB/provider fault profiles where tools are installed.", "expected": "A missing scanner or failed threshold is FAIL/BLOCKED, never silently skipped."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json", "build/test-matrix/junit.xml"]
+    },
+    {
+      "id": "TM-B118-B119-ACCEPTANCE",
+      "name": "UAT, finance/operations acceptance and independently reviewed evidence",
+      "batch_ids": ["B118", "B119"],
+      "level": "uat",
+      "execution": "external",
+      "critical": true,
+      "blocking_evidence": "BLOCKED: signed UAT/finance/operations acceptance and Git-tracked independent review.json are required; local tests cannot self-approve them.",
+      "target_paths": ["docs/EVIDENCE.md", ".ai/REVIEW.md", "platform/compliance/external-evidence-policy.json"],
+      "scenarios": [
+        {"id": "UAT-01", "steps": "Execute a representative merchant order-to-settlement journey in an approved UAT environment.", "expected": "Business owner signs acceptance with run ID, scope and zero open critical findings."},
+        {"id": "UAT-02", "steps": "Reconcile finance, support and operations outputs against independent source records.", "expected": "Signed reconciliation and support acceptance artifacts are bound to the release."},
+        {"id": "UAT-03", "steps": "Independent reviewer verifies code, command, artifact and digest bindings.", "expected": "review.json is Git-tracked, independent and current; otherwise status remains NOT_CERTIFIED."}
+      ],
+      "evidence_outputs": ["evidence/B118/review.json", "evidence/B119/review.json"]
+    },
+    {
+      "id": "TM-B120-B123-ROLLOUT",
+      "name": "Migration adapters, shadow traffic, merchant onboarding and go/no-go",
+      "batch_ids": ["B120", "B121", "B122", "B123"],
+      "level": "release",
+      "execution": "external",
+      "critical": true,
+      "blocking_evidence": "BLOCKED: approved migration shadow/canary, production merchant onboarding and Go/No-Go evidence are external and must be release-bound.",
+      "target_paths": ["tools/runtime", "platform/rollout", "docs/charter/DELIVERY_MODEL.md", "governance/provider-accounts.json"],
+      "scenarios": [
+        {"id": "REL-01", "steps": "Run old/new adapter in shadow mode against replayed, non-mutating traffic.", "expected": "Canonical diff is zero or explicitly approved; candidate has no provider side effects."},
+        {"id": "REL-02", "steps": "Onboard a synthetic merchant through KYB, capabilities, credentials and regional policy.", "expected": "Four-eyes approval and rollback are recorded."},
+        {"id": "REL-03", "steps": "Review readiness checklist and Go/No-Go decision with owners.", "expected": "All local gates pass and external evidence is present; otherwise blocked."}
+      ],
+      "evidence_outputs": ["evidence/B120/review.json", "evidence/B121/review.json", "evidence/B123/review.json"]
+    },
+    {
+      "id": "TM-B124-B127-RELEASE",
+      "name": "Progressive delivery, post-launch reconciliation, commercial SLA and final certification",
+      "batch_ids": ["B124", "B125", "B126", "B127"],
+      "level": "release",
+      "execution": "external",
+      "critical": true,
+      "blocking_evidence": "BLOCKED: production shadow/canary, rollback drill, merchant acceptance, SLA/commercial approval and final independent certification are required.",
+      "target_paths": ["platform/rollout", "platform/compliance/required-release-gates.json", "tools/runtime/elmpay_runtime/external_evidence.py", ".ai/implementation_audit.py"],
+      "scenarios": [
+        {"id": "FINAL-01", "steps": "Run a staged canary with ledger, duplicate-side-effect, latency, error and security thresholds.", "expected": "Any threshold breach stops rollout and executes a tested rollback."},
+        {"id": "FINAL-02", "steps": "Perform post-launch monitoring, daily three-way reconciliation and commercial usage/SLA review.", "expected": "No unexplained financial delta or unowned critical incident remains."},
+        {"id": "FINAL-03", "steps": "Collect provider certification, PCI/UAT/penetration, DR, merchant and independent review signatures.", "expected": "Only then may B127 become certified; current default is 0/128 NOT_CERTIFIED."}
+      ],
+      "evidence_outputs": ["evidence/B127/review.json", "evidence/completion/B127.json"]
+    }
+  ]
+}

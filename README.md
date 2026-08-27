@@ -54,7 +54,12 @@ make verify        # 全量治理校验 + 测试
 make test          # 仅测试
 make governance    # 仅校验
 make ai-status     # 查看证据续跑状态
+make test-matrix   # 执行 B00-B127 SOTA 矩阵（外部证据保持 BLOCKED）
 ```
+
+完整测试策略与可执行场景见 [`docs/testing/SOTA_TEST_PLAN.md`](docs/testing/SOTA_TEST_PLAN.md)，
+机器可读矩阵见 `testing/test-matrix.json`。矩阵覆盖完整不代表生产认证；当前认证仍保持
+`0/128 NOT_CERTIFIED`，且运行器不会写入 `evidence/`。
 
 ## 布局
 
