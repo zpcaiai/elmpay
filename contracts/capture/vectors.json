@@ -1,0 +1,324 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-capture.py; do not edit by hand",
+  "authorized_minor": 1000,
+  "capability": {
+    "authorization_valid_hours": 168,
+    "partial_capture": true,
+    "supports_authorization_capture": true
+  },
+  "capability_gate": [
+    {
+      "authorization_valid_hours": 0,
+      "declared_by": [
+        "alipay:alipay",
+        "wechat:wechat_pay"
+      ],
+      "id": "authcapture=0.partial=0.hours=0",
+      "partial_capture": false,
+      "supports_authorization_capture": false
+    },
+    {
+      "authorization_valid_hours": 168,
+      "declared_by": [
+        "apple_pay:apple_pay"
+      ],
+      "id": "authcapture=1.partial=0.hours=168",
+      "partial_capture": false,
+      "supports_authorization_capture": true
+    },
+    {
+      "authorization_valid_hours": 72,
+      "declared_by": [
+        "paypal:paypal_wallet"
+      ],
+      "id": "authcapture=1.partial=1.hours=72",
+      "partial_capture": true,
+      "supports_authorization_capture": true
+    },
+    {
+      "authorization_valid_hours": 168,
+      "declared_by": [
+        "stripe:apple_pay",
+        "stripe:card"
+      ],
+      "id": "authcapture=1.partial=1.hours=168",
+      "partial_capture": true,
+      "supports_authorization_capture": true
+    }
+  ],
+  "cases": [
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 1000,
+        "held_until_expiry_minor": 0,
+        "refused_at_step": null,
+        "refused_with": null,
+        "released_minor": 0,
+        "state": "captured",
+        "unresolved_unknown": false
+      },
+      "id": "immediate-full-capture",
+      "initial_state": "created",
+      "operations": [
+        {
+          "amount_minor": 1000,
+          "op": "capture"
+        }
+      ],
+      "why": "确认即全额捕获：授权与捕获合为一次调用，没有剩余。"
+    },
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 1000,
+        "held_until_expiry_minor": 0,
+        "refused_at_step": null,
+        "refused_with": null,
+        "released_minor": 0,
+        "state": "captured",
+        "unresolved_unknown": false
+      },
+      "id": "deferred-full-capture",
+      "initial_state": "authorized",
+      "operations": [
+        {
+          "amount_minor": 1000,
+          "op": "capture"
+        }
+      ],
+      "why": "先授权后全额捕获，累计等于授权额，授权自然走完。"
+    },
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 600,
+        "held_until_expiry_minor": 0,
+        "refused_at_step": null,
+        "refused_with": null,
+        "released_minor": 400,
+        "state": "captured",
+        "unresolved_unknown": false
+      },
+      "id": "partial-then-close",
+      "initial_state": "authorized",
+      "operations": [
+        {
+          "amount_minor": 600,
+          "op": "capture"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "why": "本批次存在的理由：部分捕获后显式释放剩余的 400，而不是等它过期。"
+    },
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 1000,
+        "held_until_expiry_minor": 0,
+        "refused_at_step": null,
+        "refused_with": null,
+        "released_minor": 0,
+        "state": "captured",
+        "unresolved_unknown": false
+      },
+      "id": "multi-capture-to-full",
+      "initial_state": "authorized",
+      "operations": [
+        {
+          "amount_minor": 600,
+          "op": "capture"
+        },
+        {
+          "amount_minor": 400,
+          "op": "capture"
+        }
+      ],
+      "why": "分两次捕获至全额，累计等于授权额，无需关闭。"
+    },
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 600,
+        "held_until_expiry_minor": 0,
+        "refused_at_step": 1,
+        "refused_with": "VOID_AFTER_CAPTURE",
+        "released_minor": 0,
+        "state": "active",
+        "unresolved_unknown": false
+      },
+      "id": "partial-then-void-refused",
+      "initial_state": "authorized",
+      "operations": [
+        {
+          "amount_minor": 600,
+          "op": "capture"
+        },
+        {
+          "op": "void"
+        }
+      ],
+      "why": "捕获之后不再是撤销：剩余走关闭，已捕获走退款。"
+    },
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 0,
+        "held_until_expiry_minor": 0,
+        "refused_at_step": 0,
+        "refused_with": "CLOSE_WITHOUT_CAPTURE",
+        "released_minor": 0,
+        "state": "active",
+        "unresolved_unknown": false
+      },
+      "id": "close-without-capture-refused",
+      "initial_state": "authorized",
+      "operations": [
+        {
+          "op": "close"
+        }
+      ],
+      "why": "一分钱没捕获就想关闭：那叫撤销。"
+    },
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 600,
+        "held_until_expiry_minor": 0,
+        "refused_at_step": 1,
+        "refused_with": "CAPTURE_EXCEEDS_AUTHORIZED",
+        "released_minor": 0,
+        "state": "active",
+        "unresolved_unknown": false
+      },
+      "id": "capture-exceeding-authorized-refused",
+      "initial_state": "authorized",
+      "operations": [
+        {
+          "amount_minor": 600,
+          "op": "capture"
+        },
+        {
+          "amount_minor": 1000,
+          "op": "capture"
+        }
+      ],
+      "why": "累计捕获超过授权额必须拒绝——这是整数不变量，不是提醒。"
+    },
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 1000,
+        "held_until_expiry_minor": 0,
+        "refused_at_step": 1,
+        "refused_with": "AUTH_NOT_ACTIVE",
+        "released_minor": 0,
+        "state": "captured",
+        "unresolved_unknown": false
+      },
+      "id": "capture-after-full-capture-refused",
+      "initial_state": "authorized",
+      "operations": [
+        {
+          "amount_minor": 1000,
+          "op": "capture"
+        },
+        {
+          "amount_minor": 1,
+          "op": "capture"
+        }
+      ],
+      "why": "终态授权上不得再捕获。"
+    },
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 1000,
+        "held_until_expiry_minor": 0,
+        "refused_at_step": 1,
+        "refused_with": "AUTH_NOT_ACTIVE",
+        "released_minor": 0,
+        "state": "captured",
+        "unresolved_unknown": false
+      },
+      "id": "close-after-full-capture-refused",
+      "initial_state": "authorized",
+      "operations": [
+        {
+          "amount_minor": 1000,
+          "op": "capture"
+        },
+        {
+          "op": "close"
+        }
+      ],
+      "why": "全额捕获之后没有剩余可关闭。"
+    },
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 0,
+        "held_until_expiry_minor": 0,
+        "refused_at_step": null,
+        "refused_with": null,
+        "released_minor": 1000,
+        "state": "canceled",
+        "unresolved_unknown": false
+      },
+      "id": "void-before-capture",
+      "initial_state": "authorized",
+      "operations": [
+        {
+          "op": "void"
+        }
+      ],
+      "why": "未捕获时撤销释放全部授权。"
+    },
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 0,
+        "held_until_expiry_minor": 1000,
+        "refused_at_step": null,
+        "refused_with": null,
+        "released_minor": 0,
+        "state": "expired",
+        "unresolved_unknown": false
+      },
+      "id": "expire-without-action",
+      "initial_state": "authorized",
+      "operations": [
+        {
+          "op": "expire"
+        }
+      ],
+      "why": "无人动作时授权过期，1000 一直被占用到过期为止。这是兜底路径，不是释放方式。"
+    },
+    {
+      "authorized_minor": 1000,
+      "expected": {
+        "captured_minor": 0,
+        "held_until_expiry_minor": 0,
+        "refused_at_step": 0,
+        "refused_with": "CAPTURE_AMOUNT_NOT_POSITIVE",
+        "released_minor": 0,
+        "state": "active",
+        "unresolved_unknown": false
+      },
+      "id": "non-positive-capture-refused",
+      "initial_state": "authorized",
+      "operations": [
+        {
+          "amount_minor": 0,
+          "op": "capture"
+        }
+      ],
+      "why": "捕获金额必须是正的整数最小单位。"
+    }
+  ],
+  "note": "由 governance/capture-lifecycle.json 与 libs/capture/reference 派生。任何语言实现必须逐条复现这些裁决，包括拒绝发生在第几步、以哪条码拒绝。未知结果的落定语义属于 B33，由该批次的向量证明，这里不重复。",
+  "principle_digest": "f139af27fcb5ebacd3653884dec109d0cf96a53dc65c81e4b009e1c2bbb9513b",
+  "schema_version": "1.0.0"
+}

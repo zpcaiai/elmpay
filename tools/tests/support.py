@@ -36,6 +36,10 @@ def _discovered() -> tuple:
 
 
 COPIED_FILES = _discovered() + (
+    # B34's conformance validator reads the Java replay test as an input; keep
+    # it in disposable fixtures so unrelated CLI determinism tests validate a
+    # complete repository surface rather than a deliberately missing binding.
+    "services/payment-core/src/test/java/com/elmpay/payment/CaptureLifecycleVectorsTest.java",
     "docs/charter/PROGRAM_CHARTER.md",
     "docs/charter/RISK_ACCEPTANCE_POLICY.md",
     "docs/charter/DELIVERY_MODEL.md",

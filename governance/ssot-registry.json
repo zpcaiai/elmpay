@@ -162,6 +162,16 @@
       ]
     },
     {
+      "id": "capture-lifecycle",
+      "path": "governance/capture-lifecycle.json",
+      "batch": "B34",
+      "owner": "payment-platform-architecture",
+      "validator": "capture-lifecycle",
+      "generates": [
+        "contracts/capture/vectors.json"
+      ]
+    },
+    {
       "id": "api-contract",
       "path": "governance/api-contract.json",
       "batch": "B11",

@@ -1,0 +1,141 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B34",
+  "principle": "**授权是压在付款人钱上的一只手，松开这只手必须是一个显式动作。** 即时捕获、延迟捕获、部分捕获、撤销、关闭五个动作里，最容易被漏掉的是「关闭」——部分捕获之后剩下的那部分授权仍然占着付款人的额度，而代码里往往没有任何一条路径去释放它，于是唯一的出口变成「等它过期」。过期是兜底，不是释放路径：付款人被冻住的钱要多躺几天到十几天，账上「还可能再捕获多少」这个数永远算不准，对账和敞口报表一起失真。由此派生的另外三条同样是被现实教出来的：**撤销只在一分钱都没捕获时可用**，捕获之后想退钱只能走退款，否则同一笔钱会既被撤销又被退款；**捕获总额永远不得超过授权额**，这是整数不变量不是提醒；**不确定的查询结果永远不落定为成功**，未知就是未知。",
+  "authorization": {
+    "holds_payer_funds": true,
+    "validity_source": "governance/provider-capabilities.json",
+    "validity_field": "authorization_valid_hours",
+    "expiry_is_release_path": false,
+    "expiry_requires_exposure_alert": true,
+    "notes": "授权有效期由渠道能力矩阵声明，不在代码里写死。过期会释放资金，但把过期当成设计中的释放方式，等于把付款人的资金占用时间外包给超时时钟。"
+  },
+  "operations": [
+    {
+      "id": "authorize",
+      "mutates_money_state": true,
+      "requires_idempotency_key": true,
+      "audit_event": "payment.authorization.created.v1",
+      "authority": ["verified_provider_event", "server_side_query"],
+      "preconditions": ["intent_not_terminal"],
+      "releases": "none",
+      "terminal": false,
+      "notes": "授权本身不移动资金，但它建立了后续所有动作的上限。"
+    },
+    {
+      "id": "capture",
+      "mutates_money_state": true,
+      "requires_idempotency_key": true,
+      "audit_event": "payment.capture.recorded.v1",
+      "authority": ["verified_provider_event", "server_side_query"],
+      "preconditions": ["authorization_active", "cumulative_capture_within_authorized"],
+      "releases": "none",
+      "terminal": false,
+      "notes": "捕获推进累计已捕获金额。累计额等于授权额时授权自然走完，无需再关闭。"
+    },
+    {
+      "id": "void",
+      "mutates_money_state": true,
+      "requires_idempotency_key": true,
+      "audit_event": "payment.authorization.voided.v1",
+      "authority": ["verified_provider_event", "server_side_query"],
+      "preconditions": ["authorization_active", "captured_amount_is_zero"],
+      "releases": "full",
+      "terminal": true,
+      "notes": "撤销释放全部授权。已经捕获过一分钱就不再是撤销，只能关闭剩余部分再走退款。"
+    },
+    {
+      "id": "close",
+      "mutates_money_state": true,
+      "requires_idempotency_key": true,
+      "audit_event": "payment.authorization.closed.v1",
+      "authority": ["verified_provider_event", "server_side_query"],
+      "preconditions": ["authorization_active", "captured_amount_positive"],
+      "releases": "remainder",
+      "terminal": true,
+      "notes": "部分捕获之后主动放弃剩余授权。这是本批次存在的理由：没有这个动作，剩余授权只能等过期。"
+    },
+    {
+      "id": "query",
+      "mutates_money_state": false,
+      "requires_idempotency_key": false,
+      "audit_event": "payment.authorization.queried.v1",
+      "authority": ["server_side_query"],
+      "preconditions": [],
+      "releases": "none",
+      "terminal": false,
+      "settles_success": false,
+      "notes": "主动查询用来落定未知结果。查询本身不制造成功：读不懂或读不到，结果仍是 unknown。"
+    }
+  ],
+  "capture_modes": [
+    {
+      "id": "immediate",
+      "requires_capability": null,
+      "partial": false,
+      "notes": "确认即捕获，授权与捕获合为一次渠道调用。"
+    },
+    {
+      "id": "deferred",
+      "requires_capability": "supports_authorization_capture",
+      "partial": false,
+      "notes": "先授权后捕获，全额。"
+    },
+    {
+      "id": "partial",
+      "requires_capability": "partial_capture",
+      "partial": true,
+      "requires_close_for_remainder": true,
+      "notes": "捕获少于授权额。剩余部分必须由 close 显式释放。"
+    },
+    {
+      "id": "multi",
+      "requires_capability": "partial_capture",
+      "partial": true,
+      "requires_close_for_remainder": true,
+      "notes": "分多次捕获同一笔授权，累计不得超过授权额；不再继续捕获时必须 close。"
+    }
+  ],
+  "invariants": [
+    {
+      "id": "CAP-I1",
+      "statement": "累计捕获金额永远不得超过授权金额",
+      "unit": "integer_minor",
+      "enforced_by": ["CAPTURE_EXCEEDS_AUTHORIZED"]
+    },
+    {
+      "id": "CAP-I2",
+      "statement": "授权离开活动状态只能通过 capture 到全额、close 于部分额、void 于零额三条显式路径",
+      "enforced_by": ["CAPTURE_NO_EXPLICIT_CLOSE", "CAPTURE_EXPIRY_AS_RELEASE"]
+    },
+    {
+      "id": "CAP-I3",
+      "statement": "已捕获金额大于零时不得撤销",
+      "enforced_by": ["CAPTURE_VOID_AFTER_CAPTURE"]
+    },
+    {
+      "id": "CAP-I4",
+      "statement": "终态授权上不得再有捕获、撤销或关闭",
+      "enforced_by": ["CAPTURE_AFTER_TERMINAL"]
+    },
+    {
+      "id": "CAP-I5",
+      "statement": "查询返回未知时不得落定为成功，也不得据此再次触达渠道",
+      "enforced_by": ["CAPTURE_UNKNOWN_IS_SUCCESS"]
+    }
+  ],
+  "terminal_outcomes": {
+    "captured_in_full": "captured",
+    "closed_after_partial": "captured",
+    "voided_before_capture": "canceled",
+    "expired_without_action": "expired",
+    "notes": "关闭后的部分捕获停在 captured：状态本身就说明捕获阶段已经结束，剩余授权已释放。captured 且累计额小于授权额，只允许由 close 产生，不允许由「捕获完就不管了」隐式产生。"
+  },
+  "conformance": {
+    "vectors": "contracts/capture/vectors.json",
+    "reference": "libs/capture/reference/capture.py",
+    "java_test": "services/payment-core/src/test/java/com/elmpay/payment/CaptureLifecycleVectorsTest.java",
+    "notes": "向量由治理模型派生，Java 实现逐条重放。参考实现与 Java 实现必须给出同一个裁决。"
+  },
+  "audit_event_class": "payment.authorization"
+}
