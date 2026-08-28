@@ -191,6 +191,62 @@
       "notes": "这是唯一代表「钱真的到了」的事件；下游的收入确认以它为准。"
     },
     {
+      "name": "payment_intent.capture_closed",
+      "version": 1,
+      "producer": "payment-core",
+      "aggregate": "PaymentIntent",
+      "emitted_by": {
+        "machine": "payment-intent",
+        "event": "provider.authorization_closed"
+      },
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "retention_days": 2555,
+      "fields": [
+        {
+          "name": "payment_intent_id",
+          "type": "uuid",
+          "classification": "internal"
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "classification": "internal"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "classification": "internal"
+        },
+        {
+          "name": "captured_amount_minor",
+          "type": "int64",
+          "classification": "internal"
+        },
+        {
+          "name": "released_amount_minor",
+          "type": "int64",
+          "classification": "internal"
+        },
+        {
+          "name": "currency",
+          "type": "currency",
+          "classification": "internal"
+        },
+        {
+          "name": "closed_at",
+          "type": "timestamp",
+          "classification": "internal"
+        }
+      ],
+      "consumers": [
+        "ledger-service",
+        "reconciliation-service",
+        "webhook-delivery"
+      ],
+      "notes": "渠道确认释放部分捕获后的剩余授权；实际已捕获金额仍是最终支付事实。"
+    },
+    {
       "name": "payment_intent.failed",
       "version": 1,
       "producer": "payment-core",
@@ -678,6 +734,7 @@
       "subscribes": [
         "payment_intent.authorized",
         "payment_intent.captured",
+        "payment_intent.capture_closed",
         "payment_intent.voided",
         "refund.succeeded",
         "dispute.opened",
@@ -706,6 +763,7 @@
       "policy": "按 aggregate 缓冲最多 revision_gap_limit 个空洞，超时后升级为对账例外。",
       "subscribes": [
         "payment_intent.captured",
+        "payment_intent.capture_closed",
         "refund.succeeded",
         "payment_attempt.unresolved",
         "payment_attempt.succeeded"
@@ -718,6 +776,7 @@
       "subscribes": [
         "payment_intent.authorized",
         "payment_intent.captured",
+        "payment_intent.capture_closed",
         "payment_intent.failed",
         "payment_intent.canceled",
         "payment_intent.voided",

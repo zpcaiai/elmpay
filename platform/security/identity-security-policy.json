@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "defaultDecision": "DENY",
+  "sessionMaximumSeconds": 900,
+  "clockSkewSeconds": 60,
+  "allowedDevicePostures": ["ATTESTED", "MANAGED"],
+  "allowedNetworkZones": ["MESH", "TRUSTED_ADMIN"],
+  "highRiskActions": [
+    "CREDENTIAL_CHANGE",
+    "PAYMENT_METHOD_ADD",
+    "PRIVILEGE_ELEVATION",
+    "REFUND_APPROVE",
+    "ROUTING_ACTIVATE",
+    "KEY_ROTATE"
+  ],
+  "oidc": {
+    "allowedAlgorithms": ["RS256"],
+    "requiredHolderBinding": true,
+    "externalIssuerBinding": "BLOCKED"
+  },
+  "workloadIdentity": {
+    "trustDomain": "spiffe://elmpay.example",
+    "maximumCertificateSeconds": 3600,
+    "externalMeshBinding": "BLOCKED"
+  },
+  "webauthn": {
+    "rpIds": ["pay.elmpay.example", "admin.elmpay.example"],
+    "origins": ["https://pay.elmpay.example", "https://admin.elmpay.example"],
+    "challengeSeconds": 180,
+    "requireUserVerification": true,
+    "attestationMetadataBinding": "BLOCKED"
+  },
+  "authorization": {
+    "maximumJitSeconds": 3600,
+    "separationOfDuties": [
+      ["REFUND_REQUESTER", "REFUND_APPROVER"],
+      ["ROUTING_PROPOSER", "ROUTING_APPROVER"],
+      ["KEY_CUSTODIAN", "KEY_AUDITOR"]
+    ]
+  },
+  "kms": {
+    "requiredAlgorithm": "AES-256-GCM",
+    "requiredAadFields": ["tenantId", "resourceId", "purpose"],
+    "maximumPlaintextKeySeconds": 5,
+    "externalKmsHsmBinding": "BLOCKED"
+  },
+  "pki": {
+    "minimumOverlapSeconds": 86400,
+    "expiryWarningSeconds": 2592000,
+    "trustedIssuers": ["elmpay-production-ca"],
+    "externalCaAcmeBinding": "BLOCKED"
+  }
+}

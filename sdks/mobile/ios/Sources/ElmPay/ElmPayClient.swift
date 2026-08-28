@@ -57,6 +57,19 @@ public actor ElmPayClient {
         return try await send(path: "/v1/checkout-sessions/\(pathSegment(id))/confirm", method: "POST",
                               body: try JSONEncoder().encode(request), idempotencyKey: UUID().uuidString)
     }
+    public func launchPaymentMethod(method: String, launchURL: URL,
+                                    launcher: PaymentMethodLauncher) async throws {
+        let validMethod = method.range(of: #"^[a-z0-9][a-z0-9._-]{0,63}$"#,
+                                       options: .regularExpression) != nil
+        let components = URLComponents(url: launchURL, resolvingAgainstBaseURL: false)
+        let allowedSchemes = Set(["https", "weixin", "alipay", "paypal"])
+        guard validMethod, let scheme = components?.scheme?.lowercased(),
+              allowedSchemes.contains(scheme), components?.user == nil,
+              components?.password == nil, components?.fragment == nil else {
+            throw ElmPayError.untrustedDeepLink
+        }
+        try await launcher.launch(method: method, launchURL: launchURL)
+    }
     public func validateDeepLink(_ url: URL, expectedScheme: String, expectedHost: String, expectedState: String) throws -> String {
         let values = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
         let state = values?.first(where: { $0.name == "state" })?.value ?? ""
@@ -68,7 +81,7 @@ public actor ElmPayClient {
     private func send(path: String, method: String, body: Data?, idempotencyKey: String?, extraHeaders: [String: String] = [:]) async throws -> CheckoutSession {
         for attempt in 0..<attempts {
             var request = URLRequest(url: URL(string: path, relativeTo: baseURL)!); request.httpMethod = method; request.httpBody = body
-            request.timeoutInterval = 5; request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization"); request.setValue("application/json", forHTTPHeaderField: "Accept"); request.setValue(projectId, forHTTPHeaderField: "X-Project-Id")
+            request.timeoutInterval = 5; request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization"); request.setValue("application/json", forHTTPHeaderField: "Accept"); request.setValue(projectId, forHTTPHeaderField: "X-Project-Id"); request.setValue("IOS", forHTTPHeaderField: "X-ElmPay-Device-Class")
             if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
             if let idempotencyKey { request.setValue(idempotencyKey, forHTTPHeaderField: "Idempotency-Key") }
             extraHeaders.forEach { request.setValue($1, forHTTPHeaderField: $0) }

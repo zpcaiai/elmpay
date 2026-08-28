@@ -10,10 +10,10 @@ declared by ``platform/compliance/external-evidence-policy.json``.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-import os
 import re
 from typing import Any, Mapping
 
+from .attestation import NonceStore, nonce_store_from_trust
 from .common import (
     GateReport,
     ValidationError,
@@ -47,7 +47,7 @@ def validate_external_evidence(
     """
 
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    env = environment if environment is not None else os.environ
+    del environment
     reasons: list[str] = []
     checks: list[str] = []
 
@@ -80,6 +80,13 @@ def validate_external_evidence(
 
     if not isinstance(trust, dict) or not isinstance(trust.get("keys"), dict):
         reasons.append("external_evidence_trust_material_missing")
+        nonce_store = None
+    else:
+        try:
+            nonce_store = nonce_store_from_trust(trust)
+        except ValidationError as exc:
+            reasons.append(f"external_evidence_replay_protection_missing:{exc}")
+            nonce_store = None
 
     required = policy.get("requiredCategories")
     if not isinstance(required, dict) or not required:
@@ -93,6 +100,7 @@ def validate_external_evidence(
     seen: set[str] = set()
     verified: set[str] = set()
     verifier_ids: set[str] = set()
+    certified_provider_capabilities: dict[str, set[str]] = {}
     for index, raw in enumerate(raw_evidence):
         prefix = f"external_evidence[{index}]"
         try:
@@ -101,32 +109,64 @@ def validate_external_evidence(
         except ValidationError as exc:
             reasons.append(f"{prefix}:{exc}")
             continue
-        if category in seen:
-            reasons.append(f"duplicate_external_evidence_category:{category}")
-            continue
-        seen.add(category)
         category_policy = required.get(category)
         if not isinstance(category_policy, dict):
             reasons.append(f"external_evidence_category_not_allowed:{category}")
             continue
+        uniqueness_key = category
+        if category == "provider_certification":
+            attestation = evidence.get("attestation")
+            provider_id = attestation.get("providerId") if isinstance(attestation, dict) else None
+            uniqueness_key = f"{category}:{provider_id}"
+        if uniqueness_key in seen:
+            reasons.append(f"duplicate_external_evidence_record:{uniqueness_key}")
+            continue
+        seen.add(uniqueness_key)
         valid, verifier, record_reasons = _validate_record(
             category_policy,
             evidence,
             prefix,
             current,
             trust if isinstance(trust, dict) else {},
-            env,
             binding if isinstance(binding, str) else "",
+            nonce_store,
         )
         if record_reasons:
             reasons.extend(f"{category}:{reason}" for reason in record_reasons)
         if valid:
             verified.add(category)
+            if category == "provider_certification":
+                attestation = require_mapping(evidence.get("attestation"), "provider attestation")
+                provider_id = require_text(attestation.get("providerId"), "providerId")
+                capabilities = {
+                    require_text(item, "provider capability")
+                    for item in require_list(attestation.get("capabilities"), "capabilities")
+                }
+                certified_provider_capabilities[provider_id] = capabilities
             if verifier:
                 verifier_ids.add(verifier)
             checks.append(f"external_evidence:{category}:{verifier}")
     for category in sorted(set(required) - verified):
         reasons.append(f"missing_external_evidence:{category}")
+    required_matrix = policy.get("requiredProviderCapabilities")
+    if not isinstance(required_matrix, dict) or not required_matrix:
+        reasons.append("provider_certification_matrix_missing")
+    else:
+        for provider, raw_capabilities in sorted(required_matrix.items()):
+            try:
+                required_capabilities = {
+                    require_text(item, f"requiredProviderCapabilities.{provider}")
+                    for item in require_list(raw_capabilities, f"requiredProviderCapabilities.{provider}")
+                }
+            except ValidationError as exc:
+                reasons.append(f"provider_certification_policy_invalid:{exc}")
+                continue
+            supplied = certified_provider_capabilities.get(provider)
+            if supplied is None:
+                reasons.append(f"provider_certification_missing:{provider}")
+            else:
+                for capability in sorted(required_capabilities - supplied):
+                    reasons.append(f"provider_capability_not_certified:{provider}:{capability}")
     minimum = policy.get("minimumDistinctVerifiers", 1)
     if not isinstance(minimum, int) or minimum < 1:
         reasons.append("external_evidence_policy_verifier_count_invalid")
@@ -141,8 +181,8 @@ def _validate_record(
     prefix: str,
     current: datetime,
     trust: Mapping[str, Any],
-    environment: Mapping[str, str],
     binding: str,
+    nonce_store: NonceStore | None,
 ) -> tuple[bool, str | None, tuple[str, ...]]:
     reasons: list[str] = []
     try:
@@ -159,8 +199,8 @@ def _validate_record(
             reasons.append("attestation_digest_invalid")
         elif digest != sha256_json(attestation):
             reasons.append("attestation_digest_mismatch")
-        if not isinstance(evidence.get("signature"), str) or len(evidence["signature"]) < 32:
-            reasons.append("signature_missing")
+        if not isinstance(evidence.get("dsse"), dict):
+            reasons.append("dsse_signature_missing")
         if category_policy.get("requiredRole") != role:
             reasons.append("verifier_role_invalid")
         if category_policy.get("requiredSource") and evidence.get("source") != category_policy["requiredSource"]:
@@ -182,13 +222,18 @@ def _validate_record(
         attestation = {}
 
     key_valid = False
-    if not reasons and isinstance(trust.get("keys"), dict):
+    if not reasons and isinstance(trust.get("keys"), dict) and nonce_store is not None:
         try:
-            key_valid, detail = _verify_signed_record(evidence, trust["keys"], environment, binding)
+            key_valid, detail = _verify_signed_record(
+                evidence, trust, binding, current, nonce_store
+            )
             if not key_valid:
                 reasons.append(f"signature:{detail}")
             else:
-                key = trust["keys"].get(evidence.get("keyId"), {})
+                envelope = require_mapping(evidence.get("dsse"), "evidence.dsse")
+                signatures = require_list(envelope.get("signatures"), "evidence.dsse.signatures")
+                signature = require_mapping(signatures[0], "evidence.dsse.signature")
+                key = trust["keys"].get(signature.get("keyid"), {})
                 if not isinstance(key, dict) or key.get("independent") is not True:
                     reasons.append("verifier_not_independent")
                 if key.get("role") != evidence.get("role"):
@@ -196,7 +241,7 @@ def _validate_record(
         except (ValidationError, KeyError, TypeError) as exc:
             reasons.append(f"signature:{exc}")
     elif not reasons:
-        reasons.append("trust_material_missing")
+        reasons.append("trust_or_replay_material_missing")
 
     if not reasons:
         semantic_attestation = {**attestation, "verifierId": verifier}
@@ -242,9 +287,13 @@ def _semantic_reasons(
         if attestation.get("gitopsDriftCount") != 0 or attestation.get("admissionPolicyPassed") is not True:
             reasons.append("kubernetes_policy_or_drift_failed")
         if not isinstance(attestation.get("imageDigests"), list) or any(
-            not isinstance(item, str) or "@sha256:" not in item for item in attestation["imageDigests"]
+            not isinstance(item, str) or not re.fullmatch(r"^.+@sha256:[0-9a-f]{64}$", item)
+            for item in attestation["imageDigests"]
         ):
             reasons.append("kubernetes_image_digests_invalid")
+        regions = attestation.get("regions")
+        if not isinstance(regions, list) or len(set(regions)) < 2:
+            reasons.append("kubernetes_regions_insufficient")
         if not isinstance(attestation.get("commitSha"), str) or not COMMIT_PATTERN.fullmatch(attestation["commitSha"]):
             reasons.append("kubernetes_commit_sha_invalid")
         if not isinstance(attestation.get("artifactDigest"), str) or not DIGEST_PATTERN.fullmatch(attestation["artifactDigest"]):

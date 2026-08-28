@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0.0",
+  "data_classification": "synthetic_only",
+  "certification": {
+    "official_provider_sandboxes": "BLOCKED_EXTERNAL",
+    "official_provider_certification": "BLOCKED_EXTERNAL",
+    "local_contract_matrix": "EXECUTABLE"
+  },
+  "failure_modes": [
+    "declined",
+    "timeout",
+    "provider_5xx",
+    "malformed_response"
+  ],
+  "providers": {
+    "wechat": {
+      "channels": ["jsapi", "mini_program", "native", "h5", "app"],
+      "operations": ["create", "query", "close", "refund", "query_refund", "trade_bill", "fund_bill"]
+    },
+    "alipay": {
+      "channels": ["web", "wap", "app", "qr", "mini_program"],
+      "operations": ["create", "query", "close", "refund", "query_refund", "bill"]
+    },
+    "stripe": {
+      "channels": ["payment_element", "payment_sheet", "apple_pay_psp"],
+      "operations": ["payment_intent", "setup_intent", "capture", "refund", "dispute", "subscription", "invoice", "meter", "portal"]
+    },
+    "paypal": {
+      "channels": ["web", "mobile_sdk"],
+      "operations": ["order", "authorize", "capture", "refund", "dispute", "subscription"]
+    },
+    "apple_pay": {
+      "channels": ["web", "ios"],
+      "operations": ["capability", "merchant_session", "forward_token", "revoke_token"]
+    }
+  }
+}

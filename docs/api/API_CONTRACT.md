@@ -50,6 +50,7 @@
 | `capture_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/capture` | `merchant` | `api_key` | `idempotency_key` | — |
 | `cancel_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/cancel` | `merchant` | `api_key` | `idempotency_key` | `payment-intent` / `merchant.cancel` |
 | `void_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/void` | `merchant` | `api_key` | `idempotency_key` | `payment-intent` / `merchant.void` |
+| `close_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/close` | `merchant` | `api_key` | `idempotency_key` | — |
 | `create_refund` | POST | `/v1/refunds` | `merchant` | `api_key` | `idempotency_key` | — |
 | `cancel_refund` | POST | `/v1/refunds/{refund_id}/cancel` | `merchant` | `api_key` | `idempotency_key` | `refund` / `merchant.cancel_refund` |
 | `get_refund` | GET | `/v1/refunds/{refund_id}` | `merchant` | `api_key` | — | — |
@@ -60,4 +61,4 @@
 | `cancel_subscription` | POST | `/v1/subscriptions/{subscription_id}/cancel` | `customer` | `api_key` | `idempotency_key` | `subscription` / `customer.cancel` |
 | `receive_provider_event` | POST | `/v1/webhooks/providers/{provider}` | `provider-event` | `provider_signature` | `provider_event_id` | — |
 
-共 15 个操作（其中 9 个写操作，全部要求幂等键）、15 个错误码。
+共 16 个操作（其中 10 个写操作，全部要求幂等键）、15 个错误码。

@@ -94,6 +94,61 @@
       "upgrade_policy": "跟随 CycloneDX schema 与插件安全修复；升级需 SBOM 门禁绿色"
     },
     {
+      "id": "jacoco",
+      "name": "JaCoCo Java Code Coverage",
+      "category": "testing",
+      "version": "0.8.15",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://www.jacoco.org/jacoco/",
+      "owner": "payment-platform-platform-eng",
+      "upgrade_policy": "随受治理 JDK 支持线升级；升级必须保持逐模块 XML 报告和 80% 行覆盖门禁绿色"
+    },
+    {
+      "id": "pitest-gradle",
+      "name": "PIT Gradle Plugin",
+      "category": "build-plugin",
+      "version": "1.19.0",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://plugins.gradle.org/plugin/info.solidsoft.pitest",
+      "owner": "payment-platform-platform-eng",
+      "upgrade_policy": "仅接受固定版本；升级必须保持全部 Java 叶模块的真实 mutation XML 和 60% mutation 门禁绿色"
+    },
+    {
+      "id": "pitest",
+      "name": "PIT Mutation Testing Engine",
+      "category": "testing",
+      "version": "1.25.8",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://github.com/hcoles/pitest/releases",
+      "owner": "payment-platform-platform-eng",
+      "upgrade_policy": "跟随受治理 JDK 的字节码支持升级；升级需全量 mutation 回归且 surviving mutant 不得绕过门禁"
+    },
+    {
+      "id": "pitest-junit5",
+      "name": "PIT JUnit 5 Plugin",
+      "category": "testing",
+      "version": "1.2.3",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://github.com/pitest/pitest-junit5-plugin",
+      "owner": "payment-platform-platform-eng",
+      "upgrade_policy": "与 PIT 和 JUnit Platform 兼容矩阵一同评审；升级需证明测试发现数量未减少"
+    },
+    {
+      "id": "coverage-py",
+      "name": "Coverage.py",
+      "category": "testing",
+      "version": "7.14.3",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://coverage.readthedocs.io/en/latest/changes.html",
+      "owner": "payment-platform-platform-eng",
+      "upgrade_policy": "仅接受固定版本；升级必须重跑完整 Python 行覆盖并保持详细 JSON 重算门禁绿色"
+    },
+    {
       "id": "kotlin",
       "name": "Kotlin (仅构建脚本)",
       "category": "build",
@@ -257,6 +312,39 @@
       "source": "https://nodejs.org/en/about/previous-releases",
       "owner": "payment-platform-architecture",
       "upgrade_policy": "仅用于 checkout-web / admin-web 构建"
+    },
+    {
+      "id": "dart-sdk",
+      "name": "Dart SDK",
+      "category": "frontend",
+      "version": "3.8.1",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://dart.dev/get-dart/archive",
+      "owner": "payment-platform-sdk",
+      "upgrade_policy": "Flutter-compatible client contract tests use the exact hosted CI SDK and committed pubspec.lock"
+    },
+    {
+      "id": "go-toolchain",
+      "name": "Go toolchain",
+      "category": "runtime-platform",
+      "version": "1.25.0",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://go.dev/dl/",
+      "owner": "payment-platform-sdk",
+      "upgrade_policy": "Server SDK contracts use the exact hosted CI toolchain; upgrades require the full SDK golden-vector suite"
+    },
+    {
+      "id": "dotnet-sdk",
+      "name": ".NET SDK",
+      "category": "runtime-platform",
+      "version": "8.0.424",
+      "pin_type": "exact",
+      "digest": "",
+      "source": "https://dotnet.microsoft.com/download/dotnet/8.0",
+      "owner": "payment-platform-sdk",
+      "upgrade_policy": "Server SDK contracts stay on the supported .NET 8 servicing line and require clean-checkout restore/build/run validation"
     },
     {
       "id": "pnpm",
@@ -435,7 +523,8 @@
       "ledger-service",
       "reconciliation-service",
       "worker-scheduler",
-      "edge-gateway"
+      "edge-gateway",
+      "mobile-android"
     ],
     "node": [
       "checkout-web",

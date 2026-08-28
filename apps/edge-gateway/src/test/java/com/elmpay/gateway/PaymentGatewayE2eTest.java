@@ -29,6 +29,7 @@ final class PaymentGatewayE2eTest {
         RuntimeComponents runtime = RuntimeFactory.create(Map.of(
                 "ELMPAY_RUNTIME_MODE", "local",
                 "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
                 "ELMPAY_API_PRINCIPALS", principals));
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
         server.createContext("/", new PaymentHttpHandler(runtime));
@@ -37,7 +38,7 @@ final class PaymentGatewayE2eTest {
         try {
             URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
             HttpClient client = HttpClient.newHttpClient();
-            HttpResponse<String> created = client.send(request(base.resolve("/v1/payment-intents"),
+            HttpResponse<String> created = client.send(request(base.resolve("/v1/payment_intents"),
                     "create-idempotency-0001", """
                     {"external_reference":"order-http-1","amount_minor":1250,"currency":"USD",
                      "allowed_methods":["card"],"confirmation_mode":"automatic",
@@ -47,7 +48,7 @@ final class PaymentGatewayE2eTest {
             String intentId = String.valueOf(Json.object(created.body()).get("id"));
 
             HttpResponse<String> confirmed = client.send(request(
-                    base.resolve("/v1/payment-intents/" + intentId + "/confirm"),
+                    base.resolve("/v1/payment_intents/" + intentId + "/confirm"),
                     "confirm-idempotency-0001", """
                     {"method":"card","payment_method_reference":"psp://local/reference-1",
                      "fingerprint":"fp-local","approved_return_route_id":"checkout-complete",
@@ -65,6 +66,65 @@ final class PaymentGatewayE2eTest {
     }
 
     @Test
+    void partialCaptureCloseIsExposedAndIdempotentAtTheHttpBoundary() throws Exception {
+        String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
+                + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
+        RuntimeComponents runtime = RuntimeFactory.create(Map.of(
+                "ELMPAY_RUNTIME_MODE", "local",
+                "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
+                "ELMPAY_API_PRINCIPALS", principals));
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
+        server.createContext("/", new PaymentHttpHandler(runtime));
+        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.start();
+        try {
+            URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> created = client.send(request(base.resolve("/v1/payment-intents"),
+                    "close-create-idempotency-0001", """
+                    {"external_reference":"order-http-close","amount_minor":1000,"currency":"USD",
+                     "allowed_methods":["card"],"confirmation_mode":"manual_capture",
+                     "region":"US","ttl_minutes":60}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, created.statusCode(), created.body());
+            String intentId = String.valueOf(Json.object(created.body()).get("id"));
+
+            HttpResponse<String> authorized = client.send(request(
+                    base.resolve("/v1/payment-intents/" + intentId + "/confirm"),
+                    "close-confirm-idempotency-0001", """
+                    {"method":"card","payment_method_reference":"psp://local/close-reference",
+                     "fingerprint":"fp-close","provider_parameters":{"simulation":"authorized"}}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, authorized.statusCode(), authorized.body());
+
+            HttpResponse<String> partial = client.send(request(
+                    base.resolve("/v1/payment-intents/" + intentId + "/capture"),
+                    "close-capture-idempotency-0001", "{\"amount_minor\":400}"),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, partial.statusCode(), partial.body());
+
+            URI closeUri = base.resolve("/v1/payment-intents/" + intentId + "/close");
+            HttpResponse<String> closed = client.send(request(closeUri,
+                    "close-action-idempotency-0001", "{\"reason\":\"partial_fulfillment\"}"),
+                    HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> replay = client.send(request(closeUri,
+                    "close-action-idempotency-0001", "{\"reason\":\"partial_fulfillment\"}"),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, closed.statusCode(), closed.body());
+            assertEquals(200, replay.statusCode(), replay.body());
+            @SuppressWarnings("unchecked")
+            Map<String, Object> closedIntent = (Map<String, Object>)
+                    Json.object(closed.body()).get("payment_intent");
+            assertEquals("captured", closedIntent.get("state"));
+            assertEquals(400L, closedIntent.get("captured_amount_minor"));
+            assertEquals(true, Json.object(replay.body()).get("replayed"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void canonicalAndBrowserCheckoutRoutesShareOneSignedServerAuthoritativeSession()
             throws Exception {
         String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
@@ -72,6 +132,7 @@ final class PaymentGatewayE2eTest {
         RuntimeComponents runtime = RuntimeFactory.create(Map.of(
                 "ELMPAY_RUNTIME_MODE", "local",
                 "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
                 "ELMPAY_API_PRINCIPALS", principals));
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
         server.createContext("/", new PaymentHttpHandler(runtime));
@@ -155,6 +216,7 @@ final class PaymentGatewayE2eTest {
         RuntimeComponents runtime = RuntimeFactory.create(Map.of(
                 "ELMPAY_RUNTIME_MODE", "local",
                 "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
                 "ELMPAY_API_PRINCIPALS", principals));
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
         server.createContext("/", new PaymentHttpHandler(runtime));

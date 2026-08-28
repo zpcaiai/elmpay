@@ -8,7 +8,10 @@ public record ApiPrincipal(String id, UUID tenantId, UUID projectId, UUID mercha
         Set<String> scopes) {
     public static final String PAYMENTS_READ = "payments.read";
     public static final String PAYMENTS_WRITE = "payments.write";
-    public static final Set<String> SUPPORTED_SCOPES = Set.of(PAYMENTS_READ, PAYMENTS_WRITE);
+    public static final String FINANCIAL_READ = "financial.read";
+    public static final String FINANCIAL_WRITE = "financial.write";
+    public static final Set<String> SUPPORTED_SCOPES = Set.of(PAYMENTS_READ, PAYMENTS_WRITE,
+            FINANCIAL_READ, FINANCIAL_WRITE);
 
     public ApiPrincipal {
         Objects.requireNonNull(id, "id");

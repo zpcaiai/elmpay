@@ -32,13 +32,17 @@ public final class WebhookDeliveryService {
 
     public enum Outcome { IDLE, DELIVERED, RETRY_SCHEDULED, DEAD_LETTERED }
 
-    public record SigningKey(String keyId, byte[] secret, Instant validFrom, Instant validUntil) {
+    public record SigningKey(String projectId, String keyId, byte[] secret,
+            Instant validFrom, Instant validUntil) implements AutoCloseable {
         public SigningKey {
+            requireId(projectId, "projectId");
             requireText(keyId, "keyId");
-            secret = Objects.requireNonNull(secret, "secret").clone();
-            if (secret.length < 32) {
-                throw new IllegalArgumentException("webhook signing secret must be at least 32 bytes");
+            byte[] supplied = Objects.requireNonNull(secret, "secret");
+            if (supplied.length < 32 || supplied.length > 128) {
+                throw new IllegalArgumentException(
+                        "webhook signing secret must contain 32..128 bytes");
             }
+            secret = supplied.clone();
             Objects.requireNonNull(validFrom, "validFrom");
             Objects.requireNonNull(validUntil, "validUntil");
             if (!validUntil.isAfter(validFrom)) {
@@ -54,11 +58,16 @@ public final class WebhookDeliveryService {
         boolean validAt(Instant at) {
             return !at.isBefore(validFrom) && at.isBefore(validUntil);
         }
+
+        @Override
+        public void close() {
+            java.util.Arrays.fill(secret, (byte) 0);
+        }
     }
 
     public record Delivery(long deliveryId, String tenantId, String projectId, String endpointId,
             URI endpoint, String eventId, String eventType, byte[] payload,
-            int attemptCount, int maxAttempts) {
+            int attemptCount, int maxAttempts, String leaseOwner, long fencingToken) {
         public Delivery {
             if (deliveryId <= 0) {
                 throw new IllegalArgumentException("deliveryId must be positive");
@@ -75,6 +84,10 @@ public final class WebhookDeliveryService {
             }
             if (attemptCount < 0 || maxAttempts < 1 || maxAttempts > 20 || attemptCount >= maxAttempts) {
                 throw new IllegalArgumentException("invalid delivery attempt counters");
+            }
+            requireId(leaseOwner, "leaseOwner");
+            if (fencingToken <= 0) {
+                throw new IllegalArgumentException("fencingToken must be positive");
             }
         }
 
@@ -119,15 +132,15 @@ public final class WebhookDeliveryService {
     public interface Outbox {
         Optional<Delivery> claim(String tenantId, Instant now, Instant leaseUntil);
 
-        void markDelivered(String tenantId, long deliveryId, int statusCode, Instant deliveredAt);
+        void markDelivered(Delivery delivery, int statusCode, Instant deliveredAt);
 
-        void reschedule(String tenantId, long deliveryId, int statusCode, String errorCode,
+        void reschedule(Delivery delivery, int statusCode, String errorCode,
                 Instant nextAttemptAt);
 
-        void deadLetter(String tenantId, long deliveryId, int statusCode, String errorCode, Instant failedAt);
+        void deadLetter(Delivery delivery, int statusCode, String errorCode, Instant failedAt);
     }
 
-    public static final class RotatingKeyRing {
+    public static final class RotatingKeyRing implements AutoCloseable {
         private final AtomicReference<List<SigningKey>> keys;
 
         public RotatingKeyRing(List<SigningKey> initial) {
@@ -138,10 +151,13 @@ public final class WebhookDeliveryService {
             keys = new AtomicReference<>(safe);
         }
 
-        public SigningKey current(Instant at) {
-            return keys.get().stream().filter(key -> key.validAt(at))
+        public SigningKey current(String projectId, Instant at) {
+            requireId(projectId, "projectId");
+            return keys.get().stream().filter(key -> projectId.equals(key.projectId()))
+                    .filter(key -> key.validAt(at))
                     .max(java.util.Comparator.comparing(SigningKey::validFrom))
-                    .orElseThrow(() -> new SecurityException("no active webhook signing key"));
+                    .orElseThrow(() -> new SecurityException(
+                            "no active webhook signing key for delivery project"));
         }
 
         public void rotate(List<SigningKey> replacement) {
@@ -149,11 +165,29 @@ public final class WebhookDeliveryService {
             if (safe.isEmpty()) {
                 throw new IllegalArgumentException("replacement key set is empty");
             }
-            List<String> oldIds = keys.get().stream().map(SigningKey::keyId).toList();
-            if (safe.stream().map(SigningKey::keyId).noneMatch(oldIds::contains)) {
-                throw new IllegalArgumentException("signing-key rotation requires an overlap");
+            Map<String, List<String>> replacementIds = safe.stream().collect(
+                    java.util.stream.Collectors.groupingBy(SigningKey::projectId,
+                            java.util.stream.Collectors.mapping(SigningKey::keyId,
+                                    java.util.stream.Collectors.toList())));
+            Map<String, List<String>> currentIds = keys.get().stream().collect(
+                    java.util.stream.Collectors.groupingBy(SigningKey::projectId,
+                            java.util.stream.Collectors.mapping(SigningKey::keyId,
+                                    java.util.stream.Collectors.toList())));
+            for (Map.Entry<String, List<String>> current : currentIds.entrySet()) {
+                if (replacementIds.getOrDefault(current.getKey(), List.of()).stream()
+                        .noneMatch(current.getValue()::contains)) {
+                    throw new IllegalArgumentException(
+                            "signing-key rotation requires a per-project overlap");
+                }
             }
-            keys.set(safe);
+            List<SigningKey> previous = keys.getAndSet(safe);
+            previous.stream().filter(key -> safe.stream().noneMatch(candidate -> candidate == key))
+                    .forEach(SigningKey::close);
+        }
+
+        @Override
+        public void close() {
+            keys.getAndSet(List.of()).forEach(SigningKey::close);
         }
     }
 
@@ -272,11 +306,16 @@ public final class WebhookDeliveryService {
         }
         try {
             URI endpoint = endpointPolicy.validate(delivery.endpoint());
-            SigningKey key = keyRing.current(now);
+            SigningKey key = keyRing.current(delivery.projectId(), now);
             String timestamp = Long.toString(now.getEpochSecond());
-            byte[] signatureInput = concat(timestamp.getBytes(StandardCharsets.US_ASCII),
-                    new byte[] {'.'}, delivery.payload());
-            String signature = Base64.getEncoder().encodeToString(hmac(key.secret(), signatureInput));
+            byte[] signingSecret = key.secret();
+            String signatureHeader;
+            try {
+                signatureHeader = signingHeader(now.getEpochSecond(), signingSecret,
+                        delivery.payload());
+            } finally {
+                java.util.Arrays.fill(signingSecret, (byte) 0);
+            }
             HttpRequest request = HttpRequest.newBuilder(endpoint).timeout(requestTimeout)
                     .header("Content-Type", "application/json")
                     .header("User-Agent", "elmpay-webhook-delivery/1")
@@ -284,21 +323,20 @@ public final class WebhookDeliveryService {
                     .header("X-Elmpay-Event-Type", delivery.eventType())
                     .header("X-Elmpay-Timestamp", timestamp)
                     .header("X-Elmpay-Key-Id", key.keyId())
-                    .header("X-Elmpay-Signature", "v1=" + signature)
+                    .header("X-Elmpay-Signature", signatureHeader)
                     .POST(HttpRequest.BodyPublishers.ofByteArray(delivery.payload())).build();
             HttpResult response = transport.send(request);
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                outbox.markDelivered(tenantId, delivery.deliveryId(), response.statusCode(), now);
+                outbox.markDelivered(delivery, response.statusCode(), now);
                 return Outcome.DELIVERED;
             }
             if (!retryable(response.statusCode())) {
-                outbox.deadLetter(tenantId, delivery.deliveryId(), response.statusCode(),
-                        "HTTP_TERMINAL", now);
+                outbox.deadLetter(delivery, response.statusCode(), "HTTP_TERMINAL", now);
                 return Outcome.DEAD_LETTERED;
             }
             return retryOrDeadLetter(delivery, response.statusCode(), "HTTP_RETRYABLE", now);
         } catch (SecurityException exception) {
-            outbox.deadLetter(tenantId, delivery.deliveryId(), 0, "SECURITY_POLICY", now);
+            outbox.deadLetter(delivery, 0, "SECURITY_POLICY", now);
             return Outcome.DEAD_LETTERED;
         } catch (IOException exception) {
             return retryOrDeadLetter(delivery, 0, "TRANSPORT_IO", now);
@@ -311,7 +349,7 @@ public final class WebhookDeliveryService {
     private Outcome retryOrDeadLetter(Delivery delivery, int statusCode, String errorCode, Instant now) {
         int attempted = delivery.attemptCount() + 1;
         if (attempted >= delivery.maxAttempts()) {
-            outbox.deadLetter(tenantId, delivery.deliveryId(), statusCode, errorCode, now);
+            outbox.deadLetter(delivery, statusCode, errorCode, now);
             return Outcome.DEAD_LETTERED;
         }
         long multiplier = 1L << Math.min(delivery.attemptCount(), 20);
@@ -324,7 +362,7 @@ public final class WebhookDeliveryService {
         if (delay.compareTo(maximumBackoff) > 0) {
             delay = maximumBackoff;
         }
-        outbox.reschedule(tenantId, delivery.deliveryId(), statusCode, errorCode, now.plus(delay));
+        outbox.reschedule(delivery, statusCode, errorCode, now.plus(delay));
         return Outcome.RETRY_SCHEDULED;
     }
 
@@ -335,6 +373,33 @@ public final class WebhookDeliveryService {
             return mac.doFinal(value);
         } catch (GeneralSecurityException exception) {
             throw new IllegalStateException("HMAC-SHA256 is unavailable", exception);
+        }
+    }
+
+    /**
+     * Canonical SDK-compatible webhook signature. The signature binds the exact raw payload
+     * bytes and uses unpadded Base64URL so every supported SDK parses the same wire value.
+     */
+    public static String signingHeader(long timestamp, byte[] secret, byte[] rawPayload) {
+        if (timestamp <= 0) {
+            throw new IllegalArgumentException("webhook timestamp must be positive");
+        }
+        byte[] safeSecret = Objects.requireNonNull(secret, "secret").clone();
+        byte[] safePayload = Objects.requireNonNull(rawPayload, "rawPayload").clone();
+        if (safeSecret.length < 32) {
+            throw new IllegalArgumentException("webhook signing secret must be at least 32 bytes");
+        }
+        if (safePayload.length == 0 || safePayload.length > MAX_PAYLOAD_BYTES) {
+            throw new IllegalArgumentException("payload has an invalid size");
+        }
+        try {
+            byte[] signatureInput = concat(Long.toString(timestamp)
+                    .getBytes(StandardCharsets.US_ASCII), new byte[] {'.'}, safePayload);
+            String signature = Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(hmac(safeSecret, signatureInput));
+            return "t=" + timestamp + ",v1=" + signature;
+        } finally {
+            java.util.Arrays.fill(safeSecret, (byte) 0);
         }
     }
 

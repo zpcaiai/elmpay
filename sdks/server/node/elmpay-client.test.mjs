@@ -1,4 +1,5 @@
-import assert from 'node:assert/strict'; import { createHmac } from 'node:crypto'; import { test } from 'node:test';
+import assert from 'node:assert/strict'; import { test } from 'node:test';
+import { readFileSync } from 'node:fs';
 import { ElmpayClient, verifyWebhook } from './elmpay-client.mjs';
 
 test('retries bounded idempotent create', async () => {
@@ -13,8 +14,11 @@ test('retries bounded idempotent create', async () => {
   assert.deepEqual(JSON.parse(requests[0][1].body), { business_order_no: 'order-1', amount: 100, currency: 'USD', return_route_id: 'complete' });
 });
 test('webhook verifies raw bytes and freshness', () => {
-  const secret = Buffer.alloc(32, 7); const rawBody = Buffer.from('{"x":1}'); const timestamp = 1_700_000_000;
-  const signature = createHmac('sha256', secret).update(`${timestamp}.`).update(rawBody).digest('base64url');
-  assert.equal(verifyWebhook({ secret, rawBody, signatureHeader: `t=${timestamp},v1=${signature}`, now: timestamp * 1000 }), true);
-  assert.equal(verifyWebhook({ secret, rawBody: Buffer.from('{"x":2}'), signatureHeader: `t=${timestamp},v1=${signature}`, now: timestamp * 1000 }), false);
+  const vector = JSON.parse(readFileSync(new URL('../../../contracts/webhooks/signing-v1.json', import.meta.url)));
+  const secret = Buffer.from(vector.secret_base64url, 'base64url');
+  const rawBody = Buffer.from(vector.raw_body_utf8);
+  assert.equal(verifyWebhook({ secret, rawBody, signatureHeader: vector.signature_header,
+    now: vector.timestamp * 1000 }), true);
+  assert.equal(verifyWebhook({ secret, rawBody: Buffer.from('{"x":2}'),
+    signatureHeader: vector.signature_header, now: vector.timestamp * 1000 }), false);
 });

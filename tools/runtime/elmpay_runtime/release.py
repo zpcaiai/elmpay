@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-import hashlib
-import hmac
-import os
 import re
 from typing import Any, Mapping
 
+from .attestation import NonceStore, nonce_store_from_trust, verify_dsse_record
 from .common import (
     GateReport,
     ValidationError,
-    canonical_json,
     parse_instant,
     require_list,
     require_mapping,
@@ -39,11 +36,16 @@ def release_binding(manifest: Mapping[str, Any]) -> str:
 
 
 def sign_record(record: Mapping[str, Any], secret: str) -> str:
-    """Create a testable HMAC envelope; production secrets stay outside the repo."""
-    if len(secret) < 32:
-        raise ValidationError("signing secret must contain at least 32 characters")
-    unsigned = {key: value for key, value in record.items() if key != "signature"}
-    return hmac.new(secret.encode("utf-8"), canonical_json(unsigned), hashlib.sha256).hexdigest()
+    """Refuse the retired symmetric attestation format.
+
+    Kept as a hard-failing compatibility symbol so an older issuer cannot
+    silently manufacture an "independent" review with a verifier-held secret.
+    Use :func:`elmpay_runtime.attestation.attach_dsse` with an external Ed25519
+    private key instead.
+    """
+
+    del record, secret
+    raise ValidationError("symmetric HMAC attestations are disabled; Ed25519 DSSE is required")
 
 
 def verify_release(
@@ -55,7 +57,7 @@ def verify_release(
     environment: Mapping[str, str] | None = None,
 ) -> GateReport:
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
-    env = environment if environment is not None else os.environ
+    del environment
     reasons: list[str] = []
     checks: list[str] = []
     try:
@@ -84,7 +86,11 @@ def verify_release(
     except ValidationError as exc:
         reasons.append(f"manifest_time_invalid:{exc}")
 
-    trust_keys = require_mapping(trust.get("keys"), "trust.keys")
+    require_mapping(trust.get("keys"), "trust.keys")
+    try:
+        nonce_store = nonce_store_from_trust(trust)
+    except ValidationError as exc:
+        return GateReport.from_reasons([f"replay_protection_unavailable:{exc}"])
     maximum_age = gate_policy.get("maximumApprovalAgeHours")
     if not isinstance(maximum_age, int) or maximum_age <= 0:
         return GateReport.from_reasons(["gate_policy_invalid:maximumApprovalAgeHours"])
@@ -95,7 +101,7 @@ def verify_release(
     for index, raw in enumerate(approvals):
         approval = require_mapping(raw, f"approval[{index}]")
         prefix = f"approval[{index}]"
-        valid, detail = _verify_signed_record(approval, trust_keys, env, binding)
+        valid, detail = _verify_signed_record(approval, trust, binding, current, nonce_store)
         if not valid:
             reasons.append(f"{prefix}:{detail}")
             continue
@@ -133,7 +139,7 @@ def verify_release(
     for index, raw in enumerate(evidence_items):
         evidence = require_mapping(raw, f"evidence[{index}]")
         prefix = f"evidence[{index}]"
-        valid, detail = _verify_signed_record(evidence, trust_keys, env, binding)
+        valid, detail = _verify_signed_record(evidence, trust, binding, current, nonce_store)
         if not valid:
             reasons.append(f"{prefix}:{detail}")
             continue
@@ -149,7 +155,10 @@ def verify_release(
         if not isinstance(digest, str) or not DIGEST_PATTERN.fullmatch(digest):
             reasons.append(f"{prefix}:evidence_digest_invalid")
             continue
-        key = require_mapping(trust_keys[evidence["keyId"]], "trust key")
+        envelope = require_mapping(evidence.get("dsse"), f"{prefix}.dsse")
+        signatures = require_list(envelope.get("signatures"), f"{prefix}.dsse.signatures")
+        key_id = require_text(require_mapping(signatures[0], "signature").get("keyid"), "signature.keyid")
+        key = require_mapping(trust["keys"][key_id], "trust key")
         if gate_policy.get("evidenceMustBeIndependent") is True and key.get("independent") is not True:
             reasons.append(f"{prefix}:verifier_not_independent")
             continue
@@ -177,31 +186,19 @@ def verify_release(
 
 def _verify_signed_record(
     record: Mapping[str, Any],
-    trust_keys: Mapping[str, Any],
-    environment: Mapping[str, str],
+    trust: Mapping[str, Any],
     binding: str,
+    current: datetime,
+    nonce_store: NonceStore,
 ) -> tuple[bool, str]:
-    key_id = record.get("keyId")
-    if not isinstance(key_id, str) or key_id not in trust_keys:
-        return False, "untrusted_key"
-    key = require_mapping(trust_keys[key_id], f"trust.keys.{key_id}")
-    if key.get("revoked") is True:
-        return False, "revoked_key"
-    secret_env = key.get("secretEnv")
-    if not isinstance(secret_env, str) or secret_env not in environment:
-        return False, "verification_secret_unavailable"
-    secret = environment[secret_env]
-    if len(secret) < 32:
-        return False, "verification_secret_too_short"
-    if record.get("bindingDigest") != binding:
-        return False, "release_binding_mismatch"
-    signature = record.get("signature")
-    expected = sign_record(record, secret)
-    if not isinstance(signature, str) or not hmac.compare_digest(signature, expected):
-        return False, "signature_invalid"
-    identity = record.get("actor", record.get("verifier"))
-    if identity != key.get("identity"):
-        return False, "identity_key_mismatch"
-    if record.get("role") is not None and record.get("role") != key.get("role"):
-        return False, "role_key_mismatch"
-    return True, "verified"
+    try:
+        verify_dsse_record(
+            record,
+            trust,
+            binding,
+            now=current,
+            nonce_store=nonce_store,
+        )
+        return True, "verified"
+    except ValidationError as exc:
+        return False, str(exc)

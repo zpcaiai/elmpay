@@ -111,8 +111,119 @@ jobs:
   unit-test:
     name: '单元与属性测试'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     needs: [governance]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38  # v6.5.0
+        with:
+          node-version: '24.9.0'
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c  # v6.1.0
+        with:
+          go-version: '1.25.0'
+          cache: false
+      - uses: actions/setup-dotnet@baa11fbfe1d6520db94683bd5c7a3818018e4309  # v5.1.0
+        with:
+          dotnet-version: '8.0.424'
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961  # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '25.0.4'
+      - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
+        with:
+          cache-read-only: true
+      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (1/7)'
+        run: |
+          python3 scripts/test-summary.py --suite-root tools/tests --out build/test-summary.json --log build/unittest.log
+      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (2/7)'
+        run: |
+          mkdir -p build/test-surfaces && python3 -m unittest discover -s testing -p 'test_*.py' -v > build/test-surfaces/testing.log 2>&1
+      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (3/7)'
+        run: |
+          python3 scripts/provider-contract-matrix.py > build/test-surfaces/provider-contract-matrix.log 2>&1
+      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (4/7)'
+        run: |
+          node --test apps/checkout-web/test/*.test.mjs > build/test-surfaces/checkout-web.log 2>&1
+      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (5/7)'
+        run: |
+          node --test apps/admin-web/test/*.test.mjs > build/test-surfaces/admin-web.log 2>&1
+      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (6/7)'
+        run: |
+          python3 scripts/sdk-contract-smoke.py > build/test-surfaces/server-sdk.log 2>&1
+      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (7/7)'
+        run: |
+          ./gradlew --no-daemon test > build/test-surfaces/gradle.log 2>&1
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        if: always()
+        with:
+          name: unit-test-artifacts
+          path: |
+            build/test-summary.json
+            build/unittest.log
+            build/test-surfaces/
+          if-no-files-found: error
+
+  ios-sdk-test:
+    name: 'iOS SDK 托管平台契约测试'
+    runs-on: macos-15
+    timeout-minutes: 20
+    needs: [governance]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
+      - name: '在 macOS hosted runner 上运行 Swift 6 package contract tests；错误主机、缺工具或版本不符明确 BLOCKED 并失败 (1/1)'
+        run: |
+          python3 scripts/platform_sdk_test.py ios --out build/mobile-sdk/ios.json --log build/mobile-sdk/ios.log
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        if: always()
+        with:
+          name: ios-sdk-test-artifacts
+          path: |
+            build/mobile-sdk/ios.json
+            build/mobile-sdk/ios.log
+          if-no-files-found: error
+
+  flutter-sdk-test:
+    name: 'Flutter/Dart SDK 托管平台契约测试'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: [governance]
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
+      - uses: dart-lang/setup-dart@7654d458321ee25acccccfdb86cd48bd95768ff1  # v1.8.0
+        with:
+          sdk: '3.8.1'
+      - name: '使用固定 Dart SDK 与 lockfile 运行 Flutter-compatible client contract tests；缺工具或版本不符明确 BLOCKED 并失败 (1/1)'
+        run: |
+          python3 scripts/platform_sdk_test.py flutter --out build/mobile-sdk/flutter.json --log build/mobile-sdk/flutter.log
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
+        if: always()
+        with:
+          name: flutter-sdk-test-artifacts
+          path: |
+            build/mobile-sdk/flutter.json
+            build/mobile-sdk/flutter.log
+          if-no-files-found: error
+
+  quality-metrics:
+    name: '真实覆盖率与变异门禁'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    needs: [unit-test]
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
         with:
@@ -127,19 +238,20 @@ jobs:
       - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
-      - name: '编译并运行全部单元、属性与并发测试，禁止跳过关键测试 (1/2)'
+      - name: '执行 Coverage.py、JaCoCo 与 PIT 的完整受治理范围，强制行覆盖率至少 80% 且 mutation score 至少 60%；缺工具或缺新鲜 XML 明确阻塞 (1/2)'
         run: |
-          python3 scripts/test-summary.py --out build/test-summary.json --log build/unittest.log
-      - name: '编译并运行全部单元、属性与并发测试，禁止跳过关键测试 (2/2)'
+          python3 -m pip install --disable-pip-version-check --no-input --only-binary=:all: 'coverage==7.14.3'
+      - name: '执行 Coverage.py、JaCoCo 与 PIT 的完整受治理范围，强制行覆盖率至少 80% 且 mutation score 至少 60%；缺工具或缺新鲜 XML 明确阻塞 (2/2)'
         run: |
-          ./gradlew --no-daemon test
+          python3 tools/quality_gate.py coverage-mutation
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
-          name: unit-test-artifacts
+          name: quality-metrics-artifacts
           path: |
-            build/test-summary.json
-            build/unittest.log
+            build/quality-metrics/
+            **/build/reports/jacoco/test/jacocoTestReport.xml
+            **/build/reports/pitest/mutations.xml
           if-no-files-found: error
 
   build:
@@ -377,7 +489,7 @@ jobs:
     name: '制品签名与来源证明'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    needs: [build, sbom, python-floor, unit-test, static-analysis, dependency-scan, container-scan, iac-scan, secret-scan, negative-controls, rule-knockout]
+    needs: [build, sbom, python-floor, unit-test, ios-sdk-test, flutter-sdk-test, quality-metrics, static-analysis, dependency-scan, container-scan, iac-scan, secret-scan, negative-controls, rule-knockout]
     if: github.event_name == 'push' && github.repository == 'zpcaiai/elmpay' && github.ref == 'refs/heads/main' && vars.ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN == 'true'
     permissions:
       actions: none
@@ -516,9 +628,15 @@ jobs:
     name: 'Terminal release / validation gate (fail closed)'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    needs: [governance, python-floor, build, unit-test, static-analysis, secret-scan, dependency-scan, container-scan, iac-scan, sbom, sign, negative-controls, evidence-archive, rule-knockout]
+    needs: [governance, python-floor, build, unit-test, ios-sdk-test, flutter-sdk-test, quality-metrics, static-analysis, secret-scan, dependency-scan, container-scan, iac-scan, sbom, sign, negative-controls, evidence-archive, rule-knockout]
     if: always()
     steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12.7'
       - name: 'Enforce release context or validation-only context'
         # Per-stage checks replace contains(needs.*.result, 'failure').
         # Per-stage diagnostics replace join(needs.*.result, ',').
@@ -526,11 +644,19 @@ jobs:
           ELMPAY_GATE_EVENT_NAME: ${{ github.event_name }}
           ELMPAY_GATE_REPOSITORY: ${{ github.repository }}
           ELMPAY_GATE_REF: ${{ github.ref }}
+          ELMPAY_GATE_SHA: ${{ github.sha }}
+          ELMPAY_RELEASE_MANIFEST_B64: ${{ secrets.ELMPAY_RELEASE_MANIFEST_B64 }}
+          ELMPAY_RELEASE_TRUST_B64: ${{ secrets.ELMPAY_RELEASE_TRUST_B64 }}
+          ELMPAY_EXTERNAL_EVIDENCE_B64: ${{ secrets.ELMPAY_EXTERNAL_EVIDENCE_B64 }}
+          ELMPAY_EXTERNAL_TRUST_B64: ${{ secrets.ELMPAY_EXTERNAL_TRUST_B64 }}
           ELMPAY_SIGNING_OPT_IN: ${{ vars.ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN }}
           ELMPAY_NEEDS_GOVERNANCE: ${{ needs['governance'].result }}
           ELMPAY_NEEDS_PYTHON_FLOOR: ${{ needs['python-floor'].result }}
           ELMPAY_NEEDS_BUILD: ${{ needs['build'].result }}
           ELMPAY_NEEDS_UNIT_TEST: ${{ needs['unit-test'].result }}
+          ELMPAY_NEEDS_IOS_SDK_TEST: ${{ needs['ios-sdk-test'].result }}
+          ELMPAY_NEEDS_FLUTTER_SDK_TEST: ${{ needs['flutter-sdk-test'].result }}
+          ELMPAY_NEEDS_QUALITY_METRICS: ${{ needs['quality-metrics'].result }}
           ELMPAY_NEEDS_STATIC_ANALYSIS: ${{ needs['static-analysis'].result }}
           ELMPAY_NEEDS_SECRET_SCAN: ${{ needs['secret-scan'].result }}
           ELMPAY_NEEDS_DEPENDENCY_SCAN: ${{ needs['dependency-scan'].result }}
@@ -547,9 +673,9 @@ jobs:
           TRUSTED_EVENT="push"
           TRUSTED_REPOSITORY="zpcaiai/elmpay"
           TRUSTED_REF="refs/heads/main"
-          REQUIRED_STAGES=(governance python-floor build unit-test static-analysis secret-scan dependency-scan container-scan iac-scan sbom sign negative-controls evidence-archive rule-knockout)
+          REQUIRED_STAGES=(governance python-floor build unit-test ios-sdk-test flutter-sdk-test quality-metrics static-analysis secret-scan dependency-scan container-scan iac-scan sbom sign negative-controls evidence-archive rule-knockout)
           RELEASE_ONLY_STAGES=(sign evidence-archive)
-          NON_RELEASE_REQUIRED_STAGES=(governance python-floor build unit-test static-analysis secret-scan dependency-scan container-scan iac-scan sbom negative-controls rule-knockout)
+          NON_RELEASE_REQUIRED_STAGES=(governance python-floor build unit-test ios-sdk-test flutter-sdk-test quality-metrics static-analysis secret-scan dependency-scan container-scan iac-scan sbom negative-controls rule-knockout)
 
           for variable in ELMPAY_GATE_EVENT_NAME ELMPAY_GATE_REPOSITORY ELMPAY_GATE_REF; do
             if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
@@ -583,7 +709,16 @@ jobs:
                 exit 1
               fi
             done
-            echo 'release-eligible: trusted main push, explicit Sigstore opt-in and all required stages succeeded'
+            for variable in ELMPAY_RELEASE_MANIFEST_B64 ELMPAY_RELEASE_TRUST_B64 \
+                            ELMPAY_EXTERNAL_EVIDENCE_B64 ELMPAY_EXTERNAL_TRUST_B64 \
+                            ELMPAY_GATE_SHA; do
+              if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+                echo "release gate blocked: protected evidence input '${variable}' is missing" >&2
+                exit 1
+              fi
+            done
+            python3 scripts/ci-release-evidence-gate.py
+            echo 'release-eligible: trusted main push, all required stages and signed external evidence succeeded'
             exit 0
           fi
 

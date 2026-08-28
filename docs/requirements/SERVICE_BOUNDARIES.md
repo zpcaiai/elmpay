@@ -38,6 +38,7 @@
 | CAP-16 | 可观测性与运维 | observability | 3 | all-modules | external:monitoring |
 | CAP-17 | 治理与合规边界 | merchant-config | 4 | external:admin-operator | all-modules |
 | CAP-18 | 安全供应链与不可变发布 | edge-gateway | 1 | all-modules | external:monitoring |
+| CAP-19 | 移动客户端支付接入 | mobile-android | 1 | external:business-project、external:end-customer | edge-gateway |
 
 ### 能力到需求
 
@@ -59,6 +60,7 @@
 - **CAP-16 可观测性与运维** → PAY-REQ-0046, PAY-REQ-0047, PAY-REQ-0048
 - **CAP-17 治理与合规边界** → PAY-REQ-0049, PAY-REQ-0050, PAY-REQ-0051, PAY-REQ-0052
 - **CAP-18 安全供应链与不可变发布** → PAY-REQ-0053
+- **CAP-19 移动客户端支付接入** → PAY-REQ-0054
 
 ## 禁止流
 

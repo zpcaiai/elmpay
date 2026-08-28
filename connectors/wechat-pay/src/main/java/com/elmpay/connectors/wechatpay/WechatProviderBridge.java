@@ -29,7 +29,8 @@ public final class WechatProviderBridge implements ProviderAdapter {
 
     @FunctionalInterface
     public interface WebhookExpectationResolver {
-        WechatPayAdapter.ExpectedWebhook resolve(WebhookRequest request);
+        WechatPayAdapter.ExpectedWebhook resolve(WebhookRequest request,
+                WechatPayAdapter.WebhookIdentity identity);
     }
 
     public record Runtime(WechatPayAdapter adapter, OriginalAmountResolver originalAmounts,
@@ -171,7 +172,8 @@ public final class WechatProviderBridge implements ProviderAdapter {
         @Override
         public VerifiedProviderEvent verifyWebhook(WebhookRequest request) {
             WechatPayAdapter.VerifiedWebhook event = runtime.adapter().verifyWebhook(request.headers(),
-                    request.rawBody(), request.receivedAt(), runtime.webhookExpectations().resolve(request));
+                    request.rawBody(), request.receivedAt(), identity ->
+                            runtime.webhookExpectations().resolve(request, identity));
             return new VerifiedProviderEvent(request.tenantId(), request.merchantAccountId(), event.eventId(),
                     event.eventType(), event.transactionId(), event.outTradeNo(),
                     Money.of(event.amountMinor(), event.currency()), event.signatureSerial(), request.receivedAt(),

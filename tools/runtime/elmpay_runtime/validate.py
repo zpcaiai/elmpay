@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .common import GateReport, ValidationError, read_json, require_list, require_mapping
+from .infrastructure import render_regional_data_plane, render_service_controls
 from .kubernetes import render_workloads
 
 
@@ -16,6 +17,7 @@ JSON_DIRECTORIES = (
     "platform/dr",
     "platform/rollout",
     "platform/compliance",
+    "platform/risk",
 )
 
 
@@ -39,6 +41,8 @@ def validate_repository(root: Path) -> GateReport:
     required_files = {
         "platform/kubernetes/static-bundle.json",
         "platform/kubernetes/workload-policy.json",
+        "platform/kubernetes/service-callers.json",
+        "platform/kubernetes/data-plane-policy.json",
         "platform/policies/workload-security.json",
         "platform/policies/gitops.json",
         "platform/policies/service-mesh.json",
@@ -54,6 +58,7 @@ def validate_repository(root: Path) -> GateReport:
         "platform/compliance/data-lifecycle.json",
         "platform/compliance/vulnerability-policy.json",
         "platform/compliance/vendor-policy.json",
+        "platform/compliance/supply-chain-policy.json",
         "platform/compliance/control-matrix.json",
         "platform/compliance/required-release-gates.json",
         "platform/compliance/external-evidence-policy.json",
@@ -62,6 +67,8 @@ def validate_repository(root: Path) -> GateReport:
         "platform/policies/event-resilience.json",
         "platform/policies/cache-resilience.json",
         "platform/policies/provider-resilience.json",
+        "platform/policies/edge-security.json",
+        "platform/risk/runtime-policy.json",
     }
     for relative in sorted(required_files - set(documents)):
         reasons.append(f"required_config_missing:{relative}")
@@ -158,6 +165,17 @@ def _validate_workload_policy(root: Path, documents: Mapping[str, Any]) -> None:
         for service in policy["services"]
     }
     render_workloads(policy, images)
+    render_service_controls(
+        policy,
+        require_mapping(
+            documents["platform/kubernetes/service-callers.json"], "service callers"
+        ),
+    )
+    render_regional_data_plane(
+        require_mapping(
+            documents["platform/kubernetes/data-plane-policy.json"], "data plane policy"
+        )
+    )
 
 
 def _validate_security_policies(root: Path, documents: Mapping[str, Any]) -> None:
@@ -197,6 +215,24 @@ def _validate_security_policies(root: Path, documents: Mapping[str, Any]) -> Non
     provider = documents["platform/policies/provider-resilience.json"]
     if provider.get("unknownStateAction") != "BLOCK_NEW_ROUTING":
         raise ValidationError("unknown provider health must block new routing")
+    edge = documents["platform/policies/edge-security.json"]
+    if (
+        edge.get("unknownTenantAction") != "DENY"
+        or edge.get("stateUnavailableAction") != "DENY"
+        or edge.get("replayStateRequired") is not True
+        or not edge.get("trustedProxyCidrs")
+    ):
+        raise ValidationError("edge security must fail closed with durable replay state")
+    risk = documents["platform/risk/runtime-policy.json"]
+    if (
+        risk.get("modelUnavailableAction") != "REVIEW"
+        or risk.get("missingSignalAction") != "REVIEW"
+        or risk.get("crossTenantAction") != "DENY"
+        or risk.get("ruleActivationRequiresDistinctApprover") is not True
+        or risk.get("operationsRequireDistinctApprover") is not True
+        or risk.get("auditChainRequired") is not True
+    ):
+        raise ValidationError("risk runtime must fail closed and require four-eyes audit")
 
 
 def _validate_observability(root: Path, documents: Mapping[str, Any]) -> None:
@@ -301,6 +337,15 @@ def _validate_compliance(root: Path, documents: Mapping[str, Any]) -> None:
     vendor = documents["platform/compliance/vendor-policy.json"]
     if vendor.get("defaultAction") != "BLOCK_ONBOARDING":
         raise ValidationError("vendor onboarding must default block")
+    supply_chain = documents["platform/compliance/supply-chain-policy.json"]
+    if (
+        supply_chain.get("signatureAlgorithm") != "Ed25519"
+        or supply_chain.get("signatureEnvelope") != "DSSE"
+        or supply_chain.get("unknownOrMissingAction") != "BLOCK_RELEASE"
+        or not supply_chain.get("allowedBuilders")
+        or not supply_chain.get("requiredMaterials")
+    ):
+        raise ValidationError("supply-chain provenance must be Ed25519 DSSE and fail closed")
     matrix = documents["platform/compliance/control-matrix.json"]
     if matrix["certification"].get("localValidationMayCertify") is not False:
         raise ValidationError("local validation cannot certify compliance")

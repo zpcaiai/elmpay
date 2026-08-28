@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "requireCleanWorkingTree": true,
+  "thresholds": {
+    "lineCoverageMinimumPercent": 80,
+    "mutationScoreMinimumPercent": 60
+  },
+  "pythonCoverage": {
+    "requiredVersion": "7.14.3",
+    "executableCandidates": [
+      "coverage",
+      "coverage3"
+    ],
+    "sourceRoots": [
+      "tools/paygov",
+      "tools/runtime/elmpay_runtime"
+    ],
+    "testDiscoveries": [
+      "tools/tests",
+      "testing"
+    ],
+    "dataFile": "build/quality-metrics/.coverage",
+    "report": "build/quality-metrics/python-coverage.json",
+    "timeoutSeconds": 3600
+  },
+  "javaQuality": {
+    "gradleExecutable": "./gradlew",
+    "task": "qualityCoverageMutationReports",
+    "jacocoReport": "build/reports/jacoco/test/jacocoTestReport.xml",
+    "pitestReport": "build/reports/pitest/mutations.xml",
+    "timeoutSeconds": 14400
+  },
+  "result": "build/quality-metrics/gate.json"
+}

@@ -15,6 +15,13 @@ class ModuleRegistryHappyPath(FixtureTestCase):
     def test_real_registry_passes(self):
         self.assertEqual(modules.validate(REAL_ROOT, Budget().start()), [])
 
+    def test_nested_mobile_sdk_boundary_is_canonical(self):
+        registry = self.fixture.read("governance/module-registry.json")
+        android = next(module for module in registry["modules"]
+                       if module["name"] == "mobile-android")
+        self.assertEqual(android["layer"], "sdk")
+        self.assertEqual(android["path"], "sdks/mobile/android")
+
     def test_every_declared_module_directory_has_portable_content(self):
         registry = self.fixture.read("governance/module-registry.json")
         for module in registry["modules"]:
@@ -135,6 +142,14 @@ class ModuleRegistryRejects(FixtureTestCase):
         self.fixture.mutate(
             self.REL,
             lambda d: self._module(d, "money").__setitem__("path", unsafe),
+        )
+        self.assertIn("MODULE_PATH", self.codes(self._validate()))
+
+    def test_rejects_sdk_path_that_does_not_match_the_module_identity(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda d: self._module(d, "mobile-android")
+            .__setitem__("path", "sdks/mobile/ios"),
         )
         self.assertIn("MODULE_PATH", self.codes(self._validate()))
 

@@ -21,7 +21,8 @@ class PipelineHappyPath(FixtureTestCase):
         ids = {s["id"] for s in doc["stages"]}
         for family in ("build", "static-analysis", "unit-test", "dependency-scan", "secret-scan",
                        "container-scan", "iac-scan", "sbom", "python-floor", "sign",
-                       "evidence-archive"):
+                       "evidence-archive", "ios-sdk-test", "flutter-sdk-test",
+                       "quality-metrics"):
             self.assertIn(family, ids, family)
 
     def test_every_required_stage_is_fail_closed(self):
@@ -52,6 +53,22 @@ class PipelineHappyPath(FixtureTestCase):
                 "0723195856401067f7a2779048b490ace7a47d7c",
                 "v5.0.2",
             ),
+            "actions/setup-node": (
+                "249970729cb0ef3589644e2896645e5dc5ba9c38",
+                "v6.5.0",
+            ),
+            "actions/setup-go": (
+                "4dc6199c7b1a012772edbd06daecab0f50c9053c",
+                "v6.1.0",
+            ),
+            "actions/setup-dotnet": (
+                "baa11fbfe1d6520db94683bd5c7a3818018e4309",
+                "v5.1.0",
+            ),
+            "dart-lang/setup-dart": (
+                "7654d458321ee25acccccfdb86cd48bd95768ff1",
+                "v1.8.0",
+            ),
         }
         for name, (ref, version) in expected.items():
             self.assertEqual(actions[name]["ref"], ref, name)
@@ -77,9 +94,21 @@ class PipelineHappyPath(FixtureTestCase):
         )
         self.assertIn("validated-not-release-eligible", text)
         self.assertIn("release-eligible", text)
+        self.assertIn("python3 scripts/ci-release-evidence-gate.py", text)
+        self.assertIn(
+            "ELMPAY_EXTERNAL_EVIDENCE_B64: ${{ secrets.ELMPAY_EXTERNAL_EVIDENCE_B64 }}",
+            text,
+        )
+        self.assertIn("ELMPAY_GATE_SHA: ${{ github.sha }}", text)
         script = cigen.release_gate_script(REAL_ROOT)
         self.assertNotIn("${{", script)
         self.assertNotIn("contains(needs.*.result", script)
+
+    def test_release_gate_is_the_only_secret_expression_boundary(self):
+        text = cigen.workflow(REAL_ROOT)
+        self.assertEqual(ci._secret_bindings(text, ".github/workflows/ci.yml"), [])
+        for binding in ci.ALLOWED_SECRET_BINDINGS:
+            self.assertEqual(text.count(binding), 1, binding)
 
     def test_workflow_does_not_use_dangerous_triggers(self):
         text = cigen.workflow(REAL_ROOT)
@@ -103,17 +132,66 @@ class PipelineHappyPath(FixtureTestCase):
         self.assertEqual(python["minimum_supported"], "3.10.12")
         self.assertEqual(action["ref"], "5fda3b95a4ea91299a34e894583c3862153e4b97")
         self.assertEqual(text.count(f"uses: actions/setup-python@{action['ref']}"),
-                         len(pipeline["stages"]))
+                         len(pipeline["stages"]) + 1)
         floor_job = text.split("\n  python-floor:\n", 1)[1].split("\n  unit-test:\n", 1)[0]
         self.assertIn("python-version: '3.10.12'", floor_job)
         self.assertEqual(text.count("python-version: '3.10.12'"), 1)
         self.assertEqual(text.count("python-version: '3.12.7'"),
-                         len(pipeline["stages"]) - 1)
+                         len(pipeline["stages"]))
 
     def test_tool_versions_pins_the_reference_python(self):
         text = (REAL_ROOT / ".tool-versions").read_text(encoding="utf-8")
         self.assertIn("python 3.12.7\n", text)
         self.assertNotIn("python 3.10.12", text)
+
+    def test_workflow_runs_every_product_and_sdk_surface(self):
+        text = cigen.workflow(REAL_ROOT)
+        unit = text.split("\n  unit-test:\n", 1)[1].split("\n  ios-sdk-test:\n", 1)[0]
+        for snippet in (
+            "unittest discover -s testing -p 'test_*.py' -v",
+            "scripts/provider-contract-matrix.py",
+            "apps/checkout-web/test/*.test.mjs",
+            "apps/admin-web/test/*.test.mjs",
+            "scripts/sdk-contract-smoke.py",
+            "./gradlew --no-daemon test",
+            "node-version: '24.9.0'",
+            "go-version: '1.25.0'",
+            "dotnet-version: '8.0.424'",
+        ):
+            self.assertIn(snippet, unit)
+
+        ios = text.split("\n  ios-sdk-test:\n", 1)[1].split(
+            "\n  flutter-sdk-test:\n", 1)[0]
+        self.assertIn("runs-on: macos-15", ios)
+        self.assertIn("scripts/platform_sdk_test.py ios", ios)
+        self.assertNotIn("actions/setup-java@", ios)
+        self.assertNotIn("gradle/actions/setup-gradle@", ios)
+
+        flutter = text.split("\n  flutter-sdk-test:\n", 1)[1].split(
+            "\n  quality-metrics:\n", 1)[0]
+        self.assertIn("runs-on: ubuntu-24.04", flutter)
+        self.assertIn("scripts/platform_sdk_test.py flutter", flutter)
+        self.assertIn("sdk: '3.8.1'", flutter)
+        self.assertIn("dart-lang/setup-dart@7654d458321ee25acccccfdb86cd48bd95768ff1", flutter)
+        self.assertNotIn("actions/setup-java@", flutter)
+        self.assertNotIn("gradle/actions/setup-gradle@", flutter)
+
+        quality = text.split("\n  quality-metrics:\n", 1)[1].split("\n  build:\n", 1)[0]
+        self.assertIn("python3 tools/quality_gate.py coverage-mutation", quality)
+        self.assertIn("**/build/reports/jacoco/test/jacocoTestReport.xml", quality)
+        self.assertIn("**/build/reports/pitest/mutations.xml", quality)
+        self.assertIn("cache-read-only: true", quality)
+
+    def test_make_verify_covers_the_same_complete_surface(self):
+        problems = ci._test_surfaces(
+            REAL_ROOT,
+            Budget(seconds=60).start(),
+            self.fixture.read("governance/ci-pipeline.json"),
+            {stage["id"]: stage for stage in
+             self.fixture.read("governance/ci-pipeline.json")["stages"]},
+            "governance/ci-pipeline.json",
+        )
+        self.assertEqual(problems, [], "\n".join(str(problem) for problem in problems))
 
     def test_signing_waits_for_the_floor_interpreter_gate(self):
         doc = self.fixture.read("governance/ci-pipeline.json")
@@ -233,6 +311,85 @@ class PipelineRejects(FixtureTestCase):
         )
         self.assertIn("CI_PYTHON_ACTION", self.codes(self._validate()))
 
+    def test_rejects_a_different_sdk_setup_action_commit(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: next(action for action in data["actions"]
+                              if action["name"] == "actions/setup-dotnet")
+            .__setitem__("ref", "0" * 40),
+        )
+        self.assertIn("CI_TEST_ACTION", self.codes(self._validate()))
+
+    def test_rejects_missing_testing_product_surface(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "unit-test").__setitem__(
+                "commands",
+                [command for command in self._stage(data, "unit-test")["commands"]
+                 if "unittest discover -s testing" not in command],
+            ),
+        )
+        self.assertIn("CI_TEST_SURFACE", self.codes(self._validate()))
+
+    def test_rejects_sdk_toolchain_version_drift(self):
+        self.fixture.mutate(
+            "governance/version-catalog.json",
+            lambda data: next(entry for entry in data["entries"]
+                              if entry["id"] == "node")
+            .__setitem__("version", "24.9.1"),
+        )
+        self.assertIn("CI_TEST_TOOLCHAIN", self.codes(self._validate()))
+
+    def test_rejects_android_project_from_gradle_test_surface(self):
+        self.fixture.mutate(
+            "governance/module-registry.json",
+            lambda data: next(module for module in data["modules"]
+                              if module["name"] == "mobile-android")
+            .__setitem__("path", "sdks/mobile/removed"),
+        )
+        self.assertIn("CI_TEST_ANDROID", self.codes(self._validate()))
+
+    def test_rejects_platform_job_on_the_wrong_runner(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "ios-sdk-test").__setitem__(
+                "runner", "ubuntu-24.04"),
+        )
+        self.assertIn("CI_PLATFORM_RUNNER", self.codes(self._validate()))
+
+    def test_rejects_optional_platform_job(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "flutter-sdk-test").__setitem__(
+                "required", False),
+        )
+        self.assertIn("CI_PLATFORM_TEST", self.codes(self._validate()))
+
+    def test_rejects_missing_quality_metrics_command(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "quality-metrics").__setitem__(
+                "commands", ["true"]),
+        )
+        self.assertIn("CI_QUALITY_METRICS_STAGE", self.codes(self._validate()))
+
+    def test_rejects_quality_metrics_xml_becoming_optional(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "quality-metrics").__setitem__(
+                "if_no_files_found", "warn"),
+        )
+        self.assertIn("CI_QUALITY_METRICS_STAGE", self.codes(self._validate()))
+
+    def test_rejects_make_verify_missing_product_tests(self):
+        makefile = (self.fixture.root / "Makefile").read_text(encoding="utf-8")
+        self.fixture.write(
+            "Makefile",
+            makefile.replace("scripts/provider-contract-matrix.py",
+                             "scripts/omitted-provider-matrix.py", 1),
+        )
+        self.assertIn("CI_MAKE_TEST_SURFACE", self.codes(self._validate()))
+
     def test_rejects_python_reference_version_drift(self):
         self.fixture.mutate(
             "governance/version-catalog.json",
@@ -329,6 +486,12 @@ class PipelineRejects(FixtureTestCase):
     def test_rejects_write_all_permission(self):
         self.fixture.mutate(self.REL, lambda d: d["permissions"].__setitem__("packages", "write-all"))
         self.assertIn("CI_PERMISSIONS", self.codes(self._validate()))
+
+    def test_rejects_secret_expression_outside_the_audited_gate_bindings(self):
+        text = cigen.workflow(self.fixture.root)
+        text += "\n  unsafe: ${{ secrets.UNDECLARED_SECRET }}\n"
+        problems = ci._secret_bindings(text, ".github/workflows/ci.yml")
+        self.assertIn("CI_UNSAFE_WORKFLOW", self.codes(problems))
 
     def test_rejects_dependency_scan_as_the_setup_gradle_cache_writer(self):
         self.fixture.mutate(

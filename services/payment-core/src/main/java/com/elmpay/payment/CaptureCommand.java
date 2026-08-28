@@ -10,7 +10,7 @@ public record CaptureCommand(UUID tenantId, UUID intentId, long amountMinor,
         Objects.requireNonNull(intentId, "intentId");
         Objects.requireNonNull(idempotencyKey, "idempotencyKey");
         Objects.requireNonNull(correlationId, "correlationId");
-        if (amountMinor <= 0 || correlationId.isBlank()) {
+        if (correlationId.isBlank()) {
             throw new IllegalArgumentException("invalid capture command");
         }
     }

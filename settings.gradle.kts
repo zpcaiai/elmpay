@@ -31,6 +31,7 @@ include(":services:ledger-service")
 include(":services:reconciliation-service")
 include(":services:worker-scheduler")
 include(":apps:edge-gateway")
+include(":sdks:mobile:android")
 
 // Node-built modules are not Gradle projects:
 //   checkout-web -> apps/checkout-web (pnpm)

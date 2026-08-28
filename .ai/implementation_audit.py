@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
-"""Audit runnable implementation surfaces without converting them into certification evidence.
+"""Fail-closed, per-batch implementation inventory.
 
-This is intentionally separate from rebaseline.py. It answers whether declared modules contain
-source, tests and migrations/control code. It never writes evidence, review attestations,
-traceability or completion markers, and its success does not mean a batch is certified.
+This audit deliberately does not infer implementation from a populated directory. A batch only
+passes when it has an explicit inventory entry identifying exact executable code, runtime wiring,
+durable migrations, and tests, and when each file contains the declared implementation marker.
+Documentation, generated contracts, evidence, fixtures, and ``reference`` models are rejected as
+implementation artifacts.
+
+The inventory is intentionally independent of certification. It never writes evidence, review
+attestations, traceability, or completion markers, and a passing implementation inventory still
+does not certify a batch.
 """
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
 import json
 from pathlib import Path
 import subprocess
@@ -19,32 +26,54 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / ".payment-platform/skill-package/manifest.json"
 MODULES = ROOT / "governance/module-registry.json"
+INVENTORY = ROOT / ".ai/implementation_inventory.json"
+REQUIRED_ROLES = ("executable", "runtime_entrypoint", "config", "migrations", "tests")
 
-SURFACES: tuple[tuple[str, int, int, tuple[str, ...]], ...] = (
-    ("foundation", 0, 31, ("governance", "contracts", "scripts", "libs")),
-    ("payment-core", 32, 36, ("services/payment-core", "services/merchant-config", "apps/edge-gateway")),
-    ("providers-webhooks", 37, 55, ("connectors", "services/webhook-ingress", "services/webhook-delivery")),
-    ("checkout-sdks", 56, 69, ("apps/checkout-web", "sdks", "services/payment-core/src/main/java/com/elmpay/payment/checkout")),
-    ("finance-lifecycle", 70, 79, ("services/ledger-service", "services/reconciliation-service", "services/payment-core/src/main/java/com/elmpay/payment/refund", "services/payment-core/src/main/java/com/elmpay/payment/billing")),
-    ("risk-access", 80, 89, ("services/risk-engine", "apps/admin-web")),
-    ("reliability-operations", 90, 111, ("services/worker-scheduler", "platform", "tools/runtime")),
-    ("release-commercial", 112, 127, ("platform", "runbooks", "testing", "tools/runtime")),
-)
 
-SOURCE_SUFFIXES = {".java", ".py", ".mjs", ".js", ".ts", ".go", ".swift", ".dart", ".cs", ".sql", ".yaml", ".yml", ".json"}
-IGNORED_PARTS = {"build", "node_modules", "__pycache__", ".gradle", ".dart_tool", ".build", "bin", "obj"}
+@dataclass(frozen=True)
+class ArtifactRequirement:
+    """One exact, reviewable implementation artifact and its semantic anchors."""
+
+    path: str
+    markers: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class BatchImplementation:
+    """The minimum independently checkable implementation surface for one batch."""
+
+    executable: tuple[ArtifactRequirement, ...]
+    runtime_entrypoint: tuple[ArtifactRequirement, ...]
+    config: tuple[ArtifactRequirement, ...]
+    migrations: tuple[ArtifactRequirement, ...]
+    tests: tuple[ArtifactRequirement, ...]
+    migration_required: bool = True
+    migration_not_applicable_reason: str = ""
+    assessment: str = ""
+    known_gaps: tuple[str, ...] = ()
+
+
+SOURCE_SUFFIXES = {
+    ".java", ".py", ".mjs", ".js", ".ts", ".go", ".swift", ".dart", ".cs", ".sh",
+}
+FORBIDDEN_IMPLEMENTATION_PARTS = {
+    "reference", "references", "fixture", "fixtures", "evidence", "docs", "contracts",
+    "governance", ".payment-platform", "build", "node_modules", "__pycache__",
+}
+FORBIDDEN_CONFIG_PARTS = {
+    "reference", "references", "fixture", "fixtures", "evidence", "docs",
+    ".payment-platform", "build", "node_modules", "__pycache__",
+}
+IGNORED_PARTS = {
+    "build", "node_modules", "__pycache__", ".gradle", ".dart_tool", ".build", "bin", "obj",
+}
 
 VERIFY_COMMANDS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("generated-build", (sys.executable, "scripts/render-build.py", "--check")),
-    ("skill-package", ("make", "skills-verify")),
-    ("java", ("./gradlew", "--no-daemon", "--console=plain", "test")),
-    ("runtime-controls", (sys.executable, "tools/runtime/control.py", "validate")),
-    ("python-controls", (sys.executable, "-m", "unittest", "discover", "-s", "testing", "-p", "test_*.py", "-v")),
-    ("admin-web", ("node", "--test", "apps/admin-web/test/admin-domain.test.mjs")),
-    ("checkout-web", ("npm", "--prefix", "apps/checkout-web", "test")),
-    ("node-sdk", ("node", "--test", "sdks/server/node/elmpay-client.test.mjs")),
-    ("python-sdk", (sys.executable, "-m", "unittest", "discover", "-s", "sdks/server/python", "-p", "test_*.py", "-v")),
-    ("go-sdk", ("go", "-C", "sdks/server/go", "test", "./...")),
+    ("implementation-audit-tests", (
+        sys.executable, "-m", "unittest", "discover", "-s", ".ai/tests",
+        "-p", "test_implementation_audit.py", "-v")),
+    ("java-b12-b39", ("./gradlew", "--no-daemon", "--console=plain",
+                      ":services:worker-scheduler:test", ":services:payment-core:test")),
 )
 
 
@@ -59,114 +88,296 @@ def files_under(relative: str) -> list[Path]:
     return sorted(
         path.relative_to(ROOT)
         for path in base.rglob("*")
-        if path.is_file()
-        and path.suffix.lower() in SOURCE_SUFFIXES
-        and not IGNORED_PARTS.intersection(path.relative_to(ROOT).parts)
+        if path.is_file() and not IGNORED_PARTS.intersection(path.relative_to(ROOT).parts)
     )
 
 
 def is_test(path: Path) -> bool:
     lowered = str(path).lower()
-    return "/test/" in f"/{lowered}" or "/tests/" in f"/{lowered}" or Path(lowered).name.startswith("test_") or ".test." in lowered
+    return ("/test/" in f"/{lowered}" or "/tests/" in f"/{lowered}"
+            or Path(lowered).name.startswith("test_") or ".test." in lowered
+            or Path(lowered).name.endswith("_test.go"))
+
+
+def manifest_batch_records() -> list[dict[str, Any]]:
+    document = load_json(MANIFEST)
+    records = document.get("batches", [])
+    if not isinstance(records, list):
+        return []
+    return [record for record in records if isinstance(record, dict)]
 
 
 def manifest_batches() -> list[str]:
-    document = load_json(MANIFEST)
-    result: list[str] = []
-    for wave in document.get("waves", []):
-        result.extend(wave.get("batches", []))
-    return result
+    return [str(record.get("id", "")) for record in manifest_batch_records()]
+
+
+def load_implementation_inventory(path: Path = INVENTORY
+                                  ) -> tuple[dict[str, BatchImplementation], list[str]]:
+    """Load the reviewable inventory map without converting malformed entries into a pass."""
+
+    problems: list[str] = []
+    try:
+        document = load_json(path)
+    except (OSError, json.JSONDecodeError) as exception:
+        return {}, [f"implementation inventory is unreadable: {exception}"]
+    if not isinstance(document, dict):
+        return {}, ["implementation inventory root must be an object"]
+    if document.get("schema_version") != 1:
+        problems.append("implementation inventory schema_version must equal 1")
+    if document.get("required_roles") != list(REQUIRED_ROLES):
+        problems.append(f"implementation inventory required_roles must equal {list(REQUIRED_ROLES)}")
+    raw_batches = document.get("batches")
+    if not isinstance(raw_batches, dict):
+        return {}, problems + ["implementation inventory batches must be an object"]
+
+    decoded: dict[str, BatchImplementation] = {}
+    valid_ids = {f"B{number:02d}" for number in range(128)}
+    for batch_id, raw_batch in raw_batches.items():
+        scope = f"inventory.{batch_id}"
+        if batch_id not in valid_ids:
+            problems.append(f"{scope}: batch id is outside B00-B127")
+            continue
+        if not isinstance(raw_batch, dict):
+            problems.append(f"{scope}: batch entry must be an object")
+            continue
+        raw_artifacts = raw_batch.get("artifacts")
+        if not isinstance(raw_artifacts, dict):
+            problems.append(f"{scope}: artifacts must be an object")
+            continue
+        unexpected_roles = sorted(set(raw_artifacts) - set(REQUIRED_ROLES))
+        if unexpected_roles:
+            problems.append(f"{scope}: unexpected artifact roles {unexpected_roles}")
+        role_values: dict[str, tuple[ArtifactRequirement, ...]] = {}
+        malformed = False
+        for role in REQUIRED_ROLES:
+            raw_requirements = raw_artifacts.get(role, [])
+            if not isinstance(raw_requirements, list):
+                problems.append(f"{scope}.{role}: role inventory must be a list")
+                malformed = True
+                raw_requirements = []
+            requirements: list[ArtifactRequirement] = []
+            for index, raw_requirement in enumerate(raw_requirements):
+                item_scope = f"{scope}.{role}[{index}]"
+                if not isinstance(raw_requirement, dict):
+                    problems.append(f"{item_scope}: artifact must be an object")
+                    malformed = True
+                    continue
+                artifact_path = raw_requirement.get("path")
+                markers = raw_requirement.get("markers")
+                if not isinstance(artifact_path, str) or not artifact_path:
+                    problems.append(f"{item_scope}: path must be a non-empty string")
+                    malformed = True
+                    continue
+                if (not isinstance(markers, list) or not markers
+                        or not all(isinstance(marker, str) and marker for marker in markers)):
+                    problems.append(f"{item_scope}: markers must be a non-empty string list")
+                    malformed = True
+                    continue
+                requirements.append(ArtifactRequirement(artifact_path, tuple(markers)))
+            role_values[role] = tuple(requirements)
+        migration_required = raw_batch.get("migration_required", True)
+        if not isinstance(migration_required, bool):
+            problems.append(f"{scope}: migration_required must be boolean")
+            migration_required = True
+            malformed = True
+        migration_reason = raw_batch.get("migration_not_applicable_reason", "")
+        assessment = raw_batch.get("assessment", "")
+        known_gaps = raw_batch.get("known_gaps", [])
+        if not isinstance(migration_reason, str) or not isinstance(assessment, str):
+            problems.append(f"{scope}: assessment and migration reason must be strings")
+            malformed = True
+        if (not isinstance(known_gaps, list)
+                or not all(isinstance(gap, str) and gap.strip() for gap in known_gaps)):
+            problems.append(f"{scope}: known_gaps must be a list of non-empty strings")
+            known_gaps = ["malformed known_gaps declaration"]
+            malformed = True
+        if malformed:
+            known_gaps = list(known_gaps) + ["inventory entry is malformed"]
+        decoded[batch_id] = BatchImplementation(
+            executable=role_values["executable"],
+            runtime_entrypoint=role_values["runtime_entrypoint"],
+            config=role_values["config"],
+            migrations=role_values["migrations"],
+            tests=role_values["tests"],
+            migration_required=migration_required,
+            migration_not_applicable_reason=migration_reason,
+            assessment=assessment,
+            known_gaps=tuple(known_gaps),
+        )
+    return decoded, problems
+
+
+def validate_artifact(root: Path, role: str, requirement: ArtifactRequirement) -> list[str]:
+    """Validate one exact artifact without accepting directories, globs, or reference models."""
+
+    problems: list[str] = []
+    relative = Path(requirement.path)
+    if relative.is_absolute() or ".." in relative.parts:
+        return [f"{role} path must be repository-relative: {requirement.path}"]
+    if any(character in requirement.path for character in "*?[]{}"):
+        return [f"{role} path must be exact, not a glob: {requirement.path}"]
+    candidate = root / relative
+    if not candidate.is_file() or candidate.is_symlink():
+        return [f"{role} artifact is missing or not a regular in-place file: {requirement.path}"]
+    lowered_parts = {part.lower() for part in relative.parts}
+    if role in {"executable", "runtime_entrypoint"}:
+        forbidden = sorted(lowered_parts & FORBIDDEN_IMPLEMENTATION_PARTS)
+        if forbidden:
+            problems.append(
+                f"{role} cannot be satisfied by non-runtime path {requirement.path}: {forbidden}")
+        if candidate.suffix.lower() not in SOURCE_SUFFIXES:
+            problems.append(f"{role} must be executable source: {requirement.path}")
+        if is_test(relative):
+            problems.append(f"{role} cannot point at test code: {requirement.path}")
+    elif role == "config":
+        forbidden = sorted(lowered_parts & FORBIDDEN_CONFIG_PARTS)
+        if forbidden:
+            problems.append(
+                f"config cannot be satisfied by non-runtime path {requirement.path}: {forbidden}")
+        if is_test(relative):
+            problems.append(f"config cannot point at test code: {requirement.path}")
+    elif role == "migrations" and candidate.suffix.lower() != ".sql":
+        problems.append(f"migration must be SQL: {requirement.path}")
+    elif role == "tests" and not is_test(relative):
+        problems.append(f"test artifact is not in a test source path: {requirement.path}")
+    if not requirement.markers:
+        problems.append(f"{role} artifact has no semantic marker: {requirement.path}")
+    else:
+        try:
+            content = candidate.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            problems.append(f"{role} artifact is not UTF-8 text: {requirement.path}")
+        else:
+            for marker in requirement.markers:
+                if marker not in content:
+                    problems.append(
+                        f"{role} artifact lacks marker {marker!r}: {requirement.path}")
+    return problems
+
+
+def validate_batch(root: Path, batch_id: str,
+                   implementation: BatchImplementation | None) -> tuple[list[str], dict[str, Any]]:
+    del batch_id  # The caller owns the id; validation only consumes the explicit contract.
+    if implementation is None:
+        problems = ["no explicit implementation inventory; broad directory presence is rejected"]
+        return problems, {
+            "executable": [], "runtime_entrypoint": [], "config": [],
+            "migrations": [], "tests": [],
+            "migration_required": True,
+        }
+
+    role_values: dict[str, tuple[ArtifactRequirement, ...]] = {
+        "executable": implementation.executable,
+        "runtime_entrypoint": implementation.runtime_entrypoint,
+        "config": implementation.config,
+        "migrations": implementation.migrations,
+        "tests": implementation.tests,
+    }
+    problems: list[str] = []
+    for role in ("executable", "runtime_entrypoint", "config", "tests"):
+        if not role_values[role]:
+            problems.append(f"{role} inventory is empty")
+    if implementation.migration_required and not implementation.migrations:
+        problems.append("durable migration inventory is empty")
+    if not implementation.migration_required and not implementation.migration_not_applicable_reason.strip():
+        problems.append("migration N/A requires a non-empty reason")
+    problems.extend(f"declared implementation gap: {gap}" for gap in implementation.known_gaps)
+    for role, requirements in role_values.items():
+        for requirement in requirements:
+            problems.extend(validate_artifact(root, role, requirement))
+    roles_by_path: dict[str, dict[str, tuple[str, ...]]] = {}
+    for role, requirements in role_values.items():
+        for requirement in requirements:
+            roles_by_path.setdefault(requirement.path, {})[role] = requirement.markers
+    for path, role_markers in roles_by_path.items():
+        roles = set(role_markers)
+        if len(roles) < 2:
+            continue
+        # A self-contained executable control may also be its direct callable runtime surface.
+        # The two contracts must still identify distinct semantic anchors. Config, migrations and
+        # tests are always independent artifacts and can never be reused for another role.
+        if roles == {"executable", "runtime_entrypoint"}:
+            if set(role_markers["executable"]) == set(role_markers["runtime_entrypoint"]):
+                problems.append(
+                    f"shared executable/runtime artifact requires distinct markers: {path}")
+            continue
+        problems.append(f"artifact cannot satisfy incompatible roles {sorted(roles)}: {path}")
+    return problems, {
+        role: [
+            {"path": requirement.path, "markers": list(requirement.markers)}
+            for requirement in requirements
+        ]
+        for role, requirements in role_values.items()
+    } | {
+        "migration_required": implementation.migration_required,
+        "migration_not_applicable_reason": implementation.migration_not_applicable_reason,
+        "assessment": implementation.assessment,
+        "known_gaps": list(implementation.known_gaps),
+    }
 
 
 def audit(*, run_checks: bool = False, timeout_seconds: int = 900) -> dict[str, Any]:
     issues: list[str] = []
-    batches = manifest_batches()
+    records = manifest_batch_records()
+    batches = [str(record.get("id", "")) for record in records]
     expected = [f"B{number:02d}" for number in range(128)]
     if batches != expected:
         issues.append("manifest must contain contiguous B00-B127 exactly once")
 
+    implementations, inventory_problems = load_implementation_inventory()
+    issues.extend(inventory_problems)
+
+    batch_results: list[dict[str, Any]] = []
+    for index, batch_id in enumerate(expected):
+        record = records[index] if index < len(records) and records[index].get("id") == batch_id else {}
+        problems, inventory = validate_batch(ROOT, batch_id, implementations.get(batch_id))
+        batch_results.append({
+            "id": batch_id,
+            "title": str(record.get("title", "")),
+            "skill": str(record.get("skill", "")),
+            "status": "PASS" if not problems else "FAIL",
+            "inventory": inventory,
+            "issues": problems,
+        })
+        issues.extend(f"{batch_id}: {problem}" for problem in problems)
+
     registry = load_json(MODULES)
     module_results: list[dict[str, Any]] = []
     for module in registry.get("modules", []):
-        relative = module["path"]
+        relative = str(module["path"])
         files = files_under(relative)
         production = [path for path in files if not is_test(path)]
         tests = [path for path in files if is_test(path)]
-        build_system = "node" if relative.startswith("apps/") and (ROOT / relative / "package.json").is_file() else "java"
-        module_issue: list[str] = []
-        if not production:
-            module_issue.append("no production source/configuration")
-        if not tests:
-            module_issue.append("no automated test source")
-        if build_system == "node" and not (ROOT / relative / "package.json").is_file():
-            module_issue.append("missing package.json")
-        if module_issue:
-            issues.append(f"{module['name']}: " + ", ".join(module_issue))
         module_results.append({
-            "name": module["name"],
-            "path": relative,
-            "production_files": len(production),
-            "test_files": len(tests),
-            "issues": module_issue,
+            "name": module["name"], "path": relative,
+            "production_files": len(production), "test_files": len(tests),
         })
-
-    surface_results: list[dict[str, Any]] = []
-    for name, start, end, roots in SURFACES:
-        files = sorted({path for root in roots for path in files_under(root)})
-        production = [path for path in files if not is_test(path)]
-        tests = [path for path in files if is_test(path)]
-        migrations = [path for path in files if path.suffix == ".sql"]
-        surface_issue: list[str] = []
-        if not production:
-            surface_issue.append("no implementation files")
-        if not tests:
-            surface_issue.append("no test files")
-        if name in {"payment-core", "providers-webhooks", "finance-lifecycle"} and not migrations:
-            surface_issue.append("no durable migration")
-        if surface_issue:
-            issues.append(f"surface {name}: " + ", ".join(surface_issue))
-        surface_results.append({
-            "name": name,
-            "batches": f"B{start:02d}-B{end:02d}",
-            "roots": list(roots),
-            "production_files": len(production),
-            "test_files": len(tests),
-            "migration_files": len(migrations),
-            "issues": surface_issue,
-        })
-
-    required_controls = (
-        "apps/edge-gateway/src/main/resources/db/migration/V032__payment_runtime.sql",
-        "services/webhook-ingress/src/main/resources/db/migration/V037__provider_webhook_inbox.sql",
-        "services/webhook-delivery/src/main/resources/db/migration/V038__business_webhook_delivery.sql",
-        "services/ledger-service/src/main/resources/db/migration/V001__immutable_ledger.sql",
-        "services/reconciliation-service/src/main/resources/db/migration/V001__reconciliation.sql",
-        "tools/runtime/elmpay_runtime/release.py",
-        "tools/runtime/elmpay_runtime/external_evidence.py",
-        "platform/kubernetes/workload-policy.json",
-        "platform/compliance/external-evidence-policy.json",
-        "testing/test_external_evidence.py",
-    )
-    for relative in required_controls:
-        if not (ROOT / relative).is_file():
-            issues.append(f"missing required control: {relative}")
 
     inventory_status = "PASS" if not issues else "FAIL"
-    checks = verify_commands(timeout_seconds) if run_checks and not issues else []
-    checks_pass = bool(run_checks) and not issues and all(check["exit_code"] == 0 for check in checks)
+    checks = verify_commands(timeout_seconds) if run_checks else []
+    checks_pass = bool(run_checks) and all(check["exit_code"] == 0 for check in checks)
+    implementation_surface = (
+        "PASS" if inventory_status == "PASS" and checks_pass
+        else "FAIL" if inventory_status == "FAIL" or run_checks
+        else "NOT_RUN"
+    )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "inventory_map": str(INVENTORY.relative_to(ROOT)),
+        "inventory_schema_issues": inventory_problems,
         "git_head": git_head(),
         "inventory_status": inventory_status,
-        "implementation_surface": "PASS" if checks_pass else ("FAIL" if issues or run_checks else "NOT_RUN"),
+        "implementation_surface": implementation_surface,
         "verification_executed": run_checks,
         "verification_checks": checks,
         "certification_status": "NOT_CERTIFIED",
         "certified_batches_changed": False,
         "batch_count": len(batches),
+        "implemented_batch_count": sum(result["status"] == "PASS" for result in batch_results),
+        "gap_batch_count": sum(result["status"] == "FAIL" for result in batch_results),
+        "batches": batch_results,
         "module_count": len(module_results),
         "modules": module_results,
-        "surfaces": surface_results,
         "issues": issues,
         "external_gates": [
             "independent human review",
@@ -186,13 +397,8 @@ def verify_commands(timeout_seconds: int) -> list[dict[str, Any]]:
         started = time.monotonic()
         try:
             completed = subprocess.run(
-                command,
-                cwd=ROOT,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                timeout=timeout_seconds,
-                check=False,
+                command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, timeout=timeout_seconds, check=False,
             )
             output = completed.stdout[-16_384:]
             exit_code = completed.returncode
@@ -204,9 +410,7 @@ def verify_commands(timeout_seconds: int) -> list[dict[str, Any]]:
             exit_code = 124
             timed_out = True
         results.append({
-            "name": name,
-            "command": list(command),
-            "exit_code": exit_code,
+            "name": name, "command": list(command), "exit_code": exit_code,
             "timed_out": timed_out,
             "duration_seconds": round(time.monotonic() - started, 3),
             "output_tail": output,
@@ -237,14 +441,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"implementation_surface={report['implementation_surface']}")
         print(f"inventory_status={report['inventory_status']}")
         print(f"certification_status={report['certification_status']}")
-        print(f"batches={report['batch_count']} modules={report['module_count']}")
+        print(f"batches={report['batch_count']} implemented={report['implemented_batch_count']} "
+              f"gaps={report['gap_batch_count']} modules={report['module_count']}")
         for check in report["verification_checks"]:
             print(f"check={check['name']} exit={check['exit_code']} duration={check['duration_seconds']}")
         for issue in report["issues"]:
             print(f"issue={issue}")
-    if report["inventory_status"] != "PASS":
-        return 2
-    return 0 if not arguments.verify or report["implementation_surface"] == "PASS" else 2
+    return 0 if report["inventory_status"] == "PASS" and (
+        not arguments.verify or report["implementation_surface"] == "PASS") else 2
 
 
 if __name__ == "__main__":

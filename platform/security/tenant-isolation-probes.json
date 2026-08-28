@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "1.0.0",
+  "batch": "B31",
+  "requiredSurfaces": ["database", "cache", "message", "log", "export"],
+  "maximumResponseBytes": 65536,
+  "requestTimeoutSeconds": 5,
+  "endpointEnvironment": {
+    "database": "ELMPAY_ISOLATION_DATABASE_ENDPOINT",
+    "cache": "ELMPAY_ISOLATION_CACHE_ENDPOINT",
+    "message": "ELMPAY_ISOLATION_MESSAGE_ENDPOINT",
+    "log": "ELMPAY_ISOLATION_LOG_ENDPOINT",
+    "export": "ELMPAY_ISOLATION_EXPORT_ENDPOINT"
+  },
+  "failClosedOnUnavailable": true,
+  "mutatingProbeAllowed": false,
+  "externalExecutionStatus": "BLOCKED"
+}

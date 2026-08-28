@@ -100,6 +100,10 @@ class HygieneDetects(FixtureTestCase):
         self.fixture.write("tools/paygov/archive_check.py", "import zipfile\n")
         self.assertNotIn("TOOLCHAIN_THIRD_PARTY", self.codes(self._validate()))
 
+    def test_accepts_sqlite3_for_durable_offline_controls(self):
+        self.fixture.write("tools/runtime/durable_control.py", "import calendar\nimport sqlite3\n")
+        self.assertNotIn("TOOLCHAIN_THIRD_PARTY", self.codes(self._validate()))
+
 
 class HygieneScanIsBounded(FixtureTestCase):
     def test_budget_is_enforced(self):

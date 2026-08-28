@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 import importlib.util
-import json
 from pathlib import Path
 import sys
 import tempfile
@@ -15,6 +14,14 @@ assert _SPEC and _SPEC.loader
 runner = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = runner
 _SPEC.loader.exec_module(runner)
+
+_CODE_SUITE_SPEC = importlib.util.spec_from_file_location(
+    "elmpay_code_suite_runner", ROOT / "scripts/run-code-suite.py"
+)
+assert _CODE_SUITE_SPEC and _CODE_SUITE_SPEC.loader
+code_suites = importlib.util.module_from_spec(_CODE_SUITE_SPEC)
+sys.modules[_CODE_SUITE_SPEC.name] = code_suites
+_CODE_SUITE_SPEC.loader.exec_module(code_suites)
 
 
 class MatrixRunnerTest(unittest.TestCase):
@@ -29,6 +36,95 @@ class MatrixRunnerTest(unittest.TestCase):
         seen = [batch for suite in self.matrix["suites"] for batch in suite["batch_ids"]]
         self.assertEqual(128, len(seen))
         self.assertEqual(128, len(set(seen)))
+
+    def test_twenty_one_suites_route_every_local_command_through_fail_closed_runner(self) -> None:
+        self.assertEqual(21, len(self.matrix["suites"]))
+        local = [suite for suite in self.matrix["suites"] if suite["execution"] == "local"]
+        external = [suite for suite in self.matrix["suites"] if suite["execution"] == "external"]
+        self.assertEqual(18, len(local))
+        self.assertEqual(3, len(external))
+        routed = set()
+        for suite in local:
+            self.assertEqual(["python3", "scripts/run-code-suite.py"], suite["command"][:2])
+            self.assertEqual(3, len(suite["command"]))
+            routed.add(suite["command"][2])
+        self.assertEqual(set(code_suites.SUITES), routed)
+
+    def test_every_testing_module_has_one_executed_slice_owner(self) -> None:
+        discovered = code_suites.validate_testing_module_coverage(ROOT)
+        files = sorted(
+            f"testing.{path.stem}" for path in (ROOT / "testing").glob("test_*.py")
+        )
+        self.assertEqual(tuple(files), discovered)
+
+    def test_new_duplicate_stale_and_unexecuted_modules_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            tests = root / "testing"
+            tests.mkdir()
+            (tests / "test_owned.py").write_text("# synthetic\n", encoding="utf-8")
+            owned = code_suites.SuiteSpec(
+                commands=(("python3", "-m", "unittest", "testing.test_owned"),),
+                test_modules=("testing.test_owned",),
+            )
+            self.assertEqual(
+                ("testing.test_owned",),
+                code_suites.validate_testing_module_coverage(root, {"one": owned}),
+            )
+
+            (tests / "test_new.py").write_text("# synthetic\n", encoding="utf-8")
+            with self.assertRaisesRegex(code_suites.SuiteConfigurationError, "test_new"):
+                code_suites.validate_testing_module_coverage(root, {"one": owned})
+
+            (tests / "test_new.py").unlink()
+            with self.assertRaisesRegex(code_suites.SuiteConfigurationError, "duplicate_owners"):
+                code_suites.validate_testing_module_coverage(root, {"one": owned, "two": owned})
+
+            stale = code_suites.SuiteSpec(
+                commands=(("python3", "-m", "unittest", "testing.test_missing"),),
+                test_modules=("testing.test_missing",),
+            )
+            with self.assertRaisesRegex(code_suites.SuiteConfigurationError, "stale"):
+                code_suites.validate_testing_module_coverage(root, {"one": owned, "stale": stale})
+
+            not_executed = code_suites.SuiteSpec(
+                commands=(("python3", "-c", "print('not a test')"),),
+                test_modules=("testing.test_owned",),
+            )
+            with self.assertRaisesRegex(code_suites.SuiteConfigurationError, "not_executed"):
+                code_suites.validate_testing_module_coverage(root, {"one": not_executed})
+
+            undeclared = code_suites.SuiteSpec(
+                commands=(("python3", "-m", "unittest", "testing.test_owned"),),
+            )
+            with self.assertRaisesRegex(code_suites.SuiteConfigurationError, "undeclared_executed"):
+                code_suites.validate_testing_module_coverage(root, {"one": undeclared})
+
+    def test_critical_runtime_gaps_are_bound_to_executable_commands(self) -> None:
+        self.assertIn(
+            "testing.test_b40_b55_provider_contract_matrix",
+            code_suites.SUITES["quality-core"].test_modules,
+        )
+        for suite_name in ("cn-providers", "global-providers"):
+            commands = code_suites.SUITES[suite_name].commands
+            self.assertTrue(any("scripts/provider-contract-matrix.py" in command for command in commands))
+        self.assertIn(
+            "testing.test_b89_egress_policy",
+            code_suites.SUITES["platform"].test_modules,
+        )
+        operations = [
+            token for command in code_suites.SUITES["operations"].commands for token in command
+        ]
+        self.assertIn("com.elmpay.payment.provider.AccountAwareProviderAdapterFactoryTest", operations)
+        self.assertIn("com.elmpay.payment.provider.JdbcProviderCallCircuitBreakerTest", operations)
+        self.assertEqual(
+            {
+                "testing.test_b116_security_orchestration",
+                "testing.test_b117_http_load_profile",
+                "testing.test_runtime_scale",
+            },
+            set(code_suites.SUITES["security-performance"].test_modules),
+        )
 
     def test_all_cases_have_reproducible_scenarios_and_existing_targets(self) -> None:
         for suite in self.matrix["suites"]:

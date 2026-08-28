@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 1,
+  "requiredSourceRole": "siem_event_source",
+  "maximumEventAgeSeconds": 900,
+  "maximumFutureSkewSeconds": 60,
+  "sources": {
+    "identity": {
+      "identities": ["identity-audit"],
+      "eventTypes": {
+        "admin.authentication.succeeded": {
+          "requiredFields": ["subjectActor", "country"],
+          "allowedFields": ["subjectActor", "country"],
+          "fieldTypes": {"subjectActor": "string", "country": "country_code"},
+          "disposition": "INGEST"
+        }
+      }
+    },
+    "admin-control": {
+      "identities": ["admin-audit"],
+      "eventTypes": {
+        "approval.decided": {
+          "requiredFields": ["subjectActor", "proposerId", "approverId", "phishingResistant"],
+          "allowedFields": ["subjectActor", "proposerId", "approverId", "phishingResistant"],
+          "fieldTypes": {
+            "subjectActor": "string",
+            "proposerId": "string",
+            "approverId": "string",
+            "phishingResistant": "boolean"
+          },
+          "disposition": "INGEST"
+        }
+      }
+    },
+    "kms": {
+      "identities": ["kms-audit"],
+      "eventTypes": {
+        "secret.read": {
+          "requiredFields": ["subjectActor", "readsPerActor5m", "baselineP99"],
+          "allowedFields": ["subjectActor", "readsPerActor5m", "baselineP99"],
+          "fieldTypes": {
+            "subjectActor": "string",
+            "readsPerActor5m": "nonnegative_integer",
+            "baselineP99": "nonnegative_integer"
+          },
+          "disposition": "INGEST"
+        }
+      }
+    },
+    "gitops": {
+      "identities": ["gitops-audit"],
+      "eventTypes": {
+        "gitops.drift.detected": {
+          "requiredFields": ["subjectActor", "ageSeconds"],
+          "allowedFields": ["subjectActor", "ageSeconds"],
+          "fieldTypes": {"subjectActor": "string", "ageSeconds": "nonnegative_integer"},
+          "disposition": "INGEST"
+        }
+      }
+    },
+    "gateway": {
+      "identities": ["gateway-audit"],
+      "eventTypes": {
+        "gateway.request.blocked": {
+          "requiredFields": ["subjectActor", "ruleId", "requestCount"],
+          "allowedFields": ["subjectActor", "ruleId", "requestCount"],
+          "fieldTypes": {
+            "subjectActor": "string",
+            "ruleId": "string",
+            "requestCount": "nonnegative_integer"
+          },
+          "disposition": "ALERT",
+          "severity": "high",
+          "response": ["page_security", "preserve_evidence"]
+        }
+      }
+    },
+    "database": {
+      "identities": ["database-audit"],
+      "eventTypes": {
+        "database.privileged_query": {
+          "requiredFields": ["subjectActor", "action", "rowsTouched"],
+          "allowedFields": ["subjectActor", "action", "rowsTouched"],
+          "fieldTypes": {
+            "subjectActor": "string",
+            "action": "string",
+            "rowsTouched": "nonnegative_integer"
+          },
+          "disposition": "ALERT",
+          "severity": "high",
+          "response": ["page_security", "preserve_evidence"]
+        }
+      }
+    },
+    "container": {
+      "identities": ["container-audit"],
+      "eventTypes": {
+        "container.runtime.alert": {
+          "requiredFields": ["subjectActor", "detector", "findingCount"],
+          "allowedFields": ["subjectActor", "detector", "findingCount"],
+          "fieldTypes": {
+            "subjectActor": "string",
+            "detector": "string",
+            "findingCount": "nonnegative_integer"
+          },
+          "disposition": "ALERT",
+          "severity": "critical",
+          "response": ["isolate_workload", "page_security", "preserve_evidence"]
+        }
+      }
+    },
+    "supply-chain": {
+      "identities": ["supply-chain-audit"],
+      "eventTypes": {
+        "supply_chain.artifact.alert": {
+          "requiredFields": ["subjectActor", "artifactDigest", "findingCount"],
+          "allowedFields": ["subjectActor", "artifactDigest", "findingCount"],
+          "fieldTypes": {
+            "subjectActor": "string",
+            "artifactDigest": "string",
+            "findingCount": "nonnegative_integer"
+          },
+          "disposition": "ALERT",
+          "severity": "critical",
+          "response": ["block_release", "page_security", "preserve_evidence"]
+        }
+      }
+    },
+    "payment-risk": {
+      "identities": ["payment-risk-audit"],
+      "eventTypes": {
+        "payment.risk.alert": {
+          "requiredFields": ["subjectActor", "decision", "riskScore"],
+          "allowedFields": ["subjectActor", "decision", "riskScore"],
+          "fieldTypes": {
+            "subjectActor": "string",
+            "decision": "string",
+            "riskScore": "nonnegative_integer"
+          },
+          "disposition": "ALERT",
+          "severity": "high",
+          "response": ["hold_payment", "page_risk", "preserve_evidence"]
+        }
+      }
+    }
+  },
+  "exporter": {
+    "destination": "enterprise-siem",
+    "endpointEnv": "ELMPAY_SIEM_ALERT_ENDPOINT",
+    "bearerTokenEnv": "ELMPAY_SIEM_ALERT_BEARER_TOKEN",
+    "caFileEnv": "ELMPAY_SIEM_CA_FILE",
+    "timeoutSeconds": 5,
+    "allowInsecureLoopback": false,
+    "receiptRole": "siem_exporter",
+    "receiptMustBeIndependent": true,
+    "maximumBatchRecords": 100,
+    "leaseSeconds": 30
+  },
+  "externalSiemDeploymentStatus": "BLOCKED",
+  "localRuntimeMayClaimExternalReceipt": false
+}

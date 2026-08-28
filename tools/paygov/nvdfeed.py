@@ -122,7 +122,14 @@ def _download_metadata(url: str, timeout_seconds: int) -> bytes:
             content = response.read(MAX_METADATA_BYTES + 1)
     except FeedPreflightError:
         raise
-    except (HTTPError, URLError, TimeoutError, OSError) as exc:
+    except HTTPError as exc:
+        # HTTPError is also a file-like response; close it explicitly so a
+        # rejected feed cannot leak a socket or tempfile descriptor.
+        try:
+            raise FeedUnavailable(f"metadata request failed: {type(exc).__name__}") from exc
+        finally:
+            exc.close()
+    except (URLError, TimeoutError, OSError) as exc:
         raise FeedUnavailable(f"metadata request failed: {type(exc).__name__}") from exc
     if len(content) > MAX_METADATA_BYTES:
         raise FeedUnavailable("metadata response exceeds the byte limit")

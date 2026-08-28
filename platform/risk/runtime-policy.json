@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "allowedOperations": [
+    "PAYMENT_CREATE",
+    "PAYMENT_CONFIRM",
+    "PAYMENT_CAPTURE",
+    "REFUND_REQUEST",
+    "CREDENTIAL_CHANGE",
+    "PAYMENT_METHOD_ADD",
+    "PRIVILEGE_ELEVATION"
+  ],
+  "requiredSignals": [
+    "velocity5m",
+    "deviceReputation",
+    "networkReputation",
+    "geoAnomaly",
+    "accountAgeDays",
+    "behaviorSequenceRisk"
+  ],
+  "maximumSignalAgeSeconds": 600,
+  "modelTimeoutMilliseconds": 150,
+  "modelReviewThreshold": "0.60",
+  "modelBlockThreshold": "0.90",
+  "modelUnavailableAction": "REVIEW",
+  "missingSignalAction": "REVIEW",
+  "crossTenantAction": "DENY",
+  "ruleActivationRequiresDistinctApprover": true,
+  "operationsRequireDistinctApprover": true,
+  "auditChainRequired": true
+}

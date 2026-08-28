@@ -390,6 +390,21 @@
       "outbound_to": [
         "external:monitoring"
       ]
+    },
+    {
+      "id": "CAP-19",
+      "name": "移动客户端支付接入",
+      "owner_module": "mobile-android",
+      "requirements": [
+        "PAY-REQ-0054"
+      ],
+      "inbound_from": [
+        "external:business-project",
+        "external:end-customer"
+      ],
+      "outbound_to": [
+        "edge-gateway"
+      ]
     }
   ],
   "forbidden_flows": [

@@ -110,6 +110,9 @@ class SigningWorkflowRendering(unittest.TestCase):
         self.assertIn(f"ELMPAY_SIGNING_OPT_IN: ${{{{ vars.{OPT_IN} }}}}", gate)
         self.assertIn("RELEASE_ONLY_STAGES=(sign evidence-archive)", gate)
         self.assertIn("validated-not-release-eligible: validation succeeded", gate)
+        self.assertIn("python3 scripts/ci-release-evidence-gate.py", gate)
+        self.assertIn("secrets.ELMPAY_RELEASE_MANIFEST_B64", gate)
+        self.assertIn("secrets.ELMPAY_EXTERNAL_EVIDENCE_B64", gate)
         self.assertNotIn("${{", gate.split("        run: |\n", 1)[1])
 
     def test_scripts_have_shebang_and_claim_only_build_l1_blob_signing(self):
@@ -130,6 +133,7 @@ class SigningWorkflowRendering(unittest.TestCase):
 class ArtifactStagingScript(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory(prefix="elmpay-stage-test-")
+        self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.script = self.root / "scripts/stage-signing-artifacts.sh"
         self.script.parent.mkdir(parents=True)
@@ -141,25 +145,22 @@ class ArtifactStagingScript(unittest.TestCase):
         self.environment = os.environ.copy()
         self.environment.update(_github_environment())
 
-    def tearDown(self) -> None:
-        self.temporary.cleanup()
-
     def _run(self) -> subprocess.CompletedProcess[str]:
         return subprocess.run(["bash", str(self.script)], cwd=self.root,
                               env=self.environment, text=True, stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE, check=False)
 
-    def test_stages_all_20_gradle_leaf_projects_with_paths_hashes_and_source(self):
+    def test_stages_all_21_gradle_leaf_projects_with_paths_hashes_and_source(self):
         result = self._run()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(len(self.projects), 20)
+        self.assertEqual(len(self.projects), 21)
         stage = self.root / "build/signing-inputs"
         manifest_path = stage / "artifact-manifest.json"
         manifest = json.loads(manifest_path.read_text())
         self.assertEqual(manifest["projects"], self.projects)
         self.assertEqual(manifest["source"]["git_sha"], "a" * 40)
         self.assertEqual(manifest["source"]["run_id"], "12345")
-        self.assertEqual(len(manifest["artifacts"]), 20)
+        self.assertEqual(len(manifest["artifacts"]), 21)
         for entry in manifest["artifacts"]:
             staged = stage / entry["path"]
             self.assertTrue(staged.is_file(), entry["path"])
@@ -180,6 +181,7 @@ class ArtifactStagingScript(unittest.TestCase):
 class GeneratedSigningScript(unittest.TestCase):
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory(prefix="elmpay-signing-test-")
+        self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         scripts = self.root / "scripts"
         scripts.mkdir(parents=True)
@@ -251,9 +253,6 @@ else:
             "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "test-only-placeholder",
             OPT_IN: "true",
         })
-
-    def tearDown(self) -> None:
-        self.temporary.cleanup()
 
     def _run(self, **overrides: str) -> subprocess.CompletedProcess[str]:
         env = self.environment.copy()
@@ -402,15 +401,27 @@ class ReleaseGateScript(unittest.TestCase):
                 self.assertIn("validated-not-release-eligible", result.stdout)
                 self.assertNotIn("release-eligible: trusted", result.stdout)
 
-    def test_trusted_main_requires_opt_in_and_all_release_stages(self):
+    def test_trusted_main_requires_opt_in_stages_and_protected_evidence(self):
         release = {"ELMPAY_GATE_EVENT_NAME": "push",
                    "ELMPAY_GATE_REF": "refs/heads/main"}
         for stage in self.release_only:
             release["ELMPAY_NEEDS_" + stage.upper().replace("-", "_")] = "success"
         self.assertNotEqual(self._run(**release).returncode, 0)
-        accepted = self._run(ELMPAY_SIGNING_OPT_IN="true", **release)
-        self.assertEqual(accepted.returncode, 0, accepted.stderr)
-        self.assertIn("release-eligible: trusted main push", accepted.stdout)
+        missing = self._run(ELMPAY_SIGNING_OPT_IN="true", **release)
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("protected evidence input", missing.stderr)
+
+        invalid = self._run(
+            ELMPAY_SIGNING_OPT_IN="true",
+            ELMPAY_GATE_SHA="a" * 40,
+            ELMPAY_RELEASE_MANIFEST_B64="e30=",
+            ELMPAY_RELEASE_TRUST_B64="e30=",
+            ELMPAY_EXTERNAL_EVIDENCE_B64="e30=",
+            ELMPAY_EXTERNAL_TRUST_B64="e30=",
+            **release,
+        )
+        self.assertNotEqual(invalid.returncode, 0)
+        self.assertNotIn("release-eligible: trusted main push", invalid.stdout)
 
     def test_validation_rejects_unexpected_signing_or_failed_gate(self):
         unexpected = self._run(ELMPAY_NEEDS_SIGN="success")

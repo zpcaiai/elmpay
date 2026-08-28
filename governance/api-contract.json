@@ -357,6 +357,32 @@
       }
     },
     {
+      "id": "close_payment_intent",
+      "method": "POST",
+      "path": "/v1/payment_intents/{payment_intent_id}/close",
+      "summary": "关闭部分捕获并释放剩余授权额度",
+      "auth": "api_key",
+      "actor": "merchant",
+      "errors": [
+        "invalid_request",
+        "unauthenticated",
+        "permission_denied",
+        "rate_limited",
+        "internal_error",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "provider_timeout",
+        "provider_unavailable"
+      ],
+      "idempotency": {
+        "required": true,
+        "header": "Idempotency-Key",
+        "scope": "idempotency_key",
+        "conflict_error": "idempotency_key_reuse",
+        "retention_hours": 168
+      }
+    },
+    {
       "id": "create_refund",
       "method": "POST",
       "path": "/v1/refunds",

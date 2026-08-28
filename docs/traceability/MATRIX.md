@@ -4,7 +4,7 @@
 
 # 双向追踪矩阵（B07）
 
-需求 53 条 · 能力 18 项 · ADR 14 条 · 红线 15 条 · 控制 20 条。
+需求 54 条 · 能力 19 项 · ADR 14 条 · 红线 15 条 · 控制 20 条。
 
 批次证据到控制的映射不在本文档中——它随证据变化，放进受哈希固定的文档会造成
 “完成一个批次即让该批次失效”的循环。见 `evidence/*/runtime/trace-graph.json`。
@@ -66,6 +66,7 @@
 | PAY-REQ-0051 | 安全例外与剩余风险台账 | CAP-17 | `security` | NN-15 | B02 B110 | — |
 | PAY-REQ-0052 | 第三方与供应商风险 | CAP-17 | `merchant-config` | CTRL-019 | B111 | — |
 | PAY-REQ-0053 | 安全 SDLC 与不可变发布 | CAP-18 | `edge-gateway` | CTRL-011 CTRL-018 | B05 B109 B124 | — |
+| PAY-REQ-0054 | 移动 SDK 安全支付契约 | CAP-19 | `mobile-android` | NN-03 NN-04 NN-10 | B60 | — |
 
 ## 控制 → 需求（反向覆盖）
 
@@ -73,14 +74,14 @@
 | --- | --- |
 | NN-01 | PAY-REQ-0001 |
 | NN-02 | PAY-REQ-0016 PAY-REQ-0018 PAY-REQ-0026 |
-| NN-03 | PAY-REQ-0005 PAY-REQ-0011 |
-| NN-04 | PAY-REQ-0002 PAY-REQ-0003 PAY-REQ-0007 PAY-REQ-0012 PAY-REQ-0020 PAY-REQ-0022 PAY-REQ-0032 |
+| NN-03 | PAY-REQ-0005 PAY-REQ-0011 PAY-REQ-0054 |
+| NN-04 | PAY-REQ-0002 PAY-REQ-0003 PAY-REQ-0007 PAY-REQ-0012 PAY-REQ-0020 PAY-REQ-0022 PAY-REQ-0032 PAY-REQ-0054 |
 | NN-05 | PAY-REQ-0028 |
 | NN-06 | PAY-REQ-0027 PAY-REQ-0031 |
 | NN-07 | PAY-REQ-0044 |
 | NN-08 | PAY-REQ-0019 |
 | NN-09 | PAY-REQ-0004 PAY-REQ-0045 |
-| NN-10 | PAY-REQ-0006 PAY-REQ-0039 |
+| NN-10 | PAY-REQ-0006 PAY-REQ-0039 PAY-REQ-0054 |
 | NN-11 | PAY-REQ-0008 PAY-REQ-0021 PAY-REQ-0023 PAY-REQ-0031 PAY-REQ-0034 PAY-REQ-0041 |
 | NN-12 | PAY-REQ-0049 |
 | NN-13 | PAY-REQ-0030 PAY-REQ-0050 |

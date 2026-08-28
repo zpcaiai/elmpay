@@ -25,6 +25,8 @@ public final class RoutingService {
             throw new RoutingException("NO_ELIGIBLE_PROVIDER",
                     "no active provider account satisfies the immutable payment constraints");
         }
-        return routes.getFirst();
+        ProviderRoute selected = routes.getFirst();
+        repository.recordRoutingDecision(request, selected, routes);
+        return selected;
     }
 }

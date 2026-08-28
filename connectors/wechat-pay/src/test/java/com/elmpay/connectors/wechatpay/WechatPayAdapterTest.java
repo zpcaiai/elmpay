@@ -111,7 +111,7 @@ final class WechatPayAdapterTest {
         WechatProviderBridge bridge = new WechatProviderBridge(new WechatProviderBridge.Runtime(
                 adapter(request -> new WechatPayAdapter.HttpResult(200,
                         "{\"code_url\":\"weixin://fixture\"}".getBytes(StandardCharsets.UTF_8))),
-                command -> 1250, request -> expected(1250, "merchant-001")));
+                command -> 1250, (request, identity) -> expected(1250, "merchant-001")));
         assertTrue(bridge.configured());
         assertEquals(ProviderOutcome.REQUIRES_ACTION, bridge.createPayment(command()).outcome());
 

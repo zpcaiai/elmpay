@@ -378,6 +378,69 @@
         "tenant_id",
         "trace_id"
       ],
+      "name": "payment_intent.capture_closed",
+      "ordering_key": "aggregate_id",
+      "partition_key": "tenant_id",
+      "payload_fields": [
+        {
+          "classification": "internal",
+          "name": "payment_intent_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "project_id",
+          "type": "uuid"
+        },
+        {
+          "classification": "internal",
+          "name": "provider",
+          "type": "string"
+        },
+        {
+          "classification": "internal",
+          "name": "captured_amount_minor",
+          "type": "int64"
+        },
+        {
+          "classification": "internal",
+          "name": "released_amount_minor",
+          "type": "int64"
+        },
+        {
+          "classification": "internal",
+          "name": "currency",
+          "type": "currency"
+        },
+        {
+          "classification": "internal",
+          "name": "closed_at",
+          "type": "timestamp"
+        }
+      ],
+      "producer": "payment-core",
+      "retention_days": 2555,
+      "version": 1
+    },
+    {
+      "aggregate": "PaymentIntent",
+      "consumers": [
+        "ledger-service",
+        "reconciliation-service",
+        "webhook-delivery"
+      ],
+      "envelope_fields": [
+        "aggregate_id",
+        "event_id",
+        "event_name",
+        "event_version",
+        "occurred_at",
+        "payload",
+        "recorded_at",
+        "revision",
+        "tenant_id",
+        "trace_id"
+      ],
       "name": "payment_intent.captured",
       "ordering_key": "aggregate_id",
       "partition_key": "tenant_id",

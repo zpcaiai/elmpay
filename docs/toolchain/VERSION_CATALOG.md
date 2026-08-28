@@ -16,6 +16,11 @@
 | gradle | Gradle | build | 9.2.1 | exact | payment-platform-platform-eng | wrapper 校验和锁定；升级需绿色 CI 两轮 |
 | owasp-dependency-check | OWASP Dependency-Check Gradle Plugin | build-plugin | 13.0.0 | exact | payment-platform-appsec | 13.0.0 无 key API 回归期间使用 OWASP 官方 cached datafeed；13.0.1+ 发布后升级仍需依赖扫描门禁绿色 |
 | cyclonedx-gradle | CycloneDX Gradle Plugin | build-plugin | 3.4.1 | exact | payment-platform-appsec | 跟随 CycloneDX schema 与插件安全修复；升级需 SBOM 门禁绿色 |
+| jacoco | JaCoCo Java Code Coverage | testing | 0.8.15 | exact | payment-platform-platform-eng | 随受治理 JDK 支持线升级；升级必须保持逐模块 XML 报告和 80% 行覆盖门禁绿色 |
+| pitest-gradle | PIT Gradle Plugin | build-plugin | 1.19.0 | exact | payment-platform-platform-eng | 仅接受固定版本；升级必须保持全部 Java 叶模块的真实 mutation XML 和 60% mutation 门禁绿色 |
+| pitest | PIT Mutation Testing Engine | testing | 1.25.8 | exact | payment-platform-platform-eng | 跟随受治理 JDK 的字节码支持升级；升级需全量 mutation 回归且 surviving mutant 不得绕过门禁 |
+| pitest-junit5 | PIT JUnit 5 Plugin | testing | 1.2.3 | exact | payment-platform-platform-eng | 与 PIT 和 JUnit Platform 兼容矩阵一同评审；升级需证明测试发现数量未减少 |
+| coverage-py | Coverage.py | testing | 7.14.3 | exact | payment-platform-platform-eng | 仅接受固定版本；升级必须重跑完整 Python 行覆盖并保持详细 JSON 重算门禁绿色 |
 | kotlin | Kotlin (仅构建脚本) | build | 2.3.0 | exact | payment-platform-platform-eng | 仅用于 Gradle KTS，不用于生产代码 |
 | postgresql | PostgreSQL | database | 18.2 | exact | payment-platform-sre | 次版本一月内跟进；大版本升级需 B90 演练 |
 | postgresql-jdbc | PostgreSQL JDBC Driver | database-driver | 42.7.7 | exact | payment-platform-architecture | 随 PostgreSQL 安全修复升级；升级需迁移、故障恢复和连接池回归 |
@@ -31,6 +36,9 @@
 | testcontainers | Testcontainers | testing | 1.22.0 | exact | payment-platform-platform-eng | 本地与 CI 使用同一镜像摘要 |
 | jqwik | jqwik 属性测试 | testing | 1.9.3 | exact | payment-platform-finance | 金额、状态机与账本不变量的属性测试 |
 | node | Node.js | frontend | 24.9.0 | exact | payment-platform-architecture | 仅用于 checkout-web / admin-web 构建 |
+| dart-sdk | Dart SDK | frontend | 3.8.1 | exact | payment-platform-sdk | Flutter-compatible client contract tests use the exact hosted CI SDK and committed pubspec.lock |
+| go-toolchain | Go toolchain | runtime-platform | 1.25.0 | exact | payment-platform-sdk | Server SDK contracts use the exact hosted CI toolchain; upgrades require the full SDK golden-vector suite |
+| dotnet-sdk | .NET SDK | runtime-platform | 8.0.424 | exact | payment-platform-sdk | Server SDK contracts stay on the supported .NET 8 servicing line and require clean-checkout restore/build/run validation |
 | pnpm | pnpm | frontend | 10.14.0 | exact | payment-platform-architecture | lockfile 必须提交 |
 | postgres-image | postgres 容器镜像 | container | 18.2-bookworm | digest | payment-platform-sre | 摘要待 B04 在可联网构建代理上锁定 |
 | redis-image | redis 容器镜像 | container | 8.2.1-bookworm | digest | payment-platform-sre | 摘要待 B04 锁定 |
@@ -44,7 +52,7 @@
 
 | 构建系统 | 模块 |
 | --- | --- |
-| gradle | money、domain-events、idempotency、audit、security、observability、wechat-pay、alipay、stripe、paypal、apple-pay、payment-core、webhook-ingress、webhook-delivery、merchant-config、risk-engine、ledger-service、reconciliation-service、worker-scheduler、edge-gateway |
+| gradle | money、domain-events、idempotency、audit、security、observability、wechat-pay、alipay、stripe、paypal、apple-pay、payment-core、webhook-ingress、webhook-delivery、merchant-config、risk-engine、ledger-service、reconciliation-service、worker-scheduler、edge-gateway、mobile-android |
 | node | checkout-web、admin-web |
 
 ## 生成的构建文件

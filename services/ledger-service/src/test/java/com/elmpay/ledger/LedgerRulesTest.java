@@ -13,8 +13,16 @@ class LedgerRulesTest {
  var fx=service.convert(101,new FeeFxSettlementService.FxRate("source","USD","JPY",3,2,Instant.EPOCH,"r1"),FeeFxSettlementService.Rounding.HALF_EVEN);
   assertEquals(152,fx.targetMinor());
  }
+ @Test void settlementRequiresExactTieOut() {
+  var service=new FeeFxSettlementService();
+  var fee=service.quote(10_000,"USD",new FeeFxSettlementService.FeeRule(30,29,1000,1,10,FeeFxSettlementService.Rounding.HALF_EVEN,"v1"));
+  var settlement=service.settlement("tenant-1","batch-1",fee,Instant.EPOCH,"expected");
+  assertEquals(9_648,settlement.expectedBankMinor());
+  assertDoesNotThrow(()->service.assertSettlementsTie(List.of(settlement),9_648,"USD"));
+  assertThrows(IllegalStateException.class,()->service.assertSettlementsTie(List.of(settlement),9_647,"USD"));
+ }
  @Test void migrationUsesCanonicalSchemaAndEnforcesSingleReversalAndRls() throws Exception {
-  try(var input=getClass().getResourceAsStream("/db/migration/V001__immutable_ledger.sql")) {
+  try(var input=getClass().getResourceAsStream("/db/migration/V072__immutable_ledger.sql")) {
    assertNotNull(input); var sql=new String(input.readAllBytes(),StandardCharsets.UTF_8);
    assertTrue(sql.contains("source_kind text")); assertTrue(sql.contains("posted_at timestamptz"));
    assertTrue(sql.contains("ledger_transaction_single_reversal_unique"));
@@ -30,6 +38,12 @@ class LedgerRulesTest {
   var source=(javax.sql.DataSource)java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class<?>[]{javax.sql.DataSource.class},(proxy,method,args)->{throw new AssertionError("database must not be reached");});
   var ledger=new LedgerService(source,Clock.systemUTC());
   assertThrows(IllegalArgumentException.class,()->ledger.reverse(UUID.randomUUID().toString(),UUID.randomUUID().toString(),"reversal-1","reason",Instant.EPOCH));
+ }
+ @Test void callerOwnedTransactionRejectsAutocommit() throws Exception {
+  var source=(javax.sql.DataSource)java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class<?>[]{javax.sql.DataSource.class},(proxy,method,args)->{throw new AssertionError();});
+  var connection=(java.sql.Connection)java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class<?>[]{java.sql.Connection.class},(proxy,method,args)->{if(method.getName().equals("getAutoCommit"))return true;if(method.getReturnType()==boolean.class)return false;if(method.getReturnType()==int.class)return 0;return null;});
+  var request=new LedgerService.PostRequest(UUID.randomUUID().toString(),"payment","p",Instant.EPOCH,"capture",List.of(new LedgerService.EntryDraft(UUID.randomUUID().toString(),LedgerService.Direction.DEBIT,1,"USD"),new LedgerService.EntryDraft(UUID.randomUUID().toString(),LedgerService.Direction.CREDIT,1,"USD")));
+  assertThrows(IllegalArgumentException.class,()->new LedgerService(source,Clock.systemUTC()).post(connection,request));
  }
  @Test void postgresUniqueViolationRollsBackToSavepointBeforeReplayQuery() throws Exception {
   var rolledBack=new java.util.concurrent.atomic.AtomicReference<java.sql.Savepoint>();

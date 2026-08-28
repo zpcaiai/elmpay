@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "abuse-2026-08-28-v1",
+  "layers": {
+    "CDN": {"windowSeconds": 10, "tenant": 50000, "account": 2000, "device": 2000, "ip": 500},
+    "WAF": {"windowSeconds": 30, "tenant": 30000, "account": 1000, "device": 1000, "ip": 300},
+    "API": {"windowSeconds": 60, "tenant": 10000, "account": 300, "device": 300, "ip": 200},
+    "IDENTITY": {"windowSeconds": 300, "tenant": 20000, "account": 10, "device": 30, "ip": 100}
+  },
+  "bot": {"challengeBasisPoints": 6000, "blockBasisPoints": 9000},
+  "risk": {"challengeBasisPoints": 4500, "blockBasisPoints": 8500},
+  "challengeTtlSeconds": 300,
+  "maximumEventAgeSeconds": 600,
+  "externalEdgeDeployment": {
+    "status": "BLOCKED",
+    "requiredEvidence": [
+      "CDN policy export",
+      "WAF policy export",
+      "distributed counter failover test",
+      "credential-leak provider contract result"
+    ]
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "namespace": "elmpay",
+  "dns": {
+    "namespace": "kube-system",
+    "podLabels": {
+      "k8s-app": "kube-dns"
+    }
+  },
+  "destinations": [
+    {
+      "id": "postgres-primary",
+      "category": "DATABASE",
+      "type": "service",
+      "namespace": "elmpay-cn-east-1",
+      "serviceName": "payments-postgres-rw",
+      "podLabels": {
+        "cnpg.io/cluster": "payments-postgres"
+      },
+      "port": 5432,
+      "protocol": "TLS"
+    },
+    {
+      "id": "kafka-events",
+      "category": "KAFKA",
+      "type": "service",
+      "namespace": "elmpay-cn-east-1",
+      "serviceName": "payments-events-kafka-bootstrap",
+      "podLabels": {
+        "strimzi.io/cluster": "payments-events"
+      },
+      "port": 9093,
+      "protocol": "TLS"
+    },
+    {
+      "id": "redis-cache",
+      "category": "REDIS",
+      "type": "service",
+      "namespace": "elmpay-cn-east-1",
+      "serviceName": "payments-cache",
+      "podLabels": {
+        "app.kubernetes.io/name": "payments-cache"
+      },
+      "port": 6379,
+      "protocol": "TCP"
+    },
+    {
+      "id": "kms-broker",
+      "category": "KMS",
+      "type": "service",
+      "namespace": "security",
+      "serviceName": "kms-broker",
+      "podLabels": {
+        "app.kubernetes.io/name": "kms-broker"
+      },
+      "port": 8443,
+      "protocol": "TLS"
+    },
+    {
+      "id": "otel-collector",
+      "category": "OTEL",
+      "type": "service",
+      "namespace": "observability",
+      "serviceName": "otel-collector",
+      "podLabels": {
+        "app.kubernetes.io/name": "otel-collector"
+      },
+      "port": 4317,
+      "protocol": "TLS"
+    },
+    {
+      "id": "wechat-api",
+      "category": "PSP",
+      "type": "fqdn",
+      "host": "api.mch.weixin.qq.com",
+      "port": 443,
+      "protocol": "TLS"
+    },
+    {
+      "id": "alipay-api",
+      "category": "PSP",
+      "type": "fqdn",
+      "host": "openapi.alipay.com",
+      "port": 443,
+      "protocol": "TLS"
+    },
+    {
+      "id": "stripe-api",
+      "category": "PSP",
+      "type": "fqdn",
+      "host": "api.stripe.com",
+      "port": 443,
+      "protocol": "TLS"
+    },
+    {
+      "id": "paypal-api",
+      "category": "PSP",
+      "type": "fqdn",
+      "host": "api-m.paypal.com",
+      "port": 443,
+      "protocol": "TLS"
+    }
+  ],
+  "workloads": {
+    "admin-web": [
+      "otel-collector"
+    ],
+    "checkout-web": [
+      "otel-collector"
+    ],
+    "edge-gateway": [
+      "postgres-primary",
+      "redis-cache",
+      "kms-broker",
+      "otel-collector"
+    ],
+    "ledger-service": [
+      "postgres-primary",
+      "kafka-events",
+      "kms-broker",
+      "otel-collector"
+    ],
+    "merchant-config": [
+      "postgres-primary",
+      "kms-broker",
+      "otel-collector"
+    ],
+    "payment-core": [
+      "postgres-primary",
+      "kafka-events",
+      "redis-cache",
+      "kms-broker",
+      "otel-collector",
+      "wechat-api",
+      "alipay-api",
+      "stripe-api",
+      "paypal-api"
+    ],
+    "reconciliation-service": [
+      "postgres-primary",
+      "kafka-events",
+      "kms-broker",
+      "otel-collector",
+      "wechat-api",
+      "alipay-api",
+      "stripe-api",
+      "paypal-api"
+    ],
+    "risk-engine": [
+      "postgres-primary",
+      "redis-cache",
+      "kms-broker",
+      "otel-collector"
+    ],
+    "webhook-delivery": [
+      "postgres-primary",
+      "kafka-events",
+      "kms-broker",
+      "otel-collector"
+    ],
+    "webhook-ingress": [
+      "postgres-primary",
+      "kafka-events",
+      "kms-broker",
+      "otel-collector",
+      "wechat-api",
+      "alipay-api",
+      "stripe-api",
+      "paypal-api"
+    ],
+    "worker-scheduler": [
+      "postgres-primary",
+      "kafka-events",
+      "redis-cache",
+      "kms-broker",
+      "otel-collector",
+      "wechat-api",
+      "alipay-api",
+      "stripe-api",
+      "paypal-api"
+    ]
+  }
+}

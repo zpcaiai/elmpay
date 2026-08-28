@@ -32,4 +32,42 @@ CREATE POLICY provider_webhook_inbox_tenant_policy ON provider_webhook_inbox
     USING (tenant_id = current_setting('app.tenant_id', true))
     WITH CHECK (tenant_id = current_setting('app.tenant_id', true));
 
--- Rollback: DROP TABLE provider_webhook_inbox;
+CREATE TABLE webhook_ingress_endpoint (
+    endpoint_id VARCHAR(64) PRIMARY KEY,
+    token_digest CHAR(64) NOT NULL UNIQUE CHECK (token_digest ~ '^[0-9a-f]{64}$'),
+    tenant_id VARCHAR(64) NOT NULL,
+    project_id VARCHAR(64) NOT NULL,
+    provider VARCHAR(32) NOT NULL,
+    merchant_account_id VARCHAR(64) NOT NULL,
+    status VARCHAR(16) NOT NULL CHECK (status IN ('ACTIVE','PAUSED','REVOKED')),
+    created_at TIMESTAMPTZ NOT NULL,
+    rotated_at TIMESTAMPTZ,
+    CHECK (provider ~ '^[a-z][a-z0-9-]{1,31}$')
+);
+
+ALTER TABLE webhook_ingress_endpoint ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webhook_ingress_endpoint FORCE ROW LEVEL SECURITY;
+CREATE POLICY webhook_ingress_endpoint_tenant_policy ON webhook_ingress_endpoint
+    USING (tenant_id = current_setting('app.tenant_id', true))
+    WITH CHECK (tenant_id = current_setting('app.tenant_id', true));
+
+CREATE OR REPLACE FUNCTION elmpay_resolve_webhook_ingress_endpoint(request_token_digest text)
+RETURNS TABLE (tenant_id VARCHAR(64), project_id VARCHAR(64), provider VARCHAR(32),
+               merchant_account_id VARCHAR(64))
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, public
+SET row_security = off
+AS $elmpay$
+    SELECT endpoint.tenant_id, endpoint.project_id, endpoint.provider,
+           endpoint.merchant_account_id
+      FROM public.webhook_ingress_endpoint endpoint
+     WHERE endpoint.token_digest = request_token_digest
+       AND endpoint.status = 'ACTIVE'
+     LIMIT 2
+$elmpay$;
+
+REVOKE ALL ON webhook_ingress_endpoint FROM PUBLIC;
+REVOKE ALL ON FUNCTION elmpay_resolve_webhook_ingress_endpoint(text) FROM PUBLIC;
+
+-- Rollback: drop resolver, endpoint registry, then provider_webhook_inbox.

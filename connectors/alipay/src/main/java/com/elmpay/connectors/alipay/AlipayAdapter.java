@@ -32,10 +32,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
 /** Certificate-mode Alipay adapter using the public RSA2 protocol and JCA. */
-public final class AlipayAdapter {
+public final class AlipayAdapter implements AutoCloseable {
     private static final int MAX_BODY_BYTES = 1_048_576;
     private static final Pattern ORDER_ID = Pattern.compile("[A-Za-z0-9_-]{6,64}");
     private static final Pattern IDEMPOTENCY_KEY = Pattern.compile("[A-Za-z0-9._:-]{16,128}");
@@ -192,6 +193,7 @@ public final class AlipayAdapter {
     private final Config config;
     private final Transport transport;
     private final AtomicReference<List<VerificationKey>> verificationKeys;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     public AlipayAdapter(Config config, Transport transport) {
         this.config = Objects.requireNonNull(config, "config");
@@ -201,6 +203,7 @@ public final class AlipayAdapter {
 
     /** Enforces an overlapping certificate window so delayed notifications remain verifiable. */
     public void rotateVerificationKeys(List<VerificationKey> replacement) {
+        ensureOpen();
         List<VerificationKey> safe = List.copyOf(replacement);
         if (safe.isEmpty()) {
             throw new IllegalArgumentException("replacement key set is empty");
@@ -214,6 +217,7 @@ public final class AlipayAdapter {
     }
 
     public OperationResult createOrder(PaymentRequest request, URI approvedReturnUri) {
+        ensureOpen();
         Objects.requireNonNull(request, "request");
         if (approvedReturnUri != null) {
             validateReturnUri(approvedReturnUri);
@@ -240,6 +244,7 @@ public final class AlipayAdapter {
     }
 
     public OperationResult query(String outTradeNo, String idempotencyKey) {
+        ensureOpen();
         requireOrderId(outTradeNo, "outTradeNo");
         requireIdempotency(idempotencyKey);
         OperationResult result = execute("alipay.trade.query",
@@ -260,6 +265,7 @@ public final class AlipayAdapter {
     }
 
     public OperationResult close(String outTradeNo, String idempotencyKey) {
+        ensureOpen();
         requireOrderId(outTradeNo, "outTradeNo");
         requireIdempotency(idempotencyKey);
         return execute("alipay.trade.close", "{\"out_trade_no\":\"" + json(outTradeNo) + "\"}",
@@ -268,6 +274,7 @@ public final class AlipayAdapter {
 
     public OperationResult refund(String outTradeNo, String refundRequestNo, long amountMinor,
             String idempotencyKey) {
+        ensureOpen();
         requireOrderId(outTradeNo, "outTradeNo");
         requireOrderId(refundRequestNo, "refundRequestNo");
         positiveAmount(amountMinor);
@@ -279,6 +286,7 @@ public final class AlipayAdapter {
 
     public OperationResult queryRefund(String outTradeNo, String refundRequestNo,
             String idempotencyKey) {
+        ensureOpen();
         requireOrderId(outTradeNo, "outTradeNo");
         requireOrderId(refundRequestNo, "refundRequestNo");
         requireIdempotency(idempotencyKey);
@@ -288,6 +296,7 @@ public final class AlipayAdapter {
     }
 
     public OperationResult requestBill(String billType, String billDate, String idempotencyKey) {
+        ensureOpen();
         requireText(billType, "billType");
         requireText(billDate, "billDate");
         requireIdempotency(idempotencyKey);
@@ -297,6 +306,7 @@ public final class AlipayAdapter {
     }
 
     public VerifiedNotify verifyNotify(byte[] rawFormBody, Instant receivedAt, ExpectedNotify expected) {
+        ensureOpen();
         Objects.requireNonNull(rawFormBody, "rawFormBody");
         Objects.requireNonNull(receivedAt, "receivedAt");
         Objects.requireNonNull(expected, "expected");
@@ -343,6 +353,19 @@ public final class AlipayAdapter {
                 + status + "\",\"amount_minor\":" + amount + ",\"currency\":\"CNY\"}";
         return new VerifiedNotify(eventId, tradeNo, outTradeNo, status, amount, "CNY", serial,
                 safe.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Override
+    public void close() {
+        if (closed.compareAndSet(false, true)) {
+            verificationKeys.set(List.of());
+        }
+    }
+
+    private void ensureOpen() {
+        if (closed.get()) {
+            throw new IllegalStateException("Alipay credential runtime is closed");
+        }
     }
 
     private OperationResult execute(String method, String bizContent, String idempotencyKey,

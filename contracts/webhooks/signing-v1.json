@@ -1,0 +1,9 @@
+{
+  "algorithm": "HMAC-SHA256",
+  "encoding": "base64url-unpadded",
+  "input_format": "<unix_seconds>.<raw_body_bytes>",
+  "timestamp": 1787702400,
+  "secret_base64url": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc",
+  "raw_body_utf8": "{\"event\":\"payment.succeeded\",\"amount\":1250}",
+  "signature_header": "t=1787702400,v1=NgtUFKuSvOfNdb2InZjDTBS3axZlxKNnw1QLrb3elDw"
+}

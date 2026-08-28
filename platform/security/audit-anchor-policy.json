@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "batch": "B23",
+  "algorithm": "Ed25519",
+  "transport": {
+    "scheme": "https",
+    "mutualTlsRequired": true,
+    "redirectsAllowed": false,
+    "requestTimeoutSeconds": 5
+  },
+  "worker": {
+    "leaseSeconds": 30,
+    "retrySeconds": 60,
+    "maximumReceiptClockSkewSeconds": 300,
+    "fencingRequired": true
+  },
+  "receipt": {
+    "exactTenantSequenceAndChainHashBinding": true,
+    "immutable": true,
+    "signatureVerificationRequiredBeforePersistence": true
+  },
+  "externalTimestampAuthorityStatus": "BLOCKED",
+  "certificationStatus": "NOT_CERTIFIED"
+}

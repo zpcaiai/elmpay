@@ -125,6 +125,16 @@ final class ElmPayClient {
         idempotencyKey ?? _opaqueId(Random.secure()));
   }
 
+  Future<void> launchPaymentMethod(String method, Uri launchUri,
+      PaymentMethodLauncher launcher) {
+    const schemes = {'https', 'weixin', 'alipay', 'paypal'};
+    if (!_methodPattern.hasMatch(method) || !schemes.contains(launchUri.scheme) ||
+        launchUri.userInfo.isNotEmpty || launchUri.fragment.isNotEmpty) {
+      throw StateError('untrusted provider launch URI');
+    }
+    return launcher.launch(method, launchUri);
+  }
+
   String validateDeepLink(Uri uri, String expectedScheme, String expectedHost,
       String expectedState) {
     final state = uri.queryParameters['state'] ?? '';
@@ -147,6 +157,7 @@ final class ElmPayClient {
           'authorization': 'Bearer $bearerToken',
           'accept': 'application/json',
           'x-project-id': projectId,
+          'x-elmpay-device-class': 'FLUTTER',
           if (body != null) 'content-type': 'application/json',
           if (idempotencyKey != null) 'idempotency-key': idempotencyKey,
           ...extraHeaders,
@@ -191,3 +202,4 @@ final class ElmPayClient {
 final _uuidPattern = RegExp(
     r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
     caseSensitive: false);
+final _methodPattern = RegExp(r'^[a-z0-9][a-z0-9._-]{0,63}$');

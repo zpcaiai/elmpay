@@ -69,6 +69,24 @@
       "method": "POST",
       "path": "/v1/payment_intents/{payment_intent_id}/capture"
     },
+    "close_payment_intent": {
+      "errors": [
+        "internal_error",
+        "invalid_request",
+        "permission_denied",
+        "provider_timeout",
+        "provider_unavailable",
+        "rate_limited",
+        "resource_not_found",
+        "state_transition_not_allowed",
+        "unauthenticated"
+      ],
+      "idempotency": {
+        "required": true
+      },
+      "method": "POST",
+      "path": "/v1/payment_intents/{payment_intent_id}/close"
+    },
     "create_payment_intent": {
       "errors": [
         "amount_below_minimum",

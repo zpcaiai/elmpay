@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "serviceName": "elmpay-service-runtime",
+  "serviceVersion": "1.0.0",
+  "environment": "PRODUCTION",
+  "export": {
+    "mode": "OTLP_HTTP",
+    "endpointEnv": "ELMPAY_OTLP_HTTP_ENDPOINT",
+    "bearerTokenEnv": "ELMPAY_OTLP_BEARER_TOKEN",
+    "caFileEnv": "ELMPAY_OTLP_CA_FILE",
+    "timeoutSeconds": 5,
+    "maximumAttempts": 3,
+    "allowInsecureLoopback": false,
+    "maximumBatchRecords": 100,
+    "leaseSeconds": 30
+  },
+  "externalCollectorDeploymentStatus": "BLOCKED",
+  "localRuntimeMayClaimCollectorDelivery": false
+}

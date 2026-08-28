@@ -4,7 +4,7 @@
 
 # 需求基线（B01）
 
-共 53 条需求，17 个类别。
+共 54 条需求，17 个类别。
 每条需求都绑定至少一个控制与至少一个验证批次；未绑定的需求会使治理门禁失败。
 
 ## admin
@@ -43,6 +43,7 @@
 | PAY-REQ-0005 | 支付事实签名投递 | MUST | webhook-delivery | NN-03 CTRL-002 | B38 B114 |
 | PAY-REQ-0006 | 回调地址白名单 | MUST | webhook-delivery | NN-10 | B38 B56 B58 |
 | PAY-REQ-0007 | 事件目录与版本化 | MUST | domain-events | NN-04 | B12 B91 |
+| PAY-REQ-0054 | 移动 SDK 安全支付契约 | MUST | mobile-android | NN-03 NN-04 NN-10 | B60 |
 
 ## ledger
 
@@ -570,3 +571,11 @@
 - 验收：未签名或无 SBOM 的制品无法通过发布门禁。
 - 控制：CTRL-011, CTRL-018
 - 验证批次：B05（持续集成与质量基线）, B109（安全 SDLC、SBOM、SLSA 与制品签名）, B124（分阶段发布、灰度与回滚）
+
+### PAY-REQ-0054 移动 SDK 安全支付契约
+
+- 类别：integration　优先级：MUST　责任模块：`mobile-android`
+- 陈述：移动 SDK 必须使用稳定幂等键调用规范支付 API，只传递不透明支付引用，并拒绝伪造深链成功状态。
+- 验收：Android 契约测试证明重试复用同一幂等键，深链不能声明支付成功且日志不泄露敏感字段。
+- 控制：NN-03, NN-04, NN-10
+- 验证批次：B60（iOS、Android 与 Flutter SDK）

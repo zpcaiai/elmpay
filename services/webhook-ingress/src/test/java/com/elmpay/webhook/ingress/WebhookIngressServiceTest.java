@@ -3,12 +3,22 @@ package com.elmpay.webhook.ingress;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.sun.net.httpserver.HttpServer;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 final class WebhookIngressServiceTest {
@@ -82,6 +92,80 @@ final class WebhookIngressServiceTest {
         assertThrows(SecurityException.class, () -> service.ingest(context(), Map.of(),
                 "{\"card_number\":\"4242424242424242\"}".getBytes(StandardCharsets.UTF_8)));
         assertEquals(0, verifierCalls.get());
+    }
+
+    @Test
+    void publicEndpointTokenResolvesServerOwnedTenantBeforeProviderVerification() {
+        AtomicReference<WebhookIngressService.Context> storedContext = new AtomicReference<>();
+        AtomicReference<String> verifiedMerchant = new AtomicReference<>();
+        WebhookIngressService service = new WebhookIngressService(Map.of("stripe",
+                (merchant, headers, body, receivedAt) -> {
+                    verifiedMerchant.set(merchant);
+                    return event("evt-bound", receivedAt);
+                }), (context, event, body, digest) -> {
+                    storedContext.set(context);
+                    return true;
+                });
+        WebhookIngressRuntime runtime = new WebhookIngressRuntime(token -> Optional.of(
+                new WebhookIngressRuntime.EndpointBinding("tenant-owned", "project-owned",
+                        "stripe", "merchant-owned")), service);
+
+        runtime.ingest("a".repeat(32), Map.of("x-tenant-id", "tenant-attacker"),
+                "{\"safe\":true}".getBytes(StandardCharsets.UTF_8), NOW);
+
+        assertEquals("merchant-owned", verifiedMerchant.get());
+        assertEquals("tenant-owned", storedContext.get().tenantId());
+        assertEquals("project-owned", storedContext.get().projectId());
+    }
+
+    @Test
+    void unknownPublicEndpointCannotReachVerifierOrInbox() {
+        AtomicInteger calls = new AtomicInteger();
+        WebhookIngressService service = new WebhookIngressService(Map.of("stripe",
+                (merchant, headers, body, receivedAt) -> {
+                    calls.incrementAndGet();
+                    return event("evt", receivedAt);
+                }), (context, event, body, digest) -> {
+                    calls.incrementAndGet();
+                    return true;
+                });
+        WebhookIngressRuntime runtime = new WebhookIngressRuntime(token -> Optional.empty(), service);
+        assertThrows(SecurityException.class, () -> runtime.ingest("a".repeat(32), Map.of(),
+                "{}".getBytes(StandardCharsets.UTF_8), NOW));
+        assertEquals(0, calls.get());
+    }
+
+    @Test
+    void canonicalHttpRouteIsReachableAndUsesOnlyServerOwnedScope() throws Exception {
+        AtomicReference<WebhookIngressService.Context> stored = new AtomicReference<>();
+        WebhookIngressService service = new WebhookIngressService(Map.of("stripe",
+                (merchant, headers, body, receivedAt) -> event("evt-http", receivedAt)),
+                (context, event, body, digest) -> {
+                    stored.set(context);
+                    return true;
+                });
+        WebhookIngressRuntime runtime = new WebhookIngressRuntime(token -> Optional.of(
+                new WebhookIngressRuntime.EndpointBinding("tenant-owned", "project-owned",
+                        "stripe", "merchant-owned")), service);
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext(WebhookIngressHttpHandler.PATH_PREFIX,
+                new WebhookIngressHttpHandler(runtime, Clock.fixed(NOW, ZoneOffset.UTC)));
+        server.start();
+        try {
+            URI endpoint = URI.create("http://127.0.0.1:" + server.getAddress().getPort()
+                    + WebhookIngressHttpHandler.PATH_PREFIX + "a".repeat(32));
+            HttpRequest request = HttpRequest.newBuilder(endpoint)
+                    .header("X-Tenant-Id", "tenant-attacker")
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"safe\":true}"))
+                    .build();
+            HttpResponse<Void> response = HttpClient.newHttpClient().send(request,
+                    HttpResponse.BodyHandlers.discarding());
+            assertEquals(202, response.statusCode());
+            assertEquals("tenant-owned", stored.get().tenantId());
+            assertEquals("project-owned", stored.get().projectId());
+        } finally {
+            server.stop(0);
+        }
     }
 
     private static WebhookIngressService.Context context() {

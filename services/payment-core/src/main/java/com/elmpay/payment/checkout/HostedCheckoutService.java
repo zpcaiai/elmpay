@@ -63,10 +63,12 @@ public final class HostedCheckoutService {
     public record View(String checkoutSessionId, String paymentIntentId, String businessOrderNo,
             long amount, String currency, String returnRouteId, Instant expiresAt, String status,
             String displayAmount, String locale, String direction, List<MethodView> methods,
-            Map<String, String> nextAction) {
+            Map<String, String> nextAction, String catalogVersion,
+            Map<String, String> messages) {
         public View {
             methods = List.copyOf(methods);
             nextAction = Map.copyOf(nextAction);
+            messages = Map.copyOf(messages);
         }
     }
 
@@ -102,12 +104,25 @@ public final class HostedCheckoutService {
     private final boolean allowSyntheticPaymentReference;
     private final Clock clock;
     private final CheckoutLocalization localization;
+    private final CheckoutCapabilitySource capabilitySource;
 
     public HostedCheckoutService(PaymentService payments, CheckoutSessionRepository repository,
             CheckoutTokenSigner signer,
             Map<String, URI> returnRoutes, String defaultReturnRouteId,
             Set<String> allowedMethods, URI publicBaseUri, Duration sessionTtl, String region,
             boolean allowSyntheticPaymentReference, Clock clock) {
+        this(payments, repository, signer, returnRoutes, defaultReturnRouteId, allowedMethods,
+                publicBaseUri, sessionTtl, region, allowSyntheticPaymentReference, clock,
+                new ConfiguredCheckoutCapabilitySource(allowedMethods),
+                CheckoutLocalization.defaultCatalog());
+    }
+
+    public HostedCheckoutService(PaymentService payments, CheckoutSessionRepository repository,
+            CheckoutTokenSigner signer, Map<String, URI> returnRoutes,
+            String defaultReturnRouteId, Set<String> allowedMethods, URI publicBaseUri,
+            Duration sessionTtl, String region, boolean allowSyntheticPaymentReference,
+            Clock clock, CheckoutCapabilitySource capabilitySource,
+            CheckoutLocalization localization) {
         this.payments = Objects.requireNonNull(payments, "payments");
         this.repository = Objects.requireNonNull(repository, "repository");
         this.signer = Objects.requireNonNull(signer, "signer");
@@ -142,12 +157,8 @@ public final class HostedCheckoutService {
         this.region = region.toUpperCase(Locale.ROOT);
         this.allowSyntheticPaymentReference = allowSyntheticPaymentReference;
         this.clock = Objects.requireNonNull(clock, "clock");
-        this.localization = new CheckoutLocalization("checkout-catalog-2026-08",
-                Map.of("en", Map.of("unused", "unused")),
-                Map.ofEntries(Map.entry("AUD", 2), Map.entry("CAD", 2),
-                        Map.entry("CHF", 2), Map.entry("CNY", 2), Map.entry("EUR", 2),
-                        Map.entry("GBP", 2), Map.entry("HKD", 2), Map.entry("JPY", 0),
-                        Map.entry("KRW", 0), Map.entry("SGD", 2), Map.entry("USD", 2)));
+        this.capabilitySource = Objects.requireNonNull(capabilitySource, "capabilitySource");
+        this.localization = Objects.requireNonNull(localization, "localization");
     }
 
     /** Creates one immutable payment intent and one signed session per request key. */
@@ -191,33 +202,64 @@ public final class HostedCheckoutService {
     }
 
     public View getForPrincipal(UUID tenantId, UUID projectId, String sessionId) {
+        return getForPrincipal(tenantId, projectId, sessionId, Locale.ENGLISH, "WEB");
+    }
+
+    public View getForPrincipal(UUID tenantId, UUID projectId, String sessionId, Locale locale,
+            String deviceClass) {
         CheckoutSessionRepository.Record session = requirePrincipalSession(tenantId, projectId,
                 sessionId);
-        return view(session);
+        return view(session, locale, deviceClass);
     }
 
     public View getForBrowser(String sessionId, String accessToken) {
-        return view(requireBrowserSession(sessionId, accessToken));
+        return getForBrowser(sessionId, accessToken, Locale.ENGLISH, "WEB");
+    }
+
+    public View getForBrowser(String sessionId, String accessToken, Locale locale,
+            String deviceClass) {
+        return view(requireBrowserSession(sessionId, accessToken), locale, deviceClass);
     }
 
     public View confirmForPrincipal(UUID tenantId, UUID projectId, String sessionId,
             ConfirmCommand command) {
-        return confirm(requirePrincipalSession(tenantId, projectId, sessionId), command);
+        return confirmForPrincipal(tenantId, projectId, sessionId, command, Locale.ENGLISH,
+                "WEB");
+    }
+
+    public View confirmForPrincipal(UUID tenantId, UUID projectId, String sessionId,
+            ConfirmCommand command, Locale locale, String deviceClass) {
+        return confirm(requirePrincipalSession(tenantId, projectId, sessionId), command, locale,
+                deviceClass);
     }
 
     public View confirmForBrowser(String sessionId, String accessToken, ConfirmCommand command) {
-        return confirm(requireBrowserSession(sessionId, accessToken), command);
+        return confirmForBrowser(sessionId, accessToken, command, Locale.ENGLISH, "WEB");
     }
 
-    private View confirm(CheckoutSessionRepository.Record session, ConfirmCommand command) {
+    public View confirmForBrowser(String sessionId, String accessToken, ConfirmCommand command,
+            Locale locale, String deviceClass) {
+        return confirm(requireBrowserSession(sessionId, accessToken), command, locale,
+                deviceClass);
+    }
+
+    private View confirm(CheckoutSessionRepository.Record session, ConfirmCommand command,
+            Locale locale, String deviceClass) {
         Objects.requireNonNull(command, "command");
         String method = normalizeMethod(command.method());
         if (!session.allowedMethods().contains(method)) {
             throw new IllegalArgumentException("payment method is outside the signed session");
         }
-        if (!"OPEN".equals(status(session, payments.get(session.tenantId(),
-                session.paymentIntentId())))) {
+        PaymentIntent intent = payments.get(session.tenantId(), session.paymentIntentId());
+        if (!"OPEN".equals(status(session, intent))) {
             throw new IllegalArgumentException("checkout session is not open");
+        }
+        CapabilityResolver.Decision selected = methodDecisions(session, intent, deviceClass)
+                .stream().filter(decision -> decision.method().equals(method)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "payment method capability is unknown"));
+        if (!selected.eligible()) {
+            throw new IllegalArgumentException("payment method is currently unavailable");
         }
         String reference = command.paymentMethodReference();
         if (reference == null) {
@@ -236,27 +278,62 @@ public final class HostedCheckoutService {
                 session.paymentIntentId(), PaymentMethodReference.parse(method, reference,
                         fingerprint), command.idempotencyKey(), command.correlationId(),
                 session.returnRouteId(), command.providerParameters()));
-        return view(session, result.clientAction());
+        return view(session, result.clientAction(), locale, deviceClass);
     }
 
     private View view(CheckoutSessionRepository.Record session) {
-        return view(session, Map.of());
+        return view(session, Locale.ENGLISH, "WEB");
+    }
+
+    private View view(CheckoutSessionRepository.Record session, Locale locale,
+            String deviceClass) {
+        return view(session, Map.of(), locale, deviceClass);
     }
 
     private View view(CheckoutSessionRepository.Record session,
-            Map<String, String> nextAction) {
+            Map<String, String> nextAction, Locale requestedLocale, String deviceClass) {
+        Locale locale = requestedLocale == null ? Locale.ENGLISH : requestedLocale;
         PaymentIntent intent = payments.get(session.tenantId(), session.paymentIntentId());
         String status = status(session, intent);
         List<MethodView> methods = new ArrayList<>();
-        session.allowedMethods().stream().sorted(Comparator.naturalOrder()).forEach(method ->
-                methods.add(new MethodView(method, label(method), "OPEN".equals(status),
-                        "OPEN".equals(status) ? "" : "SESSION_NOT_OPEN")));
+        methodDecisions(session, intent, deviceClass).stream()
+                .sorted(Comparator.comparing((CapabilityResolver.Decision decision) ->
+                        !decision.eligible()).thenComparing(CapabilityResolver.Decision::method))
+                .forEach(decision -> {
+                    boolean eligible = "OPEN".equals(status) && decision.eligible();
+                    String reason = !"OPEN".equals(status) ? "SESSION_NOT_OPEN"
+                            : String.join(",", decision.reasons());
+                    methods.add(new MethodView(decision.method(),
+                            localization.methodLabel(locale, decision.method()), eligible,
+                            reason));
+                });
         return new View(session.sessionId(), intent.id().toString(), intent.externalReference(),
                 intent.amount().amountMinor(), intent.amount().currency().code(),
                 session.returnRouteId(), session.expiresAt(), status,
                 localization.formatMoney(intent.amount().amountMinor(),
-                        intent.amount().currency().code(), Locale.US),
-                "en", "ltr", methods, nextAction);
+                        intent.amount().currency().code(), locale),
+                localization.localeTag(locale), localization.direction(locale), methods,
+                nextAction, localization.catalogVersion(),
+                localization.browserMessages(locale, status));
+    }
+
+    private List<CapabilityResolver.Decision> methodDecisions(
+            CheckoutSessionRepository.Record session, PaymentIntent intent, String deviceClass) {
+        List<CapabilityResolver.Decision> resolved = capabilitySource.resolve(
+                new CheckoutCapabilitySource.Request(session.tenantId(), session.projectId(),
+                        session.merchantId(), session.allowedMethods(), intent.amount().amountMinor(),
+                        intent.amount().currency().code(), intent.region(),
+                        normalizeDeviceClass(deviceClass), clock.instant()));
+        Map<String, CapabilityResolver.Decision> byMethod = new java.util.LinkedHashMap<>();
+        resolved.forEach(decision -> {
+            if (!session.allowedMethods().contains(decision.method())
+                    || byMethod.putIfAbsent(decision.method(), decision) != null) {
+                throw new IllegalStateException("capability source returned an invalid decision");
+            }
+        });
+        session.allowedMethods().forEach(method -> byMethod.putIfAbsent(method,
+                new CapabilityResolver.Decision(method, false, List.of("CAPABILITY_UNKNOWN"))));
+        return List.copyOf(byMethod.values());
     }
 
     private CheckoutSessionRepository.Record requirePrincipalSession(UUID tenantId, UUID projectId,
@@ -347,15 +424,12 @@ public final class HostedCheckoutService {
         return value;
     }
 
-    private static String label(String method) {
-        return switch (method) {
-            case "card", "stripe_card" -> "Card";
-            case "paypal" -> "PayPal";
-            case "apple_pay" -> "Apple Pay";
-            case "wechat_jsapi", "wechat_native", "wechat_h5", "wechat_app" -> "WeChat Pay";
-            case "alipay_web", "alipay_wap", "alipay_app", "alipay_qr" -> "Alipay";
-            default -> method;
-        };
+    private static String normalizeDeviceClass(String value) {
+        String normalized = value == null ? "WEB" : value.toUpperCase(Locale.ROOT);
+        if (!Set.of("WEB", "IOS", "ANDROID", "FLUTTER").contains(normalized)) {
+            throw new IllegalArgumentException("checkout device class is invalid");
+        }
+        return normalized;
     }
 
     private static String encode(String value) {

@@ -3,6 +3,26 @@
   "namespace": "elmpay",
   "services": [
     {
+      "name": "edge-gateway",
+      "port": 8080,
+      "replicas": 3,
+      "serviceAccount": "edge-gateway",
+      "cpuRequest": "250m",
+      "cpuLimit": "1",
+      "memoryRequest": "256Mi",
+      "memoryLimit": "512Mi"
+    },
+    {
+      "name": "payment-core",
+      "port": 8080,
+      "replicas": 3,
+      "serviceAccount": "payment-core",
+      "cpuRequest": "500m",
+      "cpuLimit": "2",
+      "memoryRequest": "512Mi",
+      "memoryLimit": "1Gi"
+    },
+    {
       "name": "risk-engine",
       "port": 8080,
       "replicas": 3,
@@ -13,6 +33,56 @@
       "memoryLimit": "512Mi"
     },
     {
+      "name": "merchant-config",
+      "port": 8080,
+      "replicas": 3,
+      "serviceAccount": "merchant-config",
+      "cpuRequest": "200m",
+      "cpuLimit": "750m",
+      "memoryRequest": "256Mi",
+      "memoryLimit": "512Mi"
+    },
+    {
+      "name": "webhook-ingress",
+      "port": 8080,
+      "replicas": 3,
+      "serviceAccount": "webhook-ingress",
+      "cpuRequest": "250m",
+      "cpuLimit": "1",
+      "memoryRequest": "256Mi",
+      "memoryLimit": "512Mi"
+    },
+    {
+      "name": "webhook-delivery",
+      "port": 8080,
+      "replicas": 3,
+      "serviceAccount": "webhook-delivery",
+      "cpuRequest": "250m",
+      "cpuLimit": "1",
+      "memoryRequest": "256Mi",
+      "memoryLimit": "512Mi"
+    },
+    {
+      "name": "ledger-service",
+      "port": 8080,
+      "replicas": 3,
+      "serviceAccount": "ledger-service",
+      "cpuRequest": "500m",
+      "cpuLimit": "2",
+      "memoryRequest": "512Mi",
+      "memoryLimit": "1Gi"
+    },
+    {
+      "name": "reconciliation-service",
+      "port": 8080,
+      "replicas": 3,
+      "serviceAccount": "reconciliation-service",
+      "cpuRequest": "300m",
+      "cpuLimit": "1",
+      "memoryRequest": "384Mi",
+      "memoryLimit": "768Mi"
+    },
+    {
       "name": "worker-scheduler",
       "port": 8080,
       "replicas": 3,
@@ -21,6 +91,26 @@
       "cpuLimit": "750m",
       "memoryRequest": "256Mi",
       "memoryLimit": "512Mi"
+    },
+    {
+      "name": "checkout-web",
+      "port": 8080,
+      "replicas": 3,
+      "serviceAccount": "checkout-web",
+      "cpuRequest": "150m",
+      "cpuLimit": "500m",
+      "memoryRequest": "128Mi",
+      "memoryLimit": "256Mi"
+    },
+    {
+      "name": "admin-web",
+      "port": 8080,
+      "replicas": 3,
+      "serviceAccount": "admin-web",
+      "cpuRequest": "150m",
+      "cpuLimit": "500m",
+      "memoryRequest": "128Mi",
+      "memoryLimit": "256Mi"
     }
   ],
   "requiredImageFormat": "^.+@sha256:[0-9a-f]{64}$",

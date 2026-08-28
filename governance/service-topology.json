@@ -249,6 +249,7 @@
       "publishes": [
         "payment_intent.authorized",
         "payment_intent.captured",
+        "payment_intent.capture_closed",
         "payment_intent.failed",
         "payment_intent.canceled",
         "payment_intent.voided",
@@ -444,6 +445,7 @@
       "consumes": [
         "payment_intent.authorized",
         "payment_intent.captured",
+        "payment_intent.capture_closed",
         "payment_intent.failed",
         "payment_intent.canceled",
         "payment_intent.voided",
@@ -474,6 +476,7 @@
       "consumes": [
         "payment_intent.authorized",
         "payment_intent.captured",
+        "payment_intent.capture_closed",
         "payment_intent.voided",
         "payment_attempt.succeeded",
         "payment_attempt.resolved",
@@ -527,6 +530,7 @@
       ],
       "consumes": [
         "payment_intent.captured",
+        "payment_intent.capture_closed",
         "refund.succeeded",
         "payment_attempt.unresolved",
         "payment_attempt.succeeded"

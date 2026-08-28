@@ -1,8 +1,11 @@
 package com.elmpay.gateway;
 
 import com.elmpay.payment.PaymentService;
+import com.elmpay.payment.checkout.CheckoutCapabilitySource;
+import com.elmpay.payment.checkout.CheckoutLocalization;
 import com.elmpay.payment.checkout.CheckoutSessionRepository;
 import com.elmpay.payment.checkout.CheckoutTokenSigner;
+import com.elmpay.payment.checkout.ConfiguredCheckoutCapabilitySource;
 import com.elmpay.payment.checkout.HostedCheckoutService;
 import com.elmpay.payment.checkout.InMemoryCheckoutSessionRepository;
 import java.net.URI;
@@ -42,7 +45,8 @@ public final class CheckoutRuntimeFactory {
                 "http://127.0.0.1:8081/"));
         return service(payments, Map.of("local-v1", key), "local-v1", routes,
                 "checkout-complete", Set.of("card"), publicBase, Duration.ofMinutes(10), "US",
-                new InMemoryCheckoutSessionRepository());
+                new InMemoryCheckoutSessionRepository(),
+                new ConfiguredCheckoutCapabilitySource(Set.of("card")));
     }
 
     private static HostedCheckoutService production(PaymentService payments,
@@ -77,24 +81,27 @@ public final class CheckoutRuntimeFactory {
         return service(payments, Map.of(keyId, key), keyId, routes, defaultRoute, methods,
                 publicBase, Duration.ofSeconds(ttlSeconds),
                 required(environment, "ELMPAY_CHECKOUT_REGION"), false,
-                new JdbcCheckoutSessionRepository(dataSource));
+                new JdbcCheckoutSessionRepository(dataSource),
+                new JdbcCheckoutCapabilitySource(dataSource));
     }
 
     private static HostedCheckoutService service(PaymentService payments, Map<String, byte[]> keys,
             String activeKeyId, Map<String, URI> routes, String defaultRoute, Set<String> methods,
-            URI publicBase, Duration ttl, String region, CheckoutSessionRepository repository) {
+            URI publicBase, Duration ttl, String region, CheckoutSessionRepository repository,
+            CheckoutCapabilitySource capabilitySource) {
         return service(payments, keys, activeKeyId, routes, defaultRoute, methods, publicBase, ttl,
-                region, true, repository);
+                region, true, repository, capabilitySource);
     }
 
     private static HostedCheckoutService service(PaymentService payments, Map<String, byte[]> keys,
             String activeKeyId, Map<String, URI> routes, String defaultRoute, Set<String> methods,
             URI publicBase, Duration ttl, String region, boolean allowSyntheticPaymentReference,
-            CheckoutSessionRepository repository) {
+            CheckoutSessionRepository repository, CheckoutCapabilitySource capabilitySource) {
         Clock clock = Clock.systemUTC();
         return new HostedCheckoutService(payments, repository,
                 new CheckoutTokenSigner(keys, activeKeyId), routes, defaultRoute, methods,
-                publicBase, ttl, region, allowSyntheticPaymentReference, clock);
+                publicBase, ttl, region, allowSyntheticPaymentReference, clock,
+                capabilitySource, CheckoutLocalization.defaultCatalog());
     }
 
     private static Map<String, URI> parseRoutes(String configuration) {

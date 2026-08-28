@@ -108,6 +108,10 @@ def build_gradle(root: Path, budget: Budget | None = None) -> str:
     dependency_check = dependency_check_entry["version"]
     nvd_datafeed = dependency_check_entry["datafeed_policy"]["url_template"]
     cyclonedx = entries["cyclonedx-gradle"]["version"]
+    jacoco = entries["jacoco"]["version"]
+    pitest_gradle = entries["pitest-gradle"]["version"]
+    pitest = entries["pitest"]["version"]
+    pitest_junit5 = entries["pitest-junit5"]["version"]
     java_projects = [":" + paths[name].replace("/", ":")
                      for name in doc["modules_by_build_system"]["gradle"]]
     java_names = set(doc["modules_by_build_system"]["gradle"])
@@ -128,14 +132,20 @@ def build_gradle(root: Path, budget: Budget | None = None) -> str:
             f'    (":" + "{project.removeprefix(":")}") to listOf({quoted_deps}),'
         )
     dependency_literals = "\n".join(dependency_lines)
-    return BANNER_SLASH + f"""import org.gradle.api.artifacts.VersionCatalogsExtension
+    return BANNER_SLASH + f"""import info.solidsoft.gradle.pitest.PitestPluginExtension
+import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.JavaApplication
+import org.gradle.testing.jacoco.plugins.JacocoPluginExtension
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {{
     base
+    jacoco
     id("org.owasp.dependencycheck") version "{dependency_check}"
     id("org.cyclonedx.bom") version "{cyclonedx}"
+    id("info.solidsoft.pitest") version "{pitest_gradle}" apply false
 }}
 
 // Only declared leaf modules produce release JARs. Root and namespace parent
@@ -161,6 +171,8 @@ val governedLibraries = extensions.getByType<VersionCatalogsExtension>().named("
 subprojects {{
     if (path !in javaModulePaths) return@subprojects
     apply(plugin = "java-library")
+    apply(plugin = "jacoco")
+    apply(plugin = "info.solidsoft.pitest")
 
     extensions.configure<JavaPluginExtension> {{
         // CI runs the exact governed JDK. A newer local compiler may still
@@ -168,6 +180,21 @@ subprojects {{
         // Governed exact CI toolchain marker: JavaLanguageVersion.of({major}).
         sourceCompatibility = JavaVersion.VERSION_25
         targetCompatibility = JavaVersion.VERSION_25
+    }}
+
+    extensions.configure<JacocoPluginExtension> {{
+        toolVersion = "{jacoco}"
+    }}
+
+    extensions.configure<PitestPluginExtension> {{
+        pitestVersion.set("{pitest}")
+        junit5PluginVersion.set("{pitest_junit5}")
+        threads.set(2)
+        outputFormats.set(setOf("XML"))
+        timestampedReports.set(false)
+        exportLineCoverage.set(true)
+        mutationThreshold.set(60)
+        failWhenNoMutations.set(true)
     }}
 
     dependencies {{
@@ -189,6 +216,28 @@ subprojects {{
         useJUnitPlatform()
         // A skipped critical test must never look like a pass (NN-12).
         systemProperty("junit.jupiter.execution.parallel.enabled", "true")
+        finalizedBy(tasks.named("jacocoTestReport"))
+    }}
+
+    tasks.withType<JacocoReport>().configureEach {{
+        reports {{
+            xml.required.set(true)
+            html.required.set(false)
+            csv.required.set(false)
+        }}
+    }}
+
+    tasks.withType<JacocoCoverageVerification>().configureEach {{
+        dependsOn(tasks.named("test"))
+        violationRules {{
+            rule {{
+                limit {{
+                    counter = "LINE"
+                    value = "COVEREDRATIO"
+                    minimum = "0.80".toBigDecimal()
+                }}
+            }}
+        }}
     }}
 }}
 
@@ -199,6 +248,12 @@ project(":apps:edge-gateway") {{
     }}
     dependencies {{
         add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())
+        add("runtimeOnly", project(":services:webhook-ingress"))
+        add("runtimeOnly", project(":services:webhook-delivery"))
+        add("runtimeOnly", project(":services:ledger-service"))
+        add("runtimeOnly", project(":services:reconciliation-service"))
+        add("runtimeOnly", project(":services:worker-scheduler"))
+        add("runtimeOnly", project(":connectors:apple-pay"))
     }}
 }}
 
@@ -214,6 +269,14 @@ tasks.register("test") {{
     group = "verification"
     description = "Runs tests for every declared Gradle leaf module."
     dependsOn(javaModulePaths.map {{ project(it).tasks.named("test") }})
+}}
+
+tasks.register("qualityCoverageMutationReports") {{
+    group = "verification"
+    description = "Runs real per-module JaCoCo and PIT gates for every Gradle leaf module."
+    dependsOn(javaModulePaths.map {{ project(it).tasks.named("test") }})
+    dependsOn(javaModulePaths.map {{ project(it).tasks.named("jacocoTestCoverageVerification") }})
+    dependsOn(javaModulePaths.map {{ project(it).tasks.named("pitest") }})
 }}
 
 dependencyCheck {{

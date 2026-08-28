@@ -23,10 +23,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 
 /** PayPal Orders v2 adapter with OAuth, stable request IDs and official webhook verification. */
-public final class PayPalAdapter {
+public final class PayPalAdapter implements AutoCloseable {
     private static final int MAX_BODY_BYTES = 1_048_576;
     private static final Pattern IDEMPOTENCY_KEY = Pattern.compile("[A-Za-z0-9._:-]{16,128}");
     private static final Pattern PROVIDER_ID = Pattern.compile("[A-Za-z0-9_-]{6,128}");
@@ -164,6 +165,7 @@ public final class PayPalAdapter {
     private final Config config;
     private final Transport transport;
     private volatile AccessToken cachedToken;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     public PayPalAdapter(Config config, Transport transport) {
         this.config = Objects.requireNonNull(config, "config");
@@ -270,6 +272,7 @@ public final class PayPalAdapter {
      */
     public VerifiedWebhook verifyWebhook(Map<String, String> headers, byte[] rawBody,
             ExpectedWebhook expected) {
+        ensureOpen();
         Objects.requireNonNull(headers, "headers");
         Objects.requireNonNull(rawBody, "rawBody");
         Objects.requireNonNull(expected, "expected");
@@ -330,6 +333,7 @@ public final class PayPalAdapter {
     }
 
     private OperationResult execute(String method, String path, String body, String requestId) {
+        ensureOpen();
         HttpResult last = null;
         for (int attempt = 1; attempt <= config.maxAttempts(); attempt++) {
             try {
@@ -374,6 +378,7 @@ public final class PayPalAdapter {
     }
 
     private String accessToken() {
+        ensureOpen();
         AccessToken current = cachedToken;
         Instant now = Instant.now(config.clock());
         if (current != null && current.expiresAt().isAfter(now.plusSeconds(30))) {
@@ -413,6 +418,19 @@ public final class PayPalAdapter {
                 Thread.currentThread().interrupt();
                 throw new OAuthUnavailableException("PayPal OAuth interrupted", exception);
             }
+        }
+    }
+
+    @Override
+    public void close() {
+        if (closed.compareAndSet(false, true)) {
+            cachedToken = null;
+        }
+    }
+
+    private void ensureOpen() {
+        if (closed.get()) {
+            throw new IllegalStateException("PayPal credential runtime is closed");
         }
     }
 

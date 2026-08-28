@@ -36,6 +36,8 @@ import java.util.UUID;
 
 /** Public HTTP boundary. Tenant identity comes only from the authenticated principal. */
 public final class PaymentHttpHandler implements HttpHandler {
+    private static final String PAYMENT_INTENTS_PATH = "/v1/payment_intents";
+    private static final String LEGACY_PAYMENT_INTENTS_PATH = "/v1/payment-intents";
     private static final int MAX_BODY_BYTES = 1_048_576;
     private static final Set<String> CREATE_FIELDS = Set.of("external_reference", "amount_minor",
             "currency", "allowed_methods", "confirmation_mode", "region", "ttl_minutes",
@@ -137,7 +139,7 @@ public final class PaymentHttpHandler implements HttpHandler {
             throws IOException {
         String method = exchange.getRequestMethod();
         String path = exchange.getRequestURI().getPath();
-        if ("POST".equals(method) && "/v1/payment-intents".equals(path)) {
+        if ("POST".equals(method) && isPaymentIntentsCollection(path)) {
             requireScope(principal, ApiPrincipal.PAYMENTS_WRITE);
             create(exchange, principal, requestId);
             return;
@@ -160,8 +162,8 @@ public final class PaymentHttpHandler implements HttpHandler {
             refundRoute(exchange, principal, requestId);
             return;
         }
-        String prefix = "/v1/payment-intents/";
-        if (!path.startsWith(prefix)) {
+        String prefix = paymentIntentMemberPrefix(path);
+        if (prefix == null) {
             error(exchange, 404, "resource_not_found", "resource does not exist", requestId);
             return;
         }
@@ -179,6 +181,19 @@ public final class PaymentHttpHandler implements HttpHandler {
         } else {
             error(exchange, 404, "resource_not_found", "resource does not exist", requestId);
         }
+    }
+
+    private static boolean isPaymentIntentsCollection(String path) {
+        return PAYMENT_INTENTS_PATH.equals(path) || LEGACY_PAYMENT_INTENTS_PATH.equals(path);
+    }
+
+    private static String paymentIntentMemberPrefix(String path) {
+        String canonical = PAYMENT_INTENTS_PATH + "/";
+        if (path.startsWith(canonical)) {
+            return canonical;
+        }
+        String legacy = LEGACY_PAYMENT_INTENTS_PATH + "/";
+        return path.startsWith(legacy) ? legacy : null;
     }
 
     private void createCheckout(HttpExchange exchange, ApiPrincipal principal, String requestId)
@@ -299,7 +314,8 @@ public final class PaymentHttpHandler implements HttpHandler {
         if (parts.length == 1 && "GET".equals(exchange.getRequestMethod())) {
             requireScope(principal, ApiPrincipal.PAYMENTS_READ);
             response(exchange, 200, canonicalCheckout(checkout.getForPrincipal(principal.tenantId(),
-                    principal.projectId(), parts[0])), requestId);
+                    principal.projectId(), parts[0], preferredLocale(exchange),
+                    deviceClass(exchange))), requestId);
             return;
         }
         if (parts.length == 2 && "confirm".equals(parts[1])
@@ -309,7 +325,8 @@ public final class PaymentHttpHandler implements HttpHandler {
             requireOnly(body, CHECKOUT_CONFIRM_FIELDS);
             HostedCheckoutService.View view = checkout.confirmForPrincipal(principal.tenantId(),
                     principal.projectId(), parts[0], checkoutConfirm(body,
-                            requiredHeader(exchange, "Idempotency-Key"), requestId));
+                            requiredHeader(exchange, "Idempotency-Key"), requestId),
+                    preferredLocale(exchange), deviceClass(exchange));
             response(exchange, 200, canonicalCheckout(view), requestId);
             return;
         }
@@ -327,18 +344,17 @@ public final class PaymentHttpHandler implements HttpHandler {
             return;
         }
         if (parts.length == 1 && "GET".equals(exchange.getRequestMethod())) {
-            response(exchange, 200, browserCheckout(checkout.getForBrowser(parts[0], token)),
-                    requestId);
+            response(exchange, 200, browserCheckout(checkout.getForBrowser(parts[0], token,
+                    preferredLocale(exchange), "WEB")), requestId);
             return;
         }
         if (parts.length == 2 && "confirm".equals(parts[1])
                 && "POST".equals(exchange.getRequestMethod())) {
             Map<String, Object> body = body(exchange);
-            requireOnly(body, Set.of("method"));
-            Map<String, Object> normalized = Map.of("method", string(body, "method"));
+            requireOnly(body, CHECKOUT_CONFIRM_FIELDS);
             HostedCheckoutService.View view = checkout.confirmForBrowser(parts[0], token,
-                    checkoutConfirm(normalized, requiredHeader(exchange, "Idempotency-Key"),
-                            requestId));
+                    checkoutConfirm(body, requiredHeader(exchange, "Idempotency-Key"),
+                            requestId), preferredLocale(exchange), "WEB");
             response(exchange, 200, browserCheckout(view), requestId);
             return;
         }
@@ -383,7 +399,35 @@ public final class PaymentHttpHandler implements HttpHandler {
         result.put("direction", view.direction());
         result.put("methods", methods);
         result.put("nextAction", view.nextAction());
+        result.put("catalogVersion", view.catalogVersion());
+        result.put("messages", view.messages());
         return result;
+    }
+
+    private static Locale preferredLocale(HttpExchange exchange) {
+        String header = exchange.getRequestHeaders().getFirst("Accept-Language");
+        if (header == null || header.isBlank() || header.length() > 256) {
+            return Locale.ENGLISH;
+        }
+        try {
+            List<Locale.LanguageRange> ranges = Locale.LanguageRange.parse(header);
+            return ranges.isEmpty() ? Locale.ENGLISH : Locale.forLanguageTag(
+                    ranges.getFirst().getRange());
+        } catch (IllegalArgumentException invalid) {
+            return Locale.ENGLISH;
+        }
+    }
+
+    private static String deviceClass(HttpExchange exchange) {
+        String value = exchange.getRequestHeaders().getFirst("X-ElmPay-Device-Class");
+        if (value == null || value.isBlank()) {
+            return "WEB";
+        }
+        String normalized = value.toUpperCase(Locale.ROOT);
+        if (!Set.of("WEB", "IOS", "ANDROID", "FLUTTER").contains(normalized)) {
+            throw new IllegalArgumentException("X-ElmPay-Device-Class is invalid");
+        }
+        return normalized;
     }
 
     private static void requireProject(HttpExchange exchange, ApiPrincipal principal) {
@@ -495,6 +539,14 @@ public final class PaymentHttpHandler implements HttpHandler {
                 Map<String, Object> body = body(exchange);
                 requireOnly(body, Set.of("reason"));
                 ConfirmationResult result = payments.voidAuthorization(new IntentActionCommand(
+                        principal.tenantId(), intentId, requiredHeader(exchange, "Idempotency-Key"),
+                        requestId, string(body, "reason")));
+                response(exchange, 200, confirmation(result), requestId);
+            }
+            case "close" -> {
+                Map<String, Object> body = body(exchange);
+                requireOnly(body, Set.of("reason"));
+                ConfirmationResult result = payments.closeAuthorization(new IntentActionCommand(
                         principal.tenantId(), intentId, requiredHeader(exchange, "Idempotency-Key"),
                         requestId, string(body, "reason")));
                 response(exchange, 200, confirmation(result), requestId);
@@ -719,6 +771,8 @@ public final class PaymentHttpHandler implements HttpHandler {
     private static int status(String code) {
         return switch (code) {
             case "RESOURCE_NOT_FOUND" -> 404;
+            case "RISK_BLOCKED", "REFUND_RISK_DENIED" -> 403;
+            case "RISK_REVIEW_REQUIRED" -> 409;
             case "ATTEMPT_IN_PROGRESS", "CONCURRENT_MODIFICATION" -> 409;
             case "PROVIDER_NOT_CONFIGURED", "NO_ELIGIBLE_PROVIDER",
                     "PROVIDER_ACCOUNT_REFUND_DISABLED" -> 503;
@@ -732,6 +786,8 @@ public final class PaymentHttpHandler implements HttpHandler {
     private static String apiCode(String code) {
         return switch (code) {
             case "RESOURCE_NOT_FOUND" -> "resource_not_found";
+            case "RISK_BLOCKED" -> "risk_blocked";
+            case "RISK_REVIEW_REQUIRED" -> "risk_review_required";
             case "CONCURRENT_MODIFICATION", "ATTEMPT_IN_PROGRESS", "IDEMPOTENCY_KEY_REUSE" ->
                 "idempotency_key_reuse";
             case "PROVIDER_NOT_CONFIGURED", "NO_ELIGIBLE_PROVIDER" -> "provider_unavailable";
@@ -743,7 +799,10 @@ public final class PaymentHttpHandler implements HttpHandler {
                 "refund_capability_missing";
             case "REFUND_RISK_DENIED" -> "refund_denied";
             case "STATE_TRANSITION_NOT_ALLOWED", "CANCEL_NOT_ALLOWED", "CAPTURE_NOT_ALLOWED",
-                    "VOID_NOT_ALLOWED" -> "state_transition_not_allowed";
+                    "VOID_NOT_ALLOWED", "AUTH_NOT_ACTIVE", "CAPTURE_AMOUNT_NOT_POSITIVE",
+                    "CAPTURE_EXCEEDS_AUTHORIZED", "CAPTURE_FINALITY_INVALID",
+                    "VOID_AFTER_CAPTURE", "CLOSE_WITHOUT_CAPTURE"
+                    -> "state_transition_not_allowed";
             default -> "invalid_request";
         };
     }

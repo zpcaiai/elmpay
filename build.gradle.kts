@@ -1,14 +1,20 @@
 // GENERATED FILE — do not edit by hand.
 // Source of truth: governance/version-catalog.json
 // Regenerate with: python3 scripts/render-build.py
+import info.solidsoft.gradle.pitest.PitestPluginExtension
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.JavaApplication
+import org.gradle.testing.jacoco.plugins.JacocoPluginExtension
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
     base
+    jacoco
     id("org.owasp.dependencycheck") version "13.0.0"
     id("org.cyclonedx.bom") version "3.4.1"
+    id("info.solidsoft.pitest") version "1.19.0" apply false
 }
 
 // Only declared leaf modules produce release JARs. Root and namespace parent
@@ -33,7 +39,8 @@ val javaModulePaths = setOf(
     ":services:ledger-service",
     ":services:reconciliation-service",
     ":services:worker-scheduler",
-    ":apps:edge-gateway"
+    ":apps:edge-gateway",
+    ":sdks:mobile:android"
 )
 
 allprojects {
@@ -64,7 +71,8 @@ val moduleDependencies = mapOf(
     (":" + "services:ledger-service") to listOf(":libs:money", ":libs:audit", ":libs:security", ":libs:observability", ":libs:domain-events"),
     (":" + "services:reconciliation-service") to listOf(":libs:money", ":libs:audit", ":libs:security", ":libs:observability", ":libs:domain-events", ":services:ledger-service", ":services:merchant-config"),
     (":" + "services:worker-scheduler") to listOf(":libs:security", ":libs:audit", ":libs:observability", ":libs:domain-events", ":services:payment-core", ":services:reconciliation-service", ":services:merchant-config"),
-    (":" + "apps:edge-gateway") to listOf(":libs:security", ":libs:observability", ":services:payment-core", ":services:merchant-config"),
+    (":" + "apps:edge-gateway") to listOf(":libs:security", ":libs:observability", ":services:payment-core", ":services:merchant-config", ":services:reconciliation-service"),
+    (":" + "sdks:mobile:android") to listOf(),
 )
 
 val governedLibraries = extensions.getByType<VersionCatalogsExtension>().named("libs")
@@ -72,6 +80,8 @@ val governedLibraries = extensions.getByType<VersionCatalogsExtension>().named("
 subprojects {
     if (path !in javaModulePaths) return@subprojects
     apply(plugin = "java-library")
+    apply(plugin = "jacoco")
+    apply(plugin = "info.solidsoft.pitest")
 
     extensions.configure<JavaPluginExtension> {
         // CI runs the exact governed JDK. A newer local compiler may still
@@ -79,6 +89,21 @@ subprojects {
         // Governed exact CI toolchain marker: JavaLanguageVersion.of(25).
         sourceCompatibility = JavaVersion.VERSION_25
         targetCompatibility = JavaVersion.VERSION_25
+    }
+
+    extensions.configure<JacocoPluginExtension> {
+        toolVersion = "0.8.15"
+    }
+
+    extensions.configure<PitestPluginExtension> {
+        pitestVersion.set("1.25.8")
+        junit5PluginVersion.set("1.2.3")
+        threads.set(2)
+        outputFormats.set(setOf("XML"))
+        timestampedReports.set(false)
+        exportLineCoverage.set(true)
+        mutationThreshold.set(60)
+        failWhenNoMutations.set(true)
     }
 
     dependencies {
@@ -100,6 +125,28 @@ subprojects {
         useJUnitPlatform()
         // A skipped critical test must never look like a pass (NN-12).
         systemProperty("junit.jupiter.execution.parallel.enabled", "true")
+        finalizedBy(tasks.named("jacocoTestReport"))
+    }
+
+    tasks.withType<JacocoReport>().configureEach {
+        reports {
+            xml.required.set(true)
+            html.required.set(false)
+            csv.required.set(false)
+        }
+    }
+
+    tasks.withType<JacocoCoverageVerification>().configureEach {
+        dependsOn(tasks.named("test"))
+        violationRules {
+            rule {
+                limit {
+                    counter = "LINE"
+                    value = "COVEREDRATIO"
+                    minimum = "0.80".toBigDecimal()
+                }
+            }
+        }
     }
 }
 
@@ -110,6 +157,12 @@ project(":apps:edge-gateway") {
     }
     dependencies {
         add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())
+        add("runtimeOnly", project(":services:webhook-ingress"))
+        add("runtimeOnly", project(":services:webhook-delivery"))
+        add("runtimeOnly", project(":services:ledger-service"))
+        add("runtimeOnly", project(":services:reconciliation-service"))
+        add("runtimeOnly", project(":services:worker-scheduler"))
+        add("runtimeOnly", project(":connectors:apple-pay"))
     }
 }
 
@@ -125,6 +178,14 @@ tasks.register("test") {
     group = "verification"
     description = "Runs tests for every declared Gradle leaf module."
     dependsOn(javaModulePaths.map { project(it).tasks.named("test") })
+}
+
+tasks.register("qualityCoverageMutationReports") {
+    group = "verification"
+    description = "Runs real per-module JaCoCo and PIT gates for every Gradle leaf module."
+    dependsOn(javaModulePaths.map { project(it).tasks.named("test") })
+    dependsOn(javaModulePaths.map { project(it).tasks.named("jacocoTestCoverageVerification") })
+    dependsOn(javaModulePaths.map { project(it).tasks.named("pitest") })
 }
 
 dependencyCheck {

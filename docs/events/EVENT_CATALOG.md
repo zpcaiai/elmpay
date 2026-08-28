@@ -46,6 +46,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | `payment_intent.authorized` | v1 | `payment-core` | PaymentIntent | `payment-intent` / `provider.authorized` | `ledger-service`、`risk-engine`、`webhook-delivery` | 2555 |
 | `payment_intent.captured` | v1 | `payment-core` | PaymentIntent | `payment-intent` / `provider.captured` | `ledger-service`、`reconciliation-service`、`webhook-delivery` | 2555 |
+| `payment_intent.capture_closed` | v1 | `payment-core` | PaymentIntent | `payment-intent` / `provider.authorization_closed` | `ledger-service`、`reconciliation-service`、`webhook-delivery` | 2555 |
 | `payment_intent.failed` | v1 | `payment-core` | PaymentIntent | `payment-intent` / `provider.declined` | `risk-engine`、`webhook-delivery` | 2555 |
 | `payment_intent.canceled` | v1 | `payment-core` | PaymentIntent | `payment-intent` / `merchant.cancel` | `webhook-delivery` | 2555 |
 | `payment_intent.voided` | v1 | `payment-core` | PaymentIntent | `payment-intent` / `merchant.void` | `ledger-service`、`webhook-delivery` | 2555 |
@@ -61,6 +62,7 @@
 
 - **`payment_intent.authorized`**：授权只占额度不动账；账本记的是授权科目而不是收入。
 - **`payment_intent.captured`**：这是唯一代表「钱真的到了」的事件；下游的收入确认以它为准。
+- **`payment_intent.capture_closed`**：渠道确认释放部分捕获后的剩余授权；实际已捕获金额仍是最终支付事实。
 - **`payment_intent.failed`**：失败是终态；重试必须开新的 attempt，因此本事件不携带重试指引。
 - **`payment_intent.voided`**：撤销授权是补偿动作，账本要冲销授权科目，所以 ledger-service 必须订阅。
 - **`payment_attempt.unresolved`**：超时不是失败。本事件的唯一目的是把定责责任交给对账与主动查询。
@@ -74,10 +76,10 @@
 
 | 模块 | 乱序容忍 | 策略 | 订阅数 |
 | --- | --- | --- | --- |
-| `ledger-service` | `revision_guarded` | 按 (aggregate_id, revision) 单调应用；revision 不大于已应用值的事件直接丢弃并记数。 | 9 |
+| `ledger-service` | `revision_guarded` | 按 (aggregate_id, revision) 单调应用；revision 不大于已应用值的事件直接丢弃并记数。 | 10 |
 | `risk-engine` | `idempotent_apply` | 风控特征写入是幂等 upsert，重复或乱序不改变结果。 | 6 |
-| `reconciliation-service` | `buffer_and_reorder` | 按 aggregate 缓冲最多 revision_gap_limit 个空洞，超时后升级为对账例外。 | 4 |
-| `webhook-delivery` | `idempotent_apply` | 对外投递按 event_id 去重；乱序由订阅方自行处理，我们只保证不丢不重发同一 event_id。 | 13 |
+| `reconciliation-service` | `buffer_and_reorder` | 按 aggregate 缓冲最多 revision_gap_limit 个空洞，超时后升级为对账例外。 | 5 |
+| `webhook-delivery` | `idempotent_apply` | 对外投递按 event_id 去重；乱序由订阅方自行处理，我们只保证不丢不重发同一 event_id。 | 14 |
 | `worker-scheduler` | `idempotent_apply` | 调度任务按 (aggregate_id, period) 唯一，重复事件不会排出第二个任务。 | 2 |
 
-共 14 个事件、5 个消费者。
+共 15 个事件、5 个消费者。

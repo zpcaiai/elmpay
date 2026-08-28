@@ -14,6 +14,12 @@ import com.elmpay.provider.ProviderException;
 import com.elmpay.provider.ProviderOutcome;
 import com.elmpay.provider.ProviderPayment;
 import com.elmpay.provider.ProviderRequestContext;
+import com.elmpay.risk.RiskAction;
+import com.elmpay.risk.RiskEvaluationRequest;
+import com.elmpay.risk.RiskGateEnforcer;
+import com.elmpay.risk.RiskGateException;
+import com.elmpay.risk.RiskOperation;
+import com.elmpay.risk.SynchronousRiskGate;
 import com.elmpay.security.CanonicalPayload;
 import com.elmpay.security.SensitiveDataGuard;
 import java.time.Clock;
@@ -31,17 +37,19 @@ public final class PaymentService {
     private final MerchantConfigurationRepository merchantConfiguration;
     private final RoutingService routing;
     private final ProviderAdapterRegistry adapters;
+    private final SynchronousRiskGate riskGate;
     private final PaymentStateMachine stateMachine;
     private final Clock clock;
 
     public PaymentService(PaymentRepository repository,
             MerchantConfigurationRepository merchantConfiguration, RoutingService routing,
-            ProviderAdapterRegistry adapters, Clock clock) {
+            ProviderAdapterRegistry adapters, SynchronousRiskGate riskGate, Clock clock) {
         this.repository = Objects.requireNonNull(repository, "repository");
         this.merchantConfiguration = Objects.requireNonNull(
                 merchantConfiguration, "merchantConfiguration");
         this.routing = Objects.requireNonNull(routing, "routing");
         this.adapters = Objects.requireNonNull(adapters, "adapters");
+        this.riskGate = Objects.requireNonNull(riskGate, "riskGate");
         this.stateMachine = new PaymentStateMachine();
         this.clock = Objects.requireNonNull(clock, "clock");
     }
@@ -60,6 +68,16 @@ public final class PaymentService {
             requireSameCreateRequest(byOrder, command);
             return byOrder;
         }
+        requireRiskApproval(new RiskEvaluationRequest(command.tenantId().toString(),
+                riskRequestId(RiskOperation.PAYMENT_CREATE, command.idempotencyKey()),
+                RiskOperation.PAYMENT_CREATE, command.merchantId().toString(),
+                command.amount().amountMinor(), command.amount().currency().code(), clock.instant(),
+                Map.of("projectId", command.projectId().toString(),
+                        "merchantId", command.merchantId().toString(),
+                        "region", command.region().toUpperCase(java.util.Locale.ROOT),
+                        "confirmationMode", command.confirmationMode().name(),
+                        "paymentMethods", command.allowedMethods().stream().sorted()
+                                .collect(java.util.stream.Collectors.joining(",")))));
         return repository.create(PaymentIntent.create(command, clock));
     }
 
@@ -130,6 +148,15 @@ public final class PaymentService {
             throw new PaymentCoreException("PAYMENT_METHOD_NOT_ALLOWED",
                     "payment method is outside the immutable intent snapshot");
         }
+        requireRiskApproval(new RiskEvaluationRequest(intent.tenantId().toString(),
+                riskRequestId(RiskOperation.PAYMENT_CONFIRM, command.idempotencyKey()),
+                RiskOperation.PAYMENT_CONFIRM, command.paymentMethod().fingerprint(),
+                intent.amount().amountMinor(), intent.amount().currency().code(), clock.instant(),
+                Map.of("intentId", intent.id().toString(),
+                        "projectId", intent.projectId().toString(),
+                        "merchantId", intent.merchantId().toString(),
+                        "paymentMethod", command.paymentMethod().method(),
+                        "region", intent.region())));
 
         ProviderRoute route;
         try {
@@ -167,11 +194,24 @@ public final class PaymentService {
         if (replay != null) {
             return new ConfirmationResult(intent, replay, Map.of(), true);
         }
-        if (intent.state() != IntentState.AUTHORIZED
-                || command.amountMinor() > intent.amount().amountMinor() - intent.capturedAmountMinor()) {
-            throw new PaymentCoreException("CAPTURE_NOT_ALLOWED",
-                    "capture exceeds the remaining authorized amount");
+        long cumulativeCapture;
+        try {
+            cumulativeCapture = Math.addExact(intent.capturedAmountMinor(), command.amountMinor());
+        } catch (ArithmeticException exception) {
+            throw new PaymentCoreException("CAPTURE_EXCEEDS_AUTHORIZED",
+                    "cumulative capture exceeds the authorized amount", exception);
         }
+        stateMachine.recordCapture(intent, cumulativeCapture,
+                cumulativeCapture == intent.amount().amountMinor(),
+                AuthoritySource.SERVER_SIDE_PROVIDER_RESULT, clock.instant());
+        requireRiskApproval(new RiskEvaluationRequest(intent.tenantId().toString(),
+                riskRequestId(RiskOperation.PAYMENT_CAPTURE, command.idempotencyKey()),
+                RiskOperation.PAYMENT_CAPTURE, intent.id().toString(), command.amountMinor(),
+                intent.amount().currency().code(), clock.instant(),
+                Map.of("intentId", intent.id().toString(),
+                        "projectId", intent.projectId().toString(),
+                        "merchantId", intent.merchantId().toString(),
+                        "region", intent.region())));
         PaymentAttempt source = lastProviderTransaction(intent);
         ProviderAccount account = requireAccount(intent, source.providerAccountId());
         Money requested = Money.of(command.amountMinor(), intent.amount().currency().code());
@@ -198,10 +238,11 @@ public final class PaymentService {
         if (replay != null) {
             return new ConfirmationResult(intent, replay, Map.of(), true);
         }
-        if (intent.state() != IntentState.AUTHORIZED || intent.capturedAmountMinor() != 0) {
-            throw new PaymentCoreException("VOID_NOT_ALLOWED",
-                    "only an uncaptured authorization can be voided");
-        }
+        // Ask the state machine, do not re-decide here: the three exits from an active
+        // authorization are its invariant (B34 CAP-I2), and a second copy of the guard is how
+        // the two drift apart.
+        stateMachine.voidAuthorization(intent, AuthoritySource.SERVER_SIDE_PROVIDER_RESULT,
+                clock.instant());
         PaymentAttempt source = lastProviderTransaction(intent);
         ProviderAccount account = requireAccount(intent, source.providerAccountId());
         PaymentAttempt attempt = repository.beginAttempt(new AttemptDraft(intent.tenantId(),
@@ -213,6 +254,39 @@ public final class PaymentService {
                     source.providerTransactionId(), command.reason());
             return commitProviderResult(intent, attempt, payment, command.correlationId(),
                     AttemptOperation.CANCEL, 0);
+        } catch (ProviderException exception) {
+            return commitProviderException(intent, attempt, exception, command.correlationId());
+        }
+    }
+
+    /**
+     * Release the uncaptured remainder after a partial capture.
+     *
+     * <p>The provider call is the same cancel the void path uses — the difference is what it
+     * means locally. A void undoes a payment that never took money; a close ends one that took
+     * some and will not take the rest.
+     */
+    public ConfirmationResult closeAuthorization(IntentActionCommand command) {
+        RequestFingerprint.validateKey(command.idempotencyKey());
+        PaymentIntent intent = requireIntent(command.tenantId(), command.intentId());
+        String requestDigest = closeDigest(intent, command);
+        PaymentAttempt replay = findAttemptByKey(intent, command.idempotencyKey(),
+                AttemptOperation.CLOSE, requestDigest);
+        if (replay != null) {
+            return new ConfirmationResult(intent, replay, Map.of(), true);
+        }
+        stateMachine.closeAfterPartialCapture(intent, AuthoritySource.SERVER_SIDE_PROVIDER_RESULT,
+                clock.instant());
+        PaymentAttempt source = lastProviderTransaction(intent);
+        ProviderAccount account = requireAccount(intent, source.providerAccountId());
+        PaymentAttempt attempt = repository.beginAttempt(new AttemptDraft(intent.tenantId(),
+                intent.id(), account.id(), account.provider(), AttemptOperation.CLOSE,
+                intent.version(), requestDigest, command.idempotencyKey(), clock.instant()));
+        try {
+            ProviderPayment payment = adapters.require(account.provider()).cancel(
+                    context(account, command.idempotencyKey(), command.correlationId()),
+                    source.providerTransactionId(), command.reason());
+            return commitClose(intent, attempt, payment, command.correlationId());
         } catch (ProviderException exception) {
             return commitProviderException(intent, attempt, exception, command.correlationId());
         }
@@ -266,31 +340,73 @@ public final class PaymentService {
             long requestedCaptureAmount) {
         validateOrRecordInvalidResult(intent, attempt, payment, correlationId, operation,
                 requestedCaptureAmount);
-        AttemptResolution resolution = normalize(payment);
+        AttemptResolution resolution = normalize(payment, operation);
         PaymentAttempt resolved = attempt.resolve(resolution);
         PaymentIntent next = nextIntent(intent, payment, operation, requestedCaptureAmount);
         repository.resolveAttempt(resolved, next, intent.version(), eventType(operation), correlationId);
         return new ConfirmationResult(next, resolved, payment.clientAction(), false);
     }
 
+    private ConfirmationResult commitClose(PaymentIntent intent, PaymentAttempt attempt,
+            ProviderPayment payment, String correlationId) {
+        validateOrRecordInvalidResult(intent, attempt, payment, correlationId,
+                AttemptOperation.CLOSE, 0);
+        AttemptResolution resolution = normalize(payment, AttemptOperation.CLOSE);
+        PaymentAttempt resolved = attempt.resolve(resolution);
+        PaymentIntent next = intent;
+        if (payment.outcome() == ProviderOutcome.CANCELED
+                || payment.outcome() == ProviderOutcome.SUCCEEDED) {
+            next = stateMachine.closeAfterPartialCapture(intent,
+                    AuthoritySource.SERVER_SIDE_PROVIDER_RESULT, clock.instant());
+        }
+        repository.resolveAttempt(resolved, next, intent.version(),
+                "payment.authorization.closed.v1", correlationId);
+        return new ConfirmationResult(next, resolved, payment.clientAction(), false);
+    }
+
     private ConfirmationResult commitRecoveryResult(PaymentIntent intent, PaymentAttempt source,
             PaymentAttempt query, ProviderPayment payment, String correlationId) {
-        validateOrRecordInvalidResult(intent, query, payment, correlationId,
-                AttemptOperation.QUERY, 0);
-        AttemptResolution queryResolution = normalize(payment);
-        AttemptResolution sourceResolution = new AttemptResolution(queryResolution.state(),
-                queryResolution.outcomeClass(), queryResolution.responseDigest(),
-                queryResolution.providerRequestId(),
+        validateOrRecordRecoveryResult(intent, query, payment, correlationId,
+                source.operation());
+        AttemptResolution recoveredResolution = normalize(payment, source.operation());
+        AttemptResolution sourceResolution = new AttemptResolution(recoveredResolution.state(),
+                recoveredResolution.outcomeClass(), recoveredResolution.responseDigest(),
+                recoveredResolution.providerRequestId(),
                 payment.providerPaymentId() == null
                         ? source.providerTransactionId() : payment.providerPaymentId(),
-                "adapter.query.normalized", queryResolution.providerCode(),
-                queryResolution.finishedAt());
+                "adapter.query.normalized", recoveredResolution.providerCode(),
+                recoveredResolution.finishedAt());
         PaymentAttempt resolvedSource = source.resolve(sourceResolution);
-        PaymentAttempt resolvedQuery = query.resolve(queryResolution);
-        PaymentIntent next = nextIntent(intent, payment, AttemptOperation.QUERY, 0);
+        PaymentAttempt resolvedQuery = query.resolve(recoveredResolution);
+        PaymentIntent next = nextRecoveredIntent(intent, payment, source.operation());
         repository.resolveRecovery(resolvedSource, resolvedQuery, next, intent.version(),
                 "payment.query.recovered.v1", correlationId);
         return new ConfirmationResult(next, resolvedQuery, payment.clientAction(), false);
+    }
+
+    private void validateOrRecordRecoveryResult(PaymentIntent intent, PaymentAttempt query,
+            ProviderPayment payment, String correlationId, AttemptOperation sourceOperation) {
+        try {
+            validateRecoveryAmounts(intent, payment, sourceOperation);
+        } catch (PaymentCoreException validationFailure) {
+            Map<String, Object> evidence = new LinkedHashMap<>();
+            evidence.put("code", validationFailure.code());
+            evidence.put("source_operation", sourceOperation.name());
+            evidence.put("outcome", payment.outcome().name());
+            evidence.put("provider_request_id", payment.providerRequestId());
+            evidence.put("provider_transaction_id", value(payment.providerPaymentId()));
+            evidence.put("authorized_minor", payment.authorized() == null
+                    ? -1 : payment.authorized().amountMinor());
+            evidence.put("captured_minor", payment.captured() == null
+                    ? -1 : payment.captured().amountMinor());
+            PaymentAttempt invalid = query.resolve(new AttemptResolution(AttemptState.UNKNOWN,
+                    OutcomeClass.UNKNOWN, CanonicalPayload.sha256Hex(evidence),
+                    payment.providerRequestId(), payment.providerPaymentId(),
+                    "adapter.query.invalid_result", validationFailure.code(), clock.instant()));
+            repository.resolveAttempt(invalid, intent, intent.version(),
+                    "payment.query.invalid_provider_result.v1", correlationId);
+            throw validationFailure;
+        }
     }
 
     private void validateOrRecordInvalidResult(PaymentIntent intent, PaymentAttempt attempt,
@@ -351,26 +467,60 @@ public final class PaymentService {
             return stateMachine.transition(intent, IntentState.CANCELED,
                     AuthoritySource.SERVER_SIDE_PROVIDER_RESULT, clock.instant());
         }
+        if (operation == AttemptOperation.CLOSE
+                && (outcome == ProviderOutcome.CANCELED || outcome == ProviderOutcome.SUCCEEDED)) {
+            return stateMachine.closeAfterPartialCapture(intent,
+                    AuthoritySource.SERVER_SIDE_PROVIDER_RESULT, clock.instant());
+        }
         return intent;
     }
 
-    private AttemptResolution normalize(ProviderPayment payment) {
+    private PaymentIntent nextRecoveredIntent(PaymentIntent intent, ProviderPayment payment,
+            AttemptOperation sourceOperation) {
+        if (sourceOperation == AttemptOperation.CAPTURE
+                && payment.outcome() == ProviderOutcome.SUCCEEDED) {
+            long cumulative = payment.captured().amountMinor();
+            return stateMachine.recordCapture(intent, cumulative,
+                    cumulative == intent.amount().amountMinor(),
+                    AuthoritySource.SERVER_SIDE_PROVIDER_RESULT, clock.instant());
+        }
+        return nextIntent(intent, payment, sourceOperation, 0);
+    }
+
+    private AttemptResolution normalize(ProviderPayment payment, AttemptOperation operation) {
         AttemptState state = AttemptState.UNKNOWN;
         OutcomeClass outcomeClass = OutcomeClass.UNKNOWN;
         switch (payment.outcome()) {
-            case AUTHORIZED, SUCCEEDED -> {
+            case AUTHORIZED -> {
+                if (operation == AttemptOperation.PAYMENT || operation == AttemptOperation.QUERY) {
+                    state = AttemptState.SUCCEEDED;
+                    outcomeClass = OutcomeClass.SUCCEEDED;
+                }
+            }
+            case SUCCEEDED -> {
                 state = AttemptState.SUCCEEDED;
                 outcomeClass = OutcomeClass.SUCCEEDED;
             }
-            case DECLINED, FAILED, CANCELED -> {
+            case CANCELED -> {
+                if (operation == AttemptOperation.CANCEL || operation == AttemptOperation.CLOSE) {
+                    state = AttemptState.SUCCEEDED;
+                    outcomeClass = OutcomeClass.SUCCEEDED;
+                } else {
+                    state = AttemptState.FAILED;
+                    outcomeClass = OutcomeClass.FAILED_FINAL;
+                }
+            }
+            case DECLINED, FAILED -> {
                 state = AttemptState.FAILED;
                 outcomeClass = OutcomeClass.FAILED_FINAL;
             }
             case REQUIRES_ACTION -> {
                 // The provider call itself completed successfully and produced a durable
                 // client action. It must not block the follow-up confirmation call.
-                state = AttemptState.SUCCEEDED;
-                outcomeClass = OutcomeClass.SUCCEEDED;
+                if (operation == AttemptOperation.PAYMENT || operation == AttemptOperation.QUERY) {
+                    state = AttemptState.SUCCEEDED;
+                    outcomeClass = OutcomeClass.SUCCEEDED;
+                }
             }
             case UNKNOWN -> {
                 state = AttemptState.UNKNOWN;
@@ -411,6 +561,28 @@ public final class PaymentService {
             Money expected = Money.of(requestedCaptureAmount, intent.amount().currency().code());
             requireCurrencyIfPresent(payment.authorized(), expected);
             requireExactProviderAmount(payment.captured(), expected, "capture");
+        }
+    }
+
+    private static void validateRecoveryAmounts(PaymentIntent intent, ProviderPayment payment,
+            AttemptOperation sourceOperation) {
+        if (sourceOperation == AttemptOperation.PAYMENT) {
+            validateProviderAmounts(intent, payment, AttemptOperation.PAYMENT, 0);
+            return;
+        }
+        if (sourceOperation == AttemptOperation.CAPTURE
+                && payment.outcome() == ProviderOutcome.SUCCEEDED) {
+            Money captured = payment.captured();
+            if (captured == null) {
+                throw new PaymentCoreException("PROVIDER_AMOUNT_MISSING",
+                        "provider capture query is missing the cumulative captured amount");
+            }
+            requireCurrencyIfPresent(captured, intent.amount());
+            if (captured.amountMinor() <= intent.capturedAmountMinor()
+                    || captured.amountMinor() > intent.amount().amountMinor()) {
+                throw new PaymentCoreException("PROVIDER_AMOUNT_MISMATCH",
+                        "provider capture query returned an invalid cumulative captured amount");
+            }
         }
     }
 
@@ -459,6 +631,16 @@ public final class PaymentService {
         return CanonicalPayload.sha256Hex(Map.of(
                 "intent_id", intent.id().toString(),
                 "operation", AttemptOperation.CANCEL.name(),
+                "reason", command.reason()));
+    }
+
+    private static String closeDigest(PaymentIntent intent, IntentActionCommand command) {
+        // Deliberately not voidDigest: a void and a close of the same intent with the same reason
+        // must not collide in the idempotency replay lookup. They release different amounts.
+        return CanonicalPayload.sha256Hex(Map.of(
+                "intent_id", intent.id().toString(),
+                "operation", AttemptOperation.CLOSE.name(),
+                "captured_minor", intent.capturedAmountMinor(),
                 "reason", command.reason()));
     }
 
@@ -524,6 +706,20 @@ public final class PaymentService {
                 key, correlationId, account.credentialVersion());
     }
 
+    private void requireRiskApproval(RiskEvaluationRequest request) {
+        try {
+            RiskGateEnforcer.requireApproved(riskGate, request);
+        } catch (RiskGateException exception) {
+            String code = exception.action() == RiskAction.BLOCK
+                    ? "RISK_BLOCKED" : "RISK_REVIEW_REQUIRED";
+            throw new PaymentCoreException(code, exception.getMessage(), exception);
+        }
+    }
+
+    private static String riskRequestId(RiskOperation operation, String idempotencyKey) {
+        return operation.name() + ":" + idempotencyKey;
+    }
+
     private static void requireSameCreateRequest(PaymentIntent existing,
             CreateIntentCommand command) {
         boolean same = existing.projectId().equals(command.projectId())
@@ -546,6 +742,7 @@ public final class PaymentService {
             case PAYMENT -> "payment.attempt.resolved.v1";
             case CAPTURE -> "payment.capture.resolved.v1";
             case CANCEL -> "payment.void.resolved.v1";
+            case CLOSE -> "payment.authorization.closed.v1";
             case QUERY -> "payment.query.resolved.v1";
         };
     }

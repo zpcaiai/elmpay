@@ -9,6 +9,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import javax.sql.DataSource;
 
 /** PostgreSQL outbox repository with leases, retry scheduling and a durable dead-letter table. */
@@ -64,7 +65,8 @@ public final class DataSourceWebhookOutbox implements WebhookDeliveryService.Out
             try {
                 try (PreparedStatement statement = connection.prepareStatement(
                         "UPDATE webhook_delivery_outbox SET state='PENDING', attempt_count=0, "
-                                + "next_attempt_at=?, lease_until=NULL, last_status_code=NULL, "
+                                + "next_attempt_at=?, lease_until=NULL, lease_owner=NULL, "
+                                + "last_status_code=NULL, "
                                 + "last_error_code=NULL, updated_at=? "
                                 + "WHERE tenant_id=? AND delivery_id=? AND state='DEAD'")) {
                     statement.setTimestamp(1, Timestamp.from(now));
@@ -146,6 +148,9 @@ public final class DataSourceWebhookOutbox implements WebhookDeliveryService.Out
         validateId(tenantId, "tenantId");
         Objects.requireNonNull(now, "now");
         Objects.requireNonNull(leaseUntil, "leaseUntil");
+        if (!leaseUntil.isAfter(now)) {
+            throw new IllegalArgumentException("leaseUntil must be after now");
+        }
         String select = "SELECT o.delivery_id, o.project_id, o.endpoint_id, e.endpoint_uri, "
                 + "o.event_id, o.event_type, o.payload, o.attempt_count, e.max_attempts "
                 + "FROM webhook_delivery_outbox o JOIN webhook_endpoint e "
@@ -167,21 +172,36 @@ public final class DataSourceWebhookOutbox implements WebhookDeliveryService.Out
                         return Optional.empty();
                     }
                     long deliveryId = rows.getLong(1);
-                    WebhookDeliveryService.Delivery delivery = new WebhookDeliveryService.Delivery(
-                            deliveryId, tenantId, rows.getString(2), rows.getString(3),
-                            URI.create(rows.getString(4)), rows.getString(5), rows.getString(6),
-                            rows.getBytes(7), rows.getInt(8), rows.getInt(9));
+                    String projectId = rows.getString(2);
+                    String endpointId = rows.getString(3);
+                    URI endpoint = URI.create(rows.getString(4));
+                    String eventId = rows.getString(5);
+                    String eventType = rows.getString(6);
+                    byte[] payload = rows.getBytes(7);
+                    int attemptCount = rows.getInt(8);
+                    int maxAttempts = rows.getInt(9);
+                    String leaseOwner = UUID.randomUUID().toString();
+                    long fencingToken;
                     try (PreparedStatement lease = connection.prepareStatement(
                             "UPDATE webhook_delivery_outbox SET state='IN_FLIGHT', lease_until=?, "
-                                    + "updated_at=? WHERE tenant_id=? AND delivery_id=?")) {
+                                    + "lease_owner=?, fencing_token=fencing_token+1, updated_at=? "
+                                    + "WHERE tenant_id=? AND delivery_id=? RETURNING fencing_token")) {
                         lease.setTimestamp(1, Timestamp.from(leaseUntil));
-                        lease.setTimestamp(2, Timestamp.from(now));
-                        lease.setString(3, tenantId);
-                        lease.setLong(4, deliveryId);
-                        if (lease.executeUpdate() != 1) {
-                            throw new SQLException("unable to lease webhook delivery");
+                        lease.setString(2, leaseOwner);
+                        lease.setTimestamp(3, Timestamp.from(now));
+                        lease.setString(4, tenantId);
+                        lease.setLong(5, deliveryId);
+                        try (ResultSet leased = lease.executeQuery()) {
+                            if (!leased.next()) {
+                                throw new SQLException("unable to lease webhook delivery");
+                            }
+                            fencingToken = leased.getLong(1);
                         }
                     }
+                    WebhookDeliveryService.Delivery delivery = new WebhookDeliveryService.Delivery(
+                            deliveryId, tenantId, projectId, endpointId, endpoint, eventId,
+                            eventType, payload, attemptCount, maxAttempts, leaseOwner,
+                            fencingToken);
                     connection.commit();
                     return Optional.of(delivery);
                 }
@@ -195,81 +215,106 @@ public final class DataSourceWebhookOutbox implements WebhookDeliveryService.Out
     }
 
     @Override
-    public void markDelivered(String tenantId, long deliveryId, int statusCode, Instant deliveredAt) {
-        updateTerminal(tenantId, deliveryId, statusCode, "DELIVERED", deliveredAt, null);
+    public void markDelivered(WebhookDeliveryService.Delivery delivery, int statusCode,
+            Instant deliveredAt) {
+        updateTerminal(delivery, statusCode, "DELIVERED", deliveredAt, null);
     }
 
     @Override
-    public void reschedule(String tenantId, long deliveryId, int statusCode, String errorCode,
+    public void reschedule(WebhookDeliveryService.Delivery delivery, int statusCode,
+            String errorCode,
             Instant nextAttemptAt) {
+        requireLease(delivery);
+        String tenantId = delivery.tenantId();
         validateId(tenantId, "tenantId");
         requireText(errorCode, "errorCode");
         Objects.requireNonNull(nextAttemptAt, "nextAttemptAt");
         String sql = "UPDATE webhook_delivery_outbox SET state='RETRY', attempt_count=attempt_count+1, "
-                + "last_status_code=?, last_error_code=?, next_attempt_at=?, lease_until=NULL, updated_at=? "
-                + "WHERE tenant_id=? AND delivery_id=? AND state='IN_FLIGHT'";
+                + "last_status_code=?, last_error_code=?, next_attempt_at=?, lease_until=NULL, "
+                + "lease_owner=NULL, updated_at=now() WHERE tenant_id=? AND delivery_id=? "
+                + "AND state='IN_FLIGHT' AND lease_owner=? AND fencing_token=?";
         executeUpdate(tenantId, sql, statement -> {
             statement.setInt(1, statusCode);
             statement.setString(2, errorCode);
             statement.setTimestamp(3, Timestamp.from(nextAttemptAt));
-            statement.setTimestamp(4, Timestamp.from(nextAttemptAt));
-            statement.setString(5, tenantId);
-            statement.setLong(6, deliveryId);
+            statement.setString(4, tenantId);
+            statement.setLong(5, delivery.deliveryId());
+            statement.setString(6, delivery.leaseOwner());
+            statement.setLong(7, delivery.fencingToken());
         });
     }
 
     @Override
-    public void deadLetter(String tenantId, long deliveryId, int statusCode, String errorCode,
+    public void deadLetter(WebhookDeliveryService.Delivery delivery, int statusCode,
+            String errorCode,
             Instant failedAt) {
+        requireLease(delivery);
+        String tenantId = delivery.tenantId();
+        long deliveryId = delivery.deliveryId();
         validateId(tenantId, "tenantId");
         requireText(errorCode, "errorCode");
         Objects.requireNonNull(failedAt, "failedAt");
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             setTenant(connection, tenantId);
-            try (PreparedStatement copy = connection.prepareStatement(
-                    "INSERT INTO webhook_delivery_dead_letter "
-                            + "(delivery_id, tenant_id, project_id, endpoint_id, event_id, event_type, payload, "
-                            + "attempt_count, final_status_code, final_error_code, failed_at) "
-                            + "SELECT delivery_id, tenant_id, project_id, endpoint_id, event_id, event_type, "
-                            + "payload, attempt_count+1, ?, ?, ? FROM webhook_delivery_outbox "
-                            + "WHERE tenant_id=? AND delivery_id=? AND state='IN_FLIGHT' "
-                            + "ON CONFLICT (tenant_id, delivery_id) DO NOTHING")) {
-                copy.setInt(1, statusCode);
-                copy.setString(2, errorCode);
-                copy.setTimestamp(3, Timestamp.from(failedAt));
-                copy.setString(4, tenantId);
-                copy.setLong(5, deliveryId);
-                if (copy.executeUpdate() != 1) {
-                    throw new SQLException("unable to create webhook dead letter");
+            try {
+                try (PreparedStatement copy = connection.prepareStatement(
+                        "INSERT INTO webhook_delivery_dead_letter "
+                                + "(delivery_id, tenant_id, project_id, endpoint_id, event_id, event_type, payload, "
+                                + "attempt_count, final_status_code, final_error_code, failed_at) "
+                                + "SELECT delivery_id, tenant_id, project_id, endpoint_id, event_id, event_type, "
+                                + "payload, attempt_count+1, ?, ?, ? FROM webhook_delivery_outbox "
+                                + "WHERE tenant_id=? AND delivery_id=? AND state='IN_FLIGHT' "
+                                + "AND lease_owner=? AND fencing_token=? "
+                                + "ON CONFLICT (tenant_id, delivery_id) DO NOTHING")) {
+                    copy.setInt(1, statusCode);
+                    copy.setString(2, errorCode);
+                    copy.setTimestamp(3, Timestamp.from(failedAt));
+                    copy.setString(4, tenantId);
+                    copy.setLong(5, deliveryId);
+                    copy.setString(6, delivery.leaseOwner());
+                    copy.setLong(7, delivery.fencingToken());
+                    if (copy.executeUpdate() != 1) {
+                        throw new SQLException("unable to create webhook dead letter");
+                    }
                 }
-            }
-            try (PreparedStatement update = connection.prepareStatement(
-                    "UPDATE webhook_delivery_outbox SET state='DEAD', attempt_count=attempt_count+1, "
-                            + "last_status_code=?, last_error_code=?, lease_until=NULL, updated_at=? "
-                            + "WHERE tenant_id=? AND delivery_id=? AND state='IN_FLIGHT'")) {
-                update.setInt(1, statusCode);
-                update.setString(2, errorCode);
-                update.setTimestamp(3, Timestamp.from(failedAt));
-                update.setString(4, tenantId);
-                update.setLong(5, deliveryId);
-                if (update.executeUpdate() != 1) {
-                    throw new SQLException("unable to mark webhook delivery dead");
+                try (PreparedStatement update = connection.prepareStatement(
+                        "UPDATE webhook_delivery_outbox SET state='DEAD', attempt_count=attempt_count+1, "
+                                + "last_status_code=?, last_error_code=?, lease_until=NULL, "
+                                + "lease_owner=NULL, updated_at=? WHERE tenant_id=? AND delivery_id=? "
+                                + "AND state='IN_FLIGHT' AND lease_owner=? AND fencing_token=?")) {
+                    update.setInt(1, statusCode);
+                    update.setString(2, errorCode);
+                    update.setTimestamp(3, Timestamp.from(failedAt));
+                    update.setString(4, tenantId);
+                    update.setLong(5, deliveryId);
+                    update.setString(6, delivery.leaseOwner());
+                    update.setLong(7, delivery.fencingToken());
+                    if (update.executeUpdate() != 1) {
+                        throw new SQLException("unable to mark webhook delivery dead");
+                    }
                 }
+                connection.commit();
+            } catch (SQLException | RuntimeException exception) {
+                rollback(connection, exception);
+                throw exception;
             }
-            connection.commit();
         } catch (SQLException exception) {
             throw new IllegalStateException("unable to dead-letter webhook delivery", exception);
         }
     }
 
-    private void updateTerminal(String tenantId, long deliveryId, int statusCode, String state,
+    private void updateTerminal(WebhookDeliveryService.Delivery delivery, int statusCode,
+            String state,
             Instant at, String errorCode) {
+        requireLease(delivery);
+        String tenantId = delivery.tenantId();
         validateId(tenantId, "tenantId");
         Objects.requireNonNull(at, "at");
         String sql = "UPDATE webhook_delivery_outbox SET state=?, attempt_count=attempt_count+1, "
-                + "last_status_code=?, last_error_code=?, lease_until=NULL, delivered_at=?, updated_at=? "
-                + "WHERE tenant_id=? AND delivery_id=? AND state='IN_FLIGHT'";
+                + "last_status_code=?, last_error_code=?, lease_until=NULL, lease_owner=NULL, "
+                + "delivered_at=?, updated_at=? WHERE tenant_id=? AND delivery_id=? "
+                + "AND state='IN_FLIGHT' AND lease_owner=? AND fencing_token=?";
         executeUpdate(tenantId, sql, statement -> {
             statement.setString(1, state);
             statement.setInt(2, statusCode);
@@ -277,8 +322,19 @@ public final class DataSourceWebhookOutbox implements WebhookDeliveryService.Out
             statement.setTimestamp(4, Timestamp.from(at));
             statement.setTimestamp(5, Timestamp.from(at));
             statement.setString(6, tenantId);
-            statement.setLong(7, deliveryId);
+            statement.setLong(7, delivery.deliveryId());
+            statement.setString(8, delivery.leaseOwner());
+            statement.setLong(9, delivery.fencingToken());
         });
+    }
+
+    private static void requireLease(WebhookDeliveryService.Delivery delivery) {
+        Objects.requireNonNull(delivery, "delivery");
+        validateId(delivery.tenantId(), "tenantId");
+        validateId(delivery.leaseOwner(), "leaseOwner");
+        if (delivery.deliveryId() <= 0 || delivery.fencingToken() <= 0) {
+            throw new IllegalArgumentException("delivery lease is invalid");
+        }
     }
 
     private void executeUpdate(String tenantId, String sql, StatementBinder binder) {

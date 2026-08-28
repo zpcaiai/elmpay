@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "regions": [
+    {"name": "cn-east-1", "primary": true},
+    {"name": "cn-north-1", "primary": false}
+  ],
+  "postgres": {
+    "instances": 3,
+    "storageSize": "500Gi",
+    "walStorageSize": "100Gi",
+    "encryptedStorageClass": "encrypted-retain",
+    "backupDestination": "s3://elmpay-production-backups/postgres",
+    "primaryBackupServerName": "payments-cn-east-1",
+    "retentionPolicy": "90d"
+  },
+  "kafka": {
+    "version": "4.0.0",
+    "brokers": 3,
+    "replicationFactor": 3,
+    "minimumInSyncReplicas": 2,
+    "storageSize": "500Gi",
+    "encryptedStorageClass": "encrypted-retain"
+  },
+  "redis": {
+    "replicas": 3,
+    "sentinels": 3,
+    "storageSize": "50Gi",
+    "encryptedStorageClass": "encrypted-retain",
+    "authSecretName": "redis-auth-vault-synced"
+  }
+}

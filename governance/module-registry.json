@@ -4,6 +4,7 @@
   "layers": {
     "lib": {"rank": 0, "may_depend_on": ["lib"]},
     "connector": {"rank": 1, "may_depend_on": ["lib"]},
+    "sdk": {"rank": 1, "may_depend_on": ["lib"]},
     "service": {"rank": 2, "may_depend_on": ["lib", "connector", "service"]},
     "app": {"rank": 3, "may_depend_on": ["lib", "service"]}
   },
@@ -139,11 +140,17 @@
 
     {"name": "edge-gateway", "layer": "app", "path": "apps/edge-gateway", "owner": "payment-platform-sre",
      "owned_tables": [],
-     "depends_on": ["security", "observability", "payment-core", "merchant-config"],
+      "depends_on": ["security", "observability", "payment-core", "merchant-config", "reconciliation-service"],
      "inbound": ["public HTTPS"], "outbound": ["internal mTLS"],
      "slo": {"availability": "99.99%", "p95_ms": 30},
      "threats": ["限流绕过", "请求走私", "签名头伪造"],
      "migration": "config-driven, blue/green"},
+    {"name": "mobile-android", "layer": "sdk", "path": "sdks/mobile/android", "owner": "payment-platform-sdk",
+     "owned_tables": [], "depends_on": [],
+     "inbound": ["merchant Android application"], "outbound": ["Payments API v1", "official wallet SDKs"],
+     "slo": {"kind": "client-library", "target": "retry, deep-link and redaction contract tests on every change"},
+     "threats": ["深链伪造", "重试导致重复确认", "设备证明被静默丢弃"],
+     "migration": "n/a (client SDK; no durable server state)"},
     {"name": "checkout-web", "layer": "app", "path": "apps/checkout-web", "owner": "payment-platform-architecture",
      "owned_tables": [],
      "depends_on": ["observability", "payment-core", "merchant-config"],

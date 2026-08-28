@@ -28,14 +28,30 @@ test('browser route forwards only the signed checkout credential to the agreed A
       headers: { 'content-type': 'application/json', 'x-request-id': 'upstream-request' } });
   } });
   const request = Readable.from([]); request.url = `/api/checkout/sessions/${session}`; request.method = 'GET';
-  request.headers = { authorization: `CheckoutSession ${token}` };
+  request.headers = { authorization: `CheckoutSession ${token}`,
+    'accept-language': 'zh-CN,zh;q=0.9,en;q=0.5' };
   const response = responseCapture(); await proxy(request, response);
   assert.equal(response.status, 200);
   assert.equal(calls[0][0].pathname, `/api/checkout/sessions/${session}`);
   assert.equal(calls[0][0].search, '');
   assert.equal(calls[0][1].headers.authorization, `CheckoutSession ${token}`);
+  assert.equal(calls[0][1].headers['accept-language'], 'zh-CN,zh;q=0.9,en;q=0.5');
   assert.equal('referer' in calls[0][1].headers, false);
   assert.equal(calls[0][1].headers.authorization.toLowerCase().includes('bearer'), false);
+});
+
+test('invalid locale metadata is replaced instead of being forwarded upstream', async () => {
+  const session = '00000000-0000-4000-8000-000000000000';
+  const token = `${'M'.repeat(48)}.${'A'.repeat(43)}`; const calls = [];
+  const proxy = createHandler({ apiBaseUrl: 'https://api.example/', transport: async (url, options) => {
+    calls.push([url, options]); return new Response('{"status":"OPEN"}', { status: 200,
+      headers: { 'content-type': 'application/json' } });
+  } });
+  const request = Readable.from([]); request.url = `/api/checkout/sessions/${session}`;
+  request.method = 'GET'; request.headers = { authorization: `CheckoutSession ${token}`,
+    'accept-language': 'en\r\nx-injected: yes' };
+  await proxy(request, responseCapture());
+  assert.equal(calls[0][1].headers['accept-language'], 'en');
 });
 
 test('browser route rejects missing signed checkout credential without contacting upstream', async () => {

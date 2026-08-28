@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 import sys
+import tempfile
 import unittest
 
 
@@ -10,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools/runtime"))
 
 from elmpay_runtime.common import read_json, sha256_json  # noqa: E402
+from elmpay_runtime.attestation import attach_dsse, generate_ed25519_keypair  # noqa: E402
 from elmpay_runtime.external_evidence import validate_external_evidence  # noqa: E402
-from elmpay_runtime.release import sign_record  # noqa: E402
 
 
 NOW = datetime(2026, 8, 26, 0, 0, tzinfo=timezone.utc)
@@ -20,23 +21,34 @@ NOW = datetime(2026, 8, 26, 0, 0, tzinfo=timezone.utc)
 class ExternalEvidenceGateTest(unittest.TestCase):
     def setUp(self) -> None:
         self.policy = read_json(ROOT / "platform/compliance/external-evidence-policy.json")
-        self.environment = {
-            "ELMPAY_EXTERNAL_A": "a" * 32,
-            "ELMPAY_EXTERNAL_B": "b" * 32,
-        }
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.private = {}
+        public = {}
+        for key_id in ("external-a", "external-b"):
+            self.private[key_id], public[key_id] = generate_ed25519_keypair()
         self.trust = {
+            "replayDatabase": str(Path(self.temporary.name) / "external-nonces.db"),
             "keys": {
                 "external-a": {
                     "identity": "external-a",
                     "role": "external_verifier",
-                    "secretEnv": "ELMPAY_EXTERNAL_A",
+                    "algorithm": "Ed25519",
+                    "publicKeyPem": public["external-a"],
                     "independent": True,
+                    "revoked": False,
+                    "notBefore": "2026-08-01T00:00:00Z",
+                    "notAfter": "2026-09-01T00:00:00Z",
                 },
                 "external-b": {
                     "identity": "external-b",
                     "role": "external_verifier",
-                    "secretEnv": "ELMPAY_EXTERNAL_B",
+                    "algorithm": "Ed25519",
+                    "publicKeyPem": public["external-b"],
                     "independent": True,
+                    "revoked": False,
+                    "notBefore": "2026-08-01T00:00:00Z",
+                    "notAfter": "2026-09-01T00:00:00Z",
                 },
             }
         }
@@ -48,11 +60,10 @@ class ExternalEvidenceGateTest(unittest.TestCase):
             bundle,
             self.trust,
             now=NOW,
-            environment=self.environment,
             expected_binding="d" * 64,
         )
         self.assertTrue(report.allowed, report.reasons)
-        self.assertEqual(len(self.policy["requiredCategories"]), len(report.checks))
+        self.assertGreaterEqual(len(report.checks), len(self.policy["requiredCategories"]))
 
     def test_missing_bundle_category_blocks(self) -> None:
         bundle = self._bundle()
@@ -76,10 +87,10 @@ class ExternalEvidenceGateTest(unittest.TestCase):
         bundle = self._bundle()
         provider = self._item(bundle, "provider_certification")
         provider["attestation"]["environment"] = "SANDBOX"
-        self._resign(provider, provider["keyId"])
+        self._resign(provider, self._key_id(provider))
         dr = self._item(bundle, "dr_exercise")
         dr["attestation"]["measuredRtoSeconds"] = 901
-        self._resign(dr, "external-b")
+        self._resign(dr, self._key_id(dr))
         report = self._validate(bundle)
         self.assertFalse(report.allowed)
         self.assertIn("provider_certification:provider_certification_not_production", report.reasons)
@@ -101,22 +112,24 @@ class ExternalEvidenceGateTest(unittest.TestCase):
             bundle,
             self.trust,
             now=NOW,
-            environment=self.environment,
             expected_binding="d" * 64,
         )
 
     def _bundle(self) -> dict[str, object]:
-        categories = list(self.policy["requiredCategories"])
+        categories = [item for item in self.policy["requiredCategories"] if item != "provider_certification"]
+        evidence = [self._make_item(category, index) for index, category in enumerate(categories)]
+        for offset, (provider, capabilities) in enumerate(self.policy["requiredProviderCapabilities"].items(), start=len(evidence)):
+            evidence.append(self._make_item("provider_certification", offset, provider, capabilities))
         return {
             "schemaVersion": 1,
             "status": "VERIFIED",
             "releaseBindingDigest": "d" * 64,
             "generatedAt": "2026-08-25T00:00:00Z",
             "expiresAt": "2026-08-27T00:00:00Z",
-            "evidence": [self._make_item(category, index) for index, category in enumerate(categories)],
+            "evidence": evidence,
         }
 
-    def _make_item(self, category: str, index: int) -> dict[str, object]:
+    def _make_item(self, category: str, index: int, provider_id: str | None = None, capabilities: list[str] | None = None) -> dict[str, object]:
         key_id = "external-a" if index % 2 == 0 else "external-b"
         identity = key_id
         attestation: dict[str, object] = {
@@ -126,7 +139,7 @@ class ExternalEvidenceGateTest(unittest.TestCase):
         if category == "independent_human_review":
             attestation.update({"reviewerId": identity, "implementerId": "builder-a", "decision": "APPROVE", "openFindings": 0, "phishingResistantAuth": True})
         elif category == "provider_certification":
-            attestation.update({"providerId": "provider-1", "officialCertificationId": "CERT-1", "environment": "PRODUCTION", "official": True, "sandboxValidated": True, "capabilities": ["authorize", "capture", "refund"], "observedTransactionReference": "provider-tx-1"})
+            attestation.update({"providerId": provider_id, "officialCertificationId": f"CERT-{provider_id}", "environment": "PRODUCTION", "official": True, "sandboxValidated": True, "capabilities": capabilities, "observedTransactionReference": f"provider-tx-{provider_id}"})
         elif category == "production_kubernetes":
             attestation.update({"environment": "PRODUCTION", "clusterId": "prod-a", "regions": ["us-east-1", "us-west-2"], "commitSha": "c" * 40, "artifactDigest": "a" * 64, "imageDigests": ["registry.example/payment@sha256:" + "b" * 64], "gitopsDriftCount": 0, "admissionPolicyPassed": True, "rolloutStage": "PRODUCTION"})
         elif category == "dr_exercise":
@@ -155,8 +168,9 @@ class ExternalEvidenceGateTest(unittest.TestCase):
             "status": "VERIFIED",
             "observedAt": "2026-08-25T00:00:00Z",
             "expiresAt": "2026-08-27T00:00:00Z",
+            "issuedAt": "2026-08-25T00:00:00Z",
+            "nonce": f"external-evidence-{category}-{index:04d}",
             "bindingDigest": "d" * 64,
-            "keyId": key_id,
             "attestation": attestation,
         }
         self._resign(item, key_id)
@@ -166,8 +180,15 @@ class ExternalEvidenceGateTest(unittest.TestCase):
         return next(item for item in bundle["evidence"] if item["category"] == category)
 
     def _resign(self, item: dict[str, object], key_id: str) -> None:
+        item.pop("dsse", None)
         item["attestationDigest"] = sha256_json(item["attestation"])
-        item["signature"] = sign_record(item, self.environment[self.trust["keys"][key_id]["secretEnv"]])
+        signed = attach_dsse(item, key_id, self.private[key_id])
+        item.clear()
+        item.update(signed)
+
+    @staticmethod
+    def _key_id(item: dict[str, object]) -> str:
+        return item["dsse"]["signatures"][0]["keyid"]
 
 
 if __name__ == "__main__":

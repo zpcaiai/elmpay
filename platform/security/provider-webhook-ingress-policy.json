@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "batch": "B37",
+  "routePrefix": "/v1/provider-webhooks/",
+  "endpointIdentity": {
+    "opaqueTokenMinimumCharacters": 32,
+    "storeOnlySha256Digest": true,
+    "callerTenantHeadersTrusted": false,
+    "serverOwnedTenantProjectProviderAccountBinding": true
+  },
+  "verification": {
+    "requiredBeforePersistence": true,
+    "rawBodyMaximumBytes": 1048576,
+    "deduplicationScope": ["tenant", "provider", "merchantAccount", "providerEventId"]
+  },
+  "acknowledgement": {
+    "acceptedStatus": 202,
+    "duplicateStatus": 200,
+    "businessEffectsAsynchronous": true
+  },
+  "certificationStatus": "NOT_CERTIFIED"
+}

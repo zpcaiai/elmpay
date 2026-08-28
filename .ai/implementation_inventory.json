@@ -1,0 +1,1842 @@
+{
+  "schema_version": 1,
+  "required_roles": ["executable", "runtime_entrypoint", "config", "migrations", "tests"],
+  "batches": {
+    "B00": {
+      "assessment": "Executable repository charter, bootstrap and hygiene gates with one fail-closed CLI.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Repository foundation has no durable application state.",
+      "artifacts": {
+        "executable": [
+          {"path": "tools/paygov/charter.py", "markers": ["VALIDATOR = (\"charter\", \"B00\")", "def validate"]},
+          {"path": "tools/paygov/hygiene.py", "markers": ["VALIDATOR = (\"repo-hygiene\", \"B00\")", "def validate"]},
+          {"path": "tools/paygov/modules.py", "markers": ["VALIDATOR = (\"module-registry\", \"B00\")", "def validate"]}
+        ],
+        "runtime_entrypoint": [{"path": "tools/paygov/cli.py", "markers": ["registry.load_all()", "def main"]}],
+        "config": [
+          {"path": "governance/project-config.json", "markers": ["\"batch\": \"B00\"", "\"security\""]},
+          {"path": "governance/module-registry.json", "markers": ["\"modules\"", "\"path\""]},
+          {"path": "governance/non-negotiables.json", "markers": ["\"rules\"", "\"NN-01\""]}
+        ],
+        "migrations": [],
+        "tests": [
+          {"path": "tools/tests/test_b00_charter.py", "markers": ["test_real_charter_passes"]},
+          {"path": "tools/tests/test_b00_module_registry.py", "markers": ["test_real_registry_passes"]},
+          {"path": "tools/tests/test_b00_repo_hygiene.py", "markers": ["test_real_repository_is_clean"]}
+        ]
+      }
+    },
+    "B01": {
+      "assessment": "Machine-enforced requirements and service-boundary baseline.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Requirements and service ownership are repository control-plane facts.",
+      "artifacts": {
+        "executable": [
+          {"path": "tools/paygov/requirements.py", "markers": ["VALIDATOR = (\"requirements\", \"B01\")", "def validate"]},
+          {"path": "tools/paygov/boundaries.py", "markers": ["VALIDATOR = (\"service-boundaries\", \"B01\")", "def validate"]}
+        ],
+        "runtime_entrypoint": [{"path": "tools/paygov/cli.py", "markers": ["verify-all", "registry.get(name)"]}],
+        "config": [
+          {"path": "governance/requirements.json", "markers": ["\"batch\": \"B01\"", "\"requirements\""]},
+          {"path": "governance/service-boundaries.json", "markers": ["\"batch\": \"B01\"", "\"capabilities\""]}
+        ],
+        "migrations": [],
+        "tests": [
+          {"path": "tools/tests/test_b01_requirements.py", "markers": ["test_real_baseline_passes"]},
+          {"path": "tools/tests/test_b01_boundaries.py", "markers": ["test_real_boundaries_pass"]}
+        ]
+      }
+    },
+    "B02": {
+      "assessment": "Executable ADR and threat-model validation, including source-to-generated drift checks.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Architecture decisions and threats do not introduce a database schema.",
+      "artifacts": {
+        "executable": [
+          {"path": "tools/paygov/adr.py", "markers": ["VALIDATOR = (\"adr\", \"B02\")", "def validate"]},
+          {"path": "tools/paygov/threat.py", "markers": ["VALIDATOR = (\"threat-model\", \"B02\")", "def validate"]}
+        ],
+        "runtime_entrypoint": [{"path": "tools/paygov/cli.py", "markers": ["list-validators", "registry.load_all()"]}],
+        "config": [{"path": "governance/threat-model.json", "markers": ["\"batch\": \"B02\"", "\"abuse_cases\""]}],
+        "migrations": [],
+        "tests": [
+          {"path": "tools/tests/test_b02_adr.py", "markers": ["test_real_adrs_pass"]},
+          {"path": "tools/tests/test_b02_threat_model.py", "markers": ["test_real_threat_model_passes"]}
+        ]
+      }
+    },
+    "B03": {
+      "assessment": "Pinned toolchain and version-catalog gate with deterministic validation.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Build toolchain metadata has no application database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/paygov/toolchain.py", "markers": ["VALIDATOR = (\"toolchain\", \"B03\")", "def validate"]}],
+        "runtime_entrypoint": [{"path": "scripts/render-build.py", "markers": ["def main", "--check"]}],
+        "config": [
+          {"path": "governance/version-catalog.json", "markers": ["\"batch\": \"B03\"", "\"entries\""]},
+          {"path": "gradle/libs.versions.toml", "markers": ["[versions]", "[libraries]"]}
+        ],
+        "migrations": [],
+        "tests": [{"path": "tools/tests/test_b03_toolchain.py", "markers": ["test_real_catalogue_passes", "test_b03_validator_is_registered"]}]
+      }
+    },
+    "B04": {
+      "assessment": "Executable local dependency platform and provider simulator, guarded against production data.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "The batch provisions disposable development dependencies rather than product schema.",
+      "artifacts": {
+        "executable": [
+          {"path": "tools/paygov/devplatform.py", "markers": ["VALIDATOR = (\"dev-platform\", \"B04\")", "def validate"]},
+          {"path": "tools/simulator/provider_sim.py", "markers": ["def main", "SUPPORTED_PROVIDERS"]}
+        ],
+        "runtime_entrypoint": [{"path": "scripts/dev-up.sh", "markers": ["docker compose", "render-dev-platform.py --check"]}],
+        "config": [
+          {"path": "governance/dev-platform.json", "markers": ["\"batch\": \"B04\"", "\"simulators\""]},
+          {"path": "platform/dev/compose.yaml", "markers": ["services:", "postgres:"]}
+        ],
+        "migrations": [],
+        "tests": [
+          {"path": "tools/tests/test_b04_dev_platform.py", "markers": ["test_real_platform_passes"]},
+          {"path": "tools/tests/test_b04_simulator.py", "markers": ["simulator"]}
+        ]
+      }
+    },
+    "B05": {
+      "assessment": "Fail-closed CI configuration validator plus executable SOTA matrix runner.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "CI orchestration has no application database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/paygov/ci.py", "markers": ["VALIDATOR = (\"ci-pipeline\", \"B05\")", "def validate"]}],
+        "runtime_entrypoint": [{"path": "scripts/run-test-matrix.py", "markers": ["class MatrixError", "def main"]}],
+        "config": [
+          {"path": "governance/ci-pipeline.json", "markers": ["\"batch\": \"B05\"", "\"quality_gates\""]},
+          {"path": ".github/workflows/ci.yml", "markers": ["jobs:", "permissions:"]}
+        ],
+        "migrations": [],
+        "tests": [
+          {"path": "tools/tests/test_b05_ci.py", "markers": ["test_real_pipeline_passes"]},
+          {"path": "testing/test_matrix_runner.py", "markers": ["MatrixRunnerTest"]}
+        ]
+      }
+    },
+    "B06": {
+      "assessment": "Executable evidence validation and local/upstream orchestration cross-check.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Evidence is immutable repository content, not application database state.",
+      "artifacts": {
+        "executable": [
+          {"path": "tools/paygov/evidence.py", "markers": ["VALIDATOR = (\"evidence\", \"B06\")", "def validate"]},
+          {"path": "tools/paygov/orchestration.py", "markers": ["class Programme", "def status"]}
+        ],
+        "runtime_entrypoint": [{"path": "scripts/batch.py", "markers": ["def crosscheck", "def main"]}],
+        "config": [{"path": "governance/evidence-policy.json", "markers": ["\"batch\": \"B06\"", "\"required_batch_files\""]}],
+        "migrations": [],
+        "tests": [
+          {"path": "tools/tests/test_b06_evidence.py", "markers": ["EvidenceHappyPath"]},
+          {"path": "tools/tests/test_b06_orchestration.py", "markers": ["test_manifest_graph_is_acyclic_and_complete"]}
+        ]
+      }
+    },
+    "B07": {
+      "assessment": "Executable SSOT and bidirectional requirement-control traceability gate.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Traceability graph state is derived from version-controlled sources.",
+      "artifacts": {
+        "executable": [
+          {"path": "tools/paygov/ssot.py", "markers": ["VALIDATOR = (\"ssot\", \"B07\")", "def validate"]},
+          {"path": "tools/paygov/traceability.py", "markers": ["VALIDATOR = (\"traceability\", \"B07\")", "def build_graph"]}
+        ],
+        "runtime_entrypoint": [{"path": "scripts/traceability-matrix.py", "markers": ["def main", "uncovered_controls"]}],
+        "config": [{"path": "governance/ssot-registry.json", "markers": ["\"batch\": \"B07\"", "\"sources\""]}],
+        "migrations": [],
+        "tests": [
+          {"path": "tools/tests/test_b07_ssot.py", "markers": ["test_real_registry_passes"]},
+          {"path": "tools/tests/test_b07_traceability.py", "markers": ["test_real_graph_passes"]}
+        ]
+      }
+    },
+    "B08": {
+      "assessment": "Executable immutable payment domain object wired into the payment application service.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "This batch establishes the pure domain model; durable intent storage is mapped in B32.",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentIntent.java", "markers": ["public record PaymentIntent", "public static PaymentIntent create"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentService.java", "markers": ["public PaymentIntent create", "PaymentStateMachine"]}],
+        "config": [{"path": "governance/domain-model.json", "markers": ["\"batch\": \"B08\"", "\"entities\""]}],
+        "migrations": [],
+        "tests": [
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/PaymentServiceTest.java", "markers": ["createReplaysOnlyAnIdenticalSnapshot"]},
+          {"path": "tools/tests/test_b08_domain.py", "markers": ["test_real_model_passes"]}
+        ]
+      }
+    },
+    "B09": {
+      "assessment": "Integer-minor-unit money operations, currency metadata, exact ratios and conservation tests.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Money is a pure value type; storage belongs to owning aggregates.",
+      "artifacts": {
+        "executable": [{"path": "libs/money/src/main/java/com/elmpay/money/Money.java", "markers": ["record Money", "multiplyRatio", "allocate"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentIntent.java", "markers": ["Money amount", "amount.amountMinor()"]}],
+        "config": [{"path": "governance/currency-metadata.json", "markers": ["\"batch\": \"B09\"", "\"currencies\""]}],
+        "migrations": [],
+        "tests": [{"path": "libs/money/src/test/java/com/elmpay/money/MoneyTest.java", "markers": ["roundsRatiosWithoutFloatingPoint", "allocationConservesEveryMinorUnit"]}]
+      }
+    },
+    "B10": {
+      "assessment": "Executable state machine with authoritative-success, capture and terminal-state guards.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Transition policy is pure domain logic; durable state is mapped in B32-B34.",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentStateMachine.java", "markers": ["class PaymentStateMachine", "UNTRUSTED_SUCCESS_SOURCE", "allowedTransitions"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentService.java", "markers": ["stateMachine.transition", "resolveUnknown"]}],
+        "config": [{"path": "governance/state-machines.json", "markers": ["\"batch\": \"B10\"", "\"success_states\""]}],
+        "migrations": [],
+        "tests": [{"path": "services/payment-core/src/test/java/com/elmpay/payment/PaymentServiceTest.java", "markers": ["untrustedSuccessAndCardLikeReferencesAreRejected", "definitiveQueryAtomicallyClosesOriginalUnknownAndQueryAttempts"]}]
+      }
+    },
+    "B11": {
+      "assessment": "Runnable HTTP payment boundary uses the OpenAPI canonical underscore path and an explicit legacy hyphen compatibility alias.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "API compatibility is a transport contract; underlying storage is mapped by owning batches.",
+      "artifacts": {
+        "executable": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentHttpHandler.java", "markers": ["PAYMENT_INTENTS_PATH = \"/v1/payment_intents\"", "LEGACY_PAYMENT_INTENTS_PATH = \"/v1/payment-intents\"", "isPaymentIntentsCollection"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentGatewayApplication.java", "markers": ["public static void main", "server.start()"]}],
+        "config": [{"path": "contracts/api/openapi.json", "markers": ["\"openapi\"", "\"/v1/payment_intents\""]}],
+        "migrations": [],
+        "tests": [{"path": "apps/edge-gateway/src/test/java/com/elmpay/gateway/PaymentGatewayE2eTest.java", "markers": ["createsAndConfirmsAnIntentThroughTheHttpBoundary", "base.resolve(\"/v1/payment_intents\"", "base.resolve(\"/v1/payment-intents\""]}]
+      }
+    },
+    "B12": {
+      "assessment": "PostgreSQL outbox relay and durable consumer inbox with leases, fencing and ack ordering.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/JdbcEventDeliveryStore.java", "markers": ["FOR UPDATE SKIP LOCKED", "fencing_token", "markPublished", "consume("]}],
+        "runtime_entrypoint": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/OutboxRelay.java", "markers": ["runOnce", "publisher.publish", "store.markPublished", "store.recordFailure"]}],
+        "config": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/EventDeliverySettings.java", "markers": ["ELMPAY_EVENT_OUTBOX_LEASE_TTL", "EventDeliverySettings from"]}],
+        "migrations": [{"path": "services/worker-scheduler/src/main/resources/db/migration/V012__event_delivery_runtime.sql", "markers": ["consumer_event_inbox", "fencing_token", "FORCE ROW LEVEL SECURITY"]}],
+        "tests": [
+          {"path": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/events/OutboxRelayTest.java", "markers": ["publisherAckIsRequiredBeforePublishedMarker", "crashAfterPublishIsRetryable", "productionSettingsAreExplicitAndFailClosed"]},
+          {"path": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/events/JdbcEventDeliveryStoreTest.java", "markers": ["FOR UPDATE SKIP LOCKED", "staleFencingTokenCannotAcknowledge"]}
+        ]
+      }
+    },
+    "B13": {
+      "assessment": "The immutable tenant archive plane has real PostgreSQL range partitions, forced tenant RLS, bounded advisory-locked precreation and four-eyes detach gated by a verified external archive receipt.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/data/JdbcTenantPartitionManager.java", "markers": ["ensureMonthlyPartitions", "detachArchivedPartition", "requireVerifiedReceipt"]}],
+        "runtime_entrypoint": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/data/TenantPartitionMaintenanceJob.java", "markers": ["class TenantPartitionMaintenanceJob", "public void run"]}],
+        "config": [{"path": "governance/data-architecture.json", "markers": ["\"batch\": \"B13\"", "\"partition_kinds\""]}],
+        "migrations": [{"path": "services/worker-scheduler/src/main/resources/db/migration/V013__tenant_partition_archive.sql", "markers": ["PARTITION BY RANGE", "FORCE ROW LEVEL SECURITY", "tenant_archive_export_receipt"]}],
+        "tests": [{"path": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/data/JdbcTenantPartitionManagerTest.java", "markers": ["createsBoundedMonthlyRangePartitionsUnderAnAdvisoryLock", "detachRequiresPastPartitionFourEyesAndVerifiedExternalReceipt"]}]
+      }
+    },
+    "B14": {
+      "assessment": "Executable module and topology dependency validator.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Service dependency architecture has no owned database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/paygov/topology.py", "markers": ["VALIDATOR = (\"service-topology\", \"B14\")", "def validate"]}],
+        "runtime_entrypoint": [{"path": "scripts/topology-smoke.py", "markers": ["topology", "main"]}],
+        "config": [{"path": "governance/service-topology.json", "markers": ["\"batch\": \"B14\"", "\"services\""]}],
+        "migrations": [],
+        "tests": [{"path": "tools/tests/test_b14_topology.py", "markers": ["test_real_topology_passes"]}]
+      }
+    },
+    "B15": {
+      "assessment": "Executable durable migration control plane journals one provider result, fenced legacy/platform projection delivery, resumable backfill totals and digest-bound four-eyes cutover/rollback.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/service_migration.py", "markers": ["class ServiceMigrationControl", "def record_provider_result", "def claim_delivery", "def import_backfill_page", "def propose_cutover"]}],
+        "runtime_entrypoint": [{"path": "tools/service_migration.py", "markers": ["record-provider-result", "claim-delivery", "propose-cutover", "def main"]}],
+        "config": [{"path": "governance/migration-plan.json", "markers": ["\"batch\": \"B15\"", "\"dual_write\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V015__service_migration.sql", "markers": ["service_migration_write_journal", "service_migration_projection_delivery", "service_migration_backfill_checkpoint", "service_migration_cutover"]}],
+        "tests": [{"path": "testing/test_b15_service_migration_runtime.py", "markers": ["test_provider_result_is_single_journaled_idempotently_and_delivered_with_fencing", "test_cutover_requires_digest_bound_four_eyes_matched_dual_writes_and_backfill"]}]
+      }
+    },
+    "B16": {
+      "assessment": "Durable fail-closed zero-trust decision point combines identity, device, network, risk and ABAC context.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/identity_security.py", "markers": ["def evaluate_zero_trust", "default deny"]}],
+        "runtime_entrypoint": [{"path": "tools/identity_security_control.py", "markers": ["evaluate", "def main"]}],
+        "config": [{"path": "platform/security/identity-security-policy.json", "markers": ["\"defaultDecision\": \"DENY\"", "\"allowedDevicePostures\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V016_021__identity_security.sql", "markers": ["identity_session", "workload_identity"]}],
+        "tests": [{"path": "testing/test_b16_b21_identity_security.py", "markers": ["test_b16_zero_trust_combines_identity_device_network_risk_and_abac"]}]
+      }
+    },
+    "B17": {
+      "assessment": "OIDC holder-bound sessions, workload identity, refresh-family revocation and four-eyes recovery are durable and fail closed.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/identity_security.py", "markers": ["def verify_oidc_and_issue_session", "def authenticate_workload"]}],
+        "runtime_entrypoint": [{"path": "tools/identity_security_control.py", "markers": ["verify-oidc", "propose-recovery"]}],
+        "config": [{"path": "platform/security/identity-security-policy.json", "markers": ["\"requiredHolderBinding\": true", "\"trustDomain\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V016_021__identity_security.sql", "markers": ["identity_recovery", "refresh_family"]}],
+        "tests": [{"path": "testing/test_b16_b21_identity_security.py", "markers": ["test_b17_oidc_holder_workload_and_recovery_are_fail_closed"]}]
+      }
+    },
+    "B18": {
+      "assessment": "Durable WebAuthn challenges and assertions verify RP, origin, UV, signature, counter and replay binding.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/identity_security.py", "markers": ["def issue_webauthn_challenge", "def verify_webauthn_assertion"]}],
+        "runtime_entrypoint": [{"path": "tools/identity_security_control.py", "markers": ["issue-webauthn", "verify-webauthn"]}],
+        "config": [{"path": "platform/security/identity-security-policy.json", "markers": ["\"requireUserVerification\": true", "\"attestationMetadataBinding\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V016_021__identity_security.sql", "markers": ["webauthn_credential", "webauthn_challenge"]}],
+        "tests": [{"path": "testing/test_b16_b21_identity_security.py", "markers": ["test_b18_webauthn_verifies_rp_origin_uv_signature_counter_and_replay"]}]
+      }
+    },
+    "B19": {
+      "assessment": "Durable scoped grants enforce RBAC/ABAC, separation of duties, digest-bound four-eyes approval and bounded JIT elevation.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/identity_security.py", "markers": ["def propose_grant", "def approve_grant", "def authorize"]}],
+        "runtime_entrypoint": [{"path": "tools/identity_security_control.py", "markers": ["propose-grant", "approve-grant"]}],
+        "config": [{"path": "platform/security/identity-security-policy.json", "markers": ["\"separationOfDuties\"", "\"maximumJitSeconds\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V016_021__identity_security.sql", "markers": ["authorization_grant"]}],
+        "tests": [{"path": "testing/test_b16_b21_identity_security.py", "markers": ["test_b19_scoped_four_eyes_jit_and_separation_of_duties"]}]
+      }
+    },
+    "B20": {
+      "assessment": "AES-256-GCM envelope encryption uses tenant-bound AAD, short-lived KMS data keys and authenticated rotation with durable ciphertext metadata.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "libs/security/src/main/java/com/elmpay/security/EnvelopeEncryptionService.java", "markers": ["AES/GCM/NoPadding", "public Envelope rotate"]}],
+        "runtime_entrypoint": [{"path": "libs/security/src/main/java/com/elmpay/security/HttpsKmsClient.java", "markers": ["HTTPS+mTLS", "data-keys/generate"]}],
+        "config": [{"path": "platform/security/identity-security-policy.json", "markers": ["\"requiredAlgorithm\": \"AES-256-GCM\"", "\"externalKmsHsmBinding\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V016_021__identity_security.sql", "markers": ["encrypted_secret_record", "wrapped_data_key"]}],
+        "tests": [{"path": "libs/security/src/test/java/com/elmpay/security/EnvelopeEncryptionServiceTest.java", "markers": ["envelopeIsAuthenticatedTenantBoundAndRotatable", "httpsKmsClientUsesMutualTlsTransportBoundaryAndRejectsMalformedResponses"]}]
+      }
+    },
+    "B21": {
+      "assessment": "Durable certificate lifecycle supports four-eyes proposals, overlap rotation, expiry scanning and external CA revocation receipts.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/identity_security.py", "markers": ["def propose_certificate", "def revoke_certificate", "def certificate_expiry_scan"]}],
+        "runtime_entrypoint": [{"path": "tools/identity_security_control.py", "markers": ["scan-certificates", "def main"]}],
+        "config": [{"path": "platform/security/identity-security-policy.json", "markers": ["\"minimumOverlapSeconds\"", "\"externalCaAcmeBinding\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V016_021__identity_security.sql", "markers": ["certificate_inventory"]}],
+        "tests": [{"path": "testing/test_b16_b21_identity_security.py", "markers": ["test_b21_certificate_overlap_four_eyes_expiry_and_ca_revocation"]}]
+      }
+    },
+    "B22": {
+      "assessment": "Executable canonicalization, sensitive-data guard, signing and URL controls used by payment runtime.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Secure-coding controls are pure runtime guards and CI mappings.",
+      "artifacts": {
+        "executable": [{"path": "libs/security/src/main/java/com/elmpay/security/SensitiveDataGuard.java", "markers": ["class SensitiveDataGuard", "assertSafe", "redact"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentService.java", "markers": ["SensitiveDataGuard.assertSafe", "CanonicalPayload.sha256Hex"]}],
+        "config": [{"path": "governance/security-baseline.json", "markers": ["\"batch\": \"B22\"", "\"coverage_policy\""]}],
+        "migrations": [],
+        "tests": [{"path": "libs/security/src/test/java/com/elmpay/security/SecurityControlsTest.java", "markers": ["guardRejectsCardAndCredentialFields", "hmacVerificationIsFailClosed"]}]
+      }
+    },
+    "B23": {
+      "assessment": "Tenant-scoped audit facts can be appended in the caller-owned business transaction, while a fenced JDBC worker verifies an exact tenant/sequence/hash-bound Ed25519 timestamp receipt before immutable persistence.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [
+          {"path": "libs/audit/src/main/java/com/elmpay/audit/JdbcAuditedMutation.java", "markers": ["class JdbcAuditedMutation", "auditLog.append(connection, event)"]},
+          {"path": "libs/audit/src/main/java/com/elmpay/audit/AuditAnchorWorker.java", "markers": ["class AuditAnchorWorker", "Signature.getInstance(\"Ed25519\")", "recordVerifiedReceipt"]}
+        ],
+        "runtime_entrypoint": [
+          {"path": "libs/audit/src/main/java/com/elmpay/audit/JdbcAuditAnchorStore.java", "markers": ["FOR UPDATE SKIP LOCKED", "fencing_token", "recordVerifiedReceipt"]},
+          {"path": "libs/audit/src/main/java/com/elmpay/audit/HttpsAuditTimestampAuthority.java", "markers": ["class HttpsAuditTimestampAuthority", "timestamp authority"]}
+        ],
+        "config": [{"path": "platform/security/audit-anchor-policy.json", "markers": ["\"batch\": \"B23\"", "\"externalTimestampAuthorityStatus\": \"BLOCKED\""]}],
+        "migrations": [{"path": "libs/audit/src/main/resources/db/migration/V023__audit_timestamp_anchor.sql", "markers": ["audit_anchor_request", "audit_anchor_receipt", "audit_anchor_receipt_no_update"]}],
+        "tests": [{"path": "libs/audit/src/test/java/com/elmpay/audit/AuditAnchorWorkerTest.java", "markers": ["signedExternalTimestampIsVerifiedBeforeImmutableReceiptPersistence", "businessMutationAndAuditFactShareOneCommitAndTenantMismatchRollsBack"]}]
+      }
+    },
+    "B24": {
+      "assessment": "Durable tenant/project registry with prerequisite-bound lifecycle transitions, four-eyes closure, governed quotas, project activation, RLS and immutable audit.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/merchant-config/src/main/java/com/elmpay/merchant/JdbcMerchantControlPlane.java", "markers": ["transitionEvidenceFlags", "setProjectEnabled", "putProjectQuota", "set_config('app.tenant_id'"]}],
+        "runtime_entrypoint": [{"path": "services/merchant-config/src/main/java/com/elmpay/merchant/MerchantControlPlane.java", "markers": ["requireTransitionEvidence", "configureProjectQuota", "setProjectEnabled"]}],
+        "config": [{"path": "governance/tenant-registry.json", "markers": ["\"batch\": \"B24\"", "\"lifecycle\""]}],
+        "migrations": [{"path": "services/merchant-config/src/main/resources/db/migration/V024__tenant_project_registry.sql", "markers": ["tenant activation requires KYB and signed contract", "project_quota", "merchant_control_audit"]}],
+        "tests": [
+          {"path": "services/merchant-config/src/test/java/com/elmpay/merchant/MerchantControlPlaneTest.java", "markers": ["tenantTransitionsRequireGovernedEvidenceAndFourEyes"]},
+          {"path": "services/merchant-config/src/test/java/com/elmpay/merchant/JdbcMerchantControlPlaneTest.java", "markers": ["migrationsProvideRlsOptimisticLifecycleExternalDecisionAndFourEyes"]}
+        ]
+      }
+    },
+    "B25": {
+      "assessment": "Durable KYB metadata with governed entity/category/region/currency/risk, opaque references, re-verification expiry and immutable licensed-verifier decisions including high-risk dual approval.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/merchant-config/src/main/java/com/elmpay/merchant/JdbcMerchantControlPlane.java", "markers": ["recordVerification", "expireVerification", "approverIds"]}],
+        "runtime_entrypoint": [{"path": "services/merchant-config/src/main/java/com/elmpay/merchant/MerchantControlPlane.java", "markers": ["CATEGORY_RISK", "recordExternalVerification", "expireExternalVerification"]}],
+        "config": [{"path": "governance/merchant-profile.json", "markers": ["\"batch\": \"B25\"", "\"verification\""]}],
+        "migrations": [{"path": "services/merchant-config/src/main/resources/db/migration/V025__merchant_kyb_profile.sql", "markers": ["merchant_verification_approver_guard", "risk_level", "licensed-verifier decisions are immutable"]}],
+        "tests": [{"path": "services/merchant-config/src/test/java/com/elmpay/merchant/MerchantControlPlaneTest.java", "markers": ["kybProfileAcceptsOnlyOpaqueReferencesAndLicensedDecisionBinding", "highRiskVerificationRequiresTwoDistinctApproversAndCanExpire"]}]
+      }
+    },
+    "B26": {
+      "assessment": "Durable account lookup is wired to a ServiceLoader HTTPS+mTLS resolver that binds tenant/account/reference/version and returns revocable, short-lived, wipe-on-close material.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/HttpsProviderCredentialResolver.java", "markers": ["class HttpsProviderCredentialResolver", "HTTPS+mTLS", "requireBound", "v1/provider-credentials/lease"]}, {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/SecretMaterialProviderCredential.java", "markers": ["class SecretMaterialProviderCredential", "public <T> T use", "wipe(material)"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/HttpsProviderCredentialResolver.java", "markers": ["ServiceLoader constructor", "systemConfiguration()"]}],
+        "config": [{"path": "governance/provider-accounts.json", "markers": ["\"batch\": \"B26\"", "\"binding\""]}, {"path": "services/payment-core/src/main/resources/META-INF/services/com.elmpay.payment.provider.ProviderCredentialResolver", "markers": ["com.elmpay.payment.provider.HttpsProviderCredentialResolver"]}],
+        "migrations": [{"path": "apps/edge-gateway/src/main/resources/db/migration/V032__payment_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS provider_account", "credential_ref"]}],
+        "tests": [
+          {"path": "services/merchant-config/src/test/java/com/elmpay/merchant/JdbcMerchantConfigurationRepositoryTest.java", "markers": ["keepsTransactionLocalTenantContextActiveForEachQuery"]},
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/provider/HttpsProviderCredentialResolverTest.java", "markers": ["exactBoundShortLeaseIsUsableRevokedAndWiped", "responseBindingAndLeaseBoundsFailClosed"]}
+        ]
+      }
+    },
+    "B27": {
+      "assessment": "Durable tenant/provider capability rows are enforced fail-closed by routing.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/merchant-config/src/main/java/com/elmpay/merchant/ProviderCapability.java", "markers": ["record ProviderCapability", "supports"]}],
+        "runtime_entrypoint": [{"path": "services/merchant-config/src/main/java/com/elmpay/merchant/RoutingService.java", "markers": ["capability().supports", "NO_ELIGIBLE_PROVIDER"]}],
+        "config": [{"path": "governance/provider-capabilities.json", "markers": ["\"batch\": \"B27\"", "\"capabilities\""]}],
+        "migrations": [{"path": "apps/edge-gateway/src/main/resources/db/migration/V032__payment_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS provider_capability", "provider_capability_tenant_policy"]}],
+        "tests": [{"path": "services/merchant-config/src/test/java/com/elmpay/merchant/RoutingServiceTest.java", "markers": ["failsClosedWhenOnlySuspendedAccountsExist"]}]
+      }
+    },
+    "B28": {
+      "assessment": "Immutable digest-bound routing versions require two distinct approvals, use deterministic stable/canary allocation, persist replayable decisions and support immediate audited rollback plus no-money simulation.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/merchant-config/src/main/java/com/elmpay/merchant/JdbcRoutingPolicyControl.java", "markers": ["proposeVersion", "requireTwoApprovals", "public void rollback(", "public Simulation simulate("]}],
+        "runtime_entrypoint": [{"path": "services/merchant-config/src/main/java/com/elmpay/merchant/JdbcMerchantConfigurationRepository.java", "markers": ["routing_policy_assignment", "recordRoutingDecision", "stableCanaryBucket"]}],
+        "config": [{"path": "governance/routing-policy.json", "markers": ["\"batch\": \"B28\"", "\"canary\""]}],
+        "migrations": [{"path": "services/merchant-config/src/main/resources/db/migration/V028__versioned_routing_policy.sql", "markers": ["routing_policy_version", "routing_policy_assignment", "routing_decision_no_mutation"]}],
+        "tests": [{"path": "services/merchant-config/src/test/java/com/elmpay/merchant/JdbcRoutingPolicyControlTest.java", "markers": ["stableCanaryAllocationIsDeterministicAndNeverRandom", "activationRequiresTwoDistinctDigestBoundApprovalsAndPersistsCanary", "invalidCanaryFailsBeforeDatabaseAndSimulationCannotMoveMoney"]}]
+      }
+    },
+    "B29": {
+      "assessment": "Exact fee/FX calculations and tenant-scoped immutable financial-fact persistence.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/ledger-service/src/main/java/com/elmpay/ledger/FeeFxSettlementService.java", "markers": ["FeeBreakdown", "BigInteger", "assertSettlementsTie"]}],
+        "runtime_entrypoint": [{"path": "services/ledger-service/src/main/java/com/elmpay/ledger/FinancialFactsRepository.java", "markers": ["saveFee", "saveFx", "saveSettlement"]}],
+        "config": [{"path": "governance/fee-model.json", "markers": ["\"batch\": \"B29\"", "\"rounding\""]}],
+        "migrations": [{"path": "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql", "markers": ["CREATE TABLE IF NOT EXISTS fee_record", "CREATE TABLE IF NOT EXISTS fx_rate", "settlement_instruction"]}],
+        "tests": [{"path": "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java", "markers": ["FeeFxSettlementService", "HALF_EVEN"]}]
+      }
+    },
+    "B30": {
+      "assessment": "Durable resumable onboarding with parameter-bound idempotent replay, 72-hour digest-bound four-eyes approval, exact six-step policy, 30-day resume window, leases, fencing and retry.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/merchant-config/src/main/java/com/elmpay/merchant/JdbcMerchantControlPlane.java", "markers": ["CREATE_ONBOARDING_SQL", "ON CONFLICT (tenant_id, idempotency_key) DO NOTHING", "FOR UPDATE OF step SKIP LOCKED", "interval '30 days'"]}],
+        "runtime_entrypoint": [{"path": "services/merchant-config/src/main/java/com/elmpay/merchant/MerchantControlPlane.java", "markers": ["new StepDefinition(\"go_live\", 60", "Duration.ofHours(72)", "approveOnboarding"]}],
+        "config": [{"path": "governance/onboarding-workflow.json", "markers": ["\"batch\": \"B30\"", "\"approval\""]}],
+        "migrations": [{"path": "services/merchant-config/src/main/resources/db/migration/V030__merchant_onboarding_workflow.sql", "markers": ["approval_expires_at <= created_at + interval '72 hours'", "step_name = 'go_live'", "fencing_token"]}],
+        "tests": [
+          {"path": "services/merchant-config/src/test/java/com/elmpay/merchant/MerchantControlPlaneTest.java", "markers": ["onboardingConfigurationOrdersEverySideEffect", "onboardingApprovalCannotOutliveGovernedWindow"]},
+          {"path": "services/merchant-config/src/test/java/com/elmpay/merchant/JdbcMerchantControlPlaneTest.java", "markers": ["onboardingCreateIsAParameterBoundIdempotentReplay", "onboardingClaimUsesOrderedSkipLockedLeaseAndFence"]}
+        ]
+      }
+    },
+    "B31": {
+      "assessment": "Executable HTTPS+mTLS read-only canary runner probes database, cache, message, log and export surfaces with distinct tenants and persists immutable fail-closed results.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/tenant_isolation_probe.py", "markers": ["class TenantIsolationProbeRunner", "class HttpIsolationSurface", "READ_ONLY_CROSS_TENANT_CANARY", "SURFACES ="]}],
+        "runtime_entrypoint": [{"path": "tools/tenant_isolation_probe.py", "markers": ["ssl.TLSVersion.TLSv1_3", "ELMPAY_ISOLATION_", "def main"]}],
+        "config": [{"path": "platform/security/tenant-isolation-probes.json", "markers": ["\"requiredSurfaces\"", "\"failClosedOnUnavailable\": true", "\"mutatingProbeAllowed\": false"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V031__tenant_isolation_probe.sql", "markers": ["tenant_isolation_probe_run", "tenant_isolation_probe_result", "completed isolation probe runs are immutable"]}],
+        "tests": [{"path": "testing/test_b31_tenant_isolation_probe.py", "markers": ["test_all_five_live_surface_observations_are_required_and_durable", "test_leak_unavailable_or_owner_digest_mismatch_fail_closed"]}]
+      }
+    },
+    "B32": {
+      "assessment": "Deployable PostgreSQL Payment Intent service, HTTP boundary and transactional outbox.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/JdbcPaymentRepository.java", "markers": ["class JdbcPaymentRepository", "public PaymentIntent create", "outbox_event"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentHttpHandler.java", "markers": ["private void create", "runtime.payments().create"]}],
+        "config": [{"path": "governance/payment-intent.json", "markers": ["\"batch\": \"B32\"", "\"amount_snapshot\""]}],
+        "migrations": [{"path": "apps/edge-gateway/src/main/resources/db/migration/V032__payment_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS payment_intent", "payment_intent_tenant_policy"]}],
+        "tests": [
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/PaymentServiceTest.java", "markers": ["createReplaysOnlyAnIdenticalSnapshot", "concurrentConfirmationsDispatchOnlyOneProviderCall"]},
+          {"path": "apps/edge-gateway/src/test/java/com/elmpay/gateway/PaymentGatewayE2eTest.java", "markers": ["createsAndConfirmsAnIntentThroughTheHttpBoundary"]}
+        ]
+      }
+    },
+    "B33": {
+      "assessment": "Durable immutable provider attempts with unique sequencing, UNKNOWN recovery and normalized evidence.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentAttempt.java", "markers": ["record PaymentAttempt", "AttemptState.UNKNOWN", "resolve"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentService.java", "markers": ["beginAttempt", "resolveUnknown", "OutcomeClass.UNKNOWN"]}],
+        "config": [{"path": "governance/payment-attempt.json", "markers": ["\"batch\": \"B33\"", "\"deployable_runtime\""]}],
+        "migrations": [
+          {"path": "apps/edge-gateway/src/main/resources/db/migration/V032__payment_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS payment_attempt", "payment_attempt_provider_transaction_unique"]},
+          {"path": "apps/edge-gateway/src/main/resources/db/migration/V033__payment_action_receipts.sql", "markers": ["payment_action_receipt", "immutable"]}
+        ],
+        "tests": [{"path": "services/payment-core/src/test/java/com/elmpay/payment/PaymentServiceTest.java", "markers": ["definitiveQueryAtomicallyClosesOriginalUnknownAndQueryAttempts", "invalidOrFailedUnknownQueryNeverLeavesAnInitiatedAttempt"]}]
+      }
+    },
+    "B34": {
+      "assessment": "Authorization, capture, void and partial-capture close are implemented through HTTP, service, state machine and durable operation migration.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentStateMachine.java", "markers": ["recordCapture", "voidAuthorization", "closeAfterPartialCapture"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentHttpHandler.java", "markers": ["case \"close\"", "closeAuthorization"]}],
+        "config": [{"path": "governance/capture-lifecycle.json", "markers": ["\"batch\": \"B34\"", "\"operations\""]}],
+        "migrations": [{"path": "apps/edge-gateway/src/main/resources/db/migration/V036__payment_attempt_close.sql", "markers": ["operation IN ('payment', 'capture', 'cancel', 'close', 'query')", "B34"]}],
+        "tests": [
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/PaymentServiceTest.java", "markers": ["partialCaptureCanBeClosedExactlyOnceAndReleasesTheRemainder", "closeWithoutCaptureAndVoidAfterCaptureFailBeforeProviderDispatch"]},
+          {"path": "apps/edge-gateway/src/test/java/com/elmpay/gateway/PaymentGatewayE2eTest.java", "markers": ["partialCaptureCloseIsExposedAndIdempotentAtTheHttpBoundary"]}
+        ]
+      }
+    },
+    "B35": {
+      "assessment": "Non-sensitive PSP/wallet/mandate references are validated and passed to provider operations without accepting raw card data.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Raw payment credentials must not be stored; only external references are used transiently.",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentMethodReference.java", "markers": ["SAFE_SCHEMES", "external token reference", "SensitiveDataGuard.assertSafe"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentService.java", "markers": ["payment_method_reference", "command.paymentMethod()"]}],
+        "config": [{"path": "governance/payment-intent.json", "markers": ["\"method_constraints\"", "\"widen_after_creation_allowed\""]}],
+        "migrations": [],
+        "tests": [{"path": "services/payment-core/src/test/java/com/elmpay/payment/PaymentServiceTest.java", "markers": ["untrustedSuccessAndCardLikeReferencesAreRejected", "confirmationReplayRejectsChangedPaymentPayload"]}]
+      }
+    },
+    "B36": {
+      "assessment": "Tenant-scoped durable idempotency claims, payload binding, recovery leases and payment action receipts.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "libs/idempotency/src/main/java/com/elmpay/idempotency/JdbcIdempotencyRegistry.java", "markers": ["FOR UPDATE", "IDEMPOTENCY_PAYLOAD_CONFLICT", "lease_expires_at"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentService.java", "markers": ["RequestFingerprint.validateKey", "findActionReceipt"]}],
+        "config": [{"path": "governance/api-contract.json", "markers": ["\"idempotency\"", "\"batch\": \"B11\""]}],
+        "migrations": [{"path": "apps/edge-gateway/src/main/resources/db/migration/V032__payment_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS idempotency_record", "idempotency_record_tenant_policy"]}],
+        "tests": [
+          {"path": "libs/idempotency/src/test/java/com/elmpay/idempotency/RequestFingerprintTest.java", "markers": ["fingerprintIsStableAndKeyValidationIsStrict", "rlsIdentityIsTransactionLocalAndRejectsAutocommit"]},
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/PaymentServiceTest.java", "markers": ["idempotencyKeyIsBoundToOperationAndCanonicalPayload"]}
+        ]
+      }
+    },
+    "B37": {
+      "assessment": "Reachable provider webhook HTTP ingress resolves an opaque endpoint token to a server-owned tenant/project/provider/account binding, verifies before durable deduplicated persistence and never trusts caller tenant headers.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/DataSourceWebhookInbox.java", "markers": ["provider_webhook_inbox", "set_config('app.tenant_id'", "ON CONFLICT"]}],
+        "runtime_entrypoint": [
+          {"path": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookIngressHttpHandler.java", "markers": ["PATH_PREFIX", "runtime.ingest"]},
+          {"path": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookIngressRuntime.java", "markers": ["class WebhookIngressRuntime", "EndpointRegistry", "server-owned tenant/account binding"]}
+        ],
+        "config": [{"path": "platform/security/provider-webhook-ingress-policy.json", "markers": ["\"batch\": \"B37\"", "\"callerTenantHeadersTrusted\": false"]}],
+        "migrations": [{"path": "services/webhook-ingress/src/main/resources/db/migration/V037__provider_webhook_inbox.sql", "markers": ["provider_webhook_inbox", "webhook_ingress_endpoint", "elmpay_resolve_webhook_ingress_endpoint"]}],
+        "tests": [{"path": "services/webhook-ingress/src/test/java/com/elmpay/webhook/ingress/WebhookIngressServiceTest.java", "markers": ["verifiesBeforeDurableWriteAndAcknowledgesDuplicates", "publicEndpointTokenResolvesServerOwnedTenantBeforeProviderVerification", "unknownPublicEndpointCannotReachVerifierOrInbox", "canonicalHttpRouteIsReachableAndUsesOnlyServerOwnedScope"]}]
+      }
+    },
+    "B38": {
+      "assessment": "Signed business webhook delivery uses durable leases/retry/dead-letter state, SSRF controls and short project-bound signing-secret leases that are wiped after every delivery attempt.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/DataSourceWebhookOutbox.java", "markers": ["FOR UPDATE OF o SKIP LOCKED", "lease_owner=? AND fencing_token=?", "markDelivered", "deadLetter"]}],
+        "runtime_entrypoint": [
+          {"path": "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/WebhookDeliveryRuntime.java", "markers": ["class WebhookDeliveryRuntime", "runOnce", "maximumSecretLease"]},
+          {"path": "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/HttpsWebhookSigningSecretResolver.java", "markers": ["class HttpsWebhookSigningSecretResolver", "followRedirects() != HttpClient.Redirect.NEVER"]}
+        ],
+        "config": [{"path": "platform/security/business-webhook-delivery-policy.json", "markers": ["\"batch\": \"B38\"", "\"wipeAfterAttempt\": true"]}],
+        "migrations": [{"path": "services/webhook-delivery/src/main/resources/db/migration/V038__business_webhook_delivery.sql", "markers": ["webhook_delivery_outbox", "lease_owner", "fencing_token", "webhook_delivery_dead_letter", "ROW LEVEL SECURITY"]}],
+        "tests": [{"path": "services/webhook-delivery/src/test/java/com/elmpay/webhook/delivery/WebhookDeliveryServiceTest.java", "markers": ["productionRuntimeLeasesProjectBoundSecretAndWipesItAfterIdleAttempt", "staleFencingAcknowledgementFailsClosed", "retryableFailureIsScheduledThenExhaustionMovesToDeadLetter", "blocksDnsRebindingToLoopbackBeforeNetworkCall"]}]
+      }
+    },
+    "B39": {
+      "assessment": "Durable status/timeline projector with fenced checkpoint, monotonic projection and atomic rebuild.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/readmodel/JdbcPaymentTimeline.java", "markers": ["projectNextBatch", "rebuild", "payment_timeline_event", "FOR UPDATE"]}],
+        "runtime_entrypoint": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/PaymentTimelineProjectionJob.java", "markers": ["runOnce", "runUntilCaughtUp", "runConfiguredCatchUp"]}],
+        "config": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/PaymentTimelineProjectionSettings.java", "markers": ["ELMPAY_PAYMENT_TIMELINE_PROJECTOR", "PaymentTimelineProjectionSettings from"]}],
+        "migrations": [{"path": "services/payment-core/src/main/resources/db/migration/V039__payment_timeline_read_model.sql", "markers": ["payment_projection_checkpoint", "payment_timeline_event", "FORCE ROW LEVEL SECURITY"]}],
+        "tests": [
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/readmodel/JdbcPaymentTimelineTest.java", "markers": ["checkpointIsLockedBeforeEventsAreProjected", "rebuildIsAtomicAndDeterministic"]},
+          {"path": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/PaymentTimelineProjectionSettingsTest.java", "markers": ["productionSettingsRequireExplicitBoundedValues"]}
+        ]
+      }
+    },
+    "B40": {
+      "assessment": "WeChat APIv3 JSAPI and mini-program requests are account scoped, RSA signed, verified and decrypted with server-owned merchant, amount and business-reference binding.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "B40 reuses the durable payment_intent and payment_attempt schema owned by V032.",
+      "artifacts": {
+        "executable": [{"path": "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatPayAdapter.java", "markers": ["case JSAPI, MINI_PROGRAM -> \"/v3/pay/transactions/jsapi\";", "public record WebhookIdentity(String merchantId, String appId, String outTradeNo,"]}],
+        "runtime_entrypoint": [
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java", "markers": ["public final class WechatAccountAdapterFactory", "lookup.byBusinessReference("]},
+          {"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java", "markers": ["ProductionProviderAccountFactories.create(dataSource, environment, clock)", "account-aware provider runtime requires exactly one credential resolver"]}
+        ],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"wechat\": {", "\"channels\": [\"jsapi\", \"mini_program\", \"native\", \"h5\", \"app\"]"]}],
+        "migrations": [],
+        "tests": [{"path": "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java", "markers": ["verifiesRsaThenDecryptsAndBindsEveryCriticalField", "rejectsWrongSignatureAndAmountOrMerchantTampering"]}]
+      }
+    },
+    "B41": {
+      "assessment": "WeChat JSAPI and mini-program client actions are produced by the common provider bridge using short-lived account-bound credential material.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "This provider protocol and client-action surface reuses V032 payment facts.",
+      "artifacts": {
+        "executable": [{"path": "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatProviderBridge.java", "markers": ["case \"wechat_jsapi\" -> WechatPayAdapter.Channel.JSAPI;", "case \"wechat_mini_program\" -> WechatPayAdapter.Channel.MINI_PROGRAM;"]}],
+        "runtime_entrypoint": [
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java", "markers": ["merchant_private_key_pkcs8", "return new ScopedProviderRuntimeAdapter(bridge, adapter::close);"]},
+          {"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java", "markers": ["ProductionProviderAccountFactories.create(dataSource, environment, clock)", "account-aware provider runtime requires exactly one credential resolver"]}
+        ],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"jsapi\"", "\"mini_program\""]}],
+        "migrations": [],
+        "tests": [{"path": "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java", "markers": ["commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed", "retriesOnlyAFiniteNumberAndReturnsUnknownWithStableIdempotencyHeader"]}]
+      }
+    },
+    "B42": {
+      "assessment": "WeChat Native, H5 and App payment methods map to explicit APIv3 channel operations through the credential-bound runtime.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "These channel variants reuse the same durable V032 payment schema.",
+      "artifacts": {
+        "executable": [{"path": "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatProviderBridge.java", "markers": ["case \"wechat_native\" -> WechatPayAdapter.Channel.NATIVE;", "case \"wechat_h5\" -> WechatPayAdapter.Channel.H5;"]}],
+        "runtime_entrypoint": [
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java", "markers": ["https://api.mch.weixin.qq.com/", "api_v3_key"]},
+          {"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java", "markers": ["ProductionProviderAccountFactories.create(dataSource, environment, clock)", "account-aware provider runtime requires exactly one credential resolver"]}
+        ],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"native\"", "\"h5\", \"app\""]}],
+        "migrations": [],
+        "tests": [
+          {"path": "testing/test_b40_b55_provider_contract_matrix.py", "markers": ["scripts/provider-contract-matrix.py", "providers=5"]},
+          {"path": "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java", "markers": ["commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed", "rejectsWrongSignatureAndAmountOrMerchantTampering"]}
+        ]
+      }
+    },
+    "B43": {
+      "assessment": "WeChat query, close, refund and bill operations bind durable original amounts and business references before provider calls.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "The operations reuse V032 attempts and V034 refund records.",
+      "artifacts": {
+        "executable": [{"path": "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatPayAdapter.java", "markers": ["public OperationResult refund(String transactionId", "public OperationResult requestBill(String billDate, String billType, String idempotencyKey)"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java", "markers": ["lookup.originalAmountMinor(command, provider())", "lookup.byBusinessReference("]}],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"query\", \"close\", \"refund\"", "\"query_refund\", \"trade_bill\", \"fund_bill\""]}],
+        "migrations": [],
+        "tests": [
+          {"path": "testing/test_b40_b55_provider_contract_matrix.py", "markers": ["test_every_declared_channel_operation_and_failure_mode", "providers=5"]},
+          {"path": "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java", "markers": ["retriesOnlyAFiniteNumberAndReturnsUnknownWithStableIdempotencyHeader", "verifiesRsaThenDecryptsAndBindsEveryCriticalField"]}
+        ]
+      }
+    },
+    "B44": {
+      "assessment": "Alipay certificate-mode RSA2 requests and callbacks are cryptographically verified and bound to merchant and amount facts.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "Alipay callbacks and payment facts reuse V032.",
+      "artifacts": {
+        "executable": [{"path": "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayAdapter.java", "markers": ["Signature.getInstance(\"SHA256withRSA\")", "parameters.put(\"app_cert_sn\", config.appCertificateSerial())"]}],
+        "runtime_entrypoint": [
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java", "markers": ["public final class AlipayAccountAdapterFactory", "lookup.byBusinessReference("]},
+          {"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java", "markers": ["ProductionProviderAccountFactories.create(dataSource, environment, clock)", "account-aware provider runtime requires exactly one credential resolver"]}
+        ],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"alipay\": {", "\"operations\": [\"create\", \"query\", \"close\", \"refund\", \"query_refund\", \"bill\"]"]}],
+        "migrations": [],
+        "tests": [{"path": "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java", "markers": ["verifiesCanonicalRsa2FormRegardlessOfParameterOrder", "rejectsAmountMerchantAndSignatureTampering"]}]
+      }
+    },
+    "B45": {
+      "assessment": "Alipay Web, WAP and App client flows accept only a registered HTTPS return route and a credential-scoped provider runtime.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "The return-route allowlist and provider protocol own no new durable state.",
+      "artifacts": {
+        "executable": [{"path": "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayProviderBridge.java", "markers": ["case \"alipay_web\" -> AlipayAdapter.Channel.WEB;", "case \"alipay_wap\" -> AlipayAdapter.Channel.WAP;"]}],
+        "runtime_entrypoint": [
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/ApprovedReturnRouteRegistry.java", "markers": ["public final class ApprovedReturnRouteRegistry", "return route is not registered"]},
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java", "markers": ["public final class AlipayAccountAdapterFactory", "return new ScopedProviderRuntimeAdapter(bridge, adapter::close);"]}
+        ],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"web\", \"wap\", \"app\"", "\"alipay\": {"]}],
+        "migrations": [],
+        "tests": [{"path": "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java", "markers": ["blocksOpenRedirectAndRequiresOverlappingCertificateRotation", "commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed"]}]
+      }
+    },
+    "B46": {
+      "assessment": "Alipay QR and mini-program offline channels are explicit bridge operations with finite failure handling.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "Offline channel parameters reuse the V032 durable payment state.",
+      "artifacts": {
+        "executable": [{"path": "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayProviderBridge.java", "markers": ["case \"alipay_qr\" -> AlipayAdapter.Channel.QR;", "case \"alipay_mini_program\" -> AlipayAdapter.Channel.MINI_PROGRAM;"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java", "markers": ["https://openapi.alipay.com/gateway.do", "return new ScopedProviderRuntimeAdapter(bridge, adapter::close);"]}],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"qr\", \"mini_program\"", "\"operations\": [\"create\""]}],
+        "migrations": [],
+        "tests": [
+          {"path": "testing/test_b40_b55_provider_contract_matrix.py", "markers": ["test_every_declared_channel_operation_and_failure_mode", "providers=5"]},
+          {"path": "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java", "markers": ["returnsUnknownAfterFiniteTimeoutRetriesWithStableHeader", "commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed"]}
+        ]
+      }
+    },
+    "B47": {
+      "assessment": "Alipay notification, query, close, refund and bill operations resolve durable payment/refund references before interpreting provider results.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "These operations reuse the V032 and V034 durable stores.",
+      "artifacts": {
+        "executable": [{"path": "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayAdapter.java", "markers": ["public OperationResult refund(String outTradeNo", "public OperationResult requestBill(String billType, String billDate, String idempotencyKey)"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java", "markers": ["ProviderWebhookLookupKeys.alipayBusinessReference(", "lookup.refundBusinessReference("]}],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"query\", \"close\", \"refund\"", "\"query_refund\", \"bill\""]}],
+        "migrations": [],
+        "tests": [
+          {"path": "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java", "markers": ["rejectsAmountMerchantAndSignatureTampering", "returnsUnknownAfterFiniteTimeoutRetriesWithStableHeader"]},
+          {"path": "testing/test_b40_b55_provider_contract_matrix.py", "markers": ["test_every_declared_channel_operation_and_failure_mode", "providers=5"]}
+        ]
+      }
+    },
+    "B48": {
+      "assessment": "Stripe tokenized PaymentIntent, SetupIntent and capture operations reject raw PAN and preserve stable idempotency across bounded retries.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "Stripe operations reuse V032 payment attempts.",
+      "artifacts": {
+        "executable": [{"path": "connectors/stripe/src/main/java/com/elmpay/connectors/stripe/StripeAdapter.java", "markers": ["public OperationResult createPaymentIntent(PaymentRequest request)", "public OperationResult createSetupIntent(String customerId, String idempotencyKey)"]}],
+        "runtime_entrypoint": [
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/StripeAccountAdapterFactory.java", "markers": ["public final class StripeAccountAdapterFactory", "https://api.stripe.com/"]},
+          {"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java", "markers": ["ProductionProviderAccountFactories.create(dataSource, environment, clock)", "account-aware provider runtime requires exactly one credential resolver"]}
+        ],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"stripe\": {", "\"payment_intent\", \"setup_intent\", \"capture\""]}],
+        "migrations": [],
+        "tests": [{"path": "connectors/stripe/src/test/java/com/elmpay/connectors/stripe/StripeAdapterTest.java", "markers": ["rejectsPanAndReturnsUnknownAfterFiniteRetriesUsingStableStripeKey", "commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed"]}]
+      }
+    },
+    "B49": {
+      "assessment": "Stripe webhooks, refunds and disputes verify exact raw signatures and durable expected facts while preserving out-of-order evidence.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "The implementation reuses V034 refund state and the durable webhook inbox.",
+      "artifacts": {
+        "executable": [{"path": "connectors/stripe/src/main/java/com/elmpay/connectors/stripe/StripeAdapter.java", "markers": ["public VerifiedWebhook verifyWebhook(String stripeSignature", "boolean outOfOrder = previous != null && created < previous;"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/StripeAccountAdapterFactory.java", "markers": ["ProviderWebhookLookupKeys.stripeProviderObject(", "lookup.byProviderObject("]}],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"refund\", \"dispute\"", "\"provider_5xx\""]}],
+        "migrations": [],
+        "tests": [{"path": "connectors/stripe/src/test/java/com/elmpay/connectors/stripe/StripeAdapterTest.java", "markers": ["validatesRawBodySignatureAndDetectsOutOfOrderEvents", "rejectsWrongSignatureAndAmountTampering"]}]
+      }
+    },
+    "B50": {
+      "assessment": "Stripe subscription, invoice, metering and portal protocol operations run through a scoped account adapter with wiped credentials.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "The provider adapter is stateless; durable commerce state is owned by V066.",
+      "artifacts": {
+        "executable": [{"path": "connectors/stripe/src/main/java/com/elmpay/connectors/stripe/StripeAdapter.java", "markers": ["public OperationResult createSubscription(String customerId, String priceId, int trialDays", "public OperationResult recordMeterEvent(String eventName, String customerId, long value"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/StripeAccountAdapterFactory.java", "markers": ["material, \"api_key\", 8_192", "return new ScopedProviderRuntimeAdapter(bridge, adapter::close);"]}],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"subscription\", \"invoice\", \"meter\", \"portal\"", "\"stripe\": {"]}],
+        "migrations": [],
+        "tests": [
+          {"path": "testing/test_b40_b55_provider_contract_matrix.py", "markers": ["test_every_declared_channel_operation_and_failure_mode", "providers=5"]},
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/provider/ProductionProviderAccountFactoriesTest.java", "markers": ["allFiveFactoriesBuildOnlyAccountBoundScopedRuntimes", "credentialMerchantBindingCannotBeSubstitutedAcrossAccounts"]}
+        ]
+      }
+    },
+    "B51": {
+      "assessment": "PayPal Orders v2 create, authorize and capture operations are account scoped and retain stable PayPal request idempotency.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "PayPal order facts reuse V032.",
+      "artifacts": {
+        "executable": [{"path": "connectors/paypal/src/main/java/com/elmpay/connectors/paypal/PayPalAdapter.java", "markers": ["public OperationResult createOrder(OrderRequest request)", "public OperationResult authorize(String orderId, String idempotencyKey)"]}],
+        "runtime_entrypoint": [
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/PayPalAccountAdapterFactory.java", "markers": ["public final class PayPalAccountAdapterFactory", "https://api-m.paypal.com/"]},
+          {"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java", "markers": ["ProductionProviderAccountFactories.create(dataSource, environment, clock)", "account-aware provider runtime requires exactly one credential resolver"]}
+        ],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"paypal\": {", "\"operations\": [\"order\", \"authorize\", \"capture\""]}],
+        "migrations": [],
+        "tests": [{"path": "connectors/paypal/src/test/java/com/elmpay/connectors/paypal/PayPalAdapterTest.java", "markers": ["returnsUnknownAfterFiniteOrderTimeoutsWithStablePayPalRequestId", "commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed"]}]
+      }
+    },
+    "B52": {
+      "assessment": "PayPal official remote webhook verification, refund, dispute and subscription operations bind merchant and provider-object facts.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "The adapter reuses durable refund, webhook and V066 commerce stores.",
+      "artifacts": {
+        "executable": [{"path": "connectors/paypal/src/main/java/com/elmpay/connectors/paypal/PayPalAdapter.java", "markers": ["public OperationResult createSubscription(String planId, String subscriberReference", "public OperationResult submitDisputeEvidence(String disputeId, String note"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/PayPalAccountAdapterFactory.java", "markers": ["ProviderWebhookLookupKeys.payPalProviderObject(", "lookup.byProviderObject("]}],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"refund\", \"dispute\", \"subscription\"", "\"paypal\": {"]}],
+        "migrations": [],
+        "tests": [{"path": "connectors/paypal/src/test/java/com/elmpay/connectors/paypal/PayPalAdapterTest.java", "markers": ["delegatesWebhookSignatureDecisionToOfficialVerificationEndpointAndBindsMerchantAmount", "rejectsOfficialVerificationFailureAndMerchantMismatch"]}]
+      }
+    },
+    "B53": {
+      "assessment": "Apple Pay Web/iOS opaque tokens are forwarded only through the credential-bound delegated PSP mTLS boundary and every internal token copy is wiped.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "Opaque-token forwarding owns no new durable state; lifecycle state is B54.",
+      "artifacts": {
+        "executable": [{"path": "connectors/apple-pay/src/main/java/com/elmpay/connectors/applepay/ApplePayAdapter.java", "markers": ["public Result forward(Request request)", "Arrays.fill(token, (byte) 0);"]}],
+        "runtime_entrypoint": [
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/HttpsApplePayPspTokenProcessor.java", "markers": ["mTLS boundary that forwards an opaque Apple Pay envelope", "Apple Pay PSP selection is outside the account policy"]},
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/ApplePayAccountAdapterFactory.java", "markers": ["new DataSourceApplePayLifecycle", "new HttpsApplePayPspTokenProcessor"]},
+          {"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java", "markers": ["ProductionProviderAccountFactories.create(dataSource, environment, clock)", "account-aware provider runtime requires exactly one credential resolver"]}
+        ],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"apple_pay\": {", "\"channels\": [\"web\", \"ios\"]"]}],
+        "migrations": [],
+        "tests": [
+          {"path": "connectors/apple-pay/src/test/java/com/elmpay/connectors/applepay/ApplePayAdapterTest.java", "markers": ["forwardsOpaqueTokenToPspThenZeroizesEveryInternalCopy", "rejectsRawPanAndDoesNotInvokePsp"]},
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/provider/HttpsApplePayPspTokenProcessorTest.java", "markers": ["forwardsOnlyToBoundPspAndWipesSerializedTokenBody", "Bearer short-lived-token"]}
+        ]
+      }
+    },
+    "B54": {
+      "assessment": "Apple Pay domain association, certificate overlap and merchant-token lifecycle are durable, tenant scoped and wired to the provider runtime.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "connectors/apple-pay/src/main/java/com/elmpay/connectors/applepay/DataSourceApplePayLifecycle.java", "markers": ["public void registerDomain(String tenantId, String merchantAccountId, String domain", "public void rotateCertificate(String tenantId, String merchantAccountId, String certificateVersion"]}],
+        "runtime_entrypoint": [
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/ApplePayAccountAdapterFactory.java", "markers": ["DataSourceApplePayLifecycle lifecycle", "new ApplePayProviderBridge.Runtime(adapter, clock)"]},
+          {"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java", "markers": ["ProductionProviderAccountFactories.create(dataSource, environment, clock)", "account-aware provider runtime requires exactly one credential resolver"]}
+        ],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"capability\", \"merchant_session\"", "\"forward_token\", \"revoke_token\""]}],
+        "migrations": [{"path": "connectors/apple-pay/src/main/resources/db/migration/V054__apple_pay_lifecycle.sql", "markers": ["CREATE TABLE apple_pay_domain", "CREATE TABLE apple_pay_certificate"]}],
+        "tests": [
+          {"path": "connectors/apple-pay/src/test/java/com/elmpay/connectors/applepay/ApplePayAdapterTest.java", "markers": ["failsClosedForUnverifiedDomainAndSupportsNoWalletFallbackSignal", "commonBridgeRunsCapabilityPreflightAndMissingConfigFailsClosed"]},
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/provider/ProductionProviderAccountFactoriesTest.java", "markers": ["allFiveFactoriesBuildOnlyAccountBoundScopedRuntimes", "productionAggregatorRequiresExplicitMtlsAndReturnsEveryProvider"]}
+        ]
+      }
+    },
+    "B55": {
+      "assessment": "An executable synthetic-only simulator covers every declared provider channel, operation and failure mode; official sandboxes and certification remain explicitly external-blocked.",
+      "known_gaps": [], "migration_required": false,
+      "migration_not_applicable_reason": "The local simulator is intentionally synthetic and memory-only and is never production truth.",
+      "artifacts": {
+        "executable": [
+          {"path": "tools/simulator/provider_sim.py", "markers": ["PROVIDER_CHANNELS: dict[str, tuple[str, ...]]", "CONTRACT_FAILURES = (\"declined\", \"timeout\", \"provider_5xx\", \"malformed_response\")"]},
+          {"path": "scripts/provider-contract-matrix.py", "markers": ["for provider in PROVIDER_CHANNELS:", "provider-contract-matrix: providers="]}
+        ],
+        "runtime_entrypoint": [{"path": "scripts/provider-contract-matrix.py", "markers": ["def main() -> int:", "server.serve_forever"]}],
+        "config": [{"path": "contracts/provider/local-simulator-matrix.json", "markers": ["\"official_provider_sandboxes\": \"BLOCKED_EXTERNAL\"", "\"official_provider_certification\": \"BLOCKED_EXTERNAL\""]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b40_b55_provider_contract_matrix.py", "markers": ["test_every_declared_channel_operation_and_failure_mode", "failure_modes=4"]}]
+      }
+    },
+    "B56": {
+      "assessment": "Hosted checkout sessions are created through a production-selectable JDBC runtime, exposed at the HTTP boundary, tenant isolated by forced RLS and exercised end to end without accepting PAN data.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java", "markers": ["public final class HostedCheckoutService", "public Created create"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentHttpHandler.java", "markers": ["createCheckout(", "/v1/checkout-sessions"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CheckoutRuntimeFactory.java", "markers": ["case \"postgres\" -> production", "ELMPAY_CHECKOUT_PUBLIC_BASE_URL"]}],
+        "migrations": [{"path": "apps/edge-gateway/src/main/resources/db/migration/V056__checkout_sessions.sql", "markers": ["CREATE TABLE IF NOT EXISTS checkout_session", "FORCE ROW LEVEL SECURITY"]}],
+        "tests": [{"path": "apps/edge-gateway/src/test/java/com/elmpay/gateway/HostedCheckoutProductionE2eTest.java", "markers": ["browserConfirmationCarriesOnlyAnOfficialReferenceAndRejectsPan"]}]
+      }
+    },
+    "B57": {
+      "assessment": "Payment links use durable token-digest persistence, a production KMS/HSM signing boundary, idempotent replay and single-use concurrent redemption.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/checkout/DurablePaymentLinkService.java", "markers": ["public Link create", "public Redemption redeem"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentLinkHttpHandler.java", "markers": ["/v1/payment-links", "/api/payment-links/redeem"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentLinkRuntimeFactory.java", "markers": ["production payment links require exactly one ready KMS/HSM MAC signer", "new JdbcPaymentLinkRepository"]}],
+        "migrations": [{"path": "apps/edge-gateway/src/main/resources/db/migration/V057__durable_payment_links.sql", "markers": ["CREATE TABLE IF NOT EXISTS payment_link", "checkout_session_tenant_identity"]}],
+        "tests": [{"path": "services/payment-core/src/test/java/com/elmpay/payment/checkout/DurablePaymentLinkServiceTest.java", "markers": ["idempotentReplayReturnsExactTokenAndRepositoryNeverReceivesRawToken", "signatureTamperingExpiryAndConcurrentReplayAreRejected"]}]
+      }
+    },
+    "B58": {
+      "assessment": "Checkout browser sessions use signed key-versioned nonces, reject bearer persistence and remain verifiable across a durable restart.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/checkout/CheckoutTokenSigner.java", "markers": ["public String token", "public boolean verify"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java", "markers": ["requireBrowserSession", "checkoutUrl("]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CheckoutRuntimeFactory.java", "markers": ["ELMPAY_CHECKOUT_SIGNING_KEY_ID", "decodeKey"]}],
+        "migrations": [{"path": "apps/edge-gateway/src/main/resources/db/migration/V056__checkout_sessions.sql", "markers": ["key_id text NOT NULL", "nonce text NOT NULL"]}],
+        "tests": [{"path": "services/payment-core/src/test/java/com/elmpay/payment/checkout/CheckoutPersistenceTest.java", "markers": ["signingTokenIsRecreatedAfterRestartAndTamperingFails", "raw browser bearer must not be persisted"]}]
+      }
+    },
+    "B59": {
+      "assessment": "The checkout client invokes only registered official-provider tokenizers, accepts opaque provider references and fails closed for raw PAN or unavailable production tokenization.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Browser UI and the official provider SDK tokenization boundary own no durable server state.",
+      "artifacts": {
+        "executable": [{"path": "apps/checkout-web/public/checkout.mjs", "markers": ["export class CheckoutController", "normalizePaymentMethod"]}],
+        "runtime_entrypoint": [{"path": "apps/checkout-web/public/provider-handlers.mjs", "markers": ["export class OfficialProviderHandlers", "stripeOfficialAdapter"]}],
+        "config": [{"path": "apps/checkout-web/security/script-allowlist.json", "markers": ["official-provider-handlers", "provider-sdk:tokenize"]}],
+        "migrations": [],
+        "tests": [
+          {"path": "apps/checkout-web/test/provider-handlers.test.mjs", "markers": ["official Stripe hosted element returns only an opaque PSP reference", "raw PAN, unregistered methods"]},
+          {"path": "apps/checkout-web/test/checkout.test.mjs", "markers": ["production confirmation fails closed without an official tokenizer"]}
+        ]
+      }
+    },
+    "B60": {
+      "assessment": "iOS, Android and Flutter clients expose the canonical hosted-payment launch flow with stable idempotency and no client-side success claims from deep links.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Mobile client SDKs are stateless clients and own no server database state.",
+      "artifacts": {
+        "executable": [
+          {"path": "sdks/mobile/ios/Sources/ElmPay/ElmPayClient.swift", "markers": ["public actor ElmPayClient", "launchPaymentMethod"]},
+          {"path": "sdks/mobile/android/src/main/java/com/elmpay/sdk/ElmPayAndroidClient.java", "markers": ["public final class ElmPayAndroidClient", "launchPaymentMethod"]},
+          {"path": "sdks/mobile/flutter/lib/elmpay_client.dart", "markers": ["final class ElmPayClient", "launchPaymentMethod"]}
+        ],
+        "runtime_entrypoint": [{"path": "scripts/mobile-sdk-contract-smoke.sh", "markers": [":sdks:mobile:android:test", "swift test", "dart test"]}],
+        "config": [{"path": "sdks/mobile/flutter/pubspec.yaml", "markers": ["sdk: '>=3.4.0 <4.0.0'", "test: 1.26.3"]}],
+        "migrations": [],
+        "tests": [
+          {"path": "sdks/mobile/ios/Tests/ElmPayTests/ElmPayClientTests.swift", "markers": ["testCanonicalCreateGetAndConfirm"]},
+          {"path": "sdks/mobile/android/src/test/java/com/elmpay/sdk/ElmPayAndroidClientTest.java", "markers": ["createRetriesWithStableIdempotencyAndDeepLinkDoesNotClaimSuccess"]},
+          {"path": "sdks/mobile/flutter/test/elmpay_client_test.dart", "markers": ["create retries with one idempotency key"]}
+        ]
+      }
+    },
+    "B61": {
+      "assessment": "Checked-in server SDKs implement request and webhook contracts across Node, Python, Go, Java and .NET, driven by one executable contract smoke entrypoint.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Server SDKs are stateless protocol clients and own no database state.",
+      "artifacts": {
+        "executable": [{"path": "sdks/server/node/elmpay-client.mjs", "markers": ["export class ElmpayClient", "export function verifyWebhook"]}],
+        "runtime_entrypoint": [{"path": "scripts/sdk-contract-smoke.py", "markers": ["def main", "server SDK contract suite"]}],
+        "config": [{"path": "sdks/server/dotnet/ElmPay.csproj", "markers": ["TargetFramework", "net8.0"]}],
+        "migrations": [],
+        "tests": [
+          {"path": "sdks/server/node/elmpay-client.test.mjs", "markers": ["webhook"]},
+          {"path": "sdks/server/python/test_elmpay_client.py", "markers": ["webhook"]},
+          {"path": "sdks/server/go/client_test.go", "markers": ["Webhook"]},
+          {"path": "sdks/server/java/src/test/java/com/elmpay/sdk/ElmpayClientTest.java", "markers": ["Webhook"]},
+          {"path": "sdks/server/dotnet/tests/Program.cs", "markers": ["webhook"]}
+        ]
+      }
+    },
+    "B62": {
+      "assessment": "Hosted checkout resolves tenant-scoped provider capability and health from JDBC, rejects stale health and applies deterministic device-aware fallback.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/JdbcCheckoutCapabilitySource.java", "markers": ["public final class JdbcCheckoutCapabilitySource", "MAX_HEALTH_AGE"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java", "markers": ["methodDecisions", "payment method is currently unavailable"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CheckoutRuntimeFactory.java", "markers": ["new JdbcCheckoutCapabilitySource"]}],
+        "migrations": [{"path": "apps/edge-gateway/src/main/resources/db/migration/V062__checkout_capability_health.sql", "markers": ["CREATE TABLE IF NOT EXISTS provider_method_health", "provider_capability_device_classes_check"]}],
+        "tests": [
+          {"path": "apps/edge-gateway/src/test/java/com/elmpay/gateway/CheckoutCapabilityLocalizationTest.java", "markers": ["checkoutUsesTenantScopedRuntimeCapabilityAndVersionedLocale", "DEVICE_UNSUPPORTED"]},
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/checkout/CapabilityResolverTest.java", "markers": ["staleHealthFailsClosedAndFallbackIsDeterministic"]}
+        ]
+      }
+    },
+    "B63": {
+      "assessment": "A versioned immutable locale catalog provides deterministic fallback, RTL direction, accessibility labels and exact currency-scale presentation at checkout runtime.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Versioned locale and accessibility catalogs are immutable application resources, not durable records.",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/checkout/CheckoutLocalization.java", "markers": ["public static CheckoutLocalization defaultCatalog", "public String direction"]}],
+        "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java", "markers": ["localization.browserMessages", "localization.methodLabel"]}],
+        "config": [{"path": "services/payment-core/src/main/resources/checkout/catalog-v1.properties", "markers": ["catalog.version=checkout-catalog-2026-08-v1", "locale.ar.direction=rtl"]}],
+        "migrations": [],
+        "tests": [
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/checkout/CheckoutLocalizationCatalogTest.java", "markers": ["defaultCatalogProvidesVersionedFallbackRtlA11yAndExactCurrencyScale", "incompleteLocaleCatalogIsRejected"]},
+          {"path": "apps/checkout-web/test/checkout.test.mjs", "markers": ["renders the server-selected versioned RTL and accessibility catalog"]}
+        ]
+      }
+    },
+    "B64": {
+      "assessment": "Refund requests are durable, idempotent and reachable through the authenticated HTTP boundary, with exact provider results preventing duplicate refunds.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/refund/RefundApplicationService.java", "markers": ["public RefundRecord request("]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentHttpHandler.java", "markers": ["createRefund("]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java", "markers": ["new JdbcRefundRepository"]}],
+        "migrations": [{"path": "services/payment-core/src/main/resources/db/migration/V034__durable_refund_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS refund"]}],
+        "tests": [{"path": "services/payment-core/src/test/java/com/elmpay/payment/refund/RefundApplicationServiceTest.java", "markers": ["exactProviderSuccessIsDurableAndCreateReplayDoesNotDoubleRefund"]}]
+      }
+    },
+    "B65": {
+      "assessment": "Refund approval is gated synchronously by durable risk decisions and fails closed on block, review, timeout or unavailable risk state.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/refund/SynchronousRiskRefundPolicy.java", "markers": ["public final class SynchronousRiskRefundPolicy", "RiskOperation.REFUND_REQUEST"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java", "markers": ["new SynchronousRiskRefundPolicy", "riskGate"]}],
+        "config": [{"path": "platform/risk/runtime-policy.json", "markers": ["\"REFUND_REQUEST\"", "\"modelUnavailableAction\": \"REVIEW\""]}],
+        "migrations": [{"path": "services/payment-core/src/main/resources/db/migration/V034__durable_refund_runtime.sql", "markers": ["refund_risk_decision_check"]}],
+        "tests": [{"path": "services/payment-core/src/test/java/com/elmpay/payment/refund/SynchronousRiskRefundPolicyTest.java", "markers": ["durableBlockReviewAndTimeoutAreEnforcedBeforeBaseAutoApproval"]}]
+      }
+    },
+    "B66": {
+      "assessment": "Provider disputes are ingested only from verified provider facts into a tenant-scoped durable commerce service and HTTP runtime.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java", "markers": ["public Dispute ingestDispute(", "provider_dispute"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java", "markers": ["/v1/disputes/"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java", "markers": ["new JdbcCommerceService"]}],
+        "migrations": [{"path": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS provider_dispute", "FORCE ROW LEVEL SECURITY"]}],
+        "tests": [{"path": "services/payment-core/src/test/java/com/elmpay/payment/commerce/JdbcCommerceServiceTest.java", "markers": ["unverifiedProviderResultsFailBeforePersistence"]}]
+      }
+    },
+    "B67": {
+      "assessment": "Subscription creation, usage and renewal are durable and idempotent, and UNKNOWN provider outcomes never advance billing periods.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java", "markers": ["public Subscription createSubscription(", "recordRenewalOutcome"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java", "markers": ["/v1/billing/subscriptions", "createSubscription"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java", "markers": ["new JdbcCommerceService"]}],
+        "migrations": [{"path": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS billing_subscription"]}],
+        "tests": [{"path": "services/payment-core/src/test/java/com/elmpay/payment/billing/BillingLifecycleTest.java", "markers": ["usageIsIdempotentAndUnknownRenewalDoesNotAdvancePeriod"]}]
+      }
+    },
+    "B68": {
+      "assessment": "Mandates are durable and scope bound, reject raw PAN, and are reachable through the authenticated billing API.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java", "markers": ["public Mandate createMandate(", "billing_mandate"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java", "markers": ["/v1/billing/mandates", "createMandate"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java", "markers": ["new JdbcCommerceService"]}],
+        "migrations": [{"path": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS billing_mandate", "mandate_reference"]}],
+        "tests": [{"path": "services/payment-core/src/test/java/com/elmpay/payment/billing/BillingLifecycleTest.java", "markers": ["mandateRejectsPanAndEnforcesScope"]}]
+      }
+    },
+    "B69": {
+      "assessment": "Dunning outcomes are durable and processed by a bounded scheduler with retry-safe lifecycle queues.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java", "markers": ["public DunningCase recordDunningOutcome(", "dunning_case"]}],
+        "runtime_entrypoint": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/BillingLifecycleJob.java", "markers": ["public Result run("]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java", "markers": ["new JdbcCommerceService"]}],
+        "migrations": [{"path": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS dunning_case"]}],
+        "tests": [{"path": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/BillingLifecycleJobTest.java", "markers": ["jobDrainsBoundedDurableRenewalAndDunningQueues"]}]
+      }
+    },
+    "B70": {
+      "assessment": "Plan changes persist exact integer proration adjustments with deterministic half-even arithmetic and authenticated API reachability.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java", "markers": ["public Adjustment changePlan(", "billing_adjustment"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java", "markers": ["change-plan", "changePlan"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java", "markers": ["new JdbcCommerceService"]}],
+        "migrations": [{"path": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS billing_adjustment", "amount_minor"]}],
+        "tests": [{"path": "services/payment-core/src/test/java/com/elmpay/payment/billing/BillingLifecycleTest.java", "markers": ["prorationUsesHalfEvenIntegerArithmetic"]}]
+      }
+    },
+    "B71": {
+      "assessment": "Subscription renewal outcomes are written as immutable commerce receipts and drained by a bounded durable scheduler.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java", "markers": ["public Subscription recordRenewalOutcome(", "commerce_action_receipt"]}],
+        "runtime_entrypoint": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/BillingLifecycleJob.java", "markers": ["public Result run("]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java", "markers": ["new JdbcCommerceService"]}],
+        "migrations": [{"path": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql", "markers": ["commerce_action_receipt"]}],
+        "tests": [{"path": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/BillingLifecycleJobTest.java", "markers": ["jobDrainsBoundedDurableRenewalAndDunningQueues"]}]
+      }
+    },
+    "B72": {
+      "assessment": "Balanced ledger transactions are posted through a durable event consumer with inbox idempotency and immutable database records.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/ledger-service/src/main/java/com/elmpay/ledger/LedgerService.java", "markers": ["public PostedTransaction post(", "validateBalanced"]}],
+        "runtime_entrypoint": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/LedgerPostingConsumer.java", "markers": ["public JdbcEventDeliveryStore.InboxOutcome consume(", "ledger.post("]}],
+        "config": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/EventDeliverySettings.java", "markers": ["from(Map", "INBOX_LEASE_TTL"]}],
+        "migrations": [{"path": "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql", "markers": ["CREATE TABLE IF NOT EXISTS ledger_transaction"]}],
+        "tests": [{"path": "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java", "markers": ["postingMustBalancePerCurrency"]}]
+      }
+    },
+    "B73": {
+      "assessment": "Per-currency balance is enforced in Java and by a deferred database constraint while caller-owned transactions reject autocommit.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/ledger-service/src/main/java/com/elmpay/ledger/LedgerService.java", "markers": ["public static void validateBalanced("]}],
+        "runtime_entrypoint": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/LedgerPostingConsumer.java", "markers": ["ledger.post(", "consume("]}],
+        "config": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/EventDeliverySettings.java", "markers": ["INBOX_LEASE_TTL", "ELMPAY_EVENT_INBOX_LEASE_TTL"]}],
+        "migrations": [{"path": "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql", "markers": ["CREATE CONSTRAINT TRIGGER ledger_balance_deferred", "DEFERRABLE INITIALLY DEFERRED"]}],
+        "tests": [{"path": "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java", "markers": ["callerOwnedTransactionRejectsAutocommit"]}]
+      }
+    },
+    "B74": {
+      "assessment": "Fee and FX quotes use exact integer arithmetic and are reachable through the production financial HTTP runtime.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/ledger-service/src/main/java/com/elmpay/ledger/FeeFxSettlementService.java", "markers": ["public FeeBreakdown quote(", "HALF_EVEN"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java", "markers": ["/v1/finance/settlements", "settlement"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java", "markers": ["production", "FinancialRuntime"]}],
+        "migrations": [{"path": "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql", "markers": ["CREATE TABLE IF NOT EXISTS fee_record", "CREATE TABLE IF NOT EXISTS fx_rate"]}],
+        "tests": [{"path": "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java", "markers": ["feesAndFxAreExact"]}]
+      }
+    },
+    "B75": {
+      "assessment": "Settlement views are derived from immutable ledger/fee/FX facts and must tie out exactly before exposure through the financial runtime.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/ledger-service/src/main/java/com/elmpay/ledger/FeeFxSettlementService.java", "markers": ["public SettlementView settlement(", "SettlementView"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java", "markers": ["/v1/finance/settlements", "settlement"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java", "markers": ["production", "FinancialRuntime"]}],
+        "migrations": [{"path": "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql", "markers": ["CREATE TABLE IF NOT EXISTS settlement_instruction"]}],
+        "tests": [{"path": "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java", "markers": ["settlementRequiresExactTieOut"]}]
+      }
+    },
+    "B76": {
+      "assessment": "Provider statements are strictly parsed, versioned and durably ingested through a bounded authenticated financial API.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/StatementIngestionService.java", "markers": ["public Ingested ingest("]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java", "markers": ["/v1/finance/statements", "statement"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java", "markers": ["ELMPAY_STATEMENT_MAX_BYTES", "production"]}],
+        "migrations": [{"path": "services/reconciliation-service/src/main/resources/db/migration/V076__reconciliation.sql", "markers": ["CREATE TABLE IF NOT EXISTS statement_file"]}],
+        "tests": [{"path": "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java", "markers": ["statementParserIsStrictAndVersionReady"]}]
+      }
+    },
+    "B77": {
+      "assessment": "Four-source reconciliation runs on immutable snapshots through a fenced durable scheduler and persists explainable deltas.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/ReconciliationEngine.java", "markers": ["public Run reconcile("]}],
+        "runtime_entrypoint": [{"path": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/ReconciliationSchedulerJob.java", "markers": ["public FinancialOperationsService.ReconciliationResult run("]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java", "markers": ["production", "FinancialRuntime"]}],
+        "migrations": [{"path": "services/reconciliation-service/src/main/resources/db/migration/V076__reconciliation.sql", "markers": ["CREATE TABLE IF NOT EXISTS recon_run"]}],
+        "tests": [{"path": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/ReconciliationSchedulerJobTest.java", "markers": ["schedulerPassesImmutableSnapshotToDurableRuntime"]}]
+      }
+    },
+    "B78": {
+      "assessment": "Reconciliation exceptions preserve immutable origin facts and require a distinct approver before an adjusting ledger transaction is posted.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/JdbcFinancialOperationsService.java", "markers": ["public ExceptionItem proposeAdjustment(", "approveAdjustment"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java", "markers": ["/v1/finance/exceptions", "exception"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java", "markers": ["new JdbcFinancialOperationsService", "production"]}],
+        "migrations": [{"path": "services/reconciliation-service/src/main/resources/db/migration/V079__financial_runtime.sql", "markers": ["CREATE TABLE IF NOT EXISTS recon_exception_origin"]}],
+        "tests": [{"path": "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java", "markers": ["adjustmentRequiresDistinctApproverAndLedgerTransaction"]}]
+      }
+    },
+    "B79": {
+      "assessment": "Financial reports are generated from durable facts and signed with an explicit versioned KMS/HSM key before HTTP exposure.",
+      "known_gaps": [], "migration_required": true, "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/FinancialReportService.java", "markers": ["public Report generate(", "manifestSignature"]}],
+        "runtime_entrypoint": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java", "markers": ["/v1/finance/reports", "report"]}],
+        "config": [{"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java", "markers": ["production financial runtime requires exactly one ready KMS/HSM signer", "new JdbcFinancialOperationsService"]}],
+        "migrations": [{"path": "services/reconciliation-service/src/main/resources/db/migration/V079__financial_runtime.sql", "markers": ["signing_key_version"]}],
+        "tests": [{"path": "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java", "markers": ["signedReportDetectsTampering"]}]
+      }
+    },
+    "B80": {
+      "assessment": "Durable tenant-scoped real-time risk decisions with request binding, deterministic replay and transactional decision outbox.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/risk_control.py", "markers": ["class SQLiteRiskControl", "def decide", "pending_decision_events"]}],
+        "runtime_entrypoint": [{"path": "tools/risk_control.py", "markers": ["commands.add_parser(\"decide\")", "control.decide"]}],
+        "config": [{"path": "platform/risk/runtime-policy.json", "markers": ["\"crossTenantAction\": \"DENY\"", "\"auditChainRequired\": true"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V080_087__risk_control.sql", "markers": ["CREATE TABLE risk_decision", "CREATE POLICY risk_decisions_tenant"]}],
+        "tests": [{"path": "testing/test_b80_b83_b87_risk_control.py", "markers": ["test_decision_and_outbox_are_atomic_and_acknowledgement_is_idempotent", "test_cross_tenant_nonfinite_and_idempotency_conflict_are_rejected"]}]
+      }
+    },
+    "B81": {
+      "assessment": "Versioned tenant-scoped signal snapshots enforce freshness, finite decimal inputs and fail-closed missing-signal outcomes.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/risk_control.py", "markers": ["risk_signal_snapshot", "def _decimal_signals", "maximumSignalAgeSeconds"]}],
+        "runtime_entrypoint": [{"path": "tools/risk_control.py", "markers": ["decide.add_argument(\"--signals\"", "read_json(args.signals)"]}],
+        "config": [{"path": "platform/risk/runtime-policy.json", "markers": ["\"maximumSignalAgeSeconds\": 600", "\"missingSignalAction\": \"REVIEW\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V080_087__risk_control.sql", "markers": ["CREATE TABLE risk_signal_snapshot", "CREATE POLICY risk_signals_tenant"]}],
+        "tests": [{"path": "testing/test_b80_b83_b87_risk_control.py", "markers": ["test_model_failure_and_missing_signal_never_approve", "test_cross_tenant_nonfinite_and_idempotency_conflict_are_rejected"]}]
+      }
+    },
+    "B82": {
+      "assessment": "Versioned explainable rule sets require digest-bound independent approval and deterministic activation.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/risk_control.py", "markers": ["def propose_rule_set", "def approve_rule_set", "def activate_due_rule_sets"]}],
+        "runtime_entrypoint": [{"path": "tools/risk_control.py", "markers": ["commands.add_parser(\"propose-rules\")", "commands.add_parser(\"approve-rules\")"]}],
+        "config": [{"path": "platform/risk/runtime-policy.json", "markers": ["\"ruleActivationRequiresDistinctApprover\": true", "\"auditChainRequired\": true"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V080_087__risk_control.sql", "markers": ["CREATE TABLE risk_rule_set", "one_active_risk_rule_set"]}],
+        "tests": [{"path": "testing/test_b80_b83_b87_risk_control.py", "markers": ["test_versioned_rule_blocks_and_decision_replays"]}]
+      }
+    },
+    "B83": {
+      "assessment": "Bounded HTTP model scoring verifies feature-schema digests and degrades to review when the model is unavailable or malformed.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/risk_control.py", "markers": ["class HttpModelClient", "expected_schema_digest", "def score"]}],
+        "runtime_entrypoint": [{"path": "tools/risk_control.py", "markers": ["--model-endpoint", "--feature-schema-digest", "HttpModelClient"]}],
+        "config": [{"path": "platform/risk/runtime-policy.json", "markers": ["\"modelTimeoutMilliseconds\": 150", "\"modelUnavailableAction\": \"REVIEW\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V080_087__risk_control.sql", "markers": ["decision_json jsonb", "request_digest char(64)"]}],
+        "tests": [{"path": "testing/test_b80_b83_b87_risk_control.py", "markers": ["test_model_failure_and_missing_signal_never_approve"]}]
+      }
+    },
+    "B84": {
+      "assessment": "Tenant-scoped IDN/domain brand assessment opens immutable takedown cases with reviewed reversible actions.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/brand_protection.py", "markers": ["def assess_domain", "class BrandProtectionService"]}],
+        "runtime_entrypoint": [{"path": "tools/b84_brand_control.py", "markers": ["def main", "case-action"]}],
+        "config": [{"path": "platform/security/brand-protection-policy.json", "markers": ["\"externalMonitoring\"", "\"officialDomains\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V084_086__security_controls.sql", "markers": ["brand_takedown_case", "brand_observation_no_update"]}],
+        "tests": [{"path": "testing/test_b84_b86_security.py", "markers": ["test_idn_homograph_opens_tenant_scoped_immutable_case", "test_takedown_workflow_is_idempotent_reviewed_and_reversible"]}]
+      }
+    },
+    "B85": {
+      "assessment": "Checkout script allowlisting, SRI/CSP nonces, Trusted Types and durable append-only browser security reports are executable.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/browser_integrity.py", "markers": ["def validate_script_manifest", "class BrowserSecurityReportService"]}],
+        "runtime_entrypoint": [
+          {"path": "tools/b85_browser_integrity.py", "markers": ["def main", "validate_script_manifest"]},
+          {"path": "tools/b85_browser_report.py", "markers": ["def main", "BrowserSecurityReportService"]},
+          {"path": "apps/checkout-web/src/server.mjs", "markers": ["/security/script-policy", "/security/csp-report"]}
+        ],
+        "config": [{"path": "apps/checkout-web/security/script-allowlist.json", "markers": ["\"externalAssessmentStatus\": \"BLOCKED\"", "\"trustedTypesPolicy\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V084_086__security_controls.sql", "markers": ["browser_security_report", "browser_security_report_no_update"]}],
+        "tests": [
+          {"path": "apps/checkout-web/test/browser-security.test.mjs", "markers": ["browser monitor blocks unauthorized DOM script mutation", "per-response CSP nonce"]},
+          {"path": "testing/test_b84_b86_security.py", "markers": ["validate_script_manifest", "BrowserSecurityReportService"]}
+        ]
+      }
+    },
+    "B86": {
+      "assessment": "HMAC-pseudonymized abuse dimensions use atomic durable counters, session revocation and append-only case events.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/abuse_protection.py", "markers": ["class SubjectDigester", "class AbuseProtectionService"]}],
+        "runtime_entrypoint": [{"path": "tools/b86_abuse_control.py", "markers": ["def main", "ELMPAY_SUBJECT_HMAC_KEY_HEX"]}],
+        "config": [{"path": "platform/security/abuse-protection-policy.json", "markers": ["\"externalEdgeDeployment\"", "\"IDENTITY\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V084_086__security_controls.sql", "markers": ["abuse_counter", "abuse_session_revocation", "abuse_case_event_no_update"]}],
+        "tests": [{"path": "testing/test_b84_b86_security.py", "markers": ["test_atomic_dimensions_block_credential_stuffing_and_revoke_session", "test_concurrent_consumers_never_exceed_atomic_allowance"]}]
+      }
+    },
+    "B87": {
+      "assessment": "Risk operations, cases and lists are tenant scoped, digest bound, durable and four-eyes approved.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/risk_control.py", "markers": ["def propose_operation", "def approve_operation", "risk_case", "risk_list_entry"]}],
+        "runtime_entrypoint": [{"path": "tools/risk_control.py", "markers": ["commands.add_parser(\"propose-operation\")", "commands.add_parser(\"approve-operation\")"]}],
+        "config": [{"path": "platform/risk/runtime-policy.json", "markers": ["\"operationsRequireDistinctApprover\": true", "\"crossTenantAction\": \"DENY\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V080_087__risk_control.sql", "markers": ["CREATE TABLE risk_operation", "CREATE TABLE risk_case", "CREATE TABLE risk_list_entry"]}],
+        "tests": [{"path": "testing/test_b80_b83_b87_risk_control.py", "markers": ["test_operations_are_digest_bound_tenant_scoped_and_four_eyes", "test_all_governed_operations_are_supported_and_missing_taxonomy_reviews"]}]
+      }
+    },
+    "B88": {
+      "assessment": "Signed tenant/project edge requests enforce WAF-style input constraints, trusted proxy handling, nonce replay defense and durable quotas.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/edge_security.py", "markers": ["class EdgeGuard", "class SQLiteEdgeStateStore", "def authorize"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["edge-authorize", "EdgeGuard"]}],
+        "config": [{"path": "platform/policies/edge-security.json", "markers": ["\"requestLimitPerProjectPerMinute\"", "\"stateUnavailableAction\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V088_117__platform_controls.sql", "markers": ["CREATE TABLE edge_nonce", "CREATE TABLE edge_quota", "CREATE POLICY edge_nonce_tenant"]}],
+        "tests": [{"path": "testing/test_b88_edge_security.py", "markers": ["test_replay_and_nonce_conflict_fail_closed", "test_waf_cors_signature_and_rate_limit_are_enforced"]}]
+      }
+    },
+    "B89": {
+      "assessment": "A deployable renderer emits default-deny Kubernetes, Cilium DNS/FQDN and Istio egress controls from an exact workload-to-destination registry.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Service-mesh identity and network policy are declarative cluster resources without application database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/egress_policy.py", "markers": ["def render_egress_controls", "REGISTRY_ONLY"]}],
+        "runtime_entrypoint": [{"path": "tools/render_egress_policy.py", "markers": ["Render B89 default-deny Kubernetes, Cilium and Istio egress controls", "render_egress_controls"]}],
+        "config": [{"path": "platform/kubernetes/egress-policy.json", "markers": ["postgres-primary", "wechat-api"]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b89_egress_policy.py", "markers": ["test_renders_default_deny_exact_dns_fqdn_and_mesh_boundaries", "test_rejects_wildcard_broad_ip_and_incomplete_workload_maps"]}]
+      }
+    },
+    "B90": {
+      "assessment": "The regional data-plane renderer emits encrypted multi-instance PostgreSQL with synchronous durability, WAL backup and standby recovery configuration.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "PostgreSQL HA/PITR is provisioned by the database operator; application schema migrations are owned by feature batches.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/infrastructure.py", "markers": ["postgresql.cnpg.io/v1", "synchronous_commit", "barmanObjectStore"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["render-data-plane", "render_regional_data_plane"]}],
+        "config": [{"path": "platform/kubernetes/data-plane-policy.json", "markers": ["\"postgres\"", "\"backupDestination\"", "\"retentionPolicy\""]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b89_b95_infrastructure.py", "markers": ["test_regional_data_plane_has_ha_durable_encrypted_stores"]}]
+      }
+    },
+    "B91": {
+      "assessment": "The regional data-plane renderer emits TLS-authenticated Kafka with replication, minimum ISR, disabled unclean election and persistent encrypted storage.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Kafka durability is broker/operator configuration; event inbox/outbox schemas are mapped to their owning feature batches.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/infrastructure.py", "markers": ["kafka.strimzi.io/v1beta2", "min.insync.replicas", "unclean.leader.election.enable"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["render-data-plane", "render_regional_data_plane"]}],
+        "config": [{"path": "platform/kubernetes/data-plane-policy.json", "markers": ["\"kafka\"", "\"minimumInSyncReplicas\"", "\"replicationFactor\""]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b89_b95_infrastructure.py", "markers": ["test_regional_data_plane_has_ha_durable_encrypted_stores"]}]
+      }
+    },
+    "B92": {
+      "assessment": "Redis HA manifests and a durable compare-and-set fencing store implement bounded locks and stale-holder rejection.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/infrastructure.py", "markers": ["RedisFailover", "class SQLiteFencingStore", "def acquire"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["render-data-plane", "render_regional_data_plane"]}],
+        "config": [
+          {"path": "platform/kubernetes/data-plane-policy.json", "markers": ["\"redis\"", "\"authSecretName\""]},
+          {"path": "platform/policies/cache-resilience.json", "markers": ["\"cacheIsSourceOfTruth\": false", "\"tenantKeyPrefixRequired\": true"]}
+        ],
+        "migrations": [{"path": "tools/runtime/migrations/V088_117__platform_controls.sql", "markers": ["CREATE TABLE resource_fence", "CREATE POLICY resource_fence_tenant"]}],
+        "tests": [{"path": "testing/test_b89_b95_infrastructure.py", "markers": ["test_lease_expiry_increments_fence_and_stale_holder_cannot_write"]}]
+      }
+    },
+    "B93": {
+      "assessment": "Digest-pinned hardened Kubernetes workloads and policy validation are executable; GitOps drift policy is validated as code.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Kubernetes and GitOps desired state are declarative resources without application database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/kubernetes.py", "markers": ["def render_workloads", "def validate_rendered_workloads", "immutable sha256 digest"]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/control.py", "markers": ["render-kubernetes", "render_workloads"]}],
+        "config": [
+          {"path": "platform/kubernetes/workload-policy.json", "markers": ["\"requiredImageFormat\"", "\"readOnlyRootFilesystem\": true"]},
+          {"path": "platform/policies/gitops.json", "markers": ["\"detectOutOfBandChanges\": true", "\"blockReleaseWhenPresent\": true"]}
+        ],
+        "migrations": [],
+        "tests": [{"path": "testing/test_runtime_controls.py", "markers": ["test_renderer_requires_exact_digest_pinned_images", "test_renderer_applies_hardened_ha_workloads"]}]
+      }
+    },
+    "B94": {
+      "assessment": "At-least-two-region data planes, explicit sovereignty policy and a fenced independently approved promotion gate implement multi-region controls.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/infrastructure.py", "markers": ["def evaluate_region_promotion", "def promote_region", "DR_RESTORE_EXERCISE", "dr_restore_verifier"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["region-promotion-gate", "evaluate_region_promotion"]}],
+        "config": [
+          {"path": "platform/dr/plan.json", "markers": ["\"minimumRegions\": 2", "\"requiresWriteFence\": true"]},
+          {"path": "platform/policies/data-residency.json", "markers": ["\"requireTenantRegionBinding\": true", "\"crossRegionReplication\""]}
+        ],
+        "migrations": [{"path": "tools/runtime/migrations/V088_117__platform_controls.sql", "markers": ["CREATE TABLE region_epoch", "fencing_token bigint"]}],
+        "tests": [{"path": "testing/test_b89_b95_infrastructure.py", "markers": ["test_restore_and_promotion_fail_closed"]}]
+      }
+    },
+    "B95": {
+      "assessment": "Restore and failover exercise reports are checksum, ledger-balance, RPO/RTO, freshness and failback gated; real exercise evidence remains external.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Recovery exercises consume externally produced immutable reports and do not introduce application database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/infrastructure.py", "markers": ["def evaluate_restore_exercise", "restore_checksum_not_verified", "REGION_PROMOTION_APPROVAL", "region_epoch_persisted"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["restore-gate", "evaluate_restore_exercise"]}],
+        "config": [{"path": "platform/dr/plan.json", "markers": ["\"rpoSeconds\": 60", "\"rtoSeconds\": 900", "\"externalEvidenceRequired\": true"]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b89_b95_infrastructure.py", "markers": ["test_restore_and_promotion_fail_closed"]}]
+      }
+    },
+    "B96": {
+      "assessment": "Tenant/project-correlated service operations durably spool redacted logs, metrics and traces, then export authenticated OTLP HTTP/JSON with leases, bounded retry and explicit UNKNOWN handling.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "MonitoringStore owns and version-checks its filesystem-backed SQLite delivery spool schema atomically; no separately deployed application database schema is introduced.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/monitoring_runtime.py", "markers": ["class MonitoringStore", "class ServiceTelemetryAdapter", "class AuthenticatedOtlpHttpExporter", "export_lease_expired"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["telemetry-emit", "telemetry-export", "AuthenticatedOtlpHttpExporter"]}],
+        "config": [{"path": "platform/observability/runtime-export.json", "markers": ["\"mode\": \"OTLP_HTTP\"", "\"maximumAttempts\": 3", "\"externalCollectorDeploymentStatus\": \"BLOCKED\""]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b96_b99_monitoring_runtime.py", "markers": ["test_service_adapter_spools_three_bound_redacted_signals", "test_authenticated_loopback_otlp_export_records_actual_http_response", "test_transient_otlp_rejection_has_bounded_retry"]}]
+      }
+    },
+    "B97": {
+      "assessment": "SLI/SLO and error-budget evaluation is deterministic, exact-service-set bound and fail-closed for invalid or non-finite samples.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "SLO evaluation consumes monitoring samples and emits a gate report without application database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/operations.py", "markers": ["def evaluate_slo_samples", "slo_sample_set_mismatch", "slo_fast_burn"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["slo-gate", "evaluate_slo_samples"]}],
+        "config": [{"path": "platform/observability/slos.json", "markers": ["\"windowDays\"", "\"burnRates\""]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b96_b103_operations.py", "markers": ["test_slo_funnel_and_siem_are_machine_evaluated"]}]
+      }
+    },
+    "B98": {
+      "assessment": "Tenant-scoped deduplicating funnel aggregation is reachable through a governed CLI and restricts dimensions through an explicit policy.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "The current funnel computation is a stateless aggregation over supplied events.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/operations.py", "markers": ["def aggregate_funnel", "allowedDimensions"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["funnel-aggregate", "aggregate_funnel"]}],
+        "config": [{"path": "platform/observability/funnel-policy.json", "markers": ["\"allowedDimensions\"", "\"crossTenantAction\": \"REJECT\""]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b98_b117_runtime_entrypoints.py", "markers": ["test_funnel_cli_is_tenant_scoped_and_policy_governed"]}]
+      }
+    },
+    "B99": {
+      "assessment": "Signed trusted-source SIEM events are durably deduplicated, replay checked and evaluated into alerts whose delivery requires an authenticated exporter and independent signed receipt.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "MonitoringStore owns and version-checks its filesystem-backed SQLite SIEM inbox/outbox schema atomically; no separately deployed application database schema is introduced.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/monitoring_runtime.py", "markers": ["class DurableSiemService", "class AuthenticatedSiemHttpExporter", "receipt_type=\"SIEM_ALERT\"", "export_lease_expired"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["siem-ingest", "siem-export", "DurableSiemService"]}],
+        "config": [
+          {"path": "platform/alerts/siem-runtime-policy.json", "markers": ["\"receiptMustBeIndependent\": true", "\"externalSiemDeploymentStatus\": \"BLOCKED\"", "\"localRuntimeMayClaimExternalReceipt\": false"]},
+          {"path": "platform/alerts/siem-rules.json", "markers": ["\"defaultDisposition\"", "\"rules\""]}
+        ],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b96_b99_monitoring_runtime.py", "markers": ["test_signed_event_is_idempotent_persistent_and_replay_protected", "test_concurrent_identical_ingress_creates_one_event_and_alert", "test_export_requires_signed_independent_downstream_receipt"]}]
+      }
+    },
+    "B100": {
+      "assessment": "Every production provider operation passes through one durable tenant/account/provider circuit breaker with fail-closed UNKNOWN and concurrent HALF_OPEN handling.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/ProviderCallCircuitBreaker.java", "markers": ["interface ProviderCallCircuitBreaker", "enum Operation"]},
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/JdbcProviderCallCircuitBreaker.java", "markers": ["static Admission admission", "PROVIDER_CIRCUIT_STATE_UNAVAILABLE"]}
+        ],
+        "runtime_entrypoint": [
+          {"path": "services/payment-core/src/main/java/com/elmpay/payment/provider/AccountAwareProviderAdapterFactory.java", "markers": ["circuitBreaker.execute(account.tenantId(), account.id(), provider", "Operation.CREATE_PAYMENT"]},
+          {"path": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java", "markers": ["ProductionProviderAccountFactories.create", "JdbcProviderCallCircuitBreaker.Policy.fromEnvironment"]}
+        ],
+        "config": [{"path": "platform/policies/provider-resilience.json", "markers": ["\"circuitBreaker\"", "\"unknownStateAction\": \"BLOCK_NEW_ROUTING\""]}],
+        "migrations": [{"path": "services/payment-core/src/main/resources/db/migration/V100__provider_call_circuit.sql", "markers": ["CREATE TABLE provider_call_circuit", "FORCE ROW LEVEL SECURITY"]}],
+        "tests": [
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/provider/AccountAwareProviderAdapterFactoryTest.java", "markers": ["everyProviderOperationUsesTheSameAccountScopedBreakerBeforeDispatch", "breaker.scopes"]},
+          {"path": "services/payment-core/src/test/java/com/elmpay/payment/provider/JdbcProviderCallCircuitBreakerTest.java", "markers": ["unknownAndConcurrentHalfOpenStatesFailClosed", "derivesHealthOnlyFromCapturedReturnValues"]},
+          {"path": "apps/edge-gateway/src/test/java/com/elmpay/gateway/DatabaseMigratorTest.java", "markers": ["V100__provider_call_circuit.sql"]}
+        ]
+      }
+    },
+    "B101": {
+      "assessment": "Durable digest-bound four-eyes admin actions and idempotent execution are exposed through an operational CLI.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/operations.py", "markers": ["def propose_action", "def approve_action", "def execute_action"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["admin-action", "execute_action"]}],
+        "config": [{"path": "platform/policies/provider-resilience.json", "markers": ["\"manualOverride\"", "\"requiresDistinctApprover\": true"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V088_117__platform_controls.sql", "markers": ["CREATE TABLE admin_action", "CREATE POLICY admin_action_tenant"]}],
+        "tests": [{"path": "testing/test_b98_b117_runtime_entrypoints.py", "markers": ["test_provider_breaker_admin_and_incident_entrypoints_are_durable"]}]
+      }
+    },
+    "B102": {
+      "assessment": "Durable optimistic incident lifecycle and redacted incident status are exposed through operational commands.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/operations.py", "markers": ["def open_incident", "def transition_incident", "public incident summary"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["incident-open", "transition_incident"]}],
+        "config": [{"path": "platform/alerts/prometheus-rules.json", "markers": ["runbooks/incident-response.md", "PaymentApiFastBurn"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V088_117__platform_controls.sql", "markers": ["CREATE TABLE incident", "state text NOT NULL CHECK"]}],
+        "tests": [{"path": "testing/test_b98_b117_runtime_entrypoints.py", "markers": ["test_provider_breaker_admin_and_incident_entrypoints_are_durable"]}]
+      }
+    },
+    "B103": {
+      "assessment": "Capacity and cost headroom are evaluated from fresh finite time series with forecast thresholds and a fail-closed release command.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Capacity evaluation consumes monitoring samples and produces a release gate without application database state.",
+      "artifacts": {
+        "executable": [
+          {"path": "tools/runtime/elmpay_runtime/capacity.py", "markers": ["def evaluate_capacity", "forecast_headroom", "minimumHeadroomRatio"]},
+          {"path": "tools/runtime/elmpay_runtime/operations.py", "markers": ["def evaluate_capacity_freshness", "capacity_sample_stale"]}
+        ],
+        "runtime_entrypoint": [{"path": "tools/runtime/control.py", "markers": ["capacity-gate", "evaluate_capacity"]}],
+        "config": [{"path": "platform/observability/capacity.json", "markers": ["\"minimumHeadroomRatio\": 0.30", "\"missingDataAction\": \"BLOCK_RELEASE\""]}],
+        "migrations": [],
+        "tests": [
+          {"path": "testing/test_runtime_controls.py", "markers": ["test_forecast_below_headroom_blocks_go_no_go"]},
+          {"path": "testing/test_b96_b103_operations.py", "markers": ["test_incident_state_and_capacity_freshness_fail_closed"]}
+        ]
+      }
+    },
+    "B104": {
+      "assessment": "PCI scope inventory rejects prohibited card-data storage/unhosted entry and requires segmentation and external assessment boundaries.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "PCI scope evaluation consumes an inventory and emits a gate report without application database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/assurance.py", "markers": ["def evaluate_pci_scope", "pci_forbidden_data_storage", "pci_external_assessment_not_required"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["pci-scope-gate", "evaluate_pci_scope"]}],
+        "config": [{"path": "platform/compliance/control-matrix.json", "markers": ["PCI-NET-01", "\"localValidationMayCertify\": false"]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b104_b111_assurance.py", "markers": ["test_pci_scope_rejects_raw_card_storage"]}]
+      }
+    },
+    "B105": {
+      "assessment": "Regional onboarding requires current independently verified licensing, legal and residency evidence and denies unknown/cross-border configurations.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Regional compliance evaluation consumes independently issued evidence and emits a gate report.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/assurance.py", "markers": ["def evaluate_regional_onboarding", "receipt_type=\"REGIONAL_LEGAL_EVIDENCE\"", "cross_border_transfer_not_approved"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["regional-onboarding-gate", "evaluate_regional_onboarding"]}],
+        "config": [{"path": "platform/compliance/regional-boundaries.json", "markers": ["\"market\": \"CN\"", "\"localConfigurationMayApproveMarket\": false"]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b104_b111_assurance.py", "markers": ["test_regional_and_regulated_decisions_require_external_authority"]}]
+      }
+    },
+    "B106": {
+      "assessment": "Transaction-level PSD2/SCA exemption, provider-verified factor and dynamic-linking evaluation is exposed through a fail-closed CLI.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "The current regional/privacy evaluator is stateless.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/assurance.py", "markers": ["def evaluate_sca_transaction", "receipt_type=\"SCA_AUTHENTICATION\"", "receipt_type=\"SCA_EXEMPTION\""]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["sca-gate", "evaluate_sca_transaction"]}],
+        "config": [{"path": "platform/compliance/psd2-sca-policy.json", "markers": ["\"inScopeMarkets\"", "\"dynamicLinkingRequired\": true"]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b98_b117_runtime_entrypoints.py", "markers": ["test_sca_requires_provider_verified_two_factor_dynamic_linking"]}]
+      }
+    },
+    "B107": {
+      "assessment": "Licensed-provider AML/KYC/KYB/sanctions decisions are signature, freshness and boundary checked; automated regulatory filing is forbidden.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Regulated identity decisions remain owned by licensed providers and are evaluated without local decision-state mutation.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/assurance.py", "markers": ["def evaluate_regulated_identity_decision", "receipt_type=\"REGULATED_IDENTITY_DECISION\"", "automated_regulatory_filing_forbidden"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["regulated-identity-gate", "evaluate_regulated_identity_decision"]}],
+        "config": [{"path": "platform/compliance/aml-boundary.json", "markers": ["\"externalProviderRequired\": true", "\"automatedFilingAllowed\": false"]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b104_b111_assurance.py", "markers": ["test_regional_and_regulated_decisions_require_external_authority"]}]
+      }
+    },
+    "B108": {
+      "assessment": "Tenant-scoped dry-run-bound four-eyes deletion and independent downstream/backup-expiry receipts are exposed through operational commands.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/assurance.py", "markers": ["class SQLiteDeletionWorkflow", "def confirm_backup_expiry", "legal hold blocks deletion"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["deletion-propose", "SQLiteDeletionWorkflow"]}],
+        "config": [{"path": "platform/compliance/data-lifecycle.json", "markers": ["\"requiresDryRunDigest\": true", "\"requiresBackupExpiryVerification\": true"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V088_117__platform_controls.sql", "markers": ["CREATE TABLE deletion_job", "CREATE POLICY deletion_job_tenant"]}],
+        "tests": [{"path": "testing/test_b98_b117_runtime_entrypoints.py", "markers": ["test_deletion_cli_requires_four_eyes_and_bound_downstream_receipts"]}]
+      }
+    },
+    "B109": {
+      "assessment": "Artifact-bound supply-chain gate verifies Ed25519 DSSE provenance, subject, builder, materials and SBOM through a release CLI.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Supply-chain attestations are immutable external artifacts rather than application database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/assurance.py", "markers": ["def evaluate_supply_chain", "provenance_subject_mismatch", "artifact_signature_unverified"]}],
+        "runtime_entrypoint": [{"path": "tools/platform_control.py", "markers": ["supply-chain-gate", "evaluate_supply_chain"]}],
+        "config": [{"path": "platform/compliance/supply-chain-policy.json", "markers": ["\"signatureEnvelope\": \"DSSE\"", "\"unknownOrMissingAction\": \"BLOCK_RELEASE\""]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b98_b117_runtime_entrypoints.py", "markers": ["test_supply_chain_cli_verifies_ed25519_dsse_not_a_boolean_claim"]}]
+      }
+    },
+    "B110": {
+      "assessment": "Fresh complete artifact-bound vulnerability scans and independently approved expiring exceptions are fail-closed; external penetration/red-team evidence remains outside local code.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Vulnerability reports, penetration results and exceptions are signed release inputs, not application database state.",
+      "artifacts": {
+        "executable": [
+          {"path": "tools/runtime/elmpay_runtime/compliance.py", "markers": ["def evaluate_vulnerability_report", "missing_scan", "artifactDigest"]},
+          {"path": "tools/runtime/elmpay_runtime/assurance.py", "markers": ["def evaluate_vulnerability_exception", "exception_approvers_not_independent"]}
+        ],
+        "runtime_entrypoint": [{"path": "tools/runtime/control.py", "markers": ["vulnerability-gate", "evaluate_vulnerability_report"]}],
+        "config": [{"path": "platform/compliance/vulnerability-policy.json", "markers": ["\"blockUnknownScanState\": true", "\"requiredScans\""]}],
+        "migrations": [],
+        "tests": [
+          {"path": "testing/test_runtime_controls.py", "markers": ["test_missing_scan_type_and_findings_block"]},
+          {"path": "testing/test_b104_b111_assurance.py", "markers": ["test_supply_chain_and_exception_are_artifact_bound"]}
+        ]
+      }
+    },
+    "B111": {
+      "assessment": "Vendor onboarding/renewal validates exact required controls, review freshness, independent approval and critical-vendor cadence through a fail-closed command.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Vendor assessments are externally governed records consumed by the gate without application database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/compliance.py", "markers": ["def evaluate_vendor", "vendor_approver_not_independent", "criticalVendorReviewMaximumAgeDays"]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/control.py", "markers": ["vendor-gate", "evaluate_vendor"]}],
+        "config": [{"path": "platform/compliance/vendor-policy.json", "markers": ["\"requiresIndependentApprover\": true", "\"exit_plan\""]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_runtime_controls.py", "markers": ["test_vendor_requires_independent_current_review"]}]
+      }
+    },
+    "B112": {
+      "assessment": "Reproducible seeded property/model testing exercises money, capture/refund bounds and double-entry balance at scale.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Property/model tooling is deterministic test execution and has no application database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/quality.py", "markers": ["def exercise_payment_model", "ledger_unbalanced", "refund_bounds"]}],
+        "runtime_entrypoint": [{"path": "tools/quality_gate.py", "markers": ["commands.add_parser(\"model\")", "exercise_payment_model"]}],
+        "config": [{"path": "testing/test-matrix.json", "markers": ["TM-B112-B115-QUALITY", "QUAL-01"]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b112_b117_quality.py", "markers": ["test_reproducible_property_model_runs_ten_thousand_cases"]}]
+      }
+    },
+    "B113": {
+      "assessment": "Durable account-scoped deterministic provider simulator is reachable through quality_gate and covers protocol outcomes and signed callbacks.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "The simulator owns ephemeral/local test state and does not migrate production application data.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/quality.py", "markers": ["class DeterministicProviderSimulator", "PROVIDERS", "simulator idempotency conflict"]}],
+        "runtime_entrypoint": [{"path": "tools/quality_gate.py", "markers": ["simulate-provider", "DeterministicProviderSimulator"]}],
+        "config": [{"path": "testing/test-matrix.json", "markers": ["TM-B112-B115-QUALITY", "provider contracts"]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b98_b117_runtime_entrypoints.py", "markers": ["test_provider_fault_concurrency_and_load_commands_are_reproducible"]}]
+      }
+    },
+    "B114": {
+      "assessment": "Deterministic webhook replay/fuzz/fault corpus is exposed through quality_gate with reproducible seed binding.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Webhook fault-corpus generation is stateless test tooling.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/quality.py", "markers": ["def webhook_fault_corpus", "clock-skew-future", "out-of-order"]}],
+        "runtime_entrypoint": [{"path": "tools/quality_gate.py", "markers": ["webhook-fault-corpus", "webhook_fault_corpus"]}],
+        "config": [{"path": "testing/test-matrix.json", "markers": ["TM-B112-B115-QUALITY", "QUAL-02"]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b98_b117_runtime_entrypoints.py", "markers": ["test_provider_fault_concurrency_and_load_commands_are_reproducible"]}]
+      }
+    },
+    "B115": {
+      "assessment": "Bounded concurrency harness is exposed through quality_gate and validates one stable side effect under duplicate calls.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Concurrency and clock testing are deterministic test harness concerns without production schema state.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/quality.py", "markers": ["check_same_thread=False", "self._lock", "webhook_fault_corpus"]}],
+        "runtime_entrypoint": [{"path": "tools/quality_gate.py", "markers": ["concurrency", "DeterministicProviderSimulator"]}],
+        "config": [{"path": "testing/test-matrix.json", "markers": ["TM-B112-B115-QUALITY", "concurrency"]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b98_b117_runtime_entrypoints.py", "markers": ["test_provider_fault_concurrency_and_load_commands_are_reproducible"]}]
+      }
+    },
+    "B116": {
+      "assessment": "Security orchestration discovers and executes real SAST/DAST/IAST/secret/dependency scanners, binds executable/input/output digests and fails closed when a scanner is absent or fabricated.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "SAST/DAST/IAST/secret/dependency reports are immutable CI inputs rather than application database state.",
+      "artifacts": {
+        "executable": [
+          {"path": "tools/runtime/elmpay_runtime/security_testing.py", "markers": ["def orchestrate_security_pipeline", "scanner_not_installed"]},
+          {"path": "tools/runtime/elmpay_runtime/quality.py", "markers": ["def evaluate_security_pipeline", "security_tool_not_orchestrated"]}
+        ],
+        "runtime_entrypoint": [{"path": "tools/quality_gate.py", "markers": ["security.add_argument(\"--plan\"", "orchestrate_security_pipeline(plan"]}],
+        "config": [{"path": "testing/test-matrix.json", "markers": ["TM-B116-B117-SECURITY-PERFORMANCE", "SAST/secret/dependency"]}],
+        "migrations": [],
+        "tests": [
+          {"path": "testing/test_b116_security_orchestration.py", "markers": ["test_discovers_scanners_and_binds_real_dast_and_iast_results", "test_missing_scanners_are_blocked_and_cannot_be_reported_complete"]},
+          {"path": "testing/test_b112_b117_quality.py", "markers": ["fabricated"]}
+        ]
+      }
+    },
+    "B117": {
+      "assessment": "A bounded TEST-only HTTP resilience runner measures real peak, burst, soak and fault-recovery requests with an explicit completion proof.",
+      "known_gaps": [],
+      "migration_required": false,
+      "migration_not_applicable_reason": "Performance/load/soak tooling operates on supplied targets and does not own application database state.",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/quality.py", "markers": ["def run_http_load_profile", "def run_http_resilience_plan", "LOOPBACK_TEST_HTTP_RESILIENCE"]}],
+        "runtime_entrypoint": [{"path": "tools/quality_gate.py", "markers": ["loopback-http-test-v1", "def _load_allowed"]}],
+        "config": [{"path": "testing/test-matrix.json", "markers": ["TM-B116-B117-SECURITY-PERFORMANCE", "load/soak/queue/DB/provider fault profiles"]}],
+        "migrations": [],
+        "tests": [{"path": "testing/test_b117_http_load_profile.py", "markers": ["test_cli_measures_real_loopback_requests_and_marks_complete_proof", "test_peak_burst_soak_and_fault_recovery_are_measured"]}]
+      }
+    },
+    "B118": {
+      "assessment": "Durable tenant-scoped UAT DSL runner emits immutable candidate bundles only; independent finance, operations and merchant acceptance remains an external BLOCKED gate.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/uat.py", "markers": ["class UatRunner", "class UatAdapter"]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/elmpay_runtime/uat.py", "markers": ["def run", "certificationStatus"]}],
+        "config": [{"path": "platform/compliance/external-evidence-policy.json", "markers": ["\"uat_acceptance\"", "\"requiredSource\": \"UAT_SIGNOFF\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V120_127__release_control.sql", "markers": ["CREATE TABLE IF NOT EXISTS uat_run", "CREATE TABLE IF NOT EXISTS uat_step_result"]}],
+        "tests": [{"path": "testing/test_b118_b127_controls.py", "markers": ["test_uat_executes_wired_dsl_and_only_emits_candidate_bundle"]}]
+      }
+    },
+    "B119": {
+      "assessment": "Ed25519 DSSE verifier enforces trust-root role, validity, revocation and durable nonce replay binding; independent human approval remains external and NOT_CERTIFIED.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/attestation.py", "markers": ["def verify_dsse_record", "Ed25519"]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/elmpay_runtime/attestation.py", "markers": ["class NonceStore", "def nonce_store_from_trust"]}],
+        "config": [{"path": "platform/compliance/external-evidence-policy.json", "markers": ["\"independentEvidenceRequired\": true", "\"minimumDistinctVerifiers\": 2"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V120_127__release_control.sql", "markers": ["CREATE TABLE IF NOT EXISTS attestation_nonce", "PRIMARY KEY (issuer_key_id, nonce)"]}],
+        "tests": [{"path": "testing/test_b118_b127_controls.py", "markers": ["test_ed25519_trust_root_rejects_revocation_and_replay_mutation"]}]
+      }
+    },
+    "B120": {
+      "assessment": "Durable tenant-scoped migration pipeline registers immutable mappings, resumable checkpoints, redacted canonical facts and webhook replay protection.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/migration_pipeline.py", "markers": ["class MigrationPipeline", "def register"]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/elmpay_runtime/migration_pipeline.py", "markers": ["def checkpoint", "def ingest_fact"]}],
+        "config": [{"path": "governance/migration-plan.json", "markers": ["\"batch\": \"B15\"", "\"dual_write\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V120_127__release_control.sql", "markers": ["CREATE TABLE IF NOT EXISTS migration_project", "CREATE TABLE IF NOT EXISTS migration_checkpoint", "CREATE TABLE IF NOT EXISTS migration_fact"]}],
+        "tests": [{"path": "testing/test_b118_b127_controls.py", "markers": ["test_migration_is_tenant_scoped_checkpointed_and_shadow_is_immutable"]}]
+      }
+    },
+    "B121": {
+      "assessment": "Side-effect-free shadow runner persists immutable dataset-bound diffs and always reports NOT_CERTIFIED; production shadow observation remains external.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/migration_pipeline.py", "markers": ["def shadow", "candidateSideEffects"]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/elmpay_runtime/migration_pipeline.py", "markers": ["certificationStatus", "NOT_CERTIFIED"]}],
+        "config": [{"path": "platform/rollout/policy.json", "markers": ["\"name\": \"shadow\"", "\"trafficPercent\": 0"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V120_127__release_control.sql", "markers": ["CREATE TABLE IF NOT EXISTS shadow_run", "CREATE TABLE IF NOT EXISTS shadow_result"]}],
+        "tests": [{"path": "testing/test_b118_b127_controls.py", "markers": ["test_migration_is_tenant_scoped_checkpointed_and_shadow_is_immutable"]}]
+      }
+    },
+    "B122": {
+      "assessment": "Durable onboarding control verifies configuration, all controls and four-eyes approval but stops at READY_FOR_EXTERNAL_ACTIVATION until official provider evidence exists.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/onboarding.py", "markers": ["class OnboardingControl", "READY_FOR_EXTERNAL_ACTIVATION"]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/elmpay_runtime/onboarding.py", "markers": ["official provider and production activation evidence is required", "def activate"]}],
+        "config": [{"path": "governance/onboarding-workflow.json", "markers": ["\"batch\": \"B30\"", "\"steps\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V120_127__release_control.sql", "markers": ["CREATE TABLE IF NOT EXISTS onboarding_case", "CREATE TABLE IF NOT EXISTS onboarding_approval"]}],
+        "tests": [{"path": "testing/test_b118_b127_controls.py", "markers": ["test_onboarding_requires_all_controls_four_eyes_and_external_activation"]}]
+      }
+    },
+    "B123": {
+      "assessment": "Signed release go/no-go decisions bind target, gate digests, distinct approvers and independently verified external evidence.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/release_control.py", "markers": ["class ReleaseControl", "record_go_no_go"]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/elmpay_runtime/release_control.py", "markers": ["external_evidence", "verify_dsse_record"]}],
+        "config": [{"path": "platform/compliance/required-release-gates.json", "markers": ["\"requiredEvidence\"", "\"externalEvidenceRequired\": true"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V120_127__release_control.sql", "markers": ["CREATE TABLE IF NOT EXISTS release_decision"]}],
+        "tests": [{"path": "testing/test_b118_b127_controls.py", "markers": ["test_signed_go_decision_binds_target_and_auto_rollback_is_invoked"]}]
+      }
+    },
+    "B124": {
+      "assessment": "Durable staged rollout enforces signed target binding, observation windows, auto-stop thresholds, fencing and an actual rollback adapter.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/release_control.py", "markers": ["def start_rollout", "def observe_and_advance"]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/elmpay_runtime/release_control.py", "markers": ["rollback_adapter", "decision = \"ROLLBACK\""]}],
+        "config": [{"path": "platform/rollout/policy.json", "markers": ["\"stages\"", "\"autoStop\""]}],
+        "migrations": [{"path": "tools/runtime/migrations/V120_127__release_control.sql", "markers": ["CREATE TABLE IF NOT EXISTS rollout_execution", "CREATE TABLE IF NOT EXISTS rollout_observation"]}],
+        "tests": [{"path": "testing/test_b118_b127_controls.py", "markers": ["test_signed_go_decision_binds_target_and_auto_rollback_is_invoked"]}]
+      }
+    },
+    "B125": {
+      "assessment": "Fenced post-launch worker executes daily/weekly/monthly reconciliation windows and refuses closure while a provider/bank delta remains open.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/postlaunch.py", "markers": ["class PostLaunchControl", "def reconcile", "receipt_type=\"RECONCILIATION_SOURCE_TOTAL\""]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/postlaunch_worker.py", "markers": ["--source-receipts", "PostLaunchControl", "return 0 if result[\"allowedToClose\"] else 2"]}],
+        "config": [{"path": "platform/compliance/required-release-gates.json", "markers": ["\"durable_fencing_store\"", "\"externalEvidenceRequired\": true"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V120_127__release_control.sql", "markers": ["CREATE TABLE IF NOT EXISTS job_lease", "CREATE TABLE IF NOT EXISTS reconciliation_window", "CREATE TABLE IF NOT EXISTS reconciliation_source_receipt"]}],
+        "tests": [{"path": "testing/test_b118_b127_controls.py", "markers": ["test_postlaunch_cron_entrypoint_blocks_an_open_delta"]}]
+      }
+    },
+    "B126": {
+      "assessment": "Durable commercial control versions pricing, deduplicates usage, issues immutable invoices, enforces SLA/four-eyes credits and exports a receipt-bound signed audit chain.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/commercial.py", "markers": ["class CommercialLedger", "def finalize_audit_export", "receipt_type=\"COMMERCIAL_AUDIT_EXPORT\""]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/commercial_control.py", "markers": ["export-audit", "finalize_audit_export", "def main"]}],
+        "config": [{"path": "platform/rollout/billing-policy.json", "markers": ["\"meters\"", "\"requiresApproval\": true"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V120_127__release_control.sql", "markers": ["CREATE TABLE IF NOT EXISTS pricing_version", "CREATE TABLE IF NOT EXISTS commercial_audit_event", "CREATE TABLE IF NOT EXISTS commercial_audit_export"]}],
+        "tests": [{"path": "testing/test_b118_b127_controls.py", "markers": ["test_commercial_cli_executes_and_exports_a_signed_audit_chain"]}]
+      }
+    },
+    "B127": {
+      "assessment": "External-evidence verifier fail-closes on missing provider, Kubernetes/DR, PCI/UAT/pentest, rollout and merchant attestations; repository execution never changes NOT_CERTIFIED.",
+      "known_gaps": [],
+      "migration_required": true,
+      "migration_not_applicable_reason": "",
+      "artifacts": {
+        "executable": [{"path": "tools/runtime/elmpay_runtime/external_evidence.py", "markers": ["def validate_external_evidence", "provider_certification_matrix_missing", "missing_external_evidence"]}],
+        "runtime_entrypoint": [{"path": "tools/runtime/elmpay_runtime/release_control.py", "markers": ["external_evidence", "record_go_no_go"]}],
+        "config": [{"path": "platform/compliance/external-evidence-policy.json", "markers": ["\"status\": \"NOT_CERTIFIED\"", "\"localValidationMayCertify\": false"]}, {"path": "platform/compliance/required-release-gates.json", "markers": ["\"externalEvidenceRequired\": true"]}],
+        "migrations": [{"path": "tools/runtime/migrations/V120_127__release_control.sql", "markers": ["CREATE TABLE IF NOT EXISTS release_decision", "CREATE TABLE IF NOT EXISTS attestation_nonce"]}],
+        "tests": [{"path": "testing/test_b118_b127_controls.py", "markers": ["test_signed_go_decision_binds_target_and_auto_rollback_is_invoked"]}, {"path": "testing/test_external_evidence.py", "markers": ["class ExternalEvidenceGateTest"]}]
+      }
+    }
+  }
+}

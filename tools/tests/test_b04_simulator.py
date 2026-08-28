@@ -50,7 +50,10 @@ def request(url: str, method: str = "GET", body: dict | None = None,
         with urllib.request.urlopen(req, timeout=10) as response:
             return response.status, json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        return exc.code, json.loads(exc.read().decode("utf-8"))
+        try:
+            return exc.code, json.loads(exc.read().decode("utf-8"))
+        finally:
+            exc.close()
 
 
 class SimulatorLifecycle(unittest.TestCase):

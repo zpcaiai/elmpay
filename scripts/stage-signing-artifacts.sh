@@ -26,7 +26,7 @@ if [[ -e "${STAGING_ROOT}" ]]; then
   exit 1
 fi
 
-STAGING_PROJECTS_B64='WyJsaWJzL21vbmV5IiwibGlicy9kb21haW4tZXZlbnRzIiwibGlicy9pZGVtcG90ZW5jeSIsImxpYnMvYXVkaXQiLCJsaWJzL3NlY3VyaXR5IiwibGlicy9vYnNlcnZhYmlsaXR5IiwiY29ubmVjdG9ycy93ZWNoYXQtcGF5IiwiY29ubmVjdG9ycy9hbGlwYXkiLCJjb25uZWN0b3JzL3N0cmlwZSIsImNvbm5lY3RvcnMvcGF5cGFsIiwiY29ubmVjdG9ycy9hcHBsZS1wYXkiLCJzZXJ2aWNlcy9wYXltZW50LWNvcmUiLCJzZXJ2aWNlcy93ZWJob29rLWluZ3Jlc3MiLCJzZXJ2aWNlcy93ZWJob29rLWRlbGl2ZXJ5Iiwic2VydmljZXMvbWVyY2hhbnQtY29uZmlnIiwic2VydmljZXMvcmlzay1lbmdpbmUiLCJzZXJ2aWNlcy9sZWRnZXItc2VydmljZSIsInNlcnZpY2VzL3JlY29uY2lsaWF0aW9uLXNlcnZpY2UiLCJzZXJ2aWNlcy93b3JrZXItc2NoZWR1bGVyIiwiYXBwcy9lZGdlLWdhdGV3YXkiXQ==' \
+STAGING_PROJECTS_B64='WyJsaWJzL21vbmV5IiwibGlicy9kb21haW4tZXZlbnRzIiwibGlicy9pZGVtcG90ZW5jeSIsImxpYnMvYXVkaXQiLCJsaWJzL3NlY3VyaXR5IiwibGlicy9vYnNlcnZhYmlsaXR5IiwiY29ubmVjdG9ycy93ZWNoYXQtcGF5IiwiY29ubmVjdG9ycy9hbGlwYXkiLCJjb25uZWN0b3JzL3N0cmlwZSIsImNvbm5lY3RvcnMvcGF5cGFsIiwiY29ubmVjdG9ycy9hcHBsZS1wYXkiLCJzZXJ2aWNlcy9wYXltZW50LWNvcmUiLCJzZXJ2aWNlcy93ZWJob29rLWluZ3Jlc3MiLCJzZXJ2aWNlcy93ZWJob29rLWRlbGl2ZXJ5Iiwic2VydmljZXMvbWVyY2hhbnQtY29uZmlnIiwic2VydmljZXMvcmlzay1lbmdpbmUiLCJzZXJ2aWNlcy9sZWRnZXItc2VydmljZSIsInNlcnZpY2VzL3JlY29uY2lsaWF0aW9uLXNlcnZpY2UiLCJzZXJ2aWNlcy93b3JrZXItc2NoZWR1bGVyIiwiYXBwcy9lZGdlLWdhdGV3YXkiLCJzZGtzL21vYmlsZS9hbmRyb2lkIl0=' \
 STAGING_PROJECT_SOURCE='governance/version-catalog.json#modules_by_build_system.gradle' \
 STAGING_ROOT="${STAGING_ROOT}" REPOSITORY_ROOT="${ROOT}" python3 - <<'PY'
 import base64
@@ -45,7 +45,8 @@ projects = json.loads(base64.b64decode(
 if not isinstance(projects, list) or not projects or len(projects) != len(set(projects)):
     raise SystemExit("Gradle artifact project inventory is empty or duplicated")
 project_pattern = re.compile(
-    r"^(?:apps|connectors|libs|services)/[a-z0-9]+(?:-[a-z0-9]+)*$")
+    r"^(?:(?:apps|connectors|libs|services)/[a-z0-9]+(?:-[a-z0-9]+)*|"
+    r"sdks/mobile/android)$")
 
 build = root / "build"
 build.mkdir(parents=True, exist_ok=True)

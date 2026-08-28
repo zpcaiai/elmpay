@@ -23,13 +23,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 /** Stripe REST adapter for tokenized payments, billing, refunds and disputes. */
-public final class StripeAdapter {
+public final class StripeAdapter implements AutoCloseable {
     private static final int MAX_BODY_BYTES = 1_048_576;
     private static final Pattern IDEMPOTENCY_KEY = Pattern.compile("[A-Za-z0-9._:-]{16,128}");
     private static final Pattern PROVIDER_ID = Pattern.compile("[A-Za-z][A-Za-z0-9_]{5,128}");
@@ -63,6 +64,10 @@ public final class StripeAdapter {
 
         boolean validAt(Instant instant) {
             return !instant.isBefore(validFrom) && instant.isBefore(validUntil);
+        }
+
+        void destroy() {
+            java.util.Arrays.fill(secret, (byte) 0);
         }
     }
 
@@ -168,6 +173,7 @@ public final class StripeAdapter {
     private final Transport transport;
     private final AtomicReference<List<WebhookSecret>> webhookSecrets;
     private final ConcurrentHashMap<String, Long> latestEventTimes = new ConcurrentHashMap<>();
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     public StripeAdapter(Config config, Transport transport) {
         this.config = Objects.requireNonNull(config, "config");
@@ -176,6 +182,7 @@ public final class StripeAdapter {
     }
 
     public void rotateWebhookSecrets(List<WebhookSecret> replacement) {
+        ensureOpen();
         List<WebhookSecret> safe = List.copyOf(replacement);
         if (safe.isEmpty()) {
             throw new IllegalArgumentException("replacement secret set is empty");
@@ -188,6 +195,7 @@ public final class StripeAdapter {
     }
 
     public OperationResult createPaymentIntent(PaymentRequest request) {
+        ensureOpen();
         Objects.requireNonNull(request, "request");
         Map<String, String> parameters = new LinkedHashMap<>();
         parameters.put("amount", Long.toString(request.amountMinor()));
@@ -203,6 +211,7 @@ public final class StripeAdapter {
     }
 
     public OperationResult createSetupIntent(String customerId, String idempotencyKey) {
+        ensureOpen();
         requireProviderId(customerId, "customerId");
         requireIdempotency(idempotencyKey);
         return execute("POST", "/v1/setup_intents",
@@ -212,6 +221,7 @@ public final class StripeAdapter {
 
     public OperationResult confirmPaymentIntent(String paymentIntentId, String paymentMethodReference,
             String idempotencyKey) {
+        ensureOpen();
         requireProviderId(paymentIntentId, "paymentIntentId");
         if (!PAYMENT_METHOD.matcher(paymentMethodReference).matches()) {
             throw new IllegalArgumentException("only an opaque Stripe payment-method reference is accepted");
@@ -222,12 +232,14 @@ public final class StripeAdapter {
     }
 
     public OperationResult queryPaymentIntent(String paymentIntentId) {
+        ensureOpen();
         requireProviderId(paymentIntentId, "paymentIntentId");
         return execute("GET", "/v1/payment_intents/" + paymentIntentId, Map.of(), "query-" + paymentIntentId);
     }
 
     public OperationResult capturePaymentIntent(String paymentIntentId, long amountMinor,
             String idempotencyKey) {
+        ensureOpen();
         requireProviderId(paymentIntentId, "paymentIntentId");
         positiveAmount(amountMinor);
         requireIdempotency(idempotencyKey);
@@ -237,6 +249,7 @@ public final class StripeAdapter {
 
     public OperationResult cancelPaymentIntent(String paymentIntentId, String reason,
             String idempotencyKey) {
+        ensureOpen();
         requireProviderId(paymentIntentId, "paymentIntentId");
         requireText(reason, "reason");
         requireIdempotency(idempotencyKey);
@@ -246,6 +259,7 @@ public final class StripeAdapter {
 
     public OperationResult refund(String paymentIntentId, long amountMinor, String refundReference,
             String idempotencyKey) {
+        ensureOpen();
         requireProviderId(paymentIntentId, "paymentIntentId");
         positiveAmount(amountMinor);
         requireText(refundReference, "refundReference");
@@ -256,12 +270,14 @@ public final class StripeAdapter {
     }
 
     public OperationResult queryRefund(String refundId) {
+        ensureOpen();
         requireProviderId(refundId, "refundId");
         return execute("GET", "/v1/refunds/" + refundId, Map.of(), "query-refund-" + refundId);
     }
 
     public OperationResult submitDisputeEvidence(String disputeId, Map<String, String> evidence,
             String idempotencyKey) {
+        ensureOpen();
         requireProviderId(disputeId, "disputeId");
         requireIdempotency(idempotencyKey);
         if (evidence.isEmpty() || evidence.size() > 20) {
@@ -275,6 +291,7 @@ public final class StripeAdapter {
 
     public OperationResult createSubscription(String customerId, String priceId, int trialDays,
             String idempotencyKey) {
+        ensureOpen();
         requireProviderId(customerId, "customerId");
         requireProviderId(priceId, "priceId");
         requireIdempotency(idempotencyKey);
@@ -295,6 +312,7 @@ public final class StripeAdapter {
 
     public OperationResult recordMeterEvent(String eventName, String customerId, long value,
             String usageReference, String idempotencyKey) {
+        ensureOpen();
         requireText(eventName, "eventName");
         requireProviderId(customerId, "customerId");
         positiveAmount(value);
@@ -307,6 +325,7 @@ public final class StripeAdapter {
 
     public OperationResult createBillingPortalSession(String customerId, String approvedReturnUrlToken,
             String idempotencyKey) {
+        ensureOpen();
         requireProviderId(customerId, "customerId");
         requireText(approvedReturnUrlToken, "approvedReturnUrlToken");
         requireIdempotency(idempotencyKey);
@@ -321,6 +340,7 @@ public final class StripeAdapter {
 
     public VerifiedWebhook verifyWebhook(String stripeSignature, byte[] rawBody,
             Instant receivedAt, ExpectedWebhook expected) {
+        ensureOpen();
         requireText(stripeSignature, "stripeSignature");
         Objects.requireNonNull(rawBody, "rawBody");
         Objects.requireNonNull(receivedAt, "receivedAt");
@@ -377,6 +397,21 @@ public final class StripeAdapter {
                 + "\",\"out_of_order\":" + outOfOrder + "}";
         return new VerifiedWebhook(eventId, eventType, objectId, created, outOfOrder, keyId,
                 canonical.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Override
+    public void close() {
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
+        webhookSecrets.getAndSet(List.of()).forEach(WebhookSecret::destroy);
+        latestEventTimes.clear();
+    }
+
+    private void ensureOpen() {
+        if (closed.get()) {
+            throw new IllegalStateException("Stripe credential runtime is closed");
+        }
     }
 
     private OperationResult execute(String method, String path, Map<String, String> parameters,

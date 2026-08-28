@@ -82,7 +82,16 @@ if [[ "${ELMPAY_GATE_EVENT_NAME}" == "${TRUSTED_EVENT}" &&
       exit 1
     fi
   done
-  echo 'release-eligible: trusted main push, explicit Sigstore opt-in and all required stages succeeded'
+  for variable in ELMPAY_RELEASE_MANIFEST_B64 ELMPAY_RELEASE_TRUST_B64 \
+                  ELMPAY_EXTERNAL_EVIDENCE_B64 ELMPAY_EXTERNAL_TRUST_B64 \
+                  ELMPAY_GATE_SHA; do
+    if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+      echo "release gate blocked: protected evidence input '${variable}' is missing" >&2
+      exit 1
+    fi
+  done
+  python3 scripts/ci-release-evidence-gate.py
+  echo 'release-eligible: trusted main push, all required stages and signed external evidence succeeded'
   exit 0
 fi
 
@@ -129,6 +138,10 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
     entries = {e["id"]: e for e in load_json(root / CATALOG, budget)["entries"]}
     actions = {a["name"]: a for a in doc["actions"]}
     java_version = entries["jdk"]["version"].split("+", 1)[0]
+    node_version = entries["node"]["version"]
+    dart_version = entries["dart-sdk"]["version"]
+    go_version = entries["go-toolchain"]["version"]
+    dotnet_version = entries["dotnet-sdk"]["version"]
     python_reference = entries["python-toolchain"]["version"]
     python_floor = entries["python-toolchain"]["minimum_supported"]
 
@@ -152,7 +165,11 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
 
     checkout = actions["actions/checkout"]
     setup_java = actions["actions/setup-java"]
+    setup_node = actions["actions/setup-node"]
     setup_python = actions["actions/setup-python"]
+    setup_dart = actions["dart-lang/setup-dart"]
+    setup_go = actions["actions/setup-go"]
+    setup_dotnet = actions["actions/setup-dotnet"]
     setup_gradle = actions["gradle/actions/setup-gradle"]
     cache_restore = actions[cache_policy["dependency_data_restore_action"]]
     cache_save = actions[cache_policy["dependency_data_save_action"]]
@@ -170,7 +187,7 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
     for stage in doc["stages"]:
         lines += [f'  {stage["id"]}:',
                   f'    name: {_quote(stage["name"])}',
-                  f'    runs-on: {doc["runner"]}',
+                  f'    runs-on: {stage.get("runner", doc["runner"])}',
                   f'    timeout-minutes: {stage["timeout_minutes"]}']
         if stage["needs"]:
             lines.append("    needs: [" + ", ".join(stage["needs"]) + "]")
@@ -186,6 +203,25 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
                   f'      - uses: {setup_python["name"]}@{setup_python["ref"]}  # {setup_python["version_comment"]}',
                   "        with:",
                   f'          python-version: {_quote(python_floor if stage["id"] == "python-floor" else python_reference)}']
+        if stage["id"] == "unit-test":
+            lines += [
+                f'      - uses: {setup_node["name"]}@{setup_node["ref"]}  # {setup_node["version_comment"]}',
+                "        with:",
+                f'          node-version: {_quote(node_version)}',
+                f'      - uses: {setup_go["name"]}@{setup_go["ref"]}  # {setup_go["version_comment"]}',
+                "        with:",
+                f'          go-version: {_quote(go_version)}',
+                "          cache: false",
+                f'      - uses: {setup_dotnet["name"]}@{setup_dotnet["ref"]}  # {setup_dotnet["version_comment"]}',
+                "        with:",
+                f'          dotnet-version: {_quote(dotnet_version)}',
+            ]
+        if stage["id"] == "flutter-sdk-test":
+            lines += [
+                f'      - uses: {setup_dart["name"]}@{setup_dart["ref"]}  # {setup_dart["version_comment"]}',
+                "        with:",
+                f'          sdk: {_quote(dart_version)}',
+            ]
         if stage["id"] == "sign":
             for item in signing["downloads"]:
                 lines += [
@@ -199,7 +235,7 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
                 "        with:",
                 f'          cosign-release: {_quote(signing["cosign_release"])}',
             ]
-        else:
+        elif stage["id"] not in {"ios-sdk-test", "flutter-sdk-test"}:
             if stage["id"] == cache_policy["writer_stage"]:
                 cache_read_only = (
                     "${{ github.event_name != '" + cache_policy["trusted_event"]
@@ -268,6 +304,12 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
               "    needs: [" + ", ".join(doc["required_stages"]) + "]",
               "    if: always()",
               "    steps:",
+              f'      - uses: {checkout["name"]}@{checkout["ref"]}  # {checkout["version_comment"]}',
+              "        with:",
+              "          persist-credentials: false",
+              f'      - uses: {setup_python["name"]}@{setup_python["ref"]}  # {setup_python["version_comment"]}',
+              "        with:",
+              f'          python-version: {_quote(python_reference)}',
               "      - name: 'Enforce release context or validation-only context'",
               "        # Per-stage checks replace contains(needs.*.result, 'failure').",
               "        # Per-stage diagnostics replace join(needs.*.result, ',').",
@@ -275,6 +317,11 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
               "          ELMPAY_GATE_EVENT_NAME: ${{ github.event_name }}",
               "          ELMPAY_GATE_REPOSITORY: ${{ github.repository }}",
               "          ELMPAY_GATE_REF: ${{ github.ref }}",
+              "          ELMPAY_GATE_SHA: ${{ github.sha }}",
+              "          ELMPAY_RELEASE_MANIFEST_B64: ${{ secrets.ELMPAY_RELEASE_MANIFEST_B64 }}",
+              "          ELMPAY_RELEASE_TRUST_B64: ${{ secrets.ELMPAY_RELEASE_TRUST_B64 }}",
+              "          ELMPAY_EXTERNAL_EVIDENCE_B64: ${{ secrets.ELMPAY_EXTERNAL_EVIDENCE_B64 }}",
+              "          ELMPAY_EXTERNAL_TRUST_B64: ${{ secrets.ELMPAY_EXTERNAL_TRUST_B64 }}",
               f'          ELMPAY_SIGNING_OPT_IN: '
               f'${{{{ vars.{signing["public_sigstore_opt_in_variable"]} }}}}']
     for stage_id in doc["required_stages"]:
@@ -337,7 +384,8 @@ projects = json.loads(base64.b64decode(
 if not isinstance(projects, list) or not projects or len(projects) != len(set(projects)):
     raise SystemExit("Gradle artifact project inventory is empty or duplicated")
 project_pattern = re.compile(
-    r"^(?:apps|connectors|libs|services)/[a-z0-9]+(?:-[a-z0-9]+)*$")
+    r"^(?:(?:apps|connectors|libs|services)/[a-z0-9]+(?:-[a-z0-9]+)*|"
+    r"sdks/mobile/android)$")
 
 build = root / "build"
 build.mkdir(parents=True, exist_ok=True)

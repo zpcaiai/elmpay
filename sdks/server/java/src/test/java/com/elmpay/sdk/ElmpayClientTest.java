@@ -1,6 +1,6 @@
 package com.elmpay.sdk;
 import static org.junit.jupiter.api.Assertions.*;
-import java.net.URI; import java.nio.charset.StandardCharsets; import java.time.*; import java.util.*; import javax.crypto.Mac; import javax.crypto.spec.SecretKeySpec; import org.junit.jupiter.api.Test;
+import java.net.URI; import java.nio.charset.StandardCharsets; import java.time.*; import java.util.*; import org.junit.jupiter.api.Test;
 class ElmpayClientTest {
  @Test void serializesCanonicalCheckoutRequests() throws Exception {
   List<ElmpayClient.SdkRequest> calls=new ArrayList<>(); String project="10000000-0000-4000-8000-000000000002";
@@ -15,9 +15,9 @@ class ElmpayClientTest {
   assertEquals("{\"payment_method_type\":\"stripe_card\",\"payment_method_reference\":\"psp://tok/1\",\"fingerprint\":\"fp\"}",calls.get(2).body());
  }
  @Test void verifiesFreshRawWebhookBytes() throws Exception {
-  byte[] secret=new byte[32], body="{\"ok\":true}".getBytes(StandardCharsets.UTF_8); long timestamp=1700000000L;
-  Mac mac=Mac.getInstance("HmacSHA256"); mac.init(new SecretKeySpec(secret,"HmacSHA256")); mac.update(Long.toString(timestamp).getBytes(StandardCharsets.US_ASCII)); mac.update((byte)'.');
-  String signature=Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(body)); String header="t="+timestamp+",v1="+signature;
+  byte[] secret=Base64.getUrlDecoder().decode("BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc");
+  byte[] body="{\"event\":\"payment.succeeded\",\"amount\":1250}".getBytes(StandardCharsets.UTF_8); long timestamp=1787702400L;
+  String header="t=1787702400,v1=NgtUFKuSvOfNdb2InZjDTBS3axZlxKNnw1QLrb3elDw";
   var clock=Clock.fixed(Instant.ofEpochSecond(timestamp),ZoneOffset.UTC); assertTrue(ElmpayClient.verifyWebhook(secret,body,header,clock,Duration.ofMinutes(5)));
   assertFalse(ElmpayClient.verifyWebhook(secret,"{}".getBytes(StandardCharsets.UTF_8),header,clock,Duration.ofMinutes(5)));
  }

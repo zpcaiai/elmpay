@@ -23,7 +23,7 @@ from typing import Any
 
 from . import cigen
 from .errors import BudgetExceeded, Problem
-from .repo import Budget, load_json
+from .repo import Budget, load_json, read_text
 from .structs import SEMVER, expect
 
 PATH = Path("governance/ci-pipeline.json")
@@ -34,10 +34,17 @@ EXPECTED_RUNNER = "ubuntu-24.04"
 EXPECTED_REQUIRED_STAGES = {
     "governance", "python-floor", "build", "unit-test", "static-analysis", "secret-scan",
     "dependency-scan", "container-scan", "iac-scan", "sbom", "sign",
-    "negative-controls", "evidence-archive", "rule-knockout",
+    "negative-controls", "evidence-archive", "rule-knockout", "ios-sdk-test",
+    "flutter-sdk-test", "quality-metrics",
 }
 FORBIDDEN_IN_WORKFLOW = ("pull_request_target", "continue-on-error: true",
-                         "permissions: write-all", "${{ secrets.")
+                         "permissions: write-all")
+ALLOWED_SECRET_BINDINGS = (
+    "ELMPAY_RELEASE_MANIFEST_B64: ${{ secrets.ELMPAY_RELEASE_MANIFEST_B64 }}",
+    "ELMPAY_RELEASE_TRUST_B64: ${{ secrets.ELMPAY_RELEASE_TRUST_B64 }}",
+    "ELMPAY_EXTERNAL_EVIDENCE_B64: ${{ secrets.ELMPAY_EXTERNAL_EVIDENCE_B64 }}",
+    "ELMPAY_EXTERNAL_TRUST_B64: ${{ secrets.ELMPAY_EXTERNAL_TRUST_B64 }}",
+)
 REQUIRED_BLOCKING_TOPICS = {
     "BLOCK-01": "security",
     "BLOCK-02": "ledger",
@@ -95,6 +102,69 @@ MACHINE_REPORT_STAGES = {
         "command": ("python3 -m tools.paygov.cli verify dev-platform --repo . "
                     "--out iac-scan.json"),
         "artifact": "iac-scan.json",
+    },
+}
+EXPECTED_PRODUCT_TEST_COMMANDS = [
+    "python3 scripts/test-summary.py --suite-root tools/tests --out build/test-summary.json "
+    "--log build/unittest.log",
+    "mkdir -p build/test-surfaces && python3 -m unittest discover -s testing "
+    "-p 'test_*.py' -v > build/test-surfaces/testing.log 2>&1",
+    "python3 scripts/provider-contract-matrix.py > "
+    "build/test-surfaces/provider-contract-matrix.log 2>&1",
+    "node --test apps/checkout-web/test/*.test.mjs > "
+    "build/test-surfaces/checkout-web.log 2>&1",
+    "node --test apps/admin-web/test/*.test.mjs > "
+    "build/test-surfaces/admin-web.log 2>&1",
+    "python3 scripts/sdk-contract-smoke.py > build/test-surfaces/server-sdk.log 2>&1",
+    "./gradlew --no-daemon test > build/test-surfaces/gradle.log 2>&1",
+]
+EXPECTED_PRODUCT_TEST_ARTIFACTS = [
+    "build/test-summary.json", "build/unittest.log", "build/test-surfaces/",
+]
+PLATFORM_TEST_STAGES = {
+    "ios-sdk-test": {
+        "runner": "macos-15",
+        "command": ("python3 scripts/platform_sdk_test.py ios "
+                    "--out build/mobile-sdk/ios.json --log build/mobile-sdk/ios.log"),
+        "artifacts": ["build/mobile-sdk/ios.json", "build/mobile-sdk/ios.log"],
+    },
+    "flutter-sdk-test": {
+        "runner": "ubuntu-24.04",
+        "command": ("python3 scripts/platform_sdk_test.py flutter "
+                    "--out build/mobile-sdk/flutter.json --log build/mobile-sdk/flutter.log"),
+        "artifacts": ["build/mobile-sdk/flutter.json", "build/mobile-sdk/flutter.log"],
+    },
+}
+QUALITY_METRICS_STAGE = {
+    "commands": [
+        ("python3 -m pip install --disable-pip-version-check --no-input "
+         "--only-binary=:all: 'coverage==7.14.3'"),
+        "python3 tools/quality_gate.py coverage-mutation",
+    ],
+    "artifacts": [
+        "build/quality-metrics/",
+        "**/build/reports/jacoco/test/jacocoTestReport.xml",
+        "**/build/reports/pitest/mutations.xml",
+    ],
+    "needs": ["unit-test"],
+    "timeout_minutes": 120,
+}
+TEST_ACTION_PINS = {
+    "actions/setup-node": {
+        "ref": "249970729cb0ef3589644e2896645e5dc5ba9c38",
+        "version_comment": "v6.5.0",
+    },
+    "dart-lang/setup-dart": {
+        "ref": "7654d458321ee25acccccfdb86cd48bd95768ff1",
+        "version_comment": "v1.8.0",
+    },
+    "actions/setup-go": {
+        "ref": "4dc6199c7b1a012772edbd06daecab0f50c9053c",
+        "version_comment": "v6.1.0",
+    },
+    "actions/setup-dotnet": {
+        "ref": "baa11fbfe1d6520db94683bd5c7a3818018e4309",
+        "version_comment": "v5.1.0",
     },
 }
 SIGNING_ACTION_PINS = {
@@ -171,6 +241,9 @@ EXPECTED_SIGNING_NEEDS = {
     "sbom",
     "python-floor",
     "unit-test",
+    "ios-sdk-test",
+    "flutter-sdk-test",
+    "quality-metrics",
     "static-analysis",
     "dependency-scan",
     "container-scan",
@@ -270,6 +343,7 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     problems += _skill_package(by_id, where)
     problems += _machine_reports(by_id, where)
     problems += _python_toolchain(root, budget, doc, by_id, where)
+    problems += _test_surfaces(root, budget, doc, by_id, where)
     problems += _supply_chain_stages(by_id, where)
     problems += _signing(doc, by_id, where)
     problems += _generated(root, budget, doc)
@@ -512,8 +586,9 @@ def _python_toolchain(root: Path, budget: Budget, doc: dict,
         return [Problem("CI_PYTHON_TOOLCHAIN", scope,
                         f"version catalogue is unreadable: {exc}", "NN-12")]
 
-    entries = {entry.get("id"): entry for entry in catalog.get("entries", [])
-               if isinstance(entry, dict)}
+    listed_entries = catalog.get("entries", [])
+    entries = {entry.get("id"): entry for entry in listed_entries
+               if isinstance(entry, dict)} if isinstance(listed_entries, list) else {}
     interpreter = entries.get("python-toolchain")
     problems += expect(isinstance(interpreter, dict), "CI_PYTHON_TOOLCHAIN", scope,
                        "the CI interpreter must come from python-toolchain in the catalogue",
@@ -574,6 +649,139 @@ def _machine_reports(by_id: dict[str, dict], where: str) -> list[Problem]:
                            "CI_MACHINE_REPORT", scope,
                            "uploaded report path must exactly match the validator output",
                            "NN-12")
+    return problems
+
+
+def _test_surfaces(root: Path, budget: Budget, doc: dict,
+                   by_id: dict[str, dict], where: str) -> list[Problem]:
+    """Bind CI and Make to every checked-in product test surface.
+
+    ``tools/tests`` retains its skip-aware JSON runner, while product Python,
+    provider, Web, server SDK and root Gradle/Android surfaces are explicit
+    commands.  iOS and Flutter run as separate required jobs so an unavailable
+    platform/toolchain is reported BLOCKED by ``platform_sdk_test.py`` and
+    cannot disappear inside an Ubuntu-only aggregate.
+    """
+
+    problems: list[Problem] = []
+    unit = by_id.get("unit-test")
+    scope = f"{where}#unit-test"
+    if not isinstance(unit, dict):
+        return [Problem("CI_TEST_SURFACE", scope,
+                        "required unit-test stage is missing", "NN-12")]
+    problems += expect(unit.get("commands") == EXPECTED_PRODUCT_TEST_COMMANDS,
+                       "CI_TEST_SURFACE", scope,
+                       "unit-test commands must exactly cover tools/tests, testing/, provider "
+                       "matrix, both Web apps, server SDKs and root Gradle/Android", "NN-12")
+    problems += expect(unit.get("artifacts") == EXPECTED_PRODUCT_TEST_ARTIFACTS,
+                       "CI_TEST_SURFACE", scope,
+                       "unit-test must retain the governance summary and every product log",
+                       "NN-12")
+    problems += expect(unit.get("required") is True and unit.get("fail_closed") is True
+                       and unit.get("timeout_minutes") == 60,
+                       "CI_TEST_SURFACE", scope,
+                       "complete product tests must remain required, fail-closed and bounded",
+                       "NN-12")
+
+    try:
+        catalog = load_json(root / "governance/version-catalog.json", budget)
+        registry = load_json(root / "governance/module-registry.json", budget)
+        makefile = read_text(root / "Makefile", budget)
+    except BudgetExceeded:
+        raise
+    except Exception as exc:
+        return problems + [Problem("CI_TEST_SURFACE", scope,
+                                   f"test surface inputs are unreadable: {exc}", "NN-12")]
+
+    entries = {entry.get("id"): entry for entry in catalog.get("entries", [])
+               if isinstance(entry, dict)}
+    problems += expect(entries.get("node", {}).get("version") == "24.9.0",
+                       "CI_TEST_TOOLCHAIN", scope,
+                       "Web tests require the exact governed Node 24.9.0 runtime", "NN-12")
+    problems += expect(entries.get("dart-sdk", {}).get("version") == "3.8.1",
+                       "CI_TEST_TOOLCHAIN", scope,
+                       "Flutter tests require the exact governed Dart 3.8.1 runtime", "NN-12")
+    problems += expect(entries.get("go-toolchain", {}).get("version") == "1.25.0",
+                       "CI_TEST_TOOLCHAIN", scope,
+                       "Go SDK tests require the exact governed Go 1.25.0 runtime", "NN-12")
+    problems += expect(entries.get("dotnet-sdk", {}).get("version") == "8.0.424",
+                       "CI_TEST_TOOLCHAIN", scope,
+                       ".NET SDK tests require the exact governed 8.0.424 runtime", "NN-12")
+    build_systems = catalog.get("modules_by_build_system", {})
+    gradle_modules = build_systems.get("gradle", []) if isinstance(build_systems, dict) else []
+    listed_modules = registry.get("modules", [])
+    modules = {module.get("name"): module for module in listed_modules
+               if isinstance(module, dict)} if isinstance(listed_modules, list) else {}
+    android = modules.get("mobile-android", {})
+    problems += expect("mobile-android" in gradle_modules
+                       and android.get("path") == "sdks/mobile/android",
+                       "CI_TEST_ANDROID", scope,
+                       "root Gradle test must include the declared Android SDK project", "NN-12")
+
+    listed_actions = doc.get("actions", [])
+    actions = {action.get("name"): action for action in listed_actions
+               if isinstance(action, dict)} if isinstance(listed_actions, list) else {}
+    for name, expected_action in TEST_ACTION_PINS.items():
+        problems += expect(actions.get(name) == {"name": name, **expected_action},
+                           "CI_TEST_ACTION", f"{where}#{name}",
+                           f"{name} must remain pinned to the audited immutable commit", "NN-12")
+
+    for stage_id, expected_stage in PLATFORM_TEST_STAGES.items():
+        stage = by_id.get(stage_id)
+        stage_scope = f"{where}#{stage_id}"
+        if not isinstance(stage, dict):
+            problems.append(Problem("CI_PLATFORM_TEST", stage_scope,
+                                    "required hosted-platform SDK job is missing", "NN-12"))
+            continue
+        problems += expect(stage.get("runner") == expected_stage["runner"],
+                           "CI_PLATFORM_RUNNER", stage_scope,
+                           f"platform test must run on {expected_stage['runner']}", "NN-12")
+        problems += expect(stage.get("commands") == [expected_stage["command"]],
+                           "CI_PLATFORM_TEST", stage_scope,
+                           "platform test must use the fail-closed report runner", "NN-12")
+        problems += expect(stage.get("artifacts") == expected_stage["artifacts"],
+                           "CI_PLATFORM_TEST", stage_scope,
+                           "platform job must upload both status JSON and verbose log", "NN-12")
+        problems += expect(stage.get("required") is True
+                           and stage.get("fail_closed") is True
+                           and stage.get("needs") == ["governance"],
+                           "CI_PLATFORM_TEST", stage_scope,
+                           "platform job must be an independent required fail-closed gate", "NN-12")
+
+    quality = by_id.get("quality-metrics")
+    quality_scope = f"{where}#quality-metrics"
+    if not isinstance(quality, dict):
+        problems.append(Problem("CI_QUALITY_METRICS_STAGE", quality_scope,
+                                "required coverage/mutation job is missing", "NN-12"))
+    else:
+        for key, expected in QUALITY_METRICS_STAGE.items():
+            problems += expect(quality.get(key) == expected,
+                               "CI_QUALITY_METRICS_STAGE", quality_scope,
+                               f"quality-metrics must retain exact governed {key}", "NN-12")
+        problems += expect(quality.get("required") is True
+                           and quality.get("fail_closed") is True
+                           and quality.get("if_no_files_found") == "error",
+                           "CI_QUALITY_METRICS_STAGE", quality_scope,
+                           "coverage/mutation results and every Java XML must be required",
+                           "NN-12")
+
+    make_snippets = (
+        "verify: skills-verify governance test",
+        ("test: governance-test product-test web-test server-sdk-test gradle-test "
+         "mobile-sdk-test quality-metrics-test"),
+        "unittest discover -s testing -p 'test_*.py' -v",
+        "scripts/provider-contract-matrix.py",
+        "node --test apps/checkout-web/test/*.test.mjs",
+        "node --test apps/admin-web/test/*.test.mjs",
+        "scripts/sdk-contract-smoke.py",
+        "./gradlew --no-daemon test",
+        "scripts/platform_sdk_test.py ios",
+        "scripts/platform_sdk_test.py flutter",
+        "tools/quality_gate.py coverage-mutation",
+    )
+    for snippet in make_snippets:
+        problems += expect(snippet in makefile, "CI_MAKE_TEST_SURFACE", "Makefile",
+                           f"make verify is missing required test surface: {snippet}", "NN-12")
     return problems
 
 
@@ -729,6 +937,9 @@ def _terminal_gate(text: str, doc: dict, where: str) -> list[Problem]:
         f"NON_RELEASE_REQUIRED_STAGES=({' '.join(non_release)})",
         f"{signing['validation_only_outcome']}: validation succeeded",
         "release-eligible: trusted main push",
+        "ELMPAY_GATE_SHA: ${{ github.sha }}",
+        *ALLOWED_SECRET_BINDINGS,
+        "python3 scripts/ci-release-evidence-gate.py",
     ]
     for snippet in required_snippets:
         problems += expect(snippet in gate, "CI_RELEASE_GATE_CONTEXT", where,
@@ -749,6 +960,32 @@ def _terminal_gate(text: str, doc: dict, where: str) -> list[Problem]:
 
 def _result_environment_name(stage_id: str) -> str:
     return "ELMPAY_NEEDS_" + stage_id.upper().replace("-", "_")
+
+
+def _secret_bindings(text: str, where: str) -> list[Problem]:
+    """Allow secrets only as the four audited terminal-gate environment bindings."""
+
+    observed: list[str] = []
+    problems: list[Problem] = []
+    allowed = set(ALLOWED_SECRET_BINDINGS)
+    for line in text.splitlines():
+        stripped = line.strip()
+        if "${{ secrets." not in stripped:
+            continue
+        observed.append(stripped)
+        if stripped not in allowed:
+            problems.append(Problem(
+                "CI_UNSAFE_WORKFLOW",
+                where,
+                "secret expressions are allowed only in audited terminal-gate env bindings",
+                "NN-11",
+            ))
+    for binding in ALLOWED_SECRET_BINDINGS:
+        problems += expect(observed.count(binding) == 1,
+                           "CI_RELEASE_GATE_CONTEXT", where,
+                           f"terminal gate must contain exactly one secret binding: {binding}",
+                           "NN-11")
+    return problems
 
 
 def _generated(root: Path, budget: Budget, doc: dict) -> list[Problem]:
@@ -778,6 +1015,7 @@ def _generated(root: Path, budget: Budget, doc: dict) -> list[Problem]:
         if forbidden in text:
             problems.append(Problem("CI_UNSAFE_WORKFLOW", str(WORKFLOW),
                                     f"workflow must not contain '{forbidden}'", "NN-11"))
+    problems += _secret_bindings(text, str(WORKFLOW))
     for line in text.splitlines():
         stripped = line.strip()
         if stripped.startswith("- uses:") and "@" in stripped:

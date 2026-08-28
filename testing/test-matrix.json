@@ -32,7 +32,7 @@
       "level": "governance",
       "execution": "local",
       "critical": true,
-      "command": ["python3", "-m", "tools.paygov.cli", "verify-all", "--repo", "."],
+      "command": ["python3", "scripts/run-code-suite.py", "governance"],
       "timeout_seconds": 180,
       "target_paths": ["governance", "contracts", "tools/paygov", "docs/charter", ".ai"],
       "scenarios": [
@@ -49,7 +49,7 @@
       "level": "unit",
       "execution": "local",
       "critical": true,
-      "command": ["python3", "-m", "unittest", "tools.tests.test_b08_domain", "tools.tests.test_b09_money", "tools.tests.test_b10_states", "tools.tests.test_b11_api"],
+      "command": ["python3", "scripts/run-code-suite.py", "domain"],
       "timeout_seconds": 120,
       "target_paths": ["libs/money", "libs/statemachine", "contracts/api/openapi.json", "tools/tests/test_b08_domain.py", "tools/tests/test_b09_money.py", "tools/tests/test_b10_states.py", "tools/tests/test_b11_api.py"],
       "scenarios": [
@@ -66,7 +66,7 @@
       "level": "integration",
       "execution": "local",
       "critical": true,
-      "command": ["python3", "-m", "unittest", "tools.tests.test_b12_events", "tools.tests.test_b13_data", "tools.tests.test_b14_topology", "tools.tests.test_b15_migration"],
+      "command": ["python3", "scripts/run-code-suite.py", "data"],
       "timeout_seconds": 150,
       "target_paths": ["libs/domain-events", "libs/eventing", "platform", "tools/tests/test_b12_events.py", "tools/tests/test_b13_data.py", "tools/tests/test_b14_topology.py", "tools/tests/test_b15_migration.py"],
       "scenarios": [
@@ -83,7 +83,7 @@
       "level": "security",
       "execution": "local",
       "critical": true,
-      "command": ["python3", "-m", "unittest", "tools.tests.test_b16_zerotrust", "tools.tests.test_b17_identity", "tools.tests.test_b18_mfa", "tools.tests.test_b19_authz", "tools.tests.test_b20_keys", "tools.tests.test_b21_certs", "tools.tests.test_b22_baseline", "tools.tests.test_b23_audit"],
+      "command": ["python3", "scripts/run-code-suite.py", "security"],
       "timeout_seconds": 240,
       "target_paths": ["libs/zerotrust", "libs/identity", "libs/mfa", "libs/authz", "libs/kms", "libs/pki", "libs/security", "libs/audit"],
       "scenarios": [
@@ -100,7 +100,7 @@
       "level": "integration",
       "execution": "local",
       "critical": true,
-      "command": ["python3", "-m", "unittest", "tools.tests.test_b24_tenants", "tools.tests.test_b25_merchant", "tools.tests.test_b26_accounts", "tools.tests.test_b27_capabilities", "tools.tests.test_b28_routing", "tools.tests.test_b29_fees", "tools.tests.test_b30_onboarding", "tools.tests.test_b31_isolation"],
+      "command": ["python3", "scripts/run-code-suite.py", "merchant"],
       "timeout_seconds": 240,
       "target_paths": ["libs/tenancy", "libs/merchant", "libs/registry", "libs/capability", "libs/routing", "libs/pricing", "libs/onboarding", "libs/isolation"],
       "scenarios": [
@@ -117,7 +117,7 @@
       "level": "integration",
       "execution": "local",
       "critical": true,
-      "command": ["./gradlew", "--no-daemon", "--console=plain", ":services:payment-core:test", ":apps:edge-gateway:test"],
+      "command": ["python3", "scripts/run-code-suite.py", "payment"],
       "timeout_seconds": 300,
       "target_paths": ["services/payment-core", "apps/edge-gateway", "libs/attempt", "libs/intent", "libs/idempotency", "libs/capture"],
       "scenarios": [
@@ -134,7 +134,7 @@
       "level": "contract",
       "execution": "local",
       "critical": true,
-      "command": ["./gradlew", "--no-daemon", "--console=plain", ":services:webhook-ingress:test", ":services:webhook-delivery:test", ":apps:edge-gateway:test"],
+      "command": ["python3", "scripts/run-code-suite.py", "webhook"],
       "timeout_seconds": 240,
       "target_paths": ["services/webhook-ingress", "services/webhook-delivery", "libs/domain-events", ".payment-platform/skill-package/contracts/asyncapi.yaml"],
       "scenarios": [
@@ -151,9 +151,9 @@
       "level": "contract",
       "execution": "local",
       "critical": true,
-      "command": ["./gradlew", "--no-daemon", "--console=plain", ":connectors:wechat-pay:test", ":connectors:alipay:test"],
+      "command": ["python3", "scripts/run-code-suite.py", "cn-providers"],
       "timeout_seconds": 240,
-      "target_paths": ["connectors/wechat-pay", "connectors/alipay", "platform/dev/simulators/wechat", "platform/dev/simulators/alipay"],
+      "target_paths": ["connectors/wechat-pay", "connectors/alipay", "platform/dev/simulators/wechat", "platform/dev/simulators/alipay", "scripts/provider-contract-matrix.py", "testing/test_b40_b55_provider_contract_matrix.py"],
       "scenarios": [
         {"id": "CN-01", "steps": "Generate sandbox requests for JSAPI, Native, H5, App, face-to-face and certificate modes.", "expected": "Canonical fields, signing inputs and capability refusal match contracts."},
         {"id": "CN-02", "steps": "Return provider success, business failure, timeout and malformed notification fixtures.", "expected": "Response parsing preserves UNKNOWN and never treats client display as payment truth."},
@@ -168,9 +168,9 @@
       "level": "contract",
       "execution": "local",
       "critical": true,
-      "command": ["./gradlew", "--no-daemon", "--console=plain", ":connectors:stripe:test", ":connectors:paypal:test", ":connectors:apple-pay:test", ":libs:domain-events:test"],
+      "command": ["python3", "scripts/run-code-suite.py", "global-providers"],
       "timeout_seconds": 240,
-      "target_paths": ["connectors/stripe", "connectors/paypal", "connectors/apple-pay", "platform/dev/simulators/stripe", "platform/dev/simulators/paypal", "platform/dev/simulators/apple-pay"],
+      "target_paths": ["connectors/stripe", "connectors/paypal", "connectors/apple-pay", "platform/dev/simulators/stripe", "platform/dev/simulators/paypal", "platform/dev/simulators/apple-pay", "scripts/provider-contract-matrix.py"],
       "scenarios": [
         {"id": "GL-01", "steps": "Run PaymentIntent/Order/merchant-session vectors with tokenized synthetic payment methods.", "expected": "Request/response contracts and capability matrix are deterministic."},
         {"id": "GL-02", "steps": "Replay provider webhook, refund, dispute and subscription fixtures.", "expected": "Signature, idempotency, ordering and lifecycle mapping are enforced."},
@@ -185,7 +185,7 @@
       "level": "e2e",
       "execution": "local",
       "critical": true,
-      "command": ["python3", "scripts/sdk-contract-smoke.py"],
+      "command": ["python3", "scripts/run-code-suite.py", "checkout-sdk"],
       "timeout_seconds": 180,
       "target_paths": ["apps/checkout-web", "apps/admin-web", "sdks/mobile", "sdks/server/node", "sdks/server/python", "sdks/server/dotnet", "scripts/sdk-contract-smoke.py"],
       "scenarios": [
@@ -202,7 +202,7 @@
       "level": "integration",
       "execution": "local",
       "critical": true,
-      "command": ["./gradlew", "--no-daemon", "--console=plain", ":services:payment-core:test"],
+      "command": ["python3", "scripts/run-code-suite.py", "lifecycle"],
       "timeout_seconds": 300,
       "target_paths": ["services/payment-core/src/main/java/com/elmpay/payment/refund", "services/payment-core/src/main/java/com/elmpay/payment/billing", "services/payment-core/src/test"],
       "scenarios": [
@@ -219,7 +219,7 @@
       "level": "integration",
       "execution": "local",
       "critical": true,
-      "command": ["./gradlew", "--no-daemon", "--console=plain", ":services:ledger-service:test", ":services:reconciliation-service:test", ":services:payment-core:test"],
+      "command": ["python3", "scripts/run-code-suite.py", "finance"],
       "timeout_seconds": 300,
       "target_paths": ["services/ledger-service", "services/reconciliation-service", "services/payment-core/src/main/java/com/elmpay/payment/billing"],
       "scenarios": [
@@ -236,7 +236,7 @@
       "level": "security",
       "execution": "local",
       "critical": true,
-      "command": ["./gradlew", "--no-daemon", "--console=plain", ":services:risk-engine:test"],
+      "command": ["python3", "scripts/run-code-suite.py", "risk"],
       "timeout_seconds": 240,
       "target_paths": ["services/risk-engine", "apps/admin-web", "libs/appsec"],
       "scenarios": [
@@ -253,7 +253,7 @@
       "level": "integration",
       "execution": "local",
       "critical": true,
-      "command": ["./gradlew", "--no-daemon", "--console=plain", ":apps:edge-gateway:test", ":services:worker-scheduler:test"],
+      "command": ["python3", "scripts/run-code-suite.py", "platform"],
       "timeout_seconds": 240,
       "target_paths": ["apps/edge-gateway", "services/worker-scheduler", "platform/kubernetes", "platform/dev", "platform/terraform"],
       "scenarios": [
@@ -270,7 +270,7 @@
       "level": "performance",
       "execution": "local",
       "critical": true,
-      "command": ["python3", "-m", "unittest", "discover", "-s", "testing", "-p", "test_*.py", "-v"],
+      "command": ["python3", "scripts/run-code-suite.py", "operations"],
       "timeout_seconds": 180,
       "target_paths": ["tools/runtime", "testing", "platform/observability", "runbooks"],
       "scenarios": [
@@ -287,7 +287,7 @@
       "level": "security",
       "execution": "local",
       "critical": true,
-      "command": ["python3", "-m", "tools.paygov.cli", "verify-all", "--repo", "."],
+      "command": ["python3", "scripts/run-code-suite.py", "assurance"],
       "timeout_seconds": 240,
       "target_paths": ["governance", "platform/compliance", "docs/security", "scripts/sign-artifacts.sh", "scripts/stage-signing-artifacts.sh"],
       "scenarios": [
@@ -298,19 +298,36 @@
       "evidence_outputs": ["build/test-matrix/report.json"]
     },
     {
-      "id": "TM-B112-B117-QUALITY",
-      "name": "Property/model tests, provider contracts, webhook faults, concurrency, security and performance",
-      "batch_ids": ["B112", "B113", "B114", "B115", "B116", "B117"],
+      "id": "TM-B112-B115-QUALITY",
+      "name": "Property/model tests, provider contracts, webhook faults and concurrency",
+      "batch_ids": ["B112", "B113", "B114", "B115"],
       "level": "performance",
       "execution": "local",
       "critical": true,
-      "command": ["python3", "-m", "unittest", "discover", "-s", "testing", "-p", "test_*.py", "-v"],
+      "command": ["python3", "scripts/run-code-suite.py", "quality-core"],
       "timeout_seconds": 180,
       "target_paths": ["testing", "tools/negative", "tools/runtime", "connectors", "services/webhook-ingress"],
       "scenarios": [
         {"id": "QUAL-01", "steps": "Run deterministic property/model vectors for money, state, ledger balance, routing, auth and date boundaries.", "expected": "Invariants hold for generated edge values and counterexamples are reproducible."},
         {"id": "QUAL-02", "steps": "Fuzz webhook payloads and schedule duplicate, delayed, reordered, replayed and clock-skewed deliveries.", "expected": "Only verified events mutate state; no duplicate side effect is observed."},
-        {"id": "QUAL-03", "steps": "Run SAST/secret/dependency negative controls and load/soak/queue/DB/provider fault profiles where tools are installed.", "expected": "A missing scanner or failed threshold is FAIL/BLOCKED, never silently skipped."}
+        {"id": "QUAL-03", "steps": "Run deterministic concurrency/fault vectors and validate the exact local test-module ownership map.", "expected": "Declared quality tests execute and new testing modules cannot be silently omitted."}
+      ],
+      "evidence_outputs": ["build/test-matrix/report.json", "build/test-matrix/junit.xml"]
+    },
+    {
+      "id": "TM-B116-B117-SECURITY-PERFORMANCE",
+      "name": "Executable security orchestration and loopback performance/fault profiles",
+      "batch_ids": ["B116", "B117"],
+      "level": "performance",
+      "execution": "local",
+      "critical": true,
+      "command": ["python3", "scripts/run-code-suite.py", "security-performance"],
+      "timeout_seconds": 180,
+      "target_paths": ["testing/test_b116_security_orchestration.py", "testing/test_b117_http_load_profile.py", "testing/test_runtime_scale.py", "tools/quality_gate.py"],
+      "scenarios": [
+        {"id": "SECPERF-01", "steps": "Discover available scanners and execute the SAST/secret/dependency, loopback DAST and IAST-hook orchestration with artifact/digest/exit-code binding.", "expected": "Missing tools or unbound results are FAIL/BLOCKED; synthetic reports cannot self-attest completion."},
+        {"id": "SECPERF-02", "steps": "Send bounded concurrent traffic only to a TEST-token-protected loopback HTTP service and measure peak, burst and soak outcomes.", "expected": "Measured throughput, errors, latency and duplicate results meet the declared thresholds; live or non-loopback targets are rejected."},
+        {"id": "SECPERF-03", "steps": "Execute load/soak/queue/DB/provider fault profiles and measure recovery behavior.", "expected": "Recovery metrics are derived from executed probes and unsafe/unknown outcomes fail closed."}
       ],
       "evidence_outputs": ["build/test-matrix/report.json", "build/test-matrix/junit.xml"]
     },

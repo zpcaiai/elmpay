@@ -1,13 +1,13 @@
 # ELMPay SOTA 全面测试计划
 
-版本：2026-08-27
+版本：2026-08-28
 适用范围：`.payment-platform/skill-package` 定义的 B00–B127、当前仓库所有实现与治理工具。
-可执行矩阵：[`testing/test-matrix.json`](/Users/stephen/Documents/Projects/python/elmpay/testing/test-matrix.json)
-编排器：[`scripts/run-test-matrix.py`](/Users/stephen/Documents/Projects/python/elmpay/scripts/run-test-matrix.py)
+可执行矩阵：[`testing/test-matrix.json`](../../testing/test-matrix.json)
+编排器：[`scripts/run-test-matrix.py`](../../scripts/run-test-matrix.py)
 
 ## 1. 测试目标与边界
 
-本计划把支付平台的功能正确性、资金安全、租户隔离、外部渠道契约、故障恢复、安全性、性能和发布控制纳入同一个可重复矩阵。矩阵对 manifest 中的 128 个批次执行**恰好一次覆盖校验**；每个套件含具体步骤、预期结果、目标代码路径和可执行命令。
+本计划把支付平台的功能正确性、资金安全、租户隔离、外部渠道契约、故障恢复、安全性、性能和发布控制纳入同一个可重复矩阵。矩阵由 21 个套件（18 个 local、3 个 external）组成，对 manifest 中的 128 个批次执行**恰好一次覆盖校验**；每个套件含具体步骤、预期结果、目标代码路径和可执行命令。
 
 “矩阵完整”不等于“功能完成”，也不等于认证。当前仓库默认认证状态仍是 `0/128 NOT_CERTIFIED`。以下事项必须由独立主体在批准环境中产生并签署证据，不能由本地测试代替：
 
@@ -46,6 +46,7 @@
 
 - 从 skill manifest 读取 B00–B127，必须是连续 128 个 ID；
 - 每个 ID 在且仅在一个 suite 的 `batch_ids` 出现；
+- 所有 local suite 统一通过 `scripts/run-code-suite.py` 进入；该入口自动发现全部 `testing/test_*.py`，要求每个模块恰好归属一个 slice。新增、删除、拼写错误或重复归属都会在任何测试命令执行前失败；
 - 每个 suite 至少三个可复现场景，包含步骤和预期；
 - `target_paths` 必须存在且在仓库内；
 - local/CI suite 必须有正向 argv 命令和超时；manual/external suite 必须声明阻塞证据；
@@ -66,6 +67,9 @@
 ```bash
 # 校验矩阵结构、128 批次精确覆盖和可执行套件清单
 python3 scripts/run-test-matrix.py --list
+
+# 校验 testing/test_*.py 与 local slice 的 exact-set/唯一归属，新增漏绑立即失败
+python3 scripts/run-code-suite.py --check-coverage
 
 # 运行全部本地/CI 套件；外部套件会显示 BLOCKED
 make test-matrix-local
@@ -91,7 +95,7 @@ DOTNET_ROOT=/usr/local/share/dotnet PATH=/usr/local/share/dotnet:$PATH dotnet ru
 
 ## 6. 套件与场景目录
 
-`testing/test-matrix.json` 将 128 个批次分成 20 个可执行/外部套件：
+`testing/test-matrix.json` 将 128 个批次分成 21 个可执行/外部套件：
 
 - B00–B07 治理、SSOT、追踪和证据；
 - B08–B15 领域、金额、状态、事件、数据和拓扑；
@@ -103,10 +107,13 @@ DOTNET_ROOT=/usr/local/share/dotnet PATH=/usr/local/share/dotnet:$PATH dotnet ru
 - B80–B87 风控信号、规则/ML、钓鱼、e-skimming、机器人和案件；
 - B88–B103 Gateway/mesh/DB/Kafka/Redis/Kubernetes、多地域、遥测、SLO、SIEM、事件和容量；
 - B104–B111 PCI、中国/全球隐私、AML/KYB、数据生命周期、SBOM、漏洞和第三方风险；
-- B112–B117 属性/模型、契约、Webhook 故障、并发、安全和性能；
+- B112–B115 属性/模型、渠道契约、Webhook 故障和并发；
+- B116–B117 真实扫描编排、TEST-only loopback 压测以及队列/数据库/Provider 故障恢复；
 - B118–B127 UAT、独立评审、迁移 shadow、生产上线、灰度、回滚、商业 SLA 和最终认证（external/blocking）。
 
-每个场景的输入扰动、预期状态、目标路径和命令均以 JSON 保存，避免只写“应测试”而无法执行。新增批次时必须新增 suite 或扩展 `batch_ids`，运行器会因重复/缺失 ID 立即拒绝。
+每个场景的输入扰动、预期状态、目标路径和命令均以 JSON 保存，避免只写“应测试”而无法执行。新增批次时必须新增 suite 或扩展 `batch_ids`，运行器会因重复/缺失 ID 立即拒绝。新增 `testing/test_*.py` 时还必须在 `run-code-suite.py` 指定唯一 slice；未绑定测试不会被 discovery 静默吞掉。
+
+关键闭环由以下 slice 显式执行：B40–B55 运行五 Provider 全渠道本地模拟器；B89 运行 default-deny/FQDN egress renderer 测试；B100 运行 payment-core durable account breaker 与 production dispatch 测试；B116 运行真实 scanner discovery/orchestration；B117 运行受 TEST token 保护的 loopback 峰值、突发、soak 与故障恢复测试。官方 Provider sandbox/认证和生产性能结果仍是 external evidence，不能由这些本地结果替代。
 
 ## 7. 缺陷、证据与退出标准
 

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "allowedDimensions": [
+    "projectId",
+    "provider",
+    "region",
+    "deviceClass",
+    "failureCode",
+    "releaseId"
+  ],
+  "allowedStages": ["STARTED", "AUTHORIZED", "CAPTURED", "FAILED"],
+  "maximumEvents": 100000,
+  "crossTenantAction": "REJECT",
+  "duplicateEventAction": "DEDUPLICATE_BY_EVENT_ID"
+}

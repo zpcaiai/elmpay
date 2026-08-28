@@ -4,6 +4,13 @@
   "localValidationMayCertify": false,
   "independentEvidenceRequired": true,
   "minimumDistinctVerifiers": 2,
+  "requiredProviderCapabilities": {
+    "wechat": ["wechat_pay"],
+    "alipay": ["alipay"],
+    "stripe": ["card", "apple_pay"],
+    "apple_pay": ["apple_pay"],
+    "paypal": ["paypal_wallet"]
+  },
   "requiredCategories": {
     "independent_human_review": {
       "category": "independent_human_review",

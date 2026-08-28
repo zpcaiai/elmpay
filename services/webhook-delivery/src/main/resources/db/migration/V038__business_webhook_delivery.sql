@@ -38,13 +38,16 @@ CREATE TABLE webhook_delivery_outbox (
     attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
     next_attempt_at TIMESTAMPTZ NOT NULL,
     lease_until TIMESTAMPTZ,
+    lease_owner VARCHAR(64),
+    fencing_token BIGINT NOT NULL DEFAULT 0 CHECK (fencing_token >= 0),
     last_status_code INTEGER,
     last_error_code VARCHAR(80),
     delivered_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
     UNIQUE (tenant_id, endpoint_id, event_id),
-    FOREIGN KEY (tenant_id, endpoint_id) REFERENCES webhook_endpoint (tenant_id, endpoint_id)
+    FOREIGN KEY (tenant_id, endpoint_id) REFERENCES webhook_endpoint (tenant_id, endpoint_id),
+    CHECK ((state = 'IN_FLIGHT') = (lease_until IS NOT NULL AND lease_owner IS NOT NULL))
 );
 
 CREATE INDEX webhook_delivery_due_idx

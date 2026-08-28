@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "maximumBodyBytes": 1048576,
+  "maximumClockSkewSeconds": 300,
+  "requestLimitPerProjectPerMinute": 120,
+  "requestLimitPerSourcePerMinute": 600,
+  "trustedProxyCidrs": ["10.0.0.0/8", "fd00::/8"],
+  "allowedOrigins": {},
+  "unknownTenantAction": "DENY",
+  "signatureVersion": "ELMPAY-HMAC-SHA256-V1",
+  "replayStateRequired": true,
+  "stateUnavailableAction": "DENY"
+}

@@ -140,6 +140,21 @@ public final class LedgerService {
     }
 
     /**
+     * Posts inside a caller-owned database transaction. Used by durable inbox consumers so the
+     * processed marker and immutable ledger entries commit atomically. This method never commits
+     * or rolls back the supplied connection.
+     */
+    public PostedTransaction post(Connection connection, PostRequest request) throws SQLException {
+        Objects.requireNonNull(connection, "connection");
+        Objects.requireNonNull(request, "request");
+        if (connection.getAutoCommit()) {
+            throw new IllegalArgumentException("caller-owned ledger transaction must disable autocommit");
+        }
+        setTenantContext(connection, uuid(request.tenantId(), "tenantId"));
+        return postWithinTransaction(connection, request, null, null);
+    }
+
+    /**
      * Reverses a transaction once. A distinct approval identity is required for
      * the compensating adjustment; the original row is locked so concurrent
      * callers cannot both dispatch a reversal.

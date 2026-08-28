@@ -15,6 +15,11 @@ actor RecordingTransport: ElmPayTransport {
 struct Attestation: DeviceAttestationProvider {
     func assertion(challenge: Data) async throws -> String { "device-assertion" }
 }
+actor Launcher: PaymentMethodLauncher {
+    private var values: [(String, URL)] = []
+    func launch(method: String, launchURL: URL) async throws { values.append((method, launchURL)) }
+    func recorded() -> [(String, URL)] { values }
+}
 
 @MainActor final class ElmPayClientTests: XCTestCase {
     func testCanonicalCreateGetAndConfirm() async throws {
@@ -34,6 +39,7 @@ struct Attestation: DeviceAttestationProvider {
             "https://api.example/v1/checkout-sessions/session%2Funsafe",
             "https://api.example/v1/checkout-sessions/session-1/confirm"])
         requests.forEach { XCTAssertEqual($0.value(forHTTPHeaderField: "X-Project-Id"), project) }
+        requests.forEach { XCTAssertEqual($0.value(forHTTPHeaderField: "X-ElmPay-Device-Class"), "IOS") }
         XCTAssertEqual(requests[0].value(forHTTPHeaderField: "X-Device-Attestation"), "device-assertion")
         let create = try XCTUnwrap(JSONSerialization.jsonObject(with: requests[0].httpBody!) as? [String: Any])
         XCTAssertEqual(create["business_order_no"] as? String, "order-1")
@@ -51,5 +57,21 @@ struct Attestation: DeviceAttestationProvider {
         let session = try await client.validateDeepLink(URL(string: "elmpay://return?state=opaque&session=s1")!,
             expectedScheme: "elmpay", expectedHost: "return", expectedState: "opaque")
         XCTAssertEqual(session, "s1")
+        let launcher = Launcher()
+        try await client.launchPaymentMethod(method: "apple_pay",
+            launchURL: URL(string: "https://wallet.example/authorize")!, launcher: launcher)
+        let launched = await launcher.recorded()
+        XCTAssertEqual(launched.first?.0, "apple_pay")
+        await XCTAssertThrowsErrorAsync(try await client.launchPaymentMethod(method: "card",
+            launchURL: URL(string: "http://evil.example/pay")!, launcher: launcher))
     }
+}
+
+@MainActor private func XCTAssertThrowsErrorAsync<T>(_ expression: @autoclosure () async throws -> T,
+                                                      file: StaticString = #filePath,
+                                                      line: UInt = #line) async {
+    do {
+        _ = try await expression()
+        XCTFail("expected error", file: file, line: line)
+    } catch {}
 }

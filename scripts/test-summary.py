@@ -292,6 +292,8 @@ def _run_module(module: str) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--suite-root", choices=("tools/tests",), default="tools/tests",
+                        help="explicit governed discovery root; only tools/tests is accepted")
     parser.add_argument("--out", required=True)
     parser.add_argument("--log", help="also write the verbose runner log here")
     parser.add_argument("--workers", type=int, default=0,

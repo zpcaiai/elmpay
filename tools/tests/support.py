@@ -36,6 +36,10 @@ def _discovered() -> tuple:
 
 
 COPIED_FILES = _discovered() + (
+    # B05 validates that ``make verify`` and the generated CI use the same
+    # complete product-test surface.  Keep the hand-written Make entrypoint in
+    # fixtures so negative CI tests exercise that cross-file contract too.
+    "Makefile",
     # B34's conformance validator reads the Java replay test as an input; keep
     # it in disposable fixtures so unrelated CLI determinism tests validate a
     # complete repository surface rather than a deliberately missing binding.
@@ -265,11 +269,22 @@ class FixtureRepo:
 _SHARED: FixtureRepo | None = None
 
 
+def _close_shared_fixture() -> None:
+    """Release the process-wide fixture before ``tempfile`` warns at exit."""
+    global _SHARED
+    fixture, _SHARED = _SHARED, None
+    if fixture is not None:
+        fixture.close()
+
+
 def _shared_fixture() -> FixtureRepo:
     """One fixture per process, restored between tests."""
     global _SHARED
     if _SHARED is None:
         _SHARED = FixtureRepo()
+        # unittest runs module cleanups before interpreter finalizers, so the
+        # shared TemporaryDirectory never relies on implicit exit cleanup.
+        unittest.addModuleCleanup(_close_shared_fixture)
     return _SHARED
 
 

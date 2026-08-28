@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "inScopeMarkets": ["EEA", "EU", "UK"],
+  "explicitOutOfScopeMarkets": ["CN", "US"],
+  "unknownMarketAction": "STEP_UP_AND_REVIEW",
+  "providerErrorAction": "STEP_UP_AND_REVIEW",
+  "maximumAuthenticationAgeSeconds": 300,
+  "dynamicLinkingRequired": true,
+  "independentFactorCount": 2,
+  "exemptions": {
+    "LOW_VALUE": {
+      "enabled": true,
+      "maximumAmountMinor": 3000,
+      "maximumCumulativeAmountMinor": 10000,
+      "maximumConsecutiveTransactions": 5
+    },
+    "TRANSACTION_RISK_ANALYSIS": {
+      "enabled": true,
+      "maximumAmountMinor": 10000,
+      "providerFraudRateEvidenceRequired": true
+    },
+    "TRUSTED_BENEFICIARY": {
+      "enabled": true,
+      "providerManagedListRequired": true
+    },
+    "MERCHANT_INITIATED": {
+      "enabled": true,
+      "initialScaMandateRequired": true
+    }
+  },
+  "localConfigurationMayClaimCompliance": false
+}

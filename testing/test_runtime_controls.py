@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 
 
@@ -12,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools/runtime"))
 
 from elmpay_runtime.billing import calculate_invoice  # noqa: E402
+from elmpay_runtime.attestation import attach_dsse, generate_ed25519_keypair  # noqa: E402
 from elmpay_runtime.capacity import evaluate_capacity  # noqa: E402
 from elmpay_runtime.common import GateReport, ValidationError, read_json  # noqa: E402
 from elmpay_runtime.compliance import (  # noqa: E402
@@ -21,7 +23,6 @@ from elmpay_runtime.compliance import (  # noqa: E402
 from elmpay_runtime.kubernetes import render_workloads  # noqa: E402
 from elmpay_runtime.release import (  # noqa: E402
     release_binding,
-    sign_record,
     verify_release,
 )
 from elmpay_runtime.rollout import (  # noqa: E402
@@ -68,24 +69,20 @@ class KubernetesControlTest(unittest.TestCase):
         self.policy = read_json(ROOT / "platform/kubernetes/workload-policy.json")
 
     def test_renderer_requires_exact_digest_pinned_images(self) -> None:
+        images = {
+            item["name"]: f"registry.example/{item['name']}@sha256:" + "a" * 64
+            for item in self.policy["services"]
+        }
+        images["risk-engine"] = "registry.example/risk-engine:latest"
         with self.assertRaises(ValidationError):
-            render_workloads(
-                self.policy,
-                {
-                    "risk-engine": "registry.example/risk-engine:latest",
-                    "worker-scheduler": "registry.example/worker@sha256:" + "a" * 64,
-                },
-            )
+            render_workloads(self.policy, images)
 
     def test_renderer_applies_hardened_ha_workloads(self) -> None:
-        rendered = render_workloads(
-            self.policy,
-            {
-                "risk-engine": "registry.example/risk-engine@sha256:" + "a" * 64,
-                "worker-scheduler": "registry.example/worker-scheduler@sha256:" + "b" * 64,
-            },
-        )
-        self.assertEqual(2, len(rendered["items"]))
+        rendered = render_workloads(self.policy, {
+            item["name"]: f"registry.example/{item['name']}@sha256:" + "a" * 64
+            for item in self.policy["services"]
+        })
+        self.assertEqual(len(self.policy["services"]), len(rendered["items"]))
         for deployment in rendered["items"]:
             self.assertGreaterEqual(deployment["spec"]["replicas"], 3)
             pod = deployment["spec"]["template"]["spec"]
@@ -245,30 +242,44 @@ class ComplianceGateTest(unittest.TestCase):
 class FinalReleaseGateTest(unittest.TestCase):
     def setUp(self) -> None:
         self.policy = read_json(ROOT / "platform/compliance/required-release-gates.json")
-        self.environment = {
-            "ELMPAY_TEST_RM_KEY": "r" * 32,
-            "ELMPAY_TEST_SEC_KEY": "s" * 32,
-            "ELMPAY_TEST_EVIDENCE_KEY": "e" * 32,
-        }
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.private = {}
+        public = {}
+        for key_id in ("rm", "sec", "external"):
+            self.private[key_id], public[key_id] = generate_ed25519_keypair()
         self.trust = {
+            "replayDatabase": str(Path(self.temporary.name) / "nonces.db"),
             "keys": {
                 "rm": {
                     "identity": "release-a",
                     "role": "release_manager",
-                    "secretEnv": "ELMPAY_TEST_RM_KEY",
+                    "algorithm": "Ed25519",
+                    "publicKeyPem": public["rm"],
                     "independent": False,
+                    "revoked": False,
+                    "notBefore": "2026-08-01T00:00:00Z",
+                    "notAfter": "2026-09-01T00:00:00Z",
                 },
                 "sec": {
                     "identity": "security-b",
                     "role": "security",
-                    "secretEnv": "ELMPAY_TEST_SEC_KEY",
+                    "algorithm": "Ed25519",
+                    "publicKeyPem": public["sec"],
                     "independent": False,
+                    "revoked": False,
+                    "notBefore": "2026-08-01T00:00:00Z",
+                    "notAfter": "2026-09-01T00:00:00Z",
                 },
                 "external": {
                     "identity": "independent-verifier",
                     "role": "external_verifier",
-                    "secretEnv": "ELMPAY_TEST_EVIDENCE_KEY",
+                    "algorithm": "Ed25519",
+                    "publicKeyPem": public["external"],
                     "independent": True,
+                    "revoked": False,
+                    "notBefore": "2026-08-01T00:00:00Z",
+                    "notAfter": "2026-09-01T00:00:00Z",
                 },
             }
         }
@@ -276,7 +287,7 @@ class FinalReleaseGateTest(unittest.TestCase):
     def test_missing_human_and_external_evidence_blocks(self) -> None:
         manifest = self._base_manifest()
         report = verify_release(
-            manifest, self.policy, self.trust, now=NOW, environment=self.environment
+            manifest, self.policy, self.trust, now=NOW
         )
         self.assertFalse(report.allowed)
         self.assertIn("missing_approval_role:security", report.reasons)
@@ -292,10 +303,12 @@ class FinalReleaseGateTest(unittest.TestCase):
                     "role": "release_manager",
                     "decision": "APPROVE",
                     "signedAt": "2026-08-25T23:30:00Z",
-                    "keyId": "rm",
+                    "issuedAt": "2026-08-25T23:30:00Z",
+                    "expiresAt": "2026-08-26T12:00:00Z",
+                    "nonce": "approval-release-a-0001",
                     "bindingDigest": binding,
                 },
-                self.environment["ELMPAY_TEST_RM_KEY"],
+                "rm",
             ),
             self._signed(
                 {
@@ -303,10 +316,12 @@ class FinalReleaseGateTest(unittest.TestCase):
                     "role": "security",
                     "decision": "APPROVE",
                     "signedAt": "2026-08-25T23:31:00Z",
-                    "keyId": "sec",
+                    "issuedAt": "2026-08-25T23:31:00Z",
+                    "expiresAt": "2026-08-26T12:00:00Z",
+                    "nonce": "approval-security-b-0001",
                     "bindingDigest": binding,
                 },
-                self.environment["ELMPAY_TEST_SEC_KEY"],
+                "sec",
             ),
         ]
         evidence = [
@@ -314,34 +329,35 @@ class FinalReleaseGateTest(unittest.TestCase):
                 {
                     "category": category,
                     "verifier": "independent-verifier",
+                    "role": "external_verifier",
                     "status": "VERIFIED",
                     "evidenceDigest": f"{index + 1:064x}",
                     "observedAt": "2026-08-25T22:00:00Z",
                     "expiresAt": "2026-08-27T00:00:00Z",
-                    "keyId": "external",
+                    "issuedAt": "2026-08-25T22:00:00Z",
+                    "nonce": f"evidence-external-{index:04d}",
                     "bindingDigest": binding,
                 },
-                self.environment["ELMPAY_TEST_EVIDENCE_KEY"],
+                "external",
             )
             for index, category in enumerate(self.policy["requiredEvidence"])
         ]
         manifest = {**manifest, "approvals": approvals, "evidence": evidence}
 
         report = verify_release(
-            manifest, self.policy, self.trust, now=NOW, environment=self.environment
+            manifest, self.policy, self.trust, now=NOW
         )
         self.assertTrue(report.allowed, report.reasons)
 
         manifest["images"]["risk-engine"] = "registry.example/risk@sha256:" + "d" * 64
         tampered = verify_release(
-            manifest, self.policy, self.trust, now=NOW, environment=self.environment
+            manifest, self.policy, self.trust, now=NOW
         )
         self.assertFalse(tampered.allowed)
         self.assertTrue(any("release_binding_mismatch" in reason for reason in tampered.reasons))
 
-    @staticmethod
-    def _signed(record: dict[str, object], secret: str) -> dict[str, object]:
-        return {**record, "signature": sign_record(record, secret)}
+    def _signed(self, record: dict[str, object], key_id: str) -> dict[str, object]:
+        return attach_dsse(record, key_id, self.private[key_id])
 
     @staticmethod
     def _base_manifest() -> dict[str, object]:

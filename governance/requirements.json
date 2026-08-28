@@ -937,6 +937,24 @@
       ],
       "acceptance": "未签名或无 SBOM 的制品无法通过发布门禁。",
       "status": "baselined"
+    },
+    {
+      "id": "PAY-REQ-0054",
+      "title": "移动 SDK 安全支付契约",
+      "statement": "移动 SDK 必须使用稳定幂等键调用规范支付 API，只传递不透明支付引用，并拒绝伪造深链成功状态。",
+      "category": "integration",
+      "priority": "MUST",
+      "owner_module": "mobile-android",
+      "controls": [
+        "NN-03",
+        "NN-04",
+        "NN-10"
+      ],
+      "verified_by_batches": [
+        "B60"
+      ],
+      "acceptance": "Android 契约测试证明重试复用同一幂等键，深链不能声明支付成功且日志不泄露敏感字段。",
+      "status": "baselined"
     }
   ]
 }

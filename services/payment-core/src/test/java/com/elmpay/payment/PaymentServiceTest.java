@@ -22,6 +22,11 @@ import com.elmpay.provider.ProviderRequestContext;
 import com.elmpay.provider.RefundCommand;
 import com.elmpay.provider.VerifiedProviderEvent;
 import com.elmpay.provider.WebhookRequest;
+import com.elmpay.risk.RiskAction;
+import com.elmpay.risk.RiskDecision;
+import com.elmpay.risk.RiskEvaluationRequest;
+import com.elmpay.risk.RiskOperation;
+import com.elmpay.risk.SynchronousRiskGate;
 import com.elmpay.security.SecretReference;
 import java.time.Clock;
 import java.time.Duration;
@@ -68,6 +73,56 @@ final class PaymentServiceTest {
                         Duration.ofHours(2))));
 
         assertEquals("IDEMPOTENCY_KEY_REUSE", exception.code());
+    }
+
+    @Test
+    void synchronousRiskReviewBlockAndTimeoutStopPaymentSideEffects() {
+        for (RiskCase riskCase : List.of(
+                new RiskCase(request -> decision(request, RiskAction.REVIEW),
+                        "RISK_REVIEW_REQUIRED"),
+                new RiskCase(request -> decision(request, RiskAction.BLOCK), "RISK_BLOCKED"),
+                new RiskCase(request -> { throw new IllegalStateException("risk timeout"); },
+                        "RISK_REVIEW_REQUIRED"))) {
+            InMemoryPaymentRepository repository = new InMemoryPaymentRepository();
+            FakeAdapter adapter = new FakeAdapter();
+            PaymentService service = service(adapter, repository, riskCase.gate());
+
+            PaymentCoreException rejected = assertThrows(PaymentCoreException.class,
+                    () -> service.create(createCommand("risk-create-key-0001", "risk-order")));
+
+            assertEquals(riskCase.expectedCode(), rejected.code());
+            assertEquals(0, repository.findByCreateKey(TENANT, PROJECT,
+                    "risk-create-key-0001").stream().count());
+            assertEquals(0, adapter.calls.get());
+        }
+    }
+
+    @Test
+    void confirmationAndCaptureAreRiskGatedBeforeProviderDispatch() {
+        FakeAdapter confirmAdapter = new FakeAdapter();
+        PaymentService confirmService = service(confirmAdapter, new InMemoryPaymentRepository(),
+                request -> request.operation() == RiskOperation.PAYMENT_CONFIRM
+                        ? decision(request, RiskAction.BLOCK) : decision(request, RiskAction.APPROVE));
+        PaymentIntent confirmIntent = confirmService.create(
+                createCommand("risk-create-confirm-0001", "risk-order-confirm"));
+        PaymentCoreException confirmFailure = assertThrows(PaymentCoreException.class,
+                () -> confirmService.confirm(confirmation(confirmIntent, "risk-confirm-key-0001")));
+        assertEquals("RISK_BLOCKED", confirmFailure.code());
+        assertEquals(0, confirmAdapter.calls.get());
+
+        FakeAdapter captureAdapter = new FakeAdapter();
+        captureAdapter.createResponse = authorized("risk-provider-payment");
+        PaymentService captureService = service(captureAdapter, new InMemoryPaymentRepository(),
+                request -> request.operation() == RiskOperation.PAYMENT_CAPTURE
+                        ? decision(request, RiskAction.REVIEW) : decision(request, RiskAction.APPROVE));
+        PaymentIntent captureIntent = captureService.create(
+                createManualCommand("risk-create-capture-0001", "risk-order-capture"));
+        captureService.confirm(confirmation(captureIntent, "risk-authorize-key-0001"));
+        PaymentCoreException captureFailure = assertThrows(PaymentCoreException.class,
+                () -> captureService.capture(new CaptureCommand(TENANT, captureIntent.id(), 500,
+                        "risk-capture-key-0001", "risk-capture-correlation")));
+        assertEquals("RISK_REVIEW_REQUIRED", captureFailure.code());
+        assertEquals(0, captureAdapter.captureCalls.get());
     }
 
     @Test
@@ -202,6 +257,121 @@ final class PaymentServiceTest {
     }
 
     @Test
+    void partialCaptureCanBeClosedExactlyOnceAndReleasesTheRemainder() {
+        FakeAdapter adapter = new FakeAdapter();
+        adapter.createResponse = authorized("provider-payment-close");
+        PaymentService service = service(adapter);
+        PaymentIntent intent = service.create(createManualCommand(
+                "safe-create-close-key-0001", "order-close"));
+        service.confirm(confirmation(intent, "safe-confirm-close-key-0001"));
+        ConfirmationResult partial = service.capture(new CaptureCommand(TENANT, intent.id(), 400,
+                "safe-capture-close-key-0001", "correlation-capture-close"));
+        assertEquals(IntentState.AUTHORIZED, partial.intent().state());
+        assertEquals(400, partial.intent().capturedAmountMinor());
+
+        IntentActionCommand command = new IntentActionCommand(TENANT, intent.id(),
+                "safe-close-key-0001", "correlation-close", "order_fulfilled_partially");
+        ConfirmationResult closed = service.closeAuthorization(command);
+        ConfirmationResult replay = service.closeAuthorization(command);
+
+        assertEquals(IntentState.CAPTURED, closed.intent().state());
+        assertEquals(400, closed.intent().capturedAmountMinor());
+        assertEquals(AttemptState.SUCCEEDED, closed.attempt().state());
+        assertEquals(AttemptOperation.CLOSE, closed.attempt().operation());
+        assertEquals(true, replay.replayed());
+        assertEquals(1, adapter.cancelCalls.get());
+    }
+
+    @Test
+    void unknownVoidAndCloseRecoverAccordingToTheirOriginalOperation() {
+        FakeAdapter voidAdapter = new FakeAdapter();
+        voidAdapter.createResponse = authorized("provider-payment-void-unknown");
+        voidAdapter.cancelResponse = unknown("provider-payment-void-unknown");
+        PaymentService voidService = service(voidAdapter);
+        PaymentIntent voidIntent = voidService.create(createManualCommand(
+                "safe-create-void-unknown-0001", "order-void-unknown"));
+        voidService.confirm(confirmation(voidIntent, "safe-confirm-void-unknown-0001"));
+        ConfirmationResult unresolvedVoid = voidService.voidAuthorization(new IntentActionCommand(
+                TENANT, voidIntent.id(), "safe-void-unknown-0001", "correlation-void-unknown",
+                "merchant_void"));
+        assertEquals(AttemptOperation.CANCEL, unresolvedVoid.attempt().operation());
+        assertEquals(AttemptState.UNKNOWN, unresolvedVoid.attempt().state());
+        voidAdapter.queryResponse = new ProviderPayment("request-query-void",
+                "provider-payment-void-unknown", ProviderOutcome.CANCELED,
+                null, null, true, Map.of());
+        assertEquals(IntentState.CANCELED, voidService.resolveUnknown(TENANT, voidIntent.id(),
+                "correlation-query-void").intent().state());
+
+        FakeAdapter closeAdapter = new FakeAdapter();
+        closeAdapter.createResponse = authorized("provider-payment-close-unknown");
+        PaymentService closeService = service(closeAdapter);
+        PaymentIntent closeIntent = closeService.create(createManualCommand(
+                "safe-create-close-unknown-0001", "order-close-unknown"));
+        closeService.confirm(confirmation(closeIntent, "safe-confirm-close-unknown-0001"));
+        closeService.capture(new CaptureCommand(TENANT, closeIntent.id(), 400,
+                "safe-capture-close-unknown-0001", "correlation-capture-close-unknown"));
+        closeAdapter.cancelResponse = unknown("provider-payment-close-unknown");
+        ConfirmationResult unresolvedClose = closeService.closeAuthorization(
+                new IntentActionCommand(TENANT, closeIntent.id(), "safe-close-unknown-0001",
+                        "correlation-close-unknown", "partial_fulfillment"));
+        assertEquals(AttemptOperation.CLOSE, unresolvedClose.attempt().operation());
+        assertEquals(AttemptState.UNKNOWN, unresolvedClose.attempt().state());
+        closeAdapter.queryResponse = new ProviderPayment("request-query-close",
+                "provider-payment-close-unknown", ProviderOutcome.CANCELED,
+                null, null, true, Map.of());
+        PaymentIntent recoveredClose = closeService.resolveUnknown(TENANT, closeIntent.id(),
+                "correlation-query-close").intent();
+        assertEquals(IntentState.CAPTURED, recoveredClose.state());
+        assertEquals(400, recoveredClose.capturedAmountMinor());
+    }
+
+    @Test
+    void captureRefusalCodesComeFromTheStateMachineBeforeProviderDispatch() {
+        FakeAdapter adapter = new FakeAdapter();
+        adapter.createResponse = authorized("provider-payment-capture-guards");
+        PaymentService service = service(adapter);
+        PaymentIntent intent = service.create(createManualCommand(
+                "safe-create-capture-guards-0001", "order-capture-guards"));
+        service.confirm(confirmation(intent, "safe-confirm-capture-guards-0001"));
+
+        PaymentCoreException nonPositive = assertThrows(PaymentCoreException.class,
+                () -> service.capture(new CaptureCommand(TENANT, intent.id(), 0,
+                        "safe-capture-zero-0001", "correlation-capture-zero")));
+        PaymentCoreException exceeds = assertThrows(PaymentCoreException.class,
+                () -> service.capture(new CaptureCommand(TENANT, intent.id(), 1_001,
+                        "safe-capture-exceeds-0001", "correlation-capture-exceeds")));
+
+        assertEquals("CAPTURE_AMOUNT_NOT_POSITIVE", nonPositive.code());
+        assertEquals("CAPTURE_EXCEEDS_AUTHORIZED", exceeds.code());
+        assertEquals(0, adapter.captureCalls.get());
+    }
+
+    @Test
+    void closeWithoutCaptureAndVoidAfterCaptureFailBeforeProviderDispatch() {
+        FakeAdapter adapter = new FakeAdapter();
+        adapter.createResponse = authorized("provider-payment-close-refused");
+        PaymentService service = service(adapter);
+        PaymentIntent intent = service.create(createManualCommand(
+                "safe-create-close-refused-0001", "order-close-refused"));
+        service.confirm(confirmation(intent, "safe-confirm-close-refused-0001"));
+
+        PaymentCoreException noCapture = assertThrows(PaymentCoreException.class,
+                () -> service.closeAuthorization(new IntentActionCommand(TENANT, intent.id(),
+                        "safe-close-refused-0001", "correlation-close-refused", "no_capture")));
+        assertEquals("CLOSE_WITHOUT_CAPTURE", noCapture.code());
+        assertEquals(0, adapter.cancelCalls.get());
+
+        service.capture(new CaptureCommand(TENANT, intent.id(), 400,
+                "safe-capture-before-void-0001", "correlation-capture-before-void"));
+        PaymentCoreException afterCapture = assertThrows(PaymentCoreException.class,
+                () -> service.voidAuthorization(new IntentActionCommand(TENANT, intent.id(),
+                        "safe-void-after-capture-0001", "correlation-void-after-capture",
+                        "wrong_operation")));
+        assertEquals("VOID_AFTER_CAPTURE", afterCapture.code());
+        assertEquals(0, adapter.cancelCalls.get());
+    }
+
+    @Test
     void requiresActionAttemptDoesNotBlockFollowUpConfirmation() {
         FakeAdapter adapter = new FakeAdapter();
         adapter.createResponse = new ProviderPayment("request-action", "payment-action",
@@ -321,6 +491,12 @@ final class PaymentServiceTest {
     }
 
     private static PaymentService service(FakeAdapter adapter, PaymentRepository repository) {
+        return service(adapter, repository,
+                request -> decision(request, RiskAction.APPROVE));
+    }
+
+    private static PaymentService service(FakeAdapter adapter, PaymentRepository repository,
+            SynchronousRiskGate riskGate) {
         ProviderAccount account = account();
         ProviderRoute route = new ProviderRoute(account, new ProviderCapability(
                 "stripe", "card", Set.of("USD"), Set.of("US"), true, true, true, true),
@@ -339,7 +515,18 @@ final class PaymentServiceTest {
             }
         };
         return new PaymentService(repository, configuration,
-                new RoutingService(configuration), new ProviderAdapterRegistry(List.of(adapter)), CLOCK);
+                new RoutingService(configuration), new ProviderAdapterRegistry(List.of(adapter)),
+                riskGate, CLOCK);
+    }
+
+    private static RiskDecision decision(RiskEvaluationRequest request, RiskAction action) {
+        return new RiskDecision("decision-" + request.requestId(), request.tenantId(),
+                request.requestId(), action, List.of("TEST_RISK_DECISION"), "rules-test",
+                "a".repeat(64), "signals-test", "model-test",
+                action != RiskAction.APPROVE, CLOCK.instant());
+    }
+
+    private record RiskCase(SynchronousRiskGate gate, String expectedCode) {
     }
 
     private static ProviderAccount account() {
@@ -355,6 +542,11 @@ final class PaymentServiceTest {
     private static CreateIntentCommand createCommand(String key, String order, Duration timeToLive) {
         return new CreateIntentCommand(TENANT, PROJECT, MERCHANT, order, Money.of(1_000, "USD"),
                 Set.of("card"), ConfirmationMode.AUTOMATIC, "US", timeToLive, key);
+    }
+
+    private static CreateIntentCommand createManualCommand(String key, String order) {
+        return new CreateIntentCommand(TENANT, PROJECT, MERCHANT, order, Money.of(1_000, "USD"),
+                Set.of("card"), ConfirmationMode.MANUAL_CAPTURE, "US", Duration.ofHours(1), key);
     }
 
     private static ConfirmationCommand confirmation(PaymentIntent intent, String key) {
@@ -416,12 +608,14 @@ final class PaymentServiceTest {
     private static final class FakeAdapter implements ProviderAdapter {
         private final AtomicInteger calls = new AtomicInteger();
         private final AtomicInteger captureCalls = new AtomicInteger();
+        private final AtomicInteger cancelCalls = new AtomicInteger();
         private final CountDownLatch release = new CountDownLatch(1);
         private volatile boolean block;
         private volatile ProviderPayment createResponse;
         private volatile ProviderPayment captureResponse;
         private volatile ProviderPayment queryResponse;
         private volatile ProviderException queryException;
+        private volatile ProviderPayment cancelResponse;
 
         @Override
         public String provider() {
@@ -465,7 +659,9 @@ final class PaymentServiceTest {
         @Override
         public ProviderPayment cancel(ProviderRequestContext context, String providerPaymentId,
                 String reason) {
-            return new ProviderPayment("request-cancel", providerPaymentId,
+            cancelCalls.incrementAndGet();
+            return cancelResponse != null ? cancelResponse : new ProviderPayment(
+                    "request-cancel", providerPaymentId,
                     ProviderOutcome.CANCELED, null, null, true, Map.of());
         }
 

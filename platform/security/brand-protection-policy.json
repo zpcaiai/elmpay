@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "ruleVersion": "brand-2026-08-28-v1",
+  "officialDomains": [],
+  "protectedLabels": ["elmpay"],
+  "allowedCertificateAuthorities": [],
+  "maximumLabelEditDistance": 1,
+  "maximumObservationAgeSeconds": 86400,
+  "requiredDomainControls": [
+    "DNSSEC",
+    "CAA",
+    "REGISTRY_LOCK",
+    "TRANSFER_LOCK",
+    "HARDWARE_MFA",
+    "DMARC_REJECT"
+  ],
+  "externalMonitoring": {
+    "status": "BLOCKED",
+    "requiredEvidence": [
+      "deployment-bound official domains",
+      "certificate-transparency monitor receipt",
+      "DNS and registrar control export",
+      "brand-monitoring provider receipt"
+    ]
+  }
+}

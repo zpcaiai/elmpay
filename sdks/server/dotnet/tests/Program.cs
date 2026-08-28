@@ -26,6 +26,23 @@ foreach (var drift in new[] { "project_id", "order_reference", "amount_minor", "
 using var confirm = JsonDocument.Parse(handler.Requests[2].Body!);
 Expect(confirm.RootElement.GetProperty("payment_method_type").GetString() == "stripe_card",
     "confirm body");
+using var signingVector = JsonDocument.Parse(
+    File.ReadAllText("contracts/webhooks/signing-v1.json"));
+var signing = signingVector.RootElement;
+var encodedSecret = signing.GetProperty("secret_base64url").GetString()!;
+var secret = Convert.FromBase64String(encodedSecret.Replace('-', '+').Replace('_', '/')
+    .PadRight((encodedSecret.Length + 3) / 4 * 4, '='));
+var rawBody = System.Text.Encoding.UTF8.GetBytes(
+    signing.GetProperty("raw_body_utf8").GetString()!);
+var timestamp = signing.GetProperty("timestamp").GetInt64();
+Expect(ElmPayClient.VerifyWebhook(secret, rawBody,
+    signing.GetProperty("signature_header").GetString()!,
+    DateTimeOffset.FromUnixTimeSeconds(timestamp), TimeSpan.FromMinutes(5)),
+    "webhook golden vector");
+Expect(!ElmPayClient.VerifyWebhook(secret, "{}"u8,
+    signing.GetProperty("signature_header").GetString()!,
+    DateTimeOffset.FromUnixTimeSeconds(timestamp), TimeSpan.FromMinutes(5)),
+    "webhook tampered bytes");
 Console.WriteLine("dotnet checkout contract: PASS (3 requests)");
 
 static void Expect(bool condition, string name) {

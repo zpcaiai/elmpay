@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "manifestVersion": "checkout-scripts-2026-08-28-v1",
+  "reviewExpiresAt": "2027-02-28T00:00:00Z",
+  "pageTemplateSha256": "6fb21f173e51b30aad37ef6c24769980b40b22f0d965f28a5cd56b2d9379be48",
+  "trustedTypesPolicy": "elmpay-checkout",
+  "scripts": [
+    {
+      "id": "checkout-integrity-monitor",
+      "source": "/integrity.mjs",
+      "sri": "sha384-lPRXiTbxh8jstPRr/RB/+tq4BzdduhT4W5diKIp9JcdRnTu1MEdvjBfM8WQo4L2o",
+      "owner": "payment-platform-security",
+      "purpose": "Verify the exact checkout script inventory and report unauthorized DOM mutations.",
+      "reviewExpiresAt": "2027-02-28T00:00:00Z",
+      "thirdParty": false,
+      "executionContext": "main",
+      "privileges": ["dom:checkout", "network:self", "security:report"]
+    },
+    {
+      "id": "official-provider-handlers",
+      "source": "/provider-handlers.mjs",
+      "sri": "sha384-SYJQpsiB4d1SniZSG8PrVlckwDZgRfabCvY7F/q+QDBKObNIPvec9/Y0paT4YGGD",
+      "owner": "payment-platform-connectors",
+      "purpose": "Wrap official PSP and wallet SDK tokenization and authorization behind opaque-reference controls.",
+      "reviewExpiresAt": "2027-02-28T00:00:00Z",
+      "thirdParty": false,
+      "executionContext": "main",
+      "privileges": ["provider-sdk:tokenize", "provider-sdk:authorize"]
+    },
+    {
+      "id": "checkout-controller",
+      "source": "/checkout.mjs",
+      "sri": "sha384-LN/cd19inFZ7CUzItGSzhlOsZozYEmaUtofcS7Zs2lQE4SToqMRcvIzH6CNxLSy9",
+      "owner": "checkout-web",
+      "purpose": "Render server-authoritative payment state and submit tokenized payment method references.",
+      "reviewExpiresAt": "2027-02-28T00:00:00Z",
+      "thirdParty": false,
+      "executionContext": "main",
+      "privileges": ["dom:checkout", "network:self"]
+    }
+  ],
+  "externalAssessmentStatus": "BLOCKED"
+}

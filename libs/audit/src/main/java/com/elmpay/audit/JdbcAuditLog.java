@@ -20,38 +20,7 @@ public final class JdbcAuditLog {
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             try {
-                setTenantContext(connection, event.tenantId());
-                try (PreparedStatement lock = connection.prepareStatement(
-                        "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")) {
-                    lock.setString(1, event.tenantId().toString());
-                    lock.execute();
-                }
-                String previous = lastHash(connection, event.tenantId().toString());
-                String chainHash = com.elmpay.security.CanonicalPayload.sha256Hex(
-                        java.util.Map.of("previous", previous, "event", event.canonicalDigest()));
-                try (PreparedStatement statement = connection.prepareStatement("""
-                        INSERT INTO audit_event
-                          (id, tenant_id, actor_id, action, target_type, target_id, reason, ticket_id,
-                           before_digest, after_digest, correlation_id, occurred_at,
-                           previous_hash, chain_hash)
-                        VALUES (?::uuid, ?::uuid, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::timestamptz, ?, ?)
-                        """)) {
-                    statement.setString(1, event.id().toString());
-                    statement.setString(2, event.tenantId().toString());
-                    statement.setString(3, event.actorId());
-                    statement.setString(4, event.action());
-                    statement.setString(5, event.targetType());
-                    statement.setString(6, event.targetId());
-                    statement.setString(7, event.reason());
-                    statement.setString(8, event.ticketId());
-                    statement.setString(9, com.elmpay.security.CanonicalPayload.sha256Hex(event.before()));
-                    statement.setString(10, com.elmpay.security.CanonicalPayload.sha256Hex(event.after()));
-                    statement.setString(11, event.correlationId());
-                    statement.setString(12, event.occurredAt().toString());
-                    statement.setString(13, previous);
-                    statement.setString(14, chainHash);
-                    statement.executeUpdate();
-                }
+                String chainHash = append(connection, event);
                 connection.commit();
                 return chainHash;
             } catch (RuntimeException exception) {
@@ -64,6 +33,53 @@ public final class JdbcAuditLog {
         } catch (SQLException exception) {
             throw new IllegalStateException("cannot append audit event", exception);
         }
+    }
+
+    /**
+     * Append using a caller-owned transaction. The business mutation and its audit fact can
+     * therefore commit or roll back atomically; this method never commits the supplied connection.
+     */
+    public String append(Connection connection, AuditEvent event) throws SQLException {
+        Objects.requireNonNull(connection, "connection");
+        Objects.requireNonNull(event, "event");
+        if (connection.getAutoCommit()) {
+            throw new SQLException("transactional audit append rejects autocommit");
+        }
+        setTenantContext(connection, event.tenantId());
+        try (PreparedStatement lock = connection.prepareStatement(
+                "SELECT pg_advisory_xact_lock(hashtextextended(?, 0))")) {
+            lock.setString(1, event.tenantId().toString());
+            lock.execute();
+        }
+        String previous = lastHash(connection, event.tenantId().toString());
+        String chainHash = com.elmpay.security.CanonicalPayload.sha256Hex(
+                java.util.Map.of("previous", previous, "event", event.canonicalDigest()));
+        try (PreparedStatement statement = connection.prepareStatement("""
+                INSERT INTO audit_event
+                  (id, tenant_id, actor_id, action, target_type, target_id, reason, ticket_id,
+                   before_digest, after_digest, correlation_id, occurred_at,
+                   previous_hash, chain_hash)
+                VALUES (?::uuid, ?::uuid, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::timestamptz, ?, ?)
+                """)) {
+            statement.setString(1, event.id().toString());
+            statement.setString(2, event.tenantId().toString());
+            statement.setString(3, event.actorId());
+            statement.setString(4, event.action());
+            statement.setString(5, event.targetType());
+            statement.setString(6, event.targetId());
+            statement.setString(7, event.reason());
+            statement.setString(8, event.ticketId());
+            statement.setString(9, com.elmpay.security.CanonicalPayload.sha256Hex(event.before()));
+            statement.setString(10, com.elmpay.security.CanonicalPayload.sha256Hex(event.after()));
+            statement.setString(11, event.correlationId());
+            statement.setString(12, event.occurredAt().toString());
+            statement.setString(13, previous);
+            statement.setString(14, chainHash);
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("audit append did not insert exactly one fact");
+            }
+        }
+        return chainHash;
     }
 
     private static void rollback(Connection connection, Exception original) {

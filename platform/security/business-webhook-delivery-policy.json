@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "batch": "B38",
+  "transport": {
+    "httpsOnly": true,
+    "redirectsAllowed": false,
+    "dnsRebindingFailClosed": true,
+    "requestTimeoutSeconds": 5
+  },
+  "delivery": {
+    "durableLeaseSeconds": 30,
+    "maximumAttempts": 20,
+    "deadLetterRequired": true,
+    "manualReplayRequiresFourEyes": true
+  },
+  "signing": {
+    "algorithm": "HMAC-SHA256",
+    "exactProjectBinding": true,
+    "maximumSecretLeaseSeconds": 120,
+    "wipeAfterAttempt": true,
+    "rotationOverlapRequiredPerProject": true,
+    "externalKmsHsmBinding": "BLOCKED"
+  },
+  "certificationStatus": "NOT_CERTIFIED"
+}

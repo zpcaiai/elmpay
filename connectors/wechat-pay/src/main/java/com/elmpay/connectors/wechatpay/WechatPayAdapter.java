@@ -24,7 +24,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
@@ -34,7 +36,7 @@ import javax.crypto.spec.SecretKeySpec;
  * A narrow WeChat Pay APIv3 adapter. It implements the public APIv3 signing and
  * notification rules with JCA and deliberately owns no business-order state.
  */
-public final class WechatPayAdapter {
+public final class WechatPayAdapter implements AutoCloseable {
     private static final int MAX_BODY_BYTES = 1_048_576;
     private static final Pattern PROVIDER_ID = Pattern.compile("[A-Za-z0-9_-]{6,64}");
     private static final Pattern IDEMPOTENCY_KEY = Pattern.compile("[A-Za-z0-9._:-]{16,128}");
@@ -153,6 +155,17 @@ public final class WechatPayAdapter {
         }
     }
 
+    /** Cryptographically verified and decrypted identity used only to locate server-side facts. */
+    public record WebhookIdentity(String merchantId, String appId, String outTradeNo,
+            String transactionId) {
+        public WebhookIdentity {
+            requireText(merchantId, "merchantId");
+            requireText(appId, "appId");
+            requireProviderId(outTradeNo, "outTradeNo");
+            requireProviderId(transactionId, "transactionId");
+        }
+    }
+
     public record OperationResult(State state, boolean finalState, int httpStatus,
             String providerReference, String responseBody) {
         public OperationResult {
@@ -211,6 +224,7 @@ public final class WechatPayAdapter {
     private final Config config;
     private final Transport transport;
     private final AtomicReference<Map<String, PublicKey>> platformKeys;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     public WechatPayAdapter(Config config, Transport transport) {
         this.config = Objects.requireNonNull(config, "config");
@@ -220,6 +234,7 @@ public final class WechatPayAdapter {
 
     /** A rotation must retain at least one old key, preventing a gap in callback verification. */
     public void rotatePlatformKeys(Map<String, PublicKey> replacement) {
+        ensureOpen();
         Map<String, PublicKey> safe = Map.copyOf(replacement);
         if (safe.isEmpty()) {
             throw new IllegalArgumentException("replacement platform key ring is empty");
@@ -232,6 +247,7 @@ public final class WechatPayAdapter {
     }
 
     public OperationResult createPayment(PaymentRequest request) {
+        ensureOpen();
         Objects.requireNonNull(request, "request");
         String path = switch (request.channel()) {
             case JSAPI, MINI_PROGRAM -> "/v3/pay/transactions/jsapi";
@@ -262,6 +278,7 @@ public final class WechatPayAdapter {
 
     /** Builds official client-side action fields from a server-issued prepay or redirect reference. */
     public ClientAction buildClientAction(Channel channel, String providerReference) {
+        ensureOpen();
         Objects.requireNonNull(channel, "channel");
         requireText(providerReference, "providerReference");
         return switch (channel) {
@@ -291,6 +308,7 @@ public final class WechatPayAdapter {
     }
 
     public OperationResult queryPayment(String outTradeNo, String idempotencyKey) {
+        ensureOpen();
         requireProviderId(outTradeNo, "outTradeNo");
         requireIdempotency(idempotencyKey);
         String path = "/v3/pay/transactions/out-trade-no/" + outTradeNo + "?mchid=" + config.merchantId();
@@ -311,6 +329,7 @@ public final class WechatPayAdapter {
     }
 
     public OperationResult closePayment(String outTradeNo, String idempotencyKey) {
+        ensureOpen();
         requireProviderId(outTradeNo, "outTradeNo");
         requireIdempotency(idempotencyKey);
         String path = "/v3/pay/transactions/out-trade-no/" + outTradeNo + "/close";
@@ -324,6 +343,7 @@ public final class WechatPayAdapter {
 
     public OperationResult refund(String transactionId, String outRefundNo, long refundAmountMinor,
             long totalAmountMinor, String currency, String idempotencyKey) {
+        ensureOpen();
         requireProviderId(transactionId, "transactionId");
         requireProviderId(outRefundNo, "outRefundNo");
         positiveAmount(refundAmountMinor);
@@ -340,12 +360,14 @@ public final class WechatPayAdapter {
     }
 
     public OperationResult queryRefund(String outRefundNo, String idempotencyKey) {
+        ensureOpen();
         requireProviderId(outRefundNo, "outRefundNo");
         requireIdempotency(idempotencyKey);
         return execute("GET", "/v3/refund/domestic/refunds/" + outRefundNo, "", idempotencyKey);
     }
 
     public OperationResult requestBill(String billDate, String billType, String idempotencyKey) {
+        ensureOpen();
         requireText(billDate, "billDate");
         requireText(billType, "billType");
         requireIdempotency(idempotencyKey);
@@ -369,10 +391,22 @@ public final class WechatPayAdapter {
 
     public VerifiedWebhook verifyWebhook(Map<String, String> headers, byte[] rawBody,
             Instant receivedAt, ExpectedWebhook expected) {
+        Objects.requireNonNull(expected, "expected");
+        return verifyWebhook(headers, rawBody, receivedAt, ignored -> expected);
+    }
+
+    /**
+     * Verifies the envelope and decrypts the resource before consulting durable expected facts.
+     * The resolver must treat the supplied identity only as a lookup key; amounts and merchant
+     * bindings still come from server-owned state.
+     */
+    public VerifiedWebhook verifyWebhook(Map<String, String> headers, byte[] rawBody,
+            Instant receivedAt, Function<WebhookIdentity, ExpectedWebhook> expectationResolver) {
+        ensureOpen();
         Objects.requireNonNull(headers, "headers");
         Objects.requireNonNull(rawBody, "rawBody");
         Objects.requireNonNull(receivedAt, "receivedAt");
-        Objects.requireNonNull(expected, "expected");
+        Objects.requireNonNull(expectationResolver, "expectationResolver");
         if (rawBody.length == 0 || rawBody.length > MAX_BODY_BYTES) {
             throw new SecurityException("invalid webhook body size");
         }
@@ -434,6 +468,9 @@ public final class WechatPayAdapter {
         String transactionId = requiredString(resource, "transaction_id");
         long amount = requiredLong(resource, "total");
         String currency = requiredString(resource, "currency");
+        ExpectedWebhook expected = Objects.requireNonNull(expectationResolver.apply(
+                new WebhookIdentity(merchantId, appId, outTradeNo, transactionId)),
+                "expected webhook facts");
         if (!expected.merchantId().equals(merchantId)
                 || !expected.appId().equals(appId)
                 || !expected.outTradeNo().equals(outTradeNo)
@@ -449,6 +486,21 @@ public final class WechatPayAdapter {
                 + amount + ",\"currency\":\"" + currency + "\"}";
         return new VerifiedWebhook(eventId, eventType, transactionId, outTradeNo, amount, currency,
                 serial, canonical.getBytes(StandardCharsets.UTF_8));
+    }
+
+    @Override
+    public void close() {
+        if (!closed.compareAndSet(false, true)) {
+            return;
+        }
+        java.util.Arrays.fill(config.apiV3Key, (byte) 0);
+        platformKeys.set(Map.of());
+    }
+
+    private void ensureOpen() {
+        if (closed.get()) {
+            throw new IllegalStateException("WeChat credential runtime is closed");
+        }
     }
 
     private OperationResult execute(String method, String path, String body, String idempotencyKey) {

@@ -1,4 +1,5 @@
-import base64, hashlib, hmac, json, unittest
+import base64, json, unittest
+from pathlib import Path
 from elmpay_client import CheckoutRequest, ConfirmRequest, ElmpayClient, verify_webhook
 
 class FakeResponse:
@@ -42,10 +43,13 @@ def urllib_path(value):
 
 class WebhookTest(unittest.TestCase):
     def test_raw_body_and_timestamp_are_bound(self):
-        secret = bytes([7]) * 32; body = b'{"ok":true}'; timestamp = 1700000000
-        signature = base64.urlsafe_b64encode(hmac.new(secret, str(timestamp).encode() + b'.' + body, hashlib.sha256).digest()).rstrip(b'=').decode()
-        header = f't={timestamp},v1={signature}'
-        self.assertTrue(verify_webhook(secret, body, header, now=timestamp))
-        self.assertFalse(verify_webhook(secret, b'{}', header, now=timestamp))
+        vector = json.loads((Path(__file__).resolve().parents[3] /
+                             "contracts/webhooks/signing-v1.json").read_text())
+        secret = base64.urlsafe_b64decode(vector["secret_base64url"] + "=")
+        body = vector["raw_body_utf8"].encode()
+        self.assertTrue(verify_webhook(secret, body, vector["signature_header"],
+                                       now=vector["timestamp"]))
+        self.assertFalse(verify_webhook(secret, b'{}', vector["signature_header"],
+                                        now=vector["timestamp"]))
 
 if __name__ == '__main__': unittest.main()

@@ -26,11 +26,13 @@ REQUIRED_FIELDS = ("name", "layer", "path", "owner", "owned_tables", "depends_on
 # Tables that belong to the business projects and must never be owned here (NN-01).
 FORBIDDEN_TABLE_PREFIXES = ("business_order", "order_item", "inventory", "product", "shipment")
 MODULE_PATH_FORMAT = re.compile(
-    r"^(?:apps|connectors|libs|services)/[a-z0-9]+(?:-[a-z0-9]+)*$")
+    r"^(?:(?:apps|connectors|libs|services)/[a-z0-9]+(?:-[a-z0-9]+)*|"
+    r"sdks/[a-z0-9]+(?:-[a-z0-9]+)*/[a-z0-9]+(?:-[a-z0-9]+)*)$")
 LAYER_DIRECTORY = {
     "app": "apps",
     "connector": "connectors",
     "lib": "libs",
+    "sdk": "sdks",
     "service": "services",
 }
 
@@ -90,7 +92,7 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
             and MODULE_PATH_FORMAT.fullmatch(raw_path)
             and pure_path is not None
             and pure_path.parts[0] == LAYER_DIRECTORY.get(module["layer"])
-            and pure_path.name == name
+            and "-".join(pure_path.parts[1:]) == name
         )
         resolved_root = root.resolve()
         module_path = resolved_root

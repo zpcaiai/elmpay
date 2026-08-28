@@ -142,6 +142,14 @@
       "reason": "只有已验签渠道事件或对账定责可以写入成功状态（NN-03）"
     },
     {
+      "actor": "merchant",
+      "event": "provider.authorization_closed",
+      "expected_rejection": "WRONG_ACTOR",
+      "from": "authorized",
+      "machine": "payment-intent",
+      "reason": "只有已验签渠道事件或对账定责可以写入成功状态（NN-03）"
+    },
+    {
       "actor": "provider-event",
       "event": "provider.nonexistent_event",
       "expected_rejection": "EVENT_NOT_ALLOWED",

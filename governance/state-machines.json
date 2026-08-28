@@ -219,6 +219,23 @@
         },
         {
           "from": "authorized",
+          "to": "captured",
+          "event": "provider.authorization_closed",
+          "actor": "provider-event",
+          "kind": "compensating",
+          "guard": "仅在累计捕获金额大于零且小于授权金额时允许；渠道确认释放未捕获余额后关闭授权",
+          "effects": [
+            "释放未捕获授权余额",
+            "写入 capture_closed_at",
+            "保留实际已捕获金额作为最终支付事实"
+          ],
+          "idempotency": "provider_event_id",
+          "requirements": [
+            "PAY-REQ-0003"
+          ]
+        },
+        {
+          "from": "authorized",
           "to": "canceled",
           "event": "merchant.void",
           "actor": "merchant",

@@ -19,6 +19,16 @@ public final class PaymentGatewayApplication {
             throw new IllegalArgumentException("PORT is outside the valid range");
         }
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 128);
+        CommerceHttpHandler commerce = new CommerceHttpHandler(runtime.authenticator(),
+                CommerceRuntimeFactory.create(environment));
+        server.createContext("/v1/billing", commerce);
+        server.createContext("/v1/disputes", commerce);
+        server.createContext("/v1/finance", new FinancialHttpHandler(runtime.authenticator(),
+                FinancialRuntimeFactory.create(environment)));
+        PaymentLinkHttpHandler paymentLinks = new PaymentLinkHttpHandler(runtime.authenticator(),
+                PaymentLinkRuntimeFactory.create(environment));
+        server.createContext("/v1/payment-links", paymentLinks);
+        server.createContext("/api/payment-links/redeem", paymentLinks);
         server.createContext("/", new PaymentHttpHandler(runtime,
                 CheckoutRuntimeFactory.create(runtime.payments(), runtime.mode(), environment)));
         server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());

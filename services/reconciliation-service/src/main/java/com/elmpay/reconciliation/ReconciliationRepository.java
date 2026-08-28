@@ -10,8 +10,10 @@ import java.sql.SQLException;
 import java.sql.Savepoint;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -78,13 +80,15 @@ public final class ReconciliationRepository {
                     return existing;
                 }
 
+                List<ExceptionSeed> exceptionSeeds = new ArrayList<>();
                 try (PreparedStatement match = connection.prepareStatement("""
                         INSERT INTO recon_match
                           (id,tenant_id,run_id,match_key,outcome,source_totals_json,created_at)
                         VALUES (?,?,?,?,?,?,?)
                         """)) {
                     for (ReconciliationEngine.Match value : run.matches()) {
-                        match.setObject(1, UUID.randomUUID());
+                        UUID matchId = UUID.randomUUID();
+                        match.setObject(1, matchId);
                         match.setObject(2, tenant);
                         match.setObject(3, proposedRunId);
                         match.setString(4, value.key());
@@ -92,15 +96,65 @@ public final class ReconciliationRepository {
                         match.setString(6, canonicalTotals(value.totals()));
                         match.setTimestamp(7, java.sql.Timestamp.from(clock.instant()));
                         match.addBatch();
+                        if (value.outcome() != ReconciliationEngine.Outcome.MATCHED) {
+                            exceptionSeeds.add(new ExceptionSeed(UUID.randomUUID(), matchId,
+                                    value.key(), value.outcome().name()));
+                        }
                     }
                     match.executeBatch();
                 }
+                saveExceptionSeeds(connection, tenant, proposedRunId, exceptionSeeds);
                 connection.commit();
                 return proposedRunId.toString();
             } catch (RuntimeException | SQLException failure) {
                 TenantSession.rollback(connection, failure);
                 throw failure;
             }
+        }
+    }
+
+    private void saveExceptionSeeds(Connection connection, UUID tenant, UUID runId,
+            List<ExceptionSeed> seeds) throws SQLException {
+        try (PreparedStatement current = connection.prepareStatement("""
+                INSERT INTO recon_exception_current
+                  (id,tenant_id,match_key,status,adjustment_minor,version,updated_at)
+                VALUES (?, ?, ?, 'OPEN', 0, 1, ?)
+                """);
+             PreparedStatement action = connection.prepareStatement("""
+                INSERT INTO recon_exception_action
+                  (id,tenant_id,exception_id,action,actor_id,reason,created_at)
+                VALUES (?, ?, ?, 'OPENED', 'reconciliation-engine', ?, ?)
+                """);
+             PreparedStatement origin = connection.prepareStatement("""
+                INSERT INTO recon_exception_origin
+                  (exception_id,tenant_id,run_id,match_id,created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """)) {
+            for (ExceptionSeed seed : seeds) {
+                java.sql.Timestamp now = java.sql.Timestamp.from(clock.instant());
+                current.setObject(1, seed.exceptionId());
+                current.setObject(2, tenant);
+                current.setString(3, seed.matchKey());
+                current.setTimestamp(4, now);
+                current.addBatch();
+
+                action.setObject(1, UUID.randomUUID());
+                action.setObject(2, tenant);
+                action.setObject(3, seed.exceptionId());
+                action.setString(4, "reconciliation outcome: " + seed.outcome());
+                action.setTimestamp(5, now);
+                action.addBatch();
+
+                origin.setObject(1, seed.exceptionId());
+                origin.setObject(2, tenant);
+                origin.setObject(3, runId);
+                origin.setObject(4, seed.matchId());
+                origin.setTimestamp(5, now);
+                origin.addBatch();
+            }
+            current.executeBatch();
+            action.executeBatch();
+            origin.executeBatch();
         }
     }
 
@@ -183,21 +237,49 @@ public final class ReconciliationRepository {
             connection.setAutoCommit(false);
             try {
                 TenantSession.setLocal(connection, tenant);
+                Savepoint insertion = connection.setSavepoint("financial_export_insert");
                 try (PreparedStatement export = connection.prepareStatement("""
                         INSERT INTO financial_export
                           (id,tenant_id,period_start,period_end,source_digest,
-                           manifest_signature,object_digest,created_at)
-                        VALUES (?,?,?,?,?,?,?,?)
+                           signing_key_version,manifest_signature,object_digest,created_at)
+                        VALUES (?,?,?,?,?,?,?,?,?)
                         """)) {
                     export.setObject(1, id);
                     export.setObject(2, tenant);
                     export.setTimestamp(3, java.sql.Timestamp.from(report.from()));
                     export.setTimestamp(4, java.sql.Timestamp.from(report.to()));
                     export.setString(5, report.sourceDigest());
-                    export.setString(6, report.manifestSignature());
-                    export.setString(7, objectDigest);
-                    export.setTimestamp(8, java.sql.Timestamp.from(clock.instant()));
+                    export.setString(6, report.signingKeyVersion());
+                    export.setString(7, report.manifestSignature());
+                    export.setString(8, objectDigest);
+                    export.setTimestamp(9, java.sql.Timestamp.from(clock.instant()));
                     export.executeUpdate();
+                    connection.releaseSavepoint(insertion);
+                } catch (SQLException duplicate) {
+                    TenantSession.rollbackUniqueConflict(connection, insertion, duplicate);
+                    try (PreparedStatement existing = connection.prepareStatement("""
+                            SELECT signing_key_version,manifest_signature,object_digest
+                              FROM financial_export
+                             WHERE tenant_id=? AND period_start=? AND period_end=?
+                               AND source_digest=?
+                            """)) {
+                        existing.setObject(1, tenant);
+                        existing.setTimestamp(2, java.sql.Timestamp.from(report.from()));
+                        existing.setTimestamp(3, java.sql.Timestamp.from(report.to()));
+                        existing.setString(4, report.sourceDigest());
+                        try (ResultSet result = existing.executeQuery()) {
+                            if (!result.next()
+                                    || !MessageDigest.isEqual(bytes(report.signingKeyVersion()),
+                                            bytes(result.getString(1)))
+                                    || !MessageDigest.isEqual(bytes(report.manifestSignature()),
+                                            bytes(result.getString(2)))
+                                    || !MessageDigest.isEqual(bytes(objectDigest),
+                                            bytes(result.getString(3)))) {
+                                throw new IllegalStateException(
+                                        "financial export identity was reused with different bytes");
+                            }
+                        }
+                    }
                 }
                 connection.commit();
             } catch (RuntimeException | SQLException failure) {
@@ -277,4 +359,7 @@ public final class ReconciliationRepository {
     private static byte[] bytes(String value) {
         return value.getBytes(StandardCharsets.UTF_8);
     }
+
+    private record ExceptionSeed(UUID exceptionId, UUID matchId, String matchKey,
+            String outcome) {}
 }

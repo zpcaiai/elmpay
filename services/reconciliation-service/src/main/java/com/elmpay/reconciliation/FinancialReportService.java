@@ -1,6 +1,5 @@
 package com.elmpay.reconciliation;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
@@ -11,9 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-
 /** Reproducible financial projections with a digest-bound signed export manifest. */
 public final class FinancialReportService {
     public enum Type { CAPTURE, FEE, REFUND, CHARGEBACK, SETTLEMENT, EXCEPTION }
@@ -21,12 +17,15 @@ public final class FinancialReportService {
     public record Totals(long gmvMinor, long feeMinor, long refundMinor, long chargebackMinor,
                          long settlementMinor, long exceptionMinor, long netRevenueMinor) {}
     public record Report(String tenantId, Instant from, Instant to, Map<String, Totals> byCurrency,
-                         String sourceDigest, String manifestSignature) {}
+                         String sourceDigest, String signingKeyVersion,
+                         String manifestSignature) {}
 
-    private final byte[] exportSigningKey;
-    public FinancialReportService(byte[] exportSigningKey) {
-        if (exportSigningKey == null || exportSigningKey.length < 32) throw new IllegalArgumentException("export key must be >= 256 bits");
-        this.exportSigningKey = exportSigningKey.clone();
+    private final ExportManifestSigner signer;
+    public FinancialReportService(ExportManifestSigner signer) {
+        this.signer = java.util.Objects.requireNonNull(signer, "signer");
+        if (!signer.ready()) {
+            throw new IllegalStateException("financial export signer is not ready");
+        }
     }
 
     public Report generate(String tenantId, Instant from, Instant to, List<Fact> sourceFacts) {
@@ -42,16 +41,24 @@ public final class FinancialReportService {
             values[index] = Math.addExact(values[index], fact.amountMinor());
         }
         Map<String, Totals> totals = new TreeMap<>();
-        accumulators.forEach((currency, v) -> totals.put(currency, new Totals(v[0], v[1], v[2], v[3], v[4], v[5], v[1])));
+        accumulators.forEach((currency, v) -> {
+            long net = Math.addExact(Math.subtractExact(Math.subtractExact(
+                    Math.subtractExact(v[0], v[1]), v[2]), v[3]), v[5]);
+            totals.put(currency, new Totals(v[0], v[1], v[2], v[3], v[4], v[5], net));
+        });
         String digest = digestFacts(facts);
         String manifest = canonicalManifest(tenantId, from, to, totals, digest);
-        return new Report(tenantId, from, to, Map.copyOf(totals), digest, hmac(manifest));
+        ExportManifestSigner.Signature signature = signer.sign(
+                manifest.getBytes(StandardCharsets.UTF_8));
+        return new Report(tenantId, from, to, Map.copyOf(totals), digest,
+                signature.keyVersion(), signature.value());
     }
 
     public boolean verify(Report report) {
-        String expected = hmac(canonicalManifest(report.tenantId(), report.from(), report.to(), report.byCurrency(), report.sourceDigest()));
-        try { return MessageDigest.isEqual(Base64.getUrlDecoder().decode(expected), Base64.getUrlDecoder().decode(report.manifestSignature())); }
-        catch (IllegalArgumentException invalid) { return false; }
+        String canonical = canonicalManifest(report.tenantId(), report.from(), report.to(),
+                report.byCurrency(), report.sourceDigest());
+        return signer.verify(report.signingKeyVersion(),
+                canonical.getBytes(StandardCharsets.UTF_8), report.manifestSignature());
     }
 
     private static String canonicalManifest(String tenant, Instant from, Instant to, Map<String, Totals> totals, String digest) {
@@ -74,11 +81,6 @@ public final class FinancialReportService {
         StringBuilder result = new StringBuilder(); append(result, fact.id()); append(result, fact.tenantId());
         append(result, fact.type().name()); append(result, Long.toString(fact.amountMinor())); append(result, fact.currency());
         append(result, fact.effectiveAt().toString()); return result.toString();
-    }
-    private String hmac(String value) {
-        try { Mac mac = Mac.getInstance("HmacSHA256"); mac.init(new SecretKeySpec(exportSigningKey, "HmacSHA256"));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(value.getBytes(StandardCharsets.UTF_8))); }
-        catch (GeneralSecurityException unavailable) { throw new IllegalStateException(unavailable); }
     }
     private static void append(StringBuilder target, String value) {
         byte[] bytes = value.getBytes(StandardCharsets.UTF_8); target.append(bytes.length).append(':').append(value);

@@ -27,6 +27,13 @@ public final class LocalMerchantConfigurationRepository
     }
 
     @Override
+    public Optional<ProviderAccount> findAccount(UUID tenantId, UUID accountId) {
+        ProviderAccount account = accounts.get(accountId);
+        return account != null && account.tenantId().equals(tenantId)
+                ? Optional.of(account) : Optional.empty();
+    }
+
+    @Override
     public List<ProviderRoute> eligibleRoutes(RoutingRequest request) {
         String identity = request.tenantId() + ":" + request.projectId() + ":" + request.merchantId();
         UUID accountId = UUID.nameUUIDFromBytes(identity.getBytes(StandardCharsets.UTF_8));

@@ -45,6 +45,7 @@ stateDiagram-v2
     requires_action --> canceled: merchant.cancel
     requires_action --> expired: clock.action_ttl_elapsed
     authorized --> captured: provider.captured
+    authorized --> captured: provider.authorization_closed (补偿)
     authorized --> canceled: merchant.void (补偿)
     authorized --> expired: clock.authorization_elapsed
     authorized --> failed: provider.capture_declined
@@ -66,6 +67,7 @@ stateDiagram-v2
 | `requires_action` | `canceled` | `merchant.cancel` | `merchant` | forward | 商户放弃这笔意图 | `idempotency_key` | 写入 canceled_at |
 | `requires_action` | `expired` | `clock.action_ttl_elapsed` | `scheduler` | forward | 持卡人动作超过 action TTL 仍未完成，渠道不再受理 | `intent_id+ttl_epoch` | 写入 expired_at |
 | `authorized` | `captured` | `provider.captured` | `provider-event` | forward | 已验签捕获事件；captured_amount_minor <= amount_minor（NN-05） | `provider_event_id` | 写入 captured_at、记账：授权转已捕获 |
+| `authorized` | `captured` | `provider.authorization_closed` | `provider-event` | compensating | 仅在累计捕获金额大于零且小于授权金额时允许；渠道确认释放未捕获余额后关闭授权 | `provider_event_id` | 释放未捕获授权余额、写入 capture_closed_at、保留实际已捕获金额作为最终支付事实 |
 | `authorized` | `canceled` | `merchant.void` | `merchant` | compensating | 授权撤销（void）：补偿式回到无资金占用，不是把捕获退回 | `idempotency_key` | 释放授权额度、记账：冲销授权 |
 | `authorized` | `expired` | `clock.authorization_elapsed` | `scheduler` | forward | 授权有效期到期而未捕获，渠道自动释放 | `intent_id+ttl_epoch` | 记账：冲销授权 |
 | `authorized` | `failed` | `provider.capture_declined` | `provider-event` | forward | 捕获被渠道拒绝且不可重试 | `provider_event_id` | 记录失败原因码 |
@@ -240,4 +242,4 @@ stateDiagram-v2
 
 ---
 
-共 7 台状态机、48 条转移，全部带守卫与幂等键。
+共 7 台状态机、49 条转移，全部带守卫与幂等键。

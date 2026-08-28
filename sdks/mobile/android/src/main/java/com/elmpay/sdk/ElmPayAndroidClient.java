@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /** Android-callable client core; platform HTTP/attestation/provider launch are injected boundaries. */
@@ -61,6 +62,15 @@ public final class ElmPayAndroidClient {
                 body.getBytes(StandardCharsets.UTF_8), UUID.randomUUID().toString(), null);
     }
 
+    public void launchPaymentMethod(String method, URI launchUri, ProviderLauncher launcher)
+            throws Exception {
+        if (method == null || !method.matches("[a-z0-9][a-z0-9._-]{0,63}")) {
+            throw new IllegalArgumentException("payment method is invalid");
+        }
+        requireProviderLaunchUri(launchUri);
+        Objects.requireNonNull(launcher, "launcher").launch(method, launchUri);
+    }
+
     public String validateDeepLink(URI uri, String expectedScheme, String expectedHost, String expectedState) {
         Map<String, String> parameters = new HashMap<>();
         for (String item : Objects.requireNonNullElse(uri.getRawQuery(), "").split("&")) {
@@ -77,7 +87,7 @@ public final class ElmPayAndroidClient {
         Exception last = null;
         boolean retrySafe = idempotencyKey != null || method.equals("GET");
         for (int attempt = 0; attempt < maximumAttempts; attempt++) {
-            Map<String, String> headers = new HashMap<>(); headers.put("authorization", "Bearer " + bearerToken); headers.put("accept", "application/json"); headers.put("x-project-id", projectId);
+            Map<String, String> headers = new HashMap<>(); headers.put("authorization", "Bearer " + bearerToken); headers.put("accept", "application/json"); headers.put("x-project-id", projectId); headers.put("x-elmpay-device-class", "ANDROID");
             if (body != null) headers.put("content-type", "application/json");
             if (idempotencyKey != null) headers.put("idempotency-key", idempotencyKey);
             if (attestation != null) headers.put("x-device-attestation", attestation);
@@ -92,6 +102,14 @@ public final class ElmPayAndroidClient {
         throw Objects.requireNonNull(last);
     }
     private static boolean retryable(int status) { return status == 408 || status == 429 || status >= 500; }
+    private static void requireProviderLaunchUri(URI value) {
+        if (value == null || value.getScheme() == null || value.getUserInfo() != null
+                || value.getFragment() != null || !("https".equalsIgnoreCase(value.getScheme())
+                || Set.of("weixin", "alipay", "paypal").contains(
+                        value.getScheme().toLowerCase(java.util.Locale.ROOT)))) {
+            throw new SecurityException("provider launch URI is not trusted");
+        }
+    }
     private static String encode(String value) { return java.net.URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20"); }
     private static byte[] bytes(String value) { return value.getBytes(StandardCharsets.UTF_8); }
     private static String json(String value) { return value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r"); }

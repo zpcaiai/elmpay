@@ -152,7 +152,8 @@ def _third_party_imports(root: Path, budget: Budget) -> list[Problem]:
         "threading", "concurrent", "uuid", "secrets", "statistics", "functools", "enum",
         "csv", "abc", "operator", "difflib", "unicodedata", "ast", "zipfile",
         "hmac", "hashlib", "http", "urllib", "socket", "socketserver", "base64",
-        "random", "libs", "decimal", "fractions", "importlib", "pkgutil", "multiprocessing",
+        "random", "libs", "scripts", "decimal", "fractions", "importlib", "pkgutil",
+        "multiprocessing", "sqlite3", "ipaddress", "calendar", "ssl", "xml",
         # First-party, standard-library-only runtime controls under tools/runtime.
         "elmpay_runtime",
     }

@@ -4,5 +4,6 @@ public enum AttemptOperation {
     PAYMENT,
     CAPTURE,
     CANCEL,
+    CLOSE,
     QUERY
 }
