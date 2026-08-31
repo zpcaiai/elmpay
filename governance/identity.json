@@ -35,6 +35,16 @@
     "nonce_required": true,
     "policy": "只允许授权码 + PKCE(S256)，重定向 URI 精确匹配。隐式流把令牌放进 URL，密码流让每个客户端都摸到用户密码——两者在支付场景里都不可接受。重定向 URI 前缀匹配等于开放重定向（NN-10）。"
   },
+  "machine_oauth": {
+    "allowed_flows": [
+      "client_credentials"
+    ],
+    "static_client_secret_allowed": false,
+    "client_authentication": "mtls",
+    "access_token_binding": "mtls",
+    "maximum_token_minutes": 5,
+    "policy": "商户服务端只能用 mTLS 客户端认证换取最长 5 分钟且证书绑定的 access token；不接受静态 client_secret、密码流或无绑定 bearer token。"
+  },
   "revocation": {
     "mechanism": "short_lifetime_plus_revocation_list",
     "propagation_seconds": 60,
@@ -167,6 +177,21 @@
       "notes": "面向外部用户的 IdP。只允许非对称签名——共享密钥意味着任何一个验证方都能伪造发行方签发的令牌。"
     },
     {
+      "id": "merchant-authorization-server",
+      "purpose": "商户服务端 OAuth2 client credentials",
+      "issuer": "https://identity.elmpay.example/merchant",
+      "audiences": [
+        "elmpay-api"
+      ],
+      "algorithms": [
+        "RS256"
+      ],
+      "jwks_rotation_days": 30,
+      "max_token_minutes": 5,
+      "clock_skew_seconds": 60,
+      "notes": "商户机器身份使用 mTLS 客户端认证；签发的 at+jwt 同时绑定 tenant/project/merchant 与客户端证书，不与内部 workload CA 共用受众。"
+    },
+    {
       "id": "corporate-idp",
       "purpose": "平台运营与紧急通道",
       "issuer": "https://idp.example.invalid/corp",
@@ -236,6 +261,16 @@
       "notes": "商户后台会话，同样绑定客户端密钥。"
     },
     {
+      "id": "merchant-api-access",
+      "kind": "access",
+      "provider": "merchant-authorization-server",
+      "audience": "elmpay-api",
+      "lifetime_minutes": 5,
+      "binding": "mtls",
+      "revocable": true,
+      "notes": "商户服务端 API access token；最长 5 分钟，绑定客户端证书和租户/项目/商户声明。"
+    },
+    {
       "id": "operator-session",
       "kind": "access",
       "provider": "corporate-idp",
@@ -294,8 +329,8 @@
     },
     {
       "principal": "merchant-api-client",
-      "provider": "workload-ca",
-      "token": "workload-cert"
+      "provider": "merchant-authorization-server",
+      "token": "merchant-api-access"
     },
     {
       "principal": "platform-operator",

@@ -1,0 +1,2 @@
+com.elmpay.gateway.PaymentGatewayApplication
+com.elmpay.gateway.DatabaseMigrationApplication

@@ -280,7 +280,8 @@ final class RefundApplicationServiceTest {
             payments.create(intent);
             PaymentAttempt initiated = payments.beginAttempt(new AttemptDraft(tenantId,
                     intent.id(), accountId, "stripe", AttemptOperation.PAYMENT, 0,
-                    "b".repeat(64), "payment-attempt-001", NOW.minusSeconds(60)));
+                    "b".repeat(64), "payment-attempt-001", NOW.minusSeconds(60),
+                    "refund-fixture", NOW.minusSeconds(30)));
             PaymentAttempt succeeded = initiated.resolve(new AttemptResolution(
                     AttemptState.SUCCEEDED, OutcomeClass.SUCCEEDED, "c".repeat(64),
                     "provider-request-1", "provider-payment-1", "stripe.normalized",

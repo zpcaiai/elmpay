@@ -31,10 +31,6 @@ export function buildDiagnosticView(actor, resource) {
   if (actor.tenantId !== resource.tenantId) {
     throw new Error("cross-tenant diagnostic access is forbidden");
   }
-  if (!Array.isArray(actor.scopes) || !actor.scopes.includes("diagnostics:read")) {
-    throw new Error("diagnostics:read scope is required");
-  }
-
   const projection = { tenantId: resource.tenantId };
   for (const field of SAFE_FIELDS) {
     if (Object.hasOwn(resource, field)) {

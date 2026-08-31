@@ -76,6 +76,7 @@ def _validate(root: Path, budget: Budget) -> list[Problem]:
                        "verify such a token can also forge one", "NN-07")
 
     problems += _oauth(identity, where)
+    problems += _machine_oauth(identity, where)
     problems += _revocation(identity, where)
     problems += _binding(identity, where)
     problems += _service_accounts(identity, where)
@@ -112,6 +113,29 @@ def _oauth(identity: dict, where: str) -> list[Problem]:
     problems += expect(oauth.get("state_required") is True and oauth.get("nonce_required") is True,
                        "ID_CSRF", where,
                        "state and nonce must both be required", "NN-07")
+    return problems
+
+
+def _machine_oauth(identity: dict, where: str) -> list[Problem]:
+    machine = identity.get("machine_oauth") or {}
+    allowed = set(machine.get("allowed_flows") or [])
+    problems = list(expect(allowed == {"client_credentials"}, "ID_MACHINE_FLOW", where,
+                           "machine OAuth must allow only client_credentials", "NN-07"))
+    problems += expect(machine.get("static_client_secret_allowed") is False,
+                       "ID_MACHINE_STATIC_SECRET", where,
+                       "machine OAuth must not authenticate merchants with static client_secret",
+                       "NN-07")
+    problems += expect(machine.get("client_authentication") == "mtls"
+                       and machine.get("access_token_binding") == "mtls",
+                       "ID_MACHINE_BINDING", where,
+                       "machine OAuth client authentication and access tokens must both be "
+                       "bound to mTLS", "NN-07")
+    problems += expect(0 < int(machine.get("maximum_token_minutes") or 0) <= 5,
+                       "ID_MACHINE_LIFETIME", where,
+                       "merchant machine access tokens must expire within five minutes", "NN-07")
+    problems += expect(len(str(machine.get("policy") or "")) >= 12,
+                       "ID_MACHINE_FLOW", where,
+                       "machine OAuth must state its security policy", "NN-12")
     return problems
 
 
@@ -338,6 +362,18 @@ def _principals(identity: dict, root: Path, where: str, providers: dict,
                                f"'{pid}' uses a token living "
                                f"{token.get('lifetime_minutes')} minutes, longer than the "
                                f"{session_limit}-minute zero-trust session limit", "NN-12")
+        if pid == "merchant-api-client":
+            problems += expect(binding.get("provider") == "merchant-authorization-server",
+                               "ID_MERCHANT_API_BINDING", where,
+                               "merchant API clients must use the dedicated authorization server",
+                               "NN-07")
+            problems += expect(binding.get("token") == "merchant-api-access" and token
+                               and token.get("binding") == "mtls"
+                               and token.get("audience") == "elmpay-api"
+                               and int(token.get("lifetime_minutes") or 0) <= 5,
+                               "ID_MERCHANT_API_BINDING", where,
+                               "merchant API token must be five-minute, elmpay-api audience and "
+                               "mTLS bound", "NN-07")
     for pid in sorted(bindings):
         problems += expect(pid in declared, "ID_PRINCIPAL_UNKNOWN", where,
                            f"'{pid}' has an identity binding but is not a zero-trust principal",

@@ -3,13 +3,44 @@ package com.elmpay.reconciliation;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 
 /** Runtime boundary for B75-B79 statement intake, reconciliation and signed reporting. */
 public interface FinancialOperationsService {
     record ReconciliationCommand(String tenantId, String provider, LocalDate businessDate,
-            Instant cutoff, String sourceFileDigest, String inputManifestDigest) {}
+            Instant cutoff, String sourceFileDigest, String inputManifestDigest) {
+        public ReconciliationCommand {
+            UUID.fromString(tenantId);
+            provider = Objects.requireNonNull(provider, "provider").toLowerCase(Locale.ROOT);
+            Objects.requireNonNull(businessDate, "businessDate");
+            Objects.requireNonNull(cutoff, "cutoff");
+            if (!Set.of("wechat", "alipay", "stripe", "paypal", "apple_pay")
+                    .contains(provider) || !sha256(sourceFileDigest)
+                    || !sha256(inputManifestDigest)) {
+                throw new IllegalArgumentException("invalid reconciliation command identity");
+            }
+        }
 
-    record ReconciliationResult(String runId, long matched, long exceptions) {}
+        private static boolean sha256(String value) {
+            return value != null && value.matches("[0-9a-f]{64}");
+        }
+    }
+
+    record ReconciliationResult(String runId, long matched, long exceptions, boolean replayed) {
+        public ReconciliationResult {
+            UUID.fromString(runId);
+            if (matched < 0 || exceptions < 0) {
+                throw new IllegalArgumentException("reconciliation counters cannot be negative");
+            }
+        }
+
+        public ReconciliationResult(String runId, long matched, long exceptions) {
+            this(runId, matched, exceptions, false);
+        }
+    }
 
     record SignedReport(FinancialReportService.Report report, String objectDigest) {}
 

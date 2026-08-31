@@ -1,0 +1,5 @@
+com.elmpay.scheduler.WorkerSchedulerApplication
+com.elmpay.scheduler.data.PartitionMaintenanceApplication
+com.elmpay.scheduler.data.ArchiveReceiptVerifierApplication
+com.elmpay.scheduler.data.ArchiveDetachAuthorizationVerifierApplication
+com.elmpay.scheduler.data.ArchivePartitionDetacherApplication

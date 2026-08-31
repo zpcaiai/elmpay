@@ -86,6 +86,29 @@ class ApiContractHappyPath(FixtureTestCase):
         self.assertLessEqual(webhook["signature"]["tolerance_seconds"], 600)
         self.assertGreaterEqual(webhook["signature"]["replay_window_hours"], 1)
 
+    def test_public_operations_require_oauth2_and_mtls_holder_binding(self):
+        contract = self.fixture.read("governance/api-contract.json")
+        schemes = {entry["id"]: entry for entry in contract["auth_schemes"]}
+        oauth = schemes["oauth2_mtls"]
+        self.assertEqual(oauth["type"], "oauth2_mtls")
+        self.assertEqual(oauth["token_type"], "at+jwt")
+        self.assertEqual(oauth["holder_binding"], "mtls-x5t#S256")
+        public = [operation for operation in contract["operations"]
+                  if operation["actor"] != "provider-event"]
+        self.assertTrue(public)
+        for operation in public:
+            self.assertEqual(operation["auth"], "oauth2_mtls", operation["id"])
+            self.assertTrue(operation["required_scopes"], operation["id"])
+
+    def test_openapi_ands_oauth2_scopes_with_mutual_tls(self):
+        document = json.loads(apigen.openapi_json(REAL_ROOT))
+        schemes = document["components"]["securitySchemes"]
+        self.assertEqual(schemes["OAuth2"]["type"], "oauth2")
+        self.assertEqual(schemes["MutualTLS"]["type"], "mutualTLS")
+        create = document["paths"]["/v1/payment_intents"]["post"]
+        self.assertEqual(create["security"], [{
+            "OAuth2": ["payments.write"], "MutualTLS": []}])
+
     def test_no_error_message_can_leak_a_credential_or_a_pan(self):
         contract = self.fixture.read("governance/api-contract.json")
         for entry in contract["errors"]:
@@ -276,6 +299,43 @@ class ApiGateRejects(FixtureTestCase):
                             lambda d: self._op(d, "get_refund").__setitem__("auth", "vibes"))
         self.assertIn("API_AUTH", self.codes(self._validate()))
 
+    def test_rejects_static_api_key_as_production_auth(self):
+        self.fixture.mutate(self.REL, lambda d: d["auth_schemes"].append({
+            "id": "api_key", "type": "api_key", "description": "static"}))
+        self.assertIn("API_STATIC_KEY_FORBIDDEN", self.codes(self._validate()))
+
+    def test_rejects_oauth_without_mtls_holder_binding(self):
+        self.fixture.mutate(self.REL, lambda d: next(
+            scheme for scheme in d["auth_schemes"] if scheme["id"] == "oauth2_mtls")
+            .__setitem__("holder_binding", "none"))
+        self.assertIn("API_AUTH_SCHEME", self.codes(self._validate()))
+
+    def test_rejects_an_undeclared_oauth_scope(self):
+        self.fixture.mutate(self.REL, lambda d: self._op(d, "get_refund").__setitem__(
+            "required_scopes", ["platform.root"]))
+        self.assertIn("API_AUTH_SCOPE", self.codes(self._validate()))
+
+    def test_rejects_a_provider_callback_claiming_oauth_scopes(self):
+        self.fixture.mutate(self.REL, lambda d: self._op(
+            d, "receive_provider_event").__setitem__("required_scopes", ["payments.write"]))
+        self.assertIn("API_AUTH_SCOPE", self.codes(self._validate()))
+
+    def test_rejects_provider_signature_auth_for_a_merchant_actor(self):
+        def mutate(document):
+            operation = self._op(document, "get_refund")
+            operation["auth"] = "provider_signature"
+            operation.pop("required_scopes")
+            operation["signature"] = {
+                "required": True,
+                "header": "X-Payment-Signature",
+                "timestamp_header": "X-Payment-Timestamp",
+                "algorithm": "hmac-sha256",
+                "tolerance_seconds": 300,
+                "replay_window_hours": 24,
+            }
+        self.fixture.mutate(self.REL, mutate)
+        self.assertIn("API_AUTH_ACTOR", self.codes(self._validate()))
+
     def test_rejects_a_webhook_that_does_not_verify_its_signature(self):
         self.fixture.mutate(self.REL,
                             lambda d: self._op(d, "receive_provider_event").pop("signature"))
@@ -429,6 +489,24 @@ class ApiGateRejects(FixtureTestCase):
             "errors", ["internal_error"]))
         self._sync()
         self.assertIn("API_BREAKING_ERRORS", self.codes(self._validate()))
+
+    def test_rejects_changing_recorded_auth_inside_a_stable_major(self):
+        baseline = "contracts/api/openapi.baseline.json"
+        self.fixture.mutate(baseline, lambda d: d["operations"]["get_refund"].update({
+            "auth": "oauth2_mtls", "required_scopes": ["payments.read"]}))
+        self.fixture.mutate(self.REL, lambda d: self._op(d, "get_refund").__setitem__(
+            "auth", "provider_signature"))
+        self._sync()
+        self.assertIn("API_BREAKING_AUTH", self.codes(self._validate()))
+
+    def test_rejects_adding_a_required_scope_inside_a_stable_major(self):
+        baseline = "contracts/api/openapi.baseline.json"
+        self.fixture.mutate(baseline, lambda d: d["operations"]["get_refund"].update({
+            "auth": "oauth2_mtls", "required_scopes": ["payments.read"]}))
+        self.fixture.mutate(self.REL, lambda d: self._op(d, "get_refund").__setitem__(
+            "required_scopes", ["payments.read", "financial.read"]))
+        self._sync()
+        self.assertIn("API_BREAKING_AUTH_SCOPE", self.codes(self._validate()))
 
     def test_rejects_missing_generated_artefacts(self):
         self.fixture.remove("contracts/api/openapi.json")

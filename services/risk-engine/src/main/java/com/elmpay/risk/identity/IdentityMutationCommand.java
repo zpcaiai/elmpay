@@ -4,10 +4,12 @@ import java.util.Map;
 import java.util.Objects;
 
 /** Idempotent, tenant-scoped identity mutation descriptor; attributes must be digests/labels. */
-public record IdentityMutationCommand(String tenantId, String requestId, String subjectId,
+public record IdentityMutationCommand(String tenantId, String projectId, String requestId,
+        String subjectId,
         Map<String, String> attributes) {
     public IdentityMutationCommand {
         requireText(tenantId, "tenantId");
+        requireText(projectId, "projectId");
         requireText(requestId, "requestId");
         requireText(subjectId, "subjectId");
         Objects.requireNonNull(attributes, "attributes");

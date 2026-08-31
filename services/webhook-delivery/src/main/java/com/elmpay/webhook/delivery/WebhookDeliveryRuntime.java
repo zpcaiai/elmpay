@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import javax.sql.DataSource;
@@ -38,9 +39,9 @@ public final class WebhookDeliveryRuntime {
         public Configuration {
             approvedHosts = Set.copyOf(approvedHosts);
             keys = List.copyOf(keys);
-            if (approvedHosts.isEmpty() || keys.isEmpty()) {
+            if (approvedHosts.isEmpty() != keys.isEmpty()) {
                 throw new IllegalArgumentException(
-                        "delivery runtime requires endpoints and signing keys");
+                        "delivery runtime endpoints and signing keys must be configured together");
             }
         }
     }
@@ -74,7 +75,7 @@ public final class WebhookDeliveryRuntime {
             this.secret = supplied.clone();
         }
 
-        public byte[] require(KeyDescriptor descriptor, String expectedTenant, Instant now,
+        public synchronized byte[] require(KeyDescriptor descriptor, String expectedTenant, Instant now,
                 Duration maximumLifetime) {
             if (closed) {
                 throw new IllegalStateException("signing secret lease is closed");
@@ -91,7 +92,7 @@ public final class WebhookDeliveryRuntime {
         }
 
         @Override
-        public void close() {
+        public synchronized void close() {
             if (!closed) {
                 Arrays.fill(secret, (byte) 0);
                 closed = true;
@@ -226,10 +227,41 @@ public final class WebhookDeliveryRuntime {
         this.clock = Objects.requireNonNull(clock, "clock");
     }
 
+    /**
+     * Fully mounted production composition. The signing-secret mTLS identity, trust bundle and
+     * rotating token are validated synchronously before this method returns.
+     */
+    public static WebhookDeliveryRuntime fromEnvironment(DataSource dataSource,
+            Map<String, String> environment, Clock clock) {
+        Objects.requireNonNull(dataSource, "dataSource");
+        Objects.requireNonNull(environment, "environment");
+        Objects.requireNonNull(clock, "clock");
+        Settings settings = new Settings(
+                duration(environment, "ELMPAY_WEBHOOK_DELIVERY_CONNECT_TIMEOUT_MILLISECONDS",
+                        2_000, 10_000),
+                duration(environment, "ELMPAY_WEBHOOK_DELIVERY_REQUEST_TIMEOUT_MILLISECONDS",
+                        5_000, 10_000),
+                duration(environment, "ELMPAY_WEBHOOK_DELIVERY_OUTBOX_LEASE_MILLISECONDS",
+                        30_000, 300_000),
+                duration(environment, "ELMPAY_WEBHOOK_DELIVERY_BASE_BACKOFF_MILLISECONDS",
+                        5_000, 3_600_000),
+                duration(environment, "ELMPAY_WEBHOOK_DELIVERY_MAXIMUM_BACKOFF_MILLISECONDS",
+                        600_000, 86_400_000),
+                duration(environment, "ELMPAY_WEBHOOK_DELIVERY_MAXIMUM_SECRET_LEASE_MILLISECONDS",
+                        120_000, 300_000));
+        HttpsWebhookSigningSecretResolver resolver =
+                HttpsWebhookSigningSecretResolver.fromEnvironment(environment, clock);
+        return new WebhookDeliveryRuntime(dataSource, new JdbcConfigurationSource(dataSource),
+                resolver, settings, clock);
+    }
+
     public WebhookDeliveryService.Outcome runOnce(String tenantId) {
         requireId(tenantId, "tenantId");
         Instant now = clock.instant();
         Configuration configuration = configurationSource.load(tenantId, now);
+        if (configuration.approvedHosts().isEmpty()) {
+            return WebhookDeliveryService.Outcome.IDLE;
+        }
         List<SecretLease> leases = new ArrayList<>();
         List<WebhookDeliveryService.SigningKey> keys = new ArrayList<>();
         try {
@@ -270,6 +302,22 @@ public final class WebhookDeliveryRuntime {
             throw new IllegalArgumentException(field + " must be positive");
         }
         return value;
+    }
+
+    private static Duration duration(Map<String, String> environment, String key,
+            long fallback, long maximum) {
+        String configured = environment.get(key);
+        long value = fallback;
+        if (configured != null) {
+            if (!configured.matches("(?:0|[1-9][0-9]{0,8})")) {
+                throw new IllegalStateException(key + " is invalid");
+            }
+            value = Long.parseLong(configured);
+        }
+        if (value < 1 || value > maximum) {
+            throw new IllegalStateException(key + " exceeds its production bound");
+        }
+        return Duration.ofMillis(value);
     }
 
     private static void requireId(String value, String field) {

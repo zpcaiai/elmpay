@@ -16,6 +16,8 @@ final class JdbcEventDeliveryStoreTest {
         assertTrue(JdbcEventDeliveryStore.CLAIM_OUTBOX_SQL.contains("FOR UPDATE SKIP LOCKED"));
         assertTrue(JdbcEventDeliveryStore.CLAIM_OUTBOX_UPDATE_SQL.contains(
                 "fencing_token = fencing_token + 1"));
+        assertTrue(JdbcEventDeliveryStore.CLAIM_OUTBOX_SQL.contains(
+                "prior.aggregate_revision < candidate.aggregate_revision"));
         assertTrue(JdbcEventDeliveryStore.MARK_PUBLISHED_SQL.contains("fencing_token = ?"));
         assertTrue(JdbcEventDeliveryStore.RECORD_FAILURE_SQL.contains("published_at IS NULL"));
     }
@@ -39,10 +41,15 @@ final class JdbcEventDeliveryStoreTest {
     @Test
     void migrationHasDurableInboxRlsAndRetryIndex() throws IOException {
         String migration = resource("db/migration/V012__event_delivery_runtime.sql");
+        String revision = resource("db/migration/V012_1__event_envelope_revision.sql");
         assertTrue(migration.contains("consumer_event_inbox"));
         assertTrue(migration.contains("FORCE ROW LEVEL SECURITY"));
         assertTrue(migration.contains("fencing_token"));
         assertTrue(migration.contains("outbox_event_delivery_due_idx"));
+        assertTrue(revision.contains("event_aggregate_revision"));
+        assertTrue(revision.contains(
+                "tenant_id, aggregate_type, aggregate_id, aggregate_revision"));
+        assertTrue(revision.contains("consumer_inbox_aggregate_revision_unique"));
     }
 
     private static String resource(String name) throws IOException {

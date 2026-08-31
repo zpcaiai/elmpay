@@ -1,0 +1,163 @@
+asyncapi: 3.0.0
+info:
+  title: ELMPay governed payment event log
+  version: 2.0.0
+  description: >-
+    One at-least-once Kafka topic. Business effects are effectively-once through the durable
+    consumer inbox and database transaction; transport duplicates are expected.
+channels:
+  paymentEvents:
+    address: payment-events-v1
+    messages:
+      captured:
+        $ref: '#/components/messages/PaymentIntentCaptured'
+      refunded:
+        $ref: '#/components/messages/RefundSucceeded'
+operations:
+  relayPaymentEvents:
+    action: send
+    channel:
+      $ref: '#/channels/paymentEvents'
+  postFinancialEvents:
+    action: receive
+    channel:
+      $ref: '#/channels/paymentEvents'
+components:
+  messages:
+    PaymentIntentCaptured:
+      name: payment_intent.captured
+      title: Exact successful capture delta
+      headers:
+        $ref: '#/components/schemas/EventHeaders'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              event_name:
+                const: payment_intent.captured
+              event_version:
+                const: 1
+              aggregate_type:
+                const: payment_intent
+              payload:
+                $ref: '#/components/schemas/CapturePayload'
+    RefundSucceeded:
+      name: refund.succeeded
+      title: Exact successful refund delta
+      headers:
+        $ref: '#/components/schemas/EventHeaders'
+      payload:
+        allOf:
+          - $ref: '#/components/schemas/EventEnvelope'
+          - type: object
+            properties:
+              event_name:
+                const: refund.succeeded
+              event_version:
+                const: 1
+              aggregate_type:
+                const: refund
+              payload:
+                $ref: '#/components/schemas/RefundPayload'
+  schemas:
+    EventEnvelope:
+      type: object
+      additionalProperties: false
+      required:
+        - event_id
+        - event_name
+        - event_version
+        - tenant_id
+        - project_id
+        - aggregate_type
+        - aggregate_id
+        - revision
+        - occurred_at
+        - recorded_at
+        - trace_id
+        - payload
+      properties:
+        event_id: {type: string, format: uuid}
+        event_name: {type: string, pattern: '^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,7}$'}
+        event_version: {type: integer, minimum: 1}
+        tenant_id: {type: string, format: uuid}
+        project_id: {type: string, format: uuid}
+        aggregate_type: {type: string, pattern: '^[a-z][a-z0-9_]{0,63}$'}
+        aggregate_id: {type: string, format: uuid}
+        revision: {type: integer, format: int64, minimum: 1}
+        occurred_at: {type: string, format: date-time}
+        recorded_at: {type: string, format: date-time}
+        trace_id: {type: string, minLength: 1, maxLength: 128}
+        payload: {type: object}
+    EventHeaders:
+      type: object
+      additionalProperties: false
+      required:
+        - elmpay-event-id
+        - elmpay-event-name
+        - elmpay-event-version
+        - elmpay-tenant-id
+        - elmpay-project-id
+        - elmpay-aggregate-type
+        - elmpay-aggregate-id
+        - elmpay-aggregate-revision
+        - elmpay-occurred-at
+        - elmpay-recorded-at
+        - elmpay-trace-id
+      properties:
+        elmpay-event-id: {type: string, format: uuid}
+        elmpay-event-name: {type: string}
+        elmpay-event-version: {type: string, pattern: '^[1-9][0-9]*$'}
+        elmpay-tenant-id: {type: string, format: uuid}
+        elmpay-project-id: {type: string, format: uuid}
+        elmpay-aggregate-type: {type: string}
+        elmpay-aggregate-id: {type: string, format: uuid}
+        elmpay-aggregate-revision: {type: string, pattern: '^[1-9][0-9]*$'}
+        elmpay-occurred-at: {type: string, format: date-time}
+        elmpay-recorded-at: {type: string, format: date-time}
+        elmpay-trace-id: {type: string, minLength: 1, maxLength: 128}
+    CapturePayload:
+      type: object
+      additionalProperties: false
+      required:
+        - payment_intent_id
+        - project_id
+        - provider
+        - captured_at
+        - amount_minor
+        - currency
+        - business_order_digest
+        - aggregate_revision
+      properties:
+        payment_intent_id: {type: string, format: uuid}
+        project_id: {type: string, format: uuid}
+        provider: {type: string}
+        captured_at: {type: string, format: date-time}
+        amount_minor: {type: integer, format: int64, minimum: 1}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        business_order_digest: {type: string, pattern: '^[0-9a-f]{64}$'}
+        aggregate_revision: {type: integer, format: int64, minimum: 1}
+    RefundPayload:
+      type: object
+      additionalProperties: false
+      required:
+        - refund_id
+        - payment_intent_id
+        - project_id
+        - provider
+        - provider_refund_id
+        - refunded_at
+        - amount_minor
+        - currency
+        - aggregate_revision
+      properties:
+        refund_id: {type: string, format: uuid}
+        payment_intent_id: {type: string, format: uuid}
+        project_id: {type: string, format: uuid}
+        provider: {type: string}
+        provider_refund_id: {type: string, minLength: 1}
+        refunded_at: {type: string, format: date-time}
+        amount_minor: {type: integer, format: int64, minimum: 1}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+        aggregate_revision: {type: integer, format: int64, minimum: 1}

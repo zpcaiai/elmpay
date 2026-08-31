@@ -114,21 +114,41 @@ public final class StripeProviderBridge implements ProviderAdapter {
             return refundResult(id, runtime.adapter().queryRefund(id), null);
         }
         @Override public VerifiedProviderEvent verifyWebhook(WebhookRequest request) {
-            String signature = request.headers().entrySet().stream()
-                    .filter(entry -> entry.getKey().equalsIgnoreCase("Stripe-Signature"))
-                    .map(Map.Entry::getValue).findFirst()
-                    .orElseThrow(() -> new ProviderException("WEBHOOK_SIGNATURE_MISSING",
-                            "Stripe-Signature is required", false, false));
+            String signature = uniqueHeader(request.headers(), "Stripe-Signature");
             StripeAdapter.ExpectedWebhook expected = runtime.webhookExpectations().resolve(request);
             StripeAdapter.VerifiedWebhook event = runtime.adapter().verifyWebhook(signature,
                     request.rawBody(), request.receivedAt(), expected);
             return new VerifiedProviderEvent(request.tenantId(), request.merchantAccountId(), event.eventId(),
-                    event.eventType(), event.providerObjectId(), "", Money.of(expected.amountMinor(),
+                    event.eventType(), event.providerObjectId(), expected.businessOrderNo(), Money.of(expected.amountMinor(),
                             expected.currency()), event.signatureKeyId(), Instant.ofEpochSecond(
                                     event.createdEpochSecond()), Map.of("out_of_order",
                                             Boolean.toString(event.outOfOrder()), "provider_object_id",
-                                            event.providerObjectId()));
+                                            event.providerObjectId(), "business_order_no",
+                                            expected.businessOrderNo()));
         }
+    }
+
+    private static String uniqueHeader(Map<String, String> headers, String expected) {
+        String result = null;
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            if (!entry.getKey().equalsIgnoreCase(expected)) {
+                continue;
+            }
+            if (result != null) {
+                throw new SecurityException("ambiguous Stripe webhook header: " + expected);
+            }
+            result = entry.getValue();
+        }
+        if (result == null) {
+            throw new ProviderException("WEBHOOK_SIGNATURE_MISSING",
+                    "Stripe-Signature is required", false, false);
+        }
+        if (result.isBlank() || result.length() > 4_096
+                || result.chars().anyMatch(character -> character < 0x20
+                        || character == 0x7f)) {
+            throw new SecurityException("invalid Stripe webhook header: " + expected);
+        }
+        return result;
     }
 
     private static final class MissingDelegate implements ProviderAdapter {

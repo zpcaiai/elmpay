@@ -255,6 +255,12 @@ class EventGateRejects(FixtureTestCase):
         self.assertIn("EVENT_TENANT", self.codes(problems))
         self.assertIn("NN-09", self.rules(problems))
 
+    def test_rejects_an_envelope_without_project_scope(self):
+        self.fixture.mutate(self.REL, lambda d: d["envelope"].__setitem__(
+            "required_fields", [f for f in d["envelope"]["required_fields"]
+                                if f != "project_id"]))
+        self.assertIn("EVENT_SCOPE", self.codes(self._validate()))
+
     def test_rejects_an_event_not_partitioned_by_tenant(self):
         self.fixture.mutate(self.REL, lambda d: self._event(
             d, "refund.succeeded").__setitem__("partition_key", "provider"))

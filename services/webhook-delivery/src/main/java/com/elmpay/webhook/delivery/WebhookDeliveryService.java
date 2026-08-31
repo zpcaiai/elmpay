@@ -1,14 +1,14 @@
 package com.elmpay.webhook.delivery;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.IDN;
-import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -16,6 +16,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -25,6 +26,10 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import javax.net.ssl.SNIHostName;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 
 /** Signed, persistently retried business-project webhook delivery worker. */
 public final class WebhookDeliveryService {
@@ -51,7 +56,7 @@ public final class WebhookDeliveryService {
         }
 
         @Override
-        public byte[] secret() {
+        public synchronized byte[] secret() {
             return secret.clone();
         }
 
@@ -60,14 +65,15 @@ public final class WebhookDeliveryService {
         }
 
         @Override
-        public void close() {
+        public synchronized void close() {
             java.util.Arrays.fill(secret, (byte) 0);
         }
     }
 
     public record Delivery(long deliveryId, String tenantId, String projectId, String endpointId,
             URI endpoint, String eventId, String eventType, byte[] payload,
-            int attemptCount, int maxAttempts, String leaseOwner, long fencingToken) {
+            int attemptCount, int maxAttempts, String leaseOwner, long fencingToken)
+            implements AutoCloseable {
         public Delivery {
             if (deliveryId <= 0) {
                 throw new IllegalArgumentException("deliveryId must be positive");
@@ -92,35 +98,218 @@ public final class WebhookDeliveryService {
         }
 
         @Override
-        public byte[] payload() {
+        public synchronized byte[] payload() {
             return payload.clone();
+        }
+
+        @Override
+        public synchronized void close() {
+            java.util.Arrays.fill(payload, (byte) 0);
         }
     }
 
     public record HttpResult(int statusCode, Map<String, List<String>> headers) {
         public HttpResult {
+            if (statusCode < 100 || statusCode > 599) {
+                throw new IllegalArgumentException("webhook response status is invalid");
+            }
             headers = Map.copyOf(headers);
         }
     }
 
     @FunctionalInterface
     public interface Transport {
-        HttpResult send(HttpRequest request) throws IOException, InterruptedException;
+        HttpResult send(OutboundRequest request) throws IOException, InterruptedException;
     }
 
-    public static final class JdkTransport implements Transport {
-        private final HttpClient client;
-
-        public JdkTransport(Duration connectTimeout) {
-            positive(connectTimeout, "connectTimeout");
-            client = HttpClient.newBuilder().connectTimeout(connectTimeout)
-                    .followRedirects(HttpClient.Redirect.NEVER).build();
+    /** Immutable request plus the DNS answers validated for this exact delivery attempt. */
+    public record OutboundRequest(EndpointPolicy.ValidatedEndpoint target,
+            Map<String, String> headers, byte[] body, Duration timeout)
+            implements AutoCloseable {
+        public OutboundRequest {
+            Objects.requireNonNull(target, "target");
+            Objects.requireNonNull(headers, "headers");
+            Map<String, String> safeHeaders = new LinkedHashMap<>();
+            headers.forEach((name, value) -> {
+                if (name == null || !name.matches("[A-Za-z0-9-]{1,128}")
+                        || name.equalsIgnoreCase("Host")
+                        || name.equalsIgnoreCase("Content-Length")
+                        || name.equalsIgnoreCase("Connection") || value == null
+                        || !value.matches("[\\x20-\\x7e]{0,4096}")) {
+                    throw new SecurityException("invalid outbound webhook header");
+                }
+                safeHeaders.put(name, value);
+            });
+            headers = Map.copyOf(safeHeaders);
+            body = Objects.requireNonNull(body, "body").clone();
+            positive(timeout, "timeout");
         }
 
         @Override
-        public HttpResult send(HttpRequest request) throws IOException, InterruptedException {
-            HttpResponse<Void> response = client.send(request, HttpResponse.BodyHandlers.discarding());
-            return new HttpResult(response.statusCode(), response.headers().map());
+        public synchronized byte[] body() {
+            return body.clone();
+        }
+
+        public URI endpoint() {
+            return target.endpoint();
+        }
+
+        @Override
+        public synchronized void close() {
+            java.util.Arrays.fill(body, (byte) 0);
+        }
+    }
+
+    public static final class JdkTransport implements Transport {
+        private static final int MAX_RESPONSE_HEADER_BYTES = 65_536;
+        private final Duration connectTimeout;
+        private final SSLSocketFactory socketFactory;
+
+        public JdkTransport(Duration connectTimeout) {
+            positive(connectTimeout, "connectTimeout");
+            this.connectTimeout = connectTimeout;
+            this.socketFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+        }
+
+        @Override
+        public HttpResult send(OutboundRequest request) throws IOException {
+            Objects.requireNonNull(request, "request");
+            IOException failure = null;
+            for (InetAddress address : request.target().addresses()) {
+                if (!EndpointPolicy.isPublic(address)) {
+                    throw new SecurityException(
+                            "validated webhook address became non-public before connect");
+                }
+                try {
+                    return sendPinned(request, address);
+                } catch (IOException exception) {
+                    if (failure == null) {
+                        failure = exception;
+                    } else {
+                        failure.addSuppressed(exception);
+                    }
+                }
+            }
+            throw failure == null ? new IOException("webhook endpoint has no pinned addresses")
+                    : failure;
+        }
+
+        private HttpResult sendPinned(OutboundRequest request, InetAddress address)
+                throws IOException {
+            EndpointPolicy.ValidatedEndpoint target = request.target();
+            int connectMilliseconds = timeoutMilliseconds(connectTimeout);
+            int requestMilliseconds = timeoutMilliseconds(request.timeout());
+            try (Socket connection = new Socket()) {
+                connection.connect(new InetSocketAddress(address, target.port()),
+                        connectMilliseconds);
+                connection.setSoTimeout(requestMilliseconds);
+                try (SSLSocket tls = (SSLSocket) socketFactory.createSocket(connection,
+                        target.host(), target.port(), true)) {
+                    tls.setEnabledProtocols(new String[] {"TLSv1.3"});
+                    SSLParameters parameters = tls.getSSLParameters();
+                    parameters.setEndpointIdentificationAlgorithm("HTTPS");
+                    parameters.setServerNames(List.of(new SNIHostName(target.host())));
+                    parameters.setApplicationProtocols(new String[] {"http/1.1"});
+                    tls.setSSLParameters(parameters);
+                    tls.setUseClientMode(true);
+                    tls.startHandshake();
+                    writeRequest(tls.getOutputStream(), request);
+                    return readResponse(tls.getInputStream());
+                }
+            }
+        }
+
+        private static void writeRequest(OutputStream output, OutboundRequest request)
+                throws IOException {
+            byte[] body = request.body();
+            try {
+                StringBuilder head = new StringBuilder();
+                head.append("POST ").append(requestTarget(request.endpoint()))
+                        .append(" HTTP/1.1\r\nHost: ").append(request.target().host())
+                        .append("\r\nConnection: close\r\nContent-Length: ")
+                        .append(body.length).append("\r\n");
+                request.headers().forEach((name, value) -> head.append(name).append(": ")
+                        .append(value).append("\r\n"));
+                head.append("\r\n");
+                output.write(head.toString().getBytes(StandardCharsets.US_ASCII));
+                output.write(body);
+                output.flush();
+            } finally {
+                java.util.Arrays.fill(body, (byte) 0);
+            }
+        }
+
+        private static HttpResult readResponse(InputStream input) throws IOException {
+            int[] consumed = {0};
+            String statusLine = readLine(input, consumed);
+            if (!statusLine.matches("HTTP/1\\.[01] [0-9]{3}( .*)?")) {
+                throw new IOException("invalid webhook HTTP response status line");
+            }
+            int statusCode = Integer.parseInt(statusLine.substring(9, 12));
+            Map<String, List<String>> headers = new LinkedHashMap<>();
+            while (true) {
+                String line = readLine(input, consumed);
+                if (line.isEmpty()) {
+                    return new HttpResult(statusCode, headers);
+                }
+                int separator = line.indexOf(':');
+                if (separator < 1) {
+                    throw new IOException("invalid webhook HTTP response header");
+                }
+                String name = line.substring(0, separator).strip().toLowerCase(Locale.ROOT);
+                String value = line.substring(separator + 1).strip();
+                if (!name.matches("[a-z0-9-]{1,128}")) {
+                    throw new IOException("invalid webhook HTTP response header name");
+                }
+                headers.computeIfAbsent(name, ignored -> new java.util.ArrayList<>()).add(value);
+            }
+        }
+
+        private static String readLine(InputStream input, int[] consumed) throws IOException {
+            StringBuilder line = new StringBuilder();
+            boolean carriageReturn = false;
+            while (true) {
+                int next = input.read();
+                if (next < 0) {
+                    throw new IOException("truncated webhook HTTP response");
+                }
+                consumed[0]++;
+                if (consumed[0] > MAX_RESPONSE_HEADER_BYTES) {
+                    throw new IOException("webhook HTTP response headers are too large");
+                }
+                if (carriageReturn) {
+                    if (next == '\n') {
+                        return line.toString();
+                    }
+                    line.append('\r');
+                    carriageReturn = false;
+                }
+                if (next == '\r') {
+                    carriageReturn = true;
+                } else if (next == '\n' || next < 0x20 && next != '\t') {
+                    throw new IOException("invalid webhook HTTP response line ending");
+                } else {
+                    line.append((char) next);
+                }
+            }
+        }
+
+        private static String requestTarget(URI endpoint) {
+            URI ascii = URI.create(endpoint.toASCIIString());
+            String path = ascii.getRawPath();
+            String target = path == null || path.isEmpty() ? "/" : path;
+            return ascii.getRawQuery() == null ? target : target + "?" + ascii.getRawQuery();
+        }
+
+        private static int timeoutMilliseconds(Duration timeout) {
+            long raw;
+            try {
+                raw = timeout.toMillis();
+            } catch (ArithmeticException exception) {
+                raw = Integer.MAX_VALUE;
+            }
+            long milliseconds = Math.max(1, raw);
+            return Math.toIntExact(Math.min(milliseconds, Integer.MAX_VALUE));
         }
     }
 
@@ -205,14 +394,41 @@ public final class WebhookDeliveryService {
             this.resolver = Objects.requireNonNull(resolver, "resolver");
         }
 
-        public URI validate(URI endpoint) {
+        public record ValidatedEndpoint(URI endpoint, String host, int port,
+                List<InetAddress> addresses) {
+            public ValidatedEndpoint {
+                Objects.requireNonNull(endpoint, "endpoint");
+                requireText(host, "host");
+                if (port != 443) {
+                    throw new IllegalArgumentException("webhook endpoint port must be 443");
+                }
+                addresses = List.copyOf(addresses);
+                if (addresses.isEmpty()) {
+                    throw new IllegalArgumentException("validated addresses are empty");
+                }
+            }
+        }
+
+        public ValidatedEndpoint validate(URI endpoint) {
             Objects.requireNonNull(endpoint, "endpoint");
-            if (!"https".equalsIgnoreCase(endpoint.getScheme()) || endpoint.getHost() == null
+            if (endpoint.isOpaque() || !endpoint.isAbsolute()
+                    || !"https".equalsIgnoreCase(endpoint.getScheme()) || endpoint.getHost() == null
                     || endpoint.getUserInfo() != null || endpoint.getFragment() != null
                     || (endpoint.getPort() != -1 && endpoint.getPort() != 443)) {
                 throw new SecurityException("webhook endpoint must be an absolute HTTPS URI on port 443");
             }
-            String host = normalizeHost(endpoint.getHost(), "endpoint host");
+            String host;
+            try {
+                host = normalizeHost(endpoint.getHost(), "endpoint host");
+            } catch (IllegalArgumentException exception) {
+                throw new SecurityException("webhook endpoint host is not canonical", exception);
+            }
+            String authority = endpoint.getRawAuthority();
+            if (authority == null || authority.contains("%") || authority.contains("\\")
+                    || !(authority.equalsIgnoreCase(host)
+                            || authority.equalsIgnoreCase(host + ":443"))) {
+                throw new SecurityException("webhook endpoint authority is not canonical");
+            }
             if (!approvedHosts.contains(host)) {
                 throw new SecurityException("webhook endpoint host is not allowlisted");
             }
@@ -222,27 +438,43 @@ public final class WebhookDeliveryService {
             } catch (UnknownHostException exception) {
                 throw new SecurityException("webhook endpoint DNS resolution failed", exception);
             }
-            if (addresses.length == 0) {
+            if (addresses == null || addresses.length == 0) {
                 throw new SecurityException("webhook endpoint resolved to no addresses");
             }
             for (InetAddress address : addresses) {
-                if (!isPublic(address)) {
+                if (address == null || !isPublic(address)) {
                     throw new SecurityException("webhook endpoint resolved to a non-public address");
                 }
             }
-            return endpoint;
+            return new ValidatedEndpoint(endpoint, host, 443, List.of(addresses));
         }
 
-        private static boolean isPublic(InetAddress address) {
+        static boolean isPublic(InetAddress address) {
+            if (address == null) {
+                return false;
+            }
             if (address.isAnyLocalAddress() || address.isLoopbackAddress() || address.isLinkLocalAddress()
                     || address.isSiteLocalAddress() || address.isMulticastAddress()) {
                 return false;
             }
-            if (address instanceof Inet6Address) {
-                byte first = address.getAddress()[0];
-                return (first & 0xfe) != 0xfc;
-            }
             byte[] bytes = address.getAddress();
+            if (bytes.length == 16) {
+                int first = Byte.toUnsignedInt(bytes[0]);
+                int second = Byte.toUnsignedInt(bytes[1]);
+                int third = Byte.toUnsignedInt(bytes[2]);
+                int fourth = Byte.toUnsignedInt(bytes[3]);
+                boolean globalUnicast = (first & 0xe0) == 0x20;
+                boolean special2001 = first == 0x20 && second == 0x01 && third <= 0x01;
+                boolean documentation = first == 0x20 && second == 0x01
+                        && third == 0x0d && fourth == 0xb8;
+                boolean sixToFour = first == 0x20 && second == 0x02;
+                boolean documentationV2 = first == 0x3f && (second & 0xf0) == 0xf0;
+                return globalUnicast && !special2001 && !documentation && !sixToFour
+                        && !documentationV2;
+            }
+            if (bytes.length != 4) {
+                return false;
+            }
             int first = Byte.toUnsignedInt(bytes[0]);
             int second = Byte.toUnsignedInt(bytes[1]);
             int third = Byte.toUnsignedInt(bytes[2]);
@@ -252,7 +484,10 @@ public final class WebhookDeliveryService {
                     && !(first == 172 && second >= 16 && second <= 31)
                     && !(first == 192 && second == 0 && third == 0)
                     && !(first == 192 && second == 0 && third == 2)
+                    && !(first == 192 && second == 31 && third == 196)
+                    && !(first == 192 && second == 52 && third == 193)
                     && !(first == 192 && second == 88 && third == 99)
+                    && !(first == 192 && second == 175 && third == 48)
                     && !(first == 192 && second == 168)
                     && !(first == 198 && (second == 18 || second == 19))
                     && !(first == 198 && second == 51 && third == 100)
@@ -302,33 +537,46 @@ public final class WebhookDeliveryService {
         }
         Delivery delivery = claimed.orElseThrow();
         if (!tenantId.equals(delivery.tenantId())) {
+            delivery.close();
             throw new SecurityException("outbox returned a cross-tenant delivery");
         }
         try {
-            URI endpoint = endpointPolicy.validate(delivery.endpoint());
+            EndpointPolicy.ValidatedEndpoint endpoint = endpointPolicy.validate(delivery.endpoint());
             SigningKey key = keyRing.current(delivery.projectId(), now);
             String timestamp = Long.toString(now.getEpochSecond());
-            byte[] signingSecret = key.secret();
-            String signatureHeader;
+            byte[] payload = delivery.payload();
+            HttpResult response;
             try {
-                signatureHeader = signingHeader(now.getEpochSecond(), signingSecret,
-                        delivery.payload());
+                byte[] signingSecret = key.secret();
+                String signatureHeader;
+                try {
+                    signatureHeader = signingHeader(now.getEpochSecond(), signingSecret,
+                            payload);
+                } finally {
+                    java.util.Arrays.fill(signingSecret, (byte) 0);
+                }
+                Map<String, String> headers = new LinkedHashMap<>();
+                headers.put("Content-Type", "application/json");
+                headers.put("User-Agent", "elmpay-webhook-delivery/1");
+                headers.put("X-Elmpay-Event-Id", delivery.eventId());
+                headers.put("X-Elmpay-Event-Type", delivery.eventType());
+                headers.put("X-Elmpay-Timestamp", timestamp);
+                headers.put("X-Elmpay-Key-Id", key.keyId());
+                headers.put("X-Elmpay-Signature", signatureHeader);
+                try (OutboundRequest request = new OutboundRequest(endpoint, headers, payload,
+                        requestTimeout)) {
+                    response = transport.send(request);
+                }
             } finally {
-                java.util.Arrays.fill(signingSecret, (byte) 0);
+                java.util.Arrays.fill(payload, (byte) 0);
             }
-            HttpRequest request = HttpRequest.newBuilder(endpoint).timeout(requestTimeout)
-                    .header("Content-Type", "application/json")
-                    .header("User-Agent", "elmpay-webhook-delivery/1")
-                    .header("X-Elmpay-Event-Id", delivery.eventId())
-                    .header("X-Elmpay-Event-Type", delivery.eventType())
-                    .header("X-Elmpay-Timestamp", timestamp)
-                    .header("X-Elmpay-Key-Id", key.keyId())
-                    .header("X-Elmpay-Signature", signatureHeader)
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(delivery.payload())).build();
-            HttpResult response = transport.send(request);
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 outbox.markDelivered(delivery, response.statusCode(), now);
                 return Outcome.DELIVERED;
+            }
+            if (response.statusCode() >= 300 && response.statusCode() < 400) {
+                outbox.deadLetter(delivery, response.statusCode(), "HTTP_REDIRECT_FORBIDDEN", now);
+                return Outcome.DEAD_LETTERED;
             }
             if (!retryable(response.statusCode())) {
                 outbox.deadLetter(delivery, response.statusCode(), "HTTP_TERMINAL", now);
@@ -343,6 +591,8 @@ public final class WebhookDeliveryService {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             return retryOrDeadLetter(delivery, 0, "TRANSPORT_INTERRUPTED", now);
+        } finally {
+            delivery.close();
         }
     }
 
@@ -392,14 +642,24 @@ public final class WebhookDeliveryService {
         if (safePayload.length == 0 || safePayload.length > MAX_PAYLOAD_BYTES) {
             throw new IllegalArgumentException("payload has an invalid size");
         }
+        byte[] signatureInput = null;
+        byte[] signatureBytes = null;
         try {
-            byte[] signatureInput = concat(Long.toString(timestamp)
+            signatureInput = concat(Long.toString(timestamp)
                     .getBytes(StandardCharsets.US_ASCII), new byte[] {'.'}, safePayload);
+            signatureBytes = hmac(safeSecret, signatureInput);
             String signature = Base64.getUrlEncoder().withoutPadding()
-                    .encodeToString(hmac(safeSecret, signatureInput));
+                    .encodeToString(signatureBytes);
             return "t=" + timestamp + ",v1=" + signature;
         } finally {
             java.util.Arrays.fill(safeSecret, (byte) 0);
+            java.util.Arrays.fill(safePayload, (byte) 0);
+            if (signatureInput != null) {
+                java.util.Arrays.fill(signatureInput, (byte) 0);
+            }
+            if (signatureBytes != null) {
+                java.util.Arrays.fill(signatureBytes, (byte) 0);
+            }
         }
     }
 
@@ -416,11 +676,17 @@ public final class WebhookDeliveryService {
     }
 
     private static String normalizeHost(String host, String name) {
-        if (host == null || host.isBlank() || host.contains("*") || host.contains("/") || host.contains(":")) {
+        if (host == null || host.isBlank() || host.contains("*") || host.contains("/")
+                || host.contains(":") || !host.chars().allMatch(character -> character < 128)) {
             throw new IllegalArgumentException(name + " has an invalid format");
         }
         String normalized = IDN.toASCII(host, IDN.USE_STD3_ASCII_RULES).toLowerCase(Locale.ROOT);
-        if (normalized.equals("localhost") || normalized.endsWith(".localhost") || !normalized.contains(".")) {
+        if (normalized.length() > 253 || normalized.endsWith(".")
+                || normalized.equals("localhost") || normalized.endsWith(".localhost")
+                || !normalized.contains(".") || !normalized.matches("[a-z0-9.-]+")
+                || !normalized.matches(".*[a-z].*")
+                || java.util.Arrays.stream(normalized.split("\\.", -1))
+                        .anyMatch(label -> label.isEmpty() || label.length() > 63)) {
             throw new IllegalArgumentException(name + " has an invalid format");
         }
         return normalized;

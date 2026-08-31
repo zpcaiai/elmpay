@@ -22,18 +22,24 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--db", type=Path, required=True)
     parser.add_argument("--policy", type=Path,
                         default=ROOT / "platform/security/identity-security-policy.json")
+    parser.add_argument(
+        "--trust", type=Path,
+        help="trusted OIDC issuer keys and DSSE external-receipt roots",
+    )
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("init")
     evaluate = commands.add_parser("evaluate")
     evaluate.add_argument("--request", type=Path, required=True)
     oidc = commands.add_parser("verify-oidc")
     oidc.add_argument("--token-file", type=Path, required=True)
-    oidc.add_argument("--public-keys", type=Path, required=True)
+    oidc.add_argument("--holder-proof", type=Path, required=True)
     oidc.add_argument("--issuer", required=True)
     oidc.add_argument("--audience", required=True)
     oidc.add_argument("--nonce", required=True)
-    oidc.add_argument("--holder-thumbprint", required=True)
     oidc.add_argument("--device-id", required=True)
+    nonce = commands.add_parser("issue-oidc-nonce")
+    nonce.add_argument("--issuer", required=True)
+    nonce.add_argument("--audience", required=True)
     challenge = commands.add_parser("issue-webauthn")
     for name in ("tenant", "user", "operation", "origin", "rp-id", "session-binding"):
         challenge.add_argument("--" + name, required=True)
@@ -73,18 +79,21 @@ def main(argv: list[str] | None = None) -> int:
     store = None
     try:
         args.db.parent.mkdir(parents=True, exist_ok=True)
-        store = IdentitySecurityStore(str(args.db), read_json(args.policy))
+        trust = read_json(args.trust) if args.trust is not None else None
+        store = IdentitySecurityStore(str(args.db), read_json(args.policy), trust)
         now = datetime.now(timezone.utc)
         if args.command == "init":
             _emit({"initialized": True, "defaultDecision": "DENY",
                    "certificationStatus": "NOT_CERTIFIED"})
         elif args.command == "evaluate":
             _emit(store.evaluate_zero_trust(read_json(args.request), now).__dict__)
+        elif args.command == "issue-oidc-nonce":
+            _emit({"nonce": store.issue_oidc_nonce(args.issuer, args.audience, now)})
         elif args.command == "verify-oidc":
             principal = store.verify_oidc_and_issue_session(
-                args.token_file.read_text(encoding="ascii").strip(), read_json(args.public_keys),
+                args.token_file.read_text(encoding="ascii").strip(),
                 expected_issuer=args.issuer, expected_audience=args.audience,
-                expected_nonce=args.nonce, holder_thumbprint=args.holder_thumbprint,
+                expected_nonce=args.nonce, holder_proof=read_json(args.holder_proof),
                 device_id=args.device_id, now=now,
             )
             _emit(principal.__dict__)

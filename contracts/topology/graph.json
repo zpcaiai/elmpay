@@ -2,12 +2,12 @@
   "_generated": "GENERATED FILE — scripts/render-topology.py; do not edit by hand",
   "edges": [
     {
-      "degradation": "只读降级：展示缓存数据并禁用所有写操作",
+      "degradation": "只读降级；写操作保持 UNKNOWN/PENDING，禁止宣称领域效果已完成",
       "from": "admin-web",
       "kind": "sync",
       "retries": 0,
       "timeout_ms": 4500,
-      "to": "payment-core"
+      "to": "edge-gateway"
     },
     {
       "degradation": "展示「支付处理中」并轮询状态，**不得**自行判定成功",
@@ -15,7 +15,7 @@
       "kind": "sync",
       "retries": 0,
       "timeout_ms": 3000,
-      "to": "payment-core"
+      "to": "edge-gateway"
     },
     {
       "degradation": "使用本地缓存的商户配置，缓存过期则拒绝请求",
@@ -114,12 +114,20 @@
       "to": "merchant-config"
     },
     {
-      "degradation": "使用缓存的风控规则，缓存过期则返回拒绝",
+      "degradation": "返回可解释 REVIEW，禁止静默批准",
       "from": "risk-engine",
       "kind": "sync",
-      "retries": 1,
-      "timeout_ms": 150,
-      "to": "merchant-config"
+      "retries": 0,
+      "timeout_ms": 100,
+      "to": "risk-model"
+    },
+    {
+      "degradation": "返回可解释 REVIEW，禁止静默批准",
+      "from": "risk-engine",
+      "kind": "sync",
+      "retries": 0,
+      "timeout_ms": 100,
+      "to": "risk-signal"
     },
     {
       "degradation": "使用缓存的订阅配置；缓存过期则暂停投递而不是乱投",

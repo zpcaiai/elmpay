@@ -4,8 +4,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
@@ -16,6 +16,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,6 +29,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import javax.net.ssl.SSLParameters;
+
+import com.elmpay.events.StrictJson;
+import com.elmpay.security.BoundedHttpTransport;
 
 /** Stripe REST adapter for tokenized payments, billing, refunds and disputes. */
 public final class StripeAdapter implements AutoCloseable {
@@ -107,11 +112,13 @@ public final class StripeAdapter implements AutoCloseable {
         }
     }
 
-    public record ExpectedWebhook(String providerObjectId, long amountMinor, String currency) {
+    public record ExpectedWebhook(String providerObjectId, long amountMinor, String currency,
+            String businessOrderNo) {
         public ExpectedWebhook {
             requireProviderId(providerObjectId, "providerObjectId");
             positiveAmount(amountMinor);
             requireCurrency(currency);
+            requireText(businessOrderNo, "businessOrderNo");
         }
     }
 
@@ -137,14 +144,46 @@ public final class StripeAdapter implements AutoCloseable {
         }
     }
 
-    public record HttpResult(int statusCode, byte[] body) {
-        public HttpResult {
-            body = Objects.requireNonNull(body, "body").clone();
+    /** Transport response whose owned body must be wiped after one attempt. */
+    public static final class HttpResult implements AutoCloseable {
+        private final int statusCode;
+        private byte[] body;
+        private boolean closed;
+
+        public HttpResult(int statusCode, byte[] body) {
+            this.statusCode = statusCode;
+            this.body = Objects.requireNonNull(body, "body").clone();
+        }
+
+        public int statusCode() {
+            return statusCode;
+        }
+
+        public synchronized int bodyLength() {
+            ensureOpen();
+            return body.length;
+        }
+
+        /** Returns an owned copy; the caller must wipe it. */
+        public synchronized byte[] body() {
+            ensureOpen();
+            return body.clone();
         }
 
         @Override
-        public byte[] body() {
-            return body.clone();
+        public synchronized void close() {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            Arrays.fill(body, (byte) 0);
+            body = new byte[0];
+        }
+
+        private void ensureOpen() {
+            if (closed) {
+                throw new IllegalStateException("Stripe HTTP response is closed");
+            }
         }
     }
 
@@ -158,14 +197,42 @@ public final class StripeAdapter implements AutoCloseable {
 
         public JdkTransport(Duration connectTimeout) {
             positive(connectTimeout, "connectTimeout");
+            SSLParameters tls = new SSLParameters();
+            tls.setProtocols(new String[] {"TLSv1.3"});
+            tls.setEndpointIdentificationAlgorithm("HTTPS");
             client = HttpClient.newBuilder().connectTimeout(connectTimeout)
-                    .followRedirects(HttpClient.Redirect.NEVER).build();
+                    .sslParameters(tls).followRedirects(HttpClient.Redirect.NEVER).build();
         }
 
         @Override
         public HttpResult send(HttpRequest request) throws IOException, InterruptedException {
-            HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            return new HttpResult(response.statusCode(), response.body());
+            try (BoundedHttpTransport.Response response = BoundedHttpTransport.send(
+                    client, request, MAX_BODY_BYTES)) {
+                requireJsonContentType(response.headers(), response.bodyLength());
+                byte[] body = response.body();
+                try {
+                    return new HttpResult(response.statusCode(), body);
+                } finally {
+                    Arrays.fill(body, (byte) 0);
+                }
+            }
+        }
+
+        private static void requireJsonContentType(HttpHeaders headers, int bodyLength) {
+            List<String> values = headers.allValues("Content-Type");
+            if (bodyLength == 0 && values.isEmpty()) {
+                return;
+            }
+            if (values.size() != 1) {
+                throw new SecurityException("Stripe response Content-Type is missing or ambiguous");
+            }
+            String value = values.getFirst().trim();
+            int separator = value.indexOf(';');
+            String mediaType = separator < 0 ? value : value.substring(0, separator).trim();
+            if (!"application/json".equalsIgnoreCase(mediaType)
+                    || value.indexOf(',') >= 0) {
+                throw new SecurityException("Stripe response Content-Type is not application/json");
+            }
         }
     }
 
@@ -349,39 +416,65 @@ public final class StripeAdapter implements AutoCloseable {
             throw new SecurityException("invalid Stripe webhook body size");
         }
         SignatureHeader parsed = parseSignature(stripeSignature);
-        long difference = receivedAt.getEpochSecond() - parsed.timestamp();
-        if (difference > config.webhookTolerance().toSeconds()
-                || difference < -config.webhookTolerance().toSeconds()) {
-            throw new SecurityException("stale Stripe webhook");
-        }
-        byte[] signed = concat(Long.toString(parsed.timestamp()).getBytes(StandardCharsets.US_ASCII),
-                new byte[] {'.'}, rawBody);
         String keyId = null;
-        for (WebhookSecret candidate : webhookSecrets.get()) {
-            if (!candidate.validAt(receivedAt)) {
-                continue;
+        byte[] signed = null;
+        try (parsed) {
+            long difference = receivedAt.getEpochSecond() - parsed.timestamp();
+            if (difference > config.webhookTolerance().toSeconds()
+                    || difference < -config.webhookTolerance().toSeconds()) {
+                throw new SecurityException("stale Stripe webhook");
             }
-            byte[] expectedSignature = hmac(candidate.secret(), signed);
-            for (byte[] supplied : parsed.signatures()) {
-                if (MessageDigest.isEqual(expectedSignature, supplied)) {
-                    keyId = candidate.keyId();
+            signed = concat(Long.toString(parsed.timestamp()).getBytes(StandardCharsets.US_ASCII),
+                    new byte[] {'.'}, rawBody);
+            for (WebhookSecret candidate : webhookSecrets.get()) {
+                if (!candidate.validAt(receivedAt)) {
+                    continue;
+                }
+                byte[] secret = candidate.secret();
+                byte[] expectedSignature;
+                try {
+                    expectedSignature = hmac(secret, signed);
+                } finally {
+                    Arrays.fill(secret, (byte) 0);
+                }
+                try {
+                    for (byte[] supplied : parsed.signatures()) {
+                        if (MessageDigest.isEqual(expectedSignature, supplied)) {
+                            keyId = candidate.keyId();
+                            break;
+                        }
+                    }
+                } finally {
+                    Arrays.fill(expectedSignature, (byte) 0);
+                }
+                if (keyId != null) {
                     break;
                 }
             }
-            if (keyId != null) {
-                break;
+        } finally {
+            if (signed != null) {
+                Arrays.fill(signed, (byte) 0);
             }
         }
         if (keyId == null) {
             throw new SecurityException("invalid Stripe webhook signature");
         }
-        String body = strictUtf8(rawBody);
-        String eventId = stringWithPrefix(body, "id", "evt_");
-        String eventType = requiredJsonString(body, "type");
-        long created = requiredJsonLong(body, "created");
-        String objectId = firstProviderObjectId(body);
-        long amount = requiredJsonLong(body, "amount");
-        String currency = requiredJsonString(body, "currency").toUpperCase(Locale.ROOT);
+        Map<String, Object> event = strictJsonObject(strictUtf8(rawBody), "webhook event");
+        String eventId = requiredWebhookString(event, "id");
+        if (!eventId.matches("evt_[A-Za-z0-9_]{4,128}")) {
+            throw new SecurityException("invalid Stripe webhook event id");
+        }
+        String eventType = requiredWebhookString(event, "type");
+        long created = requiredWebhookLong(event, "created");
+        Map<String, Object> data = requiredWebhookObject(event, "data");
+        Map<String, Object> object = requiredWebhookObject(data, "object");
+        String objectId = requiredWebhookString(object, "id");
+        if (!objectId.matches("(?:pi|seti|ch|re|dp|sub|in)_[A-Za-z0-9_]{4,128}")) {
+            throw new SecurityException("invalid Stripe provider object id");
+        }
+        long amount = requiredWebhookLong(object, "amount");
+        String currency = requiredWebhookString(object, "currency")
+                .toUpperCase(Locale.ROOT);
         if (!expected.providerObjectId().equals(objectId) || expected.amountMinor() != amount
                 || !expected.currency().equals(currency)) {
             throw new SecurityException("Stripe webhook binding mismatch");
@@ -418,7 +511,7 @@ public final class StripeAdapter implements AutoCloseable {
             String idempotencyKey) {
         validateNoCardData(parameters);
         String body = form(parameters);
-        HttpResult last = null;
+        int lastStatus = 0;
         for (int attempt = 1; attempt <= config.maxAttempts(); attempt++) {
             String apiKey = config.secretProvider().currentApiKey();
             requireText(apiKey, "Stripe API key");
@@ -431,31 +524,39 @@ public final class StripeAdapter implements AutoCloseable {
                     ? builder.GET().build()
                     : builder.header("Content-Type", "application/x-www-form-urlencoded")
                             .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)).build();
-            try {
-                last = transport.send(request);
-                if (last.body().length > MAX_BODY_BYTES) {
-                    return new OperationResult(State.UNKNOWN, false, last.statusCode(), "", "");
+            try (HttpResult result = transport.send(request)) {
+                lastStatus = result.statusCode();
+                if (result.bodyLength() > MAX_BODY_BYTES) {
+                    return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
                 }
-                String response = strictUtf8(last.body());
-                if (last.statusCode() >= 200 && last.statusCode() < 300) {
+                if ((lastStatus < 200 || lastStatus >= 300) && retryable(lastStatus)) {
+                    continue;
+                }
+                byte[] responseBytes = result.body();
+                String response;
+                try {
+                    response = strictUtf8(responseBytes);
+                } finally {
+                    Arrays.fill(responseBytes, (byte) 0);
+                }
+                if (lastStatus >= 200 && lastStatus < 300) {
                     String status = optionalJsonString(response, "status");
                     State state = mapState(status);
                     return new OperationResult(state, state == State.SUCCEEDED || state == State.FAILED
-                            || state == State.CANCELED, last.statusCode(), optionalJsonString(response, "id"),
+                            || state == State.CANCELED, lastStatus, optionalJsonString(response, "id"),
                             response);
                 }
-                if (!retryable(last.statusCode())) {
-                    return new OperationResult(State.FAILED, true, last.statusCode(), "", response);
-                }
+                return new OperationResult(State.FAILED, true, lastStatus, "", response);
             } catch (IOException exception) {
-                last = null;
+                lastStatus = 0;
+            } catch (SecurityException exception) {
+                return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 return new OperationResult(State.UNKNOWN, false, 0, "", "");
             }
         }
-        return new OperationResult(State.UNKNOWN, false, last == null ? 0 : last.statusCode(), "",
-                last == null ? "" : strictUtf8(last.body()));
+        return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
     }
 
     private static State mapState(String status) {
@@ -530,9 +631,20 @@ public final class StripeAdapter implements AutoCloseable {
         return new SignatureHeader(timestamp, List.copyOf(signatures));
     }
 
-    private record SignatureHeader(long timestamp, List<byte[]> signatures) {
+    private record SignatureHeader(long timestamp, List<byte[]> signatures)
+            implements AutoCloseable {
         private SignatureHeader {
-            signatures = signatures.stream().map(byte[]::clone).toList();
+            List<byte[]> copies = new ArrayList<>(signatures.size());
+            for (byte[] signature : signatures) {
+                copies.add(signature.clone());
+                Arrays.fill(signature, (byte) 0);
+            }
+            signatures = List.copyOf(copies);
+        }
+
+        @Override
+        public void close() {
+            signatures.forEach(signature -> Arrays.fill(signature, (byte) 0));
         }
     }
 
@@ -558,77 +670,53 @@ public final class StripeAdapter implements AutoCloseable {
         return result.array();
     }
 
-    private static String firstProviderObjectId(String body) {
-        for (String prefix : List.of("pi_", "seti_", "ch_", "re_", "dp_", "sub_", "in_")) {
-            String value = stringWithPrefix(body, "id", prefix);
-            if (!value.isBlank()) {
-                return value;
-            }
-        }
-        throw new SecurityException("missing Stripe provider object id");
-    }
-
-    private static String stringWithPrefix(String body, String key, String prefix) {
-        String needle = "\"" + key + "\"";
-        int from = 0;
-        while (true) {
-            int keyIndex = body.indexOf(needle, from);
-            if (keyIndex < 0) {
-                return "";
-            }
-            int colon = body.indexOf(':', keyIndex + needle.length());
-            int quote = colon < 0 ? -1 : body.indexOf('"', colon + 1);
-            int end = quote < 0 ? -1 : body.indexOf('"', quote + 1);
-            if (quote >= 0 && end > quote) {
-                String value = body.substring(quote + 1, end);
-                if (value.startsWith(prefix)) {
-                    return value;
-                }
-            }
-            from = keyIndex + needle.length();
+    private static Map<String, Object> strictJsonObject(String body, String label) {
+        try {
+            return StrictJson.object(body);
+        } catch (IllegalArgumentException exception) {
+            throw new SecurityException("invalid Stripe " + label + " JSON", exception);
         }
     }
 
-    private static String requiredJsonString(String body, String key) {
-        String value = optionalJsonString(body, key);
-        if (value.isBlank()) {
-            throw new SecurityException("missing Stripe JSON field: " + key);
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> requiredWebhookObject(Map<String, Object> source,
+            String key) {
+        Object value = source.get(key);
+        if (!(value instanceof Map<?, ?> map)) {
+            throw new SecurityException("missing Stripe webhook object field: " + key);
         }
-        return value;
+        return (Map<String, Object>) map;
+    }
+
+    private static String requiredWebhookString(Map<String, Object> source, String key) {
+        Object value = source.get(key);
+        if (!(value instanceof String text) || text.isBlank() || text.length() > 256
+                || text.chars().anyMatch(character -> character < 0x20
+                        || character == 0x7f)) {
+            throw new SecurityException("invalid Stripe webhook string field: " + key);
+        }
+        return text;
+    }
+
+    private static long requiredWebhookLong(Map<String, Object> source, String key) {
+        Object value = source.get(key);
+        if (!(value instanceof Long number) || number < 0) {
+            throw new SecurityException("invalid Stripe webhook numeric field: " + key);
+        }
+        return number;
     }
 
     private static String optionalJsonString(String body, String key) {
-        String needle = "\"" + key + "\"";
-        int keyIndex = body.indexOf(needle);
-        if (keyIndex < 0) {
+        Object value = strictJsonObject(body, "provider response").get(key);
+        if (value == null) {
             return "";
         }
-        int colon = body.indexOf(':', keyIndex + needle.length());
-        int quote = colon < 0 ? -1 : body.indexOf('"', colon + 1);
-        int end = quote < 0 ? -1 : body.indexOf('"', quote + 1);
-        return end > quote ? body.substring(quote + 1, end) : "";
-    }
-
-    private static long requiredJsonLong(String body, String key) {
-        String needle = "\"" + key + "\"";
-        int keyIndex = body.indexOf(needle);
-        int colon = keyIndex < 0 ? -1 : body.indexOf(':', keyIndex + needle.length());
-        if (colon < 0) {
-            throw new SecurityException("missing Stripe JSON field: " + key);
+        if (!(value instanceof String text) || text.length() > 8_192
+                || text.chars().anyMatch(character -> character < 0x20
+                        || character == 0x7f)) {
+            throw new SecurityException("invalid Stripe JSON string field: " + key);
         }
-        int start = colon + 1;
-        while (start < body.length() && Character.isWhitespace(body.charAt(start))) {
-            start++;
-        }
-        int end = start;
-        while (end < body.length() && Character.isDigit(body.charAt(end))) {
-            end++;
-        }
-        try {
-            return Long.parseLong(body.substring(start, end));
-        } catch (NumberFormatException exception) {
-            throw new SecurityException("invalid Stripe numeric field: " + key, exception);
-        }
+        return text;
     }
 
     private static String form(Map<String, String> parameters) {

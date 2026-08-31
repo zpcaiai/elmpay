@@ -4,10 +4,15 @@
   "rpoSeconds": 60,
   "rtoSeconds": 900,
   "minimumRegions": 2,
+  "regionInventory": {
+    "initialActiveRegion": "cn-east-1",
+    "allowedRegions": ["cn-east-1", "cn-north-1"]
+  },
   "promotion": {
     "automatic": false,
     "requiresDistinctApprovers": 2,
     "requiresReplicationLagAtMostSeconds": 60,
+    "maximumObservationAgeSeconds": 300,
     "requiresWriteFence": true,
     "requiresProviderRoutingCheck": true,
     "requiresRollbackPlan": true

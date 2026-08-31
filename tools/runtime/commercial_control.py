@@ -124,7 +124,9 @@ def main(argv: list[str] | None = None) -> int:
             )
             result = {"requestId": raw["requestId"], "status": "PENDING"}
         elif args.command == "approve-credit":
-            result = ledger.approve_credit(raw["requestId"], raw["approver"], now=now)
+            result = ledger.approve_credit(
+                raw["requestId"], raw["tenantId"], raw["approver"], now=now
+            )
         elif args.command == "net-invoice":
             result = {
                 "invoiceId": raw["invoiceId"],

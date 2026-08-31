@@ -136,11 +136,12 @@ public final class PayPalProviderBridge implements ProviderAdapter {
             PayPalAdapter.VerifiedWebhook event = runtime.adapter().verifyWebhook(request.headers(),
                     request.rawBody(), expected);
             return new VerifiedProviderEvent(request.tenantId(), request.merchantAccountId(), event.eventId(),
-                    event.eventType(), event.providerObjectId(), "",
+                    event.eventType(), event.providerObjectId(), expected.businessOrderNo(),
                     Money.of(event.amountMinor(), event.currency()), header(request.headers(),
                             "PAYPAL-TRANSMISSION-ID"), request.receivedAt(),
                     Map.of("provider_object_id", event.providerObjectId(), "amount_minor",
-                            Long.toString(event.amountMinor()), "currency", event.currency()));
+                            Long.toString(event.amountMinor()), "currency", event.currency(),
+                            "business_order_no", expected.businessOrderNo()));
         }
     }
 
@@ -190,9 +191,24 @@ public final class PayPalProviderBridge implements ProviderAdapter {
     }
 
     private static String header(Map<String, String> headers, String name) {
-        return headers.entrySet().stream().filter(entry -> entry.getKey().equalsIgnoreCase(name))
-                .map(Map.Entry::getValue).filter(Objects::nonNull).findFirst()
-                .orElseThrow(() -> failure("WEBHOOK_SIGNATURE_MISSING"));
+        String result = null;
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            if (!entry.getKey().equalsIgnoreCase(name)) {
+                continue;
+            }
+            if (result != null || entry.getValue() == null) {
+                throw failure("WEBHOOK_SIGNATURE_AMBIGUOUS");
+            }
+            result = entry.getValue();
+        }
+        if (result == null) {
+            throw failure("WEBHOOK_SIGNATURE_MISSING");
+        }
+        if (result.isBlank() || result.length() > 4_096
+                || result.chars().anyMatch(character -> character < 0x20 || character == 0x7f)) {
+            throw failure("WEBHOOK_SIGNATURE_INVALID");
+        }
+        return result;
     }
 
     private static ProviderException failure(String code) {

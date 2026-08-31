@@ -44,6 +44,7 @@ ALLOWED_SECRET_BINDINGS = (
     "ELMPAY_RELEASE_TRUST_B64: ${{ secrets.ELMPAY_RELEASE_TRUST_B64 }}",
     "ELMPAY_EXTERNAL_EVIDENCE_B64: ${{ secrets.ELMPAY_EXTERNAL_EVIDENCE_B64 }}",
     "ELMPAY_EXTERNAL_TRUST_B64: ${{ secrets.ELMPAY_EXTERNAL_TRUST_B64 }}",
+    "ELMPAY_PRODUCT_IMAGE_INDEX_B64: ${{ secrets.ELMPAY_PRODUCT_IMAGE_INDEX_B64 }}",
 )
 REQUIRED_BLOCKING_TOPICS = {
     "BLOCK-01": "security",
@@ -117,9 +118,14 @@ EXPECTED_PRODUCT_TEST_COMMANDS = [
     "build/test-surfaces/admin-web.log 2>&1",
     "python3 scripts/sdk-contract-smoke.py > build/test-surfaces/server-sdk.log 2>&1",
     "./gradlew --no-daemon test > build/test-surfaces/gradle.log 2>&1",
+    ("python3 scripts/run-test-matrix.py --execution local "
+     "--json-out build/test-matrix/local-report.json "
+     "--junit-out build/test-matrix/local-junit.xml > "
+     "build/test-surfaces/test-matrix-local.log 2>&1"),
 ]
 EXPECTED_PRODUCT_TEST_ARTIFACTS = [
     "build/test-summary.json", "build/unittest.log", "build/test-surfaces/",
+    "build/test-matrix/",
 ]
 PLATFORM_TEST_STAGES = {
     "ios-sdk-test": {
@@ -778,6 +784,7 @@ def _test_surfaces(root: Path, budget: Budget, doc: dict,
         "scripts/platform_sdk_test.py ios",
         "scripts/platform_sdk_test.py flutter",
         "tools/quality_gate.py coverage-mutation",
+        "scripts/run-test-matrix.py --execution local",
     )
     for snippet in make_snippets:
         problems += expect(snippet in makefile, "CI_MAKE_TEST_SURFACE", "Makefile",

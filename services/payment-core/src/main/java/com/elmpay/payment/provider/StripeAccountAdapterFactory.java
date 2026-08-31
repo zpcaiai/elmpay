@@ -66,7 +66,7 @@ public final class StripeAccountAdapterFactory implements ProviderAccountAdapter
                             request.tenantId(), request.merchantAccountId(), provider(),
                             providerObjectId);
                     return new StripeAdapter.ExpectedWebhook(facts.providerObjectId(),
-                            facts.amountMinor(), facts.currency());
+                            facts.amountMinor(), facts.currency(), facts.businessReference());
                 }));
         return new ScopedProviderRuntimeAdapter(bridge, adapter::close);
     }

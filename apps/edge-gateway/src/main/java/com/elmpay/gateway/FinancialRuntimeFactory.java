@@ -25,10 +25,8 @@ public final class FinancialRuntimeFactory {
             throw new IllegalStateException(
                     "production financial runtime requires exactly one ready KMS/HSM signer");
         }
-        DataSource dataSource = new DriverManagerDataSource(
-                required(environment, "ELMPAY_DATABASE_URL"),
-                required(environment, "ELMPAY_DATABASE_USER"),
-                required(environment, "ELMPAY_DATABASE_PASSWORD"));
+        DataSource dataSource = DriverManagerDataSource.fromEnvironment(environment,
+                "elmpay-edge-financial");
         return Optional.of(new JdbcFinancialOperationsService(dataSource, Clock.systemUTC(),
                 signers.getFirst(), positive(environment, "ELMPAY_STATEMENT_MAX_BYTES", 10_000_000),
                 positive(environment, "ELMPAY_STATEMENT_MAX_ROWS", 100_000)));

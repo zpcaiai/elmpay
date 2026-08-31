@@ -102,11 +102,29 @@ class SecurityControlCliTest(unittest.TestCase):
             "--policy", ROOT / "platform/security/abuse-protection-policy.json",
             "--input", request,
         )
-        missing = self.run_cli("b86_abuse_control.py", *arguments, environment={"ELMPAY_SUBJECT_HMAC_KEY_HEX": ""})
+        missing = self.run_cli("b86_abuse_control.py", *arguments,
+                               environment={"ELMPAY_SUBJECT_HMAC_KEY_FILE": ""})
         self.assertEqual(2, missing.returncode)
+        self.subject_key = self.directory / "subject-hmac-key"
+        self.subject_key.write_text((b"k" * 32).hex() + "\n", encoding="ascii")
+        self.subject_key.chmod(0o600)
+        writable = self.run_cli(
+            "b86_abuse_control.py", *arguments,
+            environment={"ELMPAY_SUBJECT_HMAC_KEY_FILE": str(self.subject_key)},
+        )
+        self.assertEqual(2, writable.returncode)
+        self.subject_key.chmod(0o400)
+        inline = self.run_cli(
+            "b86_abuse_control.py", *arguments,
+            environment={
+                "ELMPAY_SUBJECT_HMAC_KEY_FILE": str(self.subject_key),
+                "ELMPAY_SUBJECT_HMAC_KEY_HEX": (b"k" * 32).hex(),
+            },
+        )
+        self.assertEqual(2, inline.returncode)
         result = self.run_cli(
             "b86_abuse_control.py", *arguments,
-            environment={"ELMPAY_SUBJECT_HMAC_KEY_HEX": (b"k" * 32).hex()},
+            environment={"ELMPAY_SUBJECT_HMAC_KEY_FILE": str(self.subject_key)},
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         output = json.loads(result.stdout)

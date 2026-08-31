@@ -113,6 +113,7 @@ class SigningWorkflowRendering(unittest.TestCase):
         self.assertIn("python3 scripts/ci-release-evidence-gate.py", gate)
         self.assertIn("secrets.ELMPAY_RELEASE_MANIFEST_B64", gate)
         self.assertIn("secrets.ELMPAY_EXTERNAL_EVIDENCE_B64", gate)
+        self.assertIn("secrets.ELMPAY_PRODUCT_IMAGE_INDEX_B64", gate)
         self.assertNotIn("${{", gate.split("        run: |\n", 1)[1])
 
     def test_scripts_have_shebang_and_claim_only_build_l1_blob_signing(self):

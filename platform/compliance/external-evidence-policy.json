@@ -34,7 +34,7 @@
       "requiredSource": "PRODUCTION_ATTESTATION",
       "externalVerifierRequired": true,
       "maximumAgeHours": 24,
-      "requiredFields": ["environment", "clusterId", "regions", "commitSha", "artifactDigest", "imageDigests", "gitopsDriftCount", "admissionPolicyPassed", "rolloutStage"]
+      "requiredFields": ["environment", "clusterId", "regions", "commitSha", "artifactDigest", "imageDigests", "admissionPolicyDigest", "gitopsDriftCount", "admissionPolicyPassed", "rolloutStage"]
     },
     "dr_exercise": {
       "category": "dr_exercise",
@@ -60,7 +60,7 @@
       "requiredSource": "UAT_SIGNOFF",
       "externalVerifierRequired": true,
       "maximumAgeHours": 720,
-      "requiredFields": ["environment", "tenantId", "merchantId", "scenariosTotal", "scenariosPassed", "financeSignoff", "operationsSignoff", "merchantSignoff"]
+      "requiredFields": ["environment", "tenantId", "targetDigest", "merchantId", "suiteDigest", "resultDigest", "scenariosTotal", "scenariosPassed", "financeSignoff", "operationsSignoff", "merchantSignoff"]
     },
     "penetration_test": {
       "category": "penetration_test",
@@ -76,7 +76,7 @@
       "requiredSource": "PRODUCTION_ROLLOUT_OBSERVER",
       "externalVerifierRequired": true,
       "maximumAgeHours": 24,
-      "requiredFields": ["stage", "datasetDigest", "resultDigest", "sampleCount", "mismatchCount", "candidateSideEffects"]
+      "requiredFields": ["stage", "tenantId", "targetDigest", "datasetDigest", "resultDigest", "sampleCount", "mismatchCount", "candidateSideEffects"]
     },
     "canary_rollout": {
       "category": "canary_rollout",
@@ -84,7 +84,7 @@
       "requiredSource": "PRODUCTION_ROLLOUT_OBSERVER",
       "externalVerifierRequired": true,
       "maximumAgeHours": 24,
-      "requiredFields": ["stage", "trafficPercent", "windowMinutes", "errorRateDelta", "latencyP99DeltaMs", "authorizationRateDrop", "autoStopTriggered", "duplicateSideEffectCount", "securityCriticalCount"]
+      "requiredFields": ["stage", "tenantId", "targetDigest", "trafficPercent", "windowMinutes", "errorRateDelta", "latencyP99DeltaMs", "authorizationRateDrop", "autoStopTriggered", "duplicateSideEffectCount", "securityCriticalCount"]
     },
     "merchant_acceptance": {
       "category": "merchant_acceptance",
@@ -92,7 +92,7 @@
       "requiredSource": "MERCHANT_SIGNOFF",
       "externalVerifierRequired": true,
       "maximumAgeHours": 720,
-      "requiredFields": ["merchantId", "acceptanceId", "accepted", "merchantSignoff", "scenarioDigest"]
+      "requiredFields": ["merchantId", "tenantId", "targetDigest", "acceptanceId", "accepted", "merchantSignoff", "scenarioDigest"]
     },
     "legal_compliance": {
       "category": "legal_compliance",

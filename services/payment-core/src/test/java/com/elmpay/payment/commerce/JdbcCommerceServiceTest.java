@@ -34,12 +34,12 @@ final class JdbcCommerceServiceTest {
                 UUID.randomUUID(), "worker");
         CommerceService.DisputeEvent event = new CommerceService.DisputeEvent("stripe", "evt",
                 "dp", UUID.randomUUID(), 100, "USD", Instant.now().plusSeconds(600),
-                "a".repeat(64), false);
+                "a".repeat(64), null);
         assertThrows(CommerceRuntimeException.class,
                 () -> service.ingestDispute(context, event, UUID.randomUUID().toString()));
         assertThrows(CommerceRuntimeException.class, () -> service.recordRenewalOutcome(context,
                 UUID.randomUUID(), CommerceService.RenewalOutcome.SUCCEEDED, "b".repeat(64),
-                false, "key", UUID.randomUUID().toString()));
+                null, "key", UUID.randomUUID().toString()));
     }
 
     @Test
@@ -59,6 +59,15 @@ final class JdbcCommerceServiceTest {
             assertTrue(sql.contains("current_setting(''app.tenant_id'', true)"));
             assertTrue(sql.contains("commerce history is immutable"));
             assertTrue(sql.contains("payment_method_reference ~ '^(psp|wallet|mandate)://"));
+        }
+        try (var input = getClass().getResourceAsStream(
+                "/db/migration/V066_1__provider_evidence_receipts.sql")) {
+            assertNotNull(input);
+            String sql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
+            assertTrue(sql.contains("CREATE TABLE IF NOT EXISTS provider_evidence_nonce"));
+            assertTrue(sql.contains("verification_receipt_digest"));
+            assertTrue(sql.contains("new dispute events require verified provider evidence"));
+            assertTrue(sql.contains("FORCE ROW LEVEL SECURITY"));
         }
     }
 }

@@ -128,8 +128,9 @@ def _envelope(catalog: dict, where: str) -> list[Problem]:
     envelope = catalog.get("envelope") or {}
     required = set(envelope.get("required_fields") or [])
     problems: list[Problem] = []
-    for field in ("event_id", "event_name", "event_version", "tenant_id", "aggregate_id",
-                  "revision", "occurred_at", "trace_id"):
+    for field in ("event_id", "event_name", "event_version", "tenant_id", "project_id",
+                  "aggregate_type", "aggregate_id", "revision", "occurred_at", "recorded_at",
+                  "trace_id", "payload"):
         problems += expect(field in required, "EVENT_ENVELOPE", where,
                            f"the envelope must carry '{field}'", "NN-12")
     problems += expect(envelope.get("revision_field") == "revision", "EVENT_ENVELOPE", where,
@@ -137,6 +138,9 @@ def _envelope(catalog: dict, where: str) -> list[Problem]:
     problems += expect("tenant_id" in required, "EVENT_TENANT", where,
                        "every event must carry tenant_id; an event without a tenant cannot be "
                        "authorised, routed or deleted on request", "NN-09")
+    problems += expect({"tenant_id", "project_id", "aggregate_type", "aggregate_id"}
+                       <= required, "EVENT_SCOPE", where,
+                       "every envelope must bind tenant, project and aggregate identity", "NN-09")
     return problems
 
 
@@ -150,8 +154,9 @@ def _outbox(catalog: dict, where: str) -> list[Problem]:
     problems += expect(TABLE.match(str(outbox.get("table") or "")), "OUTBOX_SHAPE", where,
                        "the outbox needs a snake_case table", "NN-12")
     unique = outbox.get("unique_key") or []
-    problems += expect({"aggregate_id", "revision"} <= set(unique), "OUTBOX_UNIQUE_KEY", where,
-                       "the outbox must be unique on at least (aggregate_id, revision); without "
+    problems += expect({"tenant_id", "aggregate_type", "aggregate_id", "revision"}
+                       <= set(unique), "OUTBOX_UNIQUE_KEY", where,
+                       "the outbox must be unique on tenant aggregate identity plus revision; without "
                        "it a retried producer writes the same event twice", "NN-04")
     dispatch = outbox.get("dispatch") or {}
     problems += expect(dispatch.get("mode") == "poll_then_publish", "OUTBOX_DISPATCH", where,

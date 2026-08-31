@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://elmpay.example/schemas/archive-detach-authorization-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "releaseId", "partitionName", "actorId", "approverId", "reason", "ticketId", "policyDigest", "partitionReleaseKeyId", "actorKeyId", "actorNonce", "actorSignature", "approverKeyId", "approverNonce", "approverSignature", "issuedAt", "expiresAt", "algorithm"],
+  "properties": {
+    "type": {"const": "ARCHIVE_PARTITION_DETACH_AUTHORIZATION_V1"},
+    "releaseId": {"type": "string", "format": "uuid"},
+    "partitionName": {"type": "string", "pattern": "^tenant_archive_fact_[0-9]{6}$"},
+    "actorId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$"},
+    "approverId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$"},
+    "reason": {"type": "string", "minLength": 8, "maxLength": 512},
+    "ticketId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$"},
+    "policyDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "partitionReleaseKeyId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$"},
+    "actorKeyId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$"},
+    "actorNonce": {"type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$"},
+    "actorSignature": {"type": "string", "minLength": 86, "maxLength": 86},
+    "approverKeyId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,127}$"},
+    "approverNonce": {"type": "string", "pattern": "^[A-Za-z0-9_-]{16,128}$"},
+    "approverSignature": {"type": "string", "minLength": 86, "maxLength": 86},
+    "issuedAt": {"type": "string", "format": "date-time"},
+    "expiresAt": {"type": "string", "format": "date-time"},
+    "algorithm": {"const": "Ed25519"}
+  }
+}

@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -72,8 +73,39 @@ VERIFY_COMMANDS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("implementation-audit-tests", (
         sys.executable, "-m", "unittest", "discover", "-s", ".ai/tests",
         "-p", "test_implementation_audit.py", "-v")),
-    ("java-b12-b39", ("./gradlew", "--no-daemon", "--console=plain",
-                      ":services:worker-scheduler:test", ":services:payment-core:test")),
+    ("test-module-ownership", (
+        sys.executable, "scripts/run-code-suite.py", "--check-coverage")),
+    ("governance-unit-tests", (
+        sys.executable, "scripts/test-summary.py", "--suite-root", "tools/tests",
+        "--out", "build/implementation-audit/tools-tests.json",
+        "--log", "build/implementation-audit/tools-tests.log")),
+    ("b00-b117-local-semantic-matrix", (
+        sys.executable, "scripts/run-test-matrix.py", "--execution", "local",
+        "--json-out", "build/implementation-audit/local-matrix.json",
+        "--junit-out", "build/implementation-audit/local-matrix-junit.xml")),
+    # Node's test runner does not consistently expand a directory argument across
+    # supported Node versions.  Keep every test file explicit so the audit cannot
+    # silently pass after discovering zero tests (or fail on a valid directory).
+    ("checkout-web", (
+        "node", "--test",
+        "apps/checkout-web/test/browser-security.test.mjs",
+        "apps/checkout-web/test/checkout.test.mjs",
+        "apps/checkout-web/test/edge-transport.test.mjs",
+        "apps/checkout-web/test/provider-handlers.test.mjs",
+        "apps/checkout-web/test/provider-sdk-bootstrap.test.mjs",
+        "apps/checkout-web/test/provider-sdk-policy.test.mjs",
+        "apps/checkout-web/test/provider-sdk-server.test.mjs",
+        "apps/checkout-web/test/server.test.mjs",
+    )),
+    ("admin-web", (
+        "node", "--test",
+        "apps/admin-web/test/action-dispatcher.test.mjs",
+        "apps/admin-web/test/admin-domain.test.mjs",
+        "apps/admin-web/test/config-logging.test.mjs",
+        "apps/admin-web/test/operator-auth.test.mjs",
+        "apps/admin-web/test/postgres-store.test.mjs",
+        "apps/admin-web/test/server.test.mjs",
+    )),
 )
 
 
@@ -225,7 +257,18 @@ def validate_artifact(root: Path, role: str, requirement: ArtifactRequirement) -
         if forbidden:
             problems.append(
                 f"{role} cannot be satisfied by non-runtime path {requirement.path}: {forbidden}")
-        if candidate.suffix.lower() not in SOURCE_SUFFIXES:
+        # OCI launchers are intentionally extensionless (their image path is a stable
+        # contract), so accept an executable UTF-8 shebang script in addition to the
+        # conventional source suffixes.  The executable bit and shebang keep this
+        # fail-closed; arbitrary extensionless files are still rejected.
+        extensionless_script = False
+        if candidate.suffix == "" and os.access(candidate, os.X_OK):
+            try:
+                with candidate.open("r", encoding="utf-8") as source:
+                    extensionless_script = source.readline().startswith("#!")
+            except (OSError, UnicodeDecodeError):
+                extensionless_script = False
+        if candidate.suffix.lower() not in SOURCE_SUFFIXES and not extensionless_script:
             problems.append(f"{role} must be executable source: {requirement.path}")
         if is_test(relative):
             problems.append(f"{role} cannot point at test code: {requirement.path}")

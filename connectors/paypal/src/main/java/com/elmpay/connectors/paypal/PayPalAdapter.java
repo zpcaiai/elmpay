@@ -5,8 +5,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
@@ -16,6 +16,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,6 +26,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
+import javax.net.ssl.SSLParameters;
+
+import com.elmpay.events.StrictJson;
+import com.elmpay.security.BoundedHttpTransport;
 
 /** PayPal Orders v2 adapter with OAuth, stable request IDs and official webhook verification. */
 public final class PayPalAdapter implements AutoCloseable {
@@ -85,13 +90,14 @@ public final class PayPalAdapter implements AutoCloseable {
     }
 
     public record ExpectedWebhook(String providerObjectId, String merchantId,
-            long amountMinor, String currency, int currencyExponent) {
+            long amountMinor, String currency, int currencyExponent, String businessOrderNo) {
         public ExpectedWebhook {
             requireProviderId(providerObjectId, "providerObjectId");
             requireText(merchantId, "merchantId");
             positiveAmount(amountMinor);
             requireCurrency(currency);
             requireExponent(currencyExponent);
+            requireText(businessOrderNo, "businessOrderNo");
         }
     }
 
@@ -116,14 +122,46 @@ public final class PayPalAdapter implements AutoCloseable {
         }
     }
 
-    public record HttpResult(int statusCode, byte[] body) {
-        public HttpResult {
-            body = Objects.requireNonNull(body, "body").clone();
+    /** Transport response whose owned body must be wiped after one attempt. */
+    public static final class HttpResult implements AutoCloseable {
+        private final int statusCode;
+        private byte[] body;
+        private boolean closed;
+
+        public HttpResult(int statusCode, byte[] body) {
+            this.statusCode = statusCode;
+            this.body = Objects.requireNonNull(body, "body").clone();
+        }
+
+        public int statusCode() {
+            return statusCode;
+        }
+
+        public synchronized int bodyLength() {
+            ensureOpen();
+            return body.length;
+        }
+
+        /** Returns an owned copy; the caller must wipe it. */
+        public synchronized byte[] body() {
+            ensureOpen();
+            return body.clone();
         }
 
         @Override
-        public byte[] body() {
-            return body.clone();
+        public synchronized void close() {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            Arrays.fill(body, (byte) 0);
+            body = new byte[0];
+        }
+
+        private void ensureOpen() {
+            if (closed) {
+                throw new IllegalStateException("PayPal HTTP response is closed");
+            }
         }
     }
 
@@ -137,14 +175,42 @@ public final class PayPalAdapter implements AutoCloseable {
 
         public JdkTransport(Duration connectTimeout) {
             positive(connectTimeout, "connectTimeout");
+            SSLParameters tls = new SSLParameters();
+            tls.setProtocols(new String[] {"TLSv1.3"});
+            tls.setEndpointIdentificationAlgorithm("HTTPS");
             client = HttpClient.newBuilder().connectTimeout(connectTimeout)
-                    .followRedirects(HttpClient.Redirect.NEVER).build();
+                    .sslParameters(tls).followRedirects(HttpClient.Redirect.NEVER).build();
         }
 
         @Override
         public HttpResult send(HttpRequest request) throws IOException, InterruptedException {
-            HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            return new HttpResult(response.statusCode(), response.body());
+            try (BoundedHttpTransport.Response response = BoundedHttpTransport.send(
+                    client, request, MAX_BODY_BYTES)) {
+                requireJsonContentType(response.headers(), response.bodyLength());
+                byte[] body = response.body();
+                try {
+                    return new HttpResult(response.statusCode(), body);
+                } finally {
+                    Arrays.fill(body, (byte) 0);
+                }
+            }
+        }
+
+        private static void requireJsonContentType(HttpHeaders headers, int bodyLength) {
+            List<String> values = headers.allValues("Content-Type");
+            if (bodyLength == 0 && values.isEmpty()) {
+                return;
+            }
+            if (values.size() != 1) {
+                throw new SecurityException("PayPal response Content-Type is missing or ambiguous");
+            }
+            String value = values.getFirst().trim();
+            int separator = value.indexOf(';');
+            String mediaType = separator < 0 ? value : value.substring(0, separator).trim();
+            if (!"application/json".equalsIgnoreCase(mediaType)
+                    || value.indexOf(',') >= 0) {
+                throw new SecurityException("PayPal response Content-Type is not application/json");
+            }
         }
     }
 
@@ -298,10 +364,11 @@ public final class PayPalAdapter implements AutoCloseable {
             throw new SecurityException("unsupported PayPal webhook algorithm");
         }
         String webhookEvent = strictUtf8(rawBody).trim();
-        if (!webhookEvent.startsWith("{") || !webhookEvent.endsWith("}")) {
-            throw new SecurityException("PayPal webhook event must be a JSON object");
+        Map<String, Object> event = strictJsonObject(webhookEvent, "webhook event");
+        String eventId = requiredWebhookString(event, "id");
+        if (!eventId.matches("WH-[A-Za-z0-9_-]{4,128}")) {
+            throw new SecurityException("invalid PayPal webhook event id");
         }
-        String eventId = requiredJsonString(webhookEvent, "id");
         String verificationBody = "{\"auth_algo\":\"" + json(authAlgo)
                 + "\",\"cert_url\":\"" + json(certUrl) + "\",\"transmission_id\":\""
                 + json(transmissionId) + "\",\"transmission_sig\":\"" + json(transmissionSignature)
@@ -314,11 +381,18 @@ public final class PayPalAdapter implements AutoCloseable {
                 || !"SUCCESS".equals(optionalJsonString(verification.responseBody(), "verification_status"))) {
             throw new SecurityException("PayPal rejected webhook signature");
         }
-        String eventType = requiredJsonString(webhookEvent, "event_type");
-        String providerObjectId = firstProviderObjectId(webhookEvent);
-        String merchantId = requiredJsonString(webhookEvent, "merchant_id");
-        String value = requiredJsonString(webhookEvent, "value");
-        String currency = requiredJsonString(webhookEvent, "currency_code");
+        String eventType = requiredWebhookString(event, "event_type");
+        Map<String, Object> resource = requiredWebhookObject(event, "resource");
+        String providerObjectId = requiredWebhookString(resource, "id");
+        if (providerObjectId.startsWith("WH-")
+                || !providerObjectId.matches("[A-Za-z0-9_-]{6,128}")) {
+            throw new SecurityException("invalid PayPal provider object id");
+        }
+        Map<String, Object> amountObject = requiredWebhookObject(resource, "amount");
+        Map<String, Object> payee = requiredWebhookObject(resource, "payee");
+        String merchantId = requiredWebhookString(payee, "merchant_id");
+        String value = requiredWebhookString(amountObject, "value");
+        String currency = requiredWebhookString(amountObject, "currency_code");
         long amount = parseMinor(value, expected.currencyExponent());
         if (!expected.providerObjectId().equals(providerObjectId)
                 || !expected.merchantId().equals(merchantId)
@@ -334,7 +408,7 @@ public final class PayPalAdapter implements AutoCloseable {
 
     private OperationResult execute(String method, String path, String body, String requestId) {
         ensureOpen();
-        HttpResult last = null;
+        int lastStatus = 0;
         for (int attempt = 1; attempt <= config.maxAttempts(); attempt++) {
             try {
                 HttpRequest.Builder builder = HttpRequest.newBuilder(config.apiBase().resolve(path))
@@ -346,35 +420,45 @@ public final class PayPalAdapter implements AutoCloseable {
                         : builder.header("Content-Type", "application/json")
                                 .method(method, HttpRequest.BodyPublishers.ofString(body,
                                         StandardCharsets.UTF_8)).build();
-                last = transport.send(request);
-                if (last.body().length > MAX_BODY_BYTES) {
-                    return new OperationResult(State.UNKNOWN, false, last.statusCode(), "", "");
-                }
-                String response = strictUtf8(last.body());
-                if (last.statusCode() >= 200 && last.statusCode() < 300) {
-                    String status = optionalJsonString(response, "status");
-                    State state = mapState(status);
-                    return new OperationResult(state, isFinal(state), last.statusCode(),
-                            optionalJsonString(response, "id"), response);
-                }
-                if (last.statusCode() == 401 && attempt < config.maxAttempts()) {
-                    cachedToken = null;
-                    continue;
-                }
-                if (!retryable(last.statusCode())) {
-                    return new OperationResult(State.FAILED, true, last.statusCode(), "", response);
+                try (HttpResult result = transport.send(request)) {
+                    lastStatus = result.statusCode();
+                    if (result.bodyLength() > MAX_BODY_BYTES) {
+                        return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
+                    }
+                    if (lastStatus == 401 && attempt < config.maxAttempts()) {
+                        cachedToken = null;
+                        continue;
+                    }
+                    if ((lastStatus < 200 || lastStatus >= 300) && retryable(lastStatus)) {
+                        continue;
+                    }
+                    byte[] responseBytes = result.body();
+                    String response;
+                    try {
+                        response = strictUtf8(responseBytes);
+                    } finally {
+                        Arrays.fill(responseBytes, (byte) 0);
+                    }
+                    if (lastStatus >= 200 && lastStatus < 300) {
+                        String status = optionalJsonString(response, "status");
+                        State state = mapState(status);
+                        return new OperationResult(state, isFinal(state), lastStatus,
+                                optionalJsonString(response, "id"), response);
+                    }
+                    return new OperationResult(State.FAILED, true, lastStatus, "", response);
                 }
             } catch (IOException exception) {
-                last = null;
+                lastStatus = 0;
             } catch (OAuthUnavailableException exception) {
-                last = null;
+                lastStatus = 0;
+            } catch (SecurityException exception) {
+                return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 return new OperationResult(State.UNKNOWN, false, 0, "", "");
             }
         }
-        return new OperationResult(State.UNKNOWN, false, last == null ? 0 : last.statusCode(), "",
-                last == null ? "" : strictUtf8(last.body()));
+        return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
     }
 
     private String accessToken() {
@@ -399,21 +483,30 @@ public final class PayPalAdapter implements AutoCloseable {
                     .POST(HttpRequest.BodyPublishers.ofString("grant_type=client_credentials",
                             StandardCharsets.US_ASCII)).build();
             try {
-                HttpResult result = transport.send(request);
-                if (result.statusCode() < 200 || result.statusCode() >= 300
-                        || result.body().length > MAX_BODY_BYTES) {
-                    throw new OAuthUnavailableException("PayPal OAuth request failed");
+                try (HttpResult result = transport.send(request)) {
+                    if (result.statusCode() < 200 || result.statusCode() >= 300
+                            || result.bodyLength() > MAX_BODY_BYTES) {
+                        throw new OAuthUnavailableException("PayPal OAuth request failed");
+                    }
+                    byte[] responseBytes = result.body();
+                    String response;
+                    try {
+                        response = strictUtf8(responseBytes);
+                    } finally {
+                        Arrays.fill(responseBytes, (byte) 0);
+                    }
+                    String token = requiredJsonString(response, "access_token");
+                    long expiresIn = requiredJsonLong(response, "expires_in");
+                    if (expiresIn < 60 || expiresIn > 86_400) {
+                        throw new OAuthUnavailableException("PayPal OAuth returned an invalid lifetime");
+                    }
+                    cachedToken = new AccessToken(token, now.plusSeconds(expiresIn));
+                    return token;
                 }
-                String response = strictUtf8(result.body());
-                String token = requiredJsonString(response, "access_token");
-                long expiresIn = requiredJsonLong(response, "expires_in");
-                if (expiresIn < 60 || expiresIn > 86_400) {
-                    throw new OAuthUnavailableException("PayPal OAuth returned an invalid lifetime");
-                }
-                cachedToken = new AccessToken(token, now.plusSeconds(expiresIn));
-                return token;
             } catch (IOException exception) {
                 throw new OAuthUnavailableException("PayPal OAuth transport failed", exception);
+            } catch (SecurityException exception) {
+                throw new OAuthUnavailableException("PayPal OAuth response failed validation", exception);
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 throw new OAuthUnavailableException("PayPal OAuth interrupted", exception);
@@ -452,40 +545,52 @@ public final class PayPalAdapter implements AutoCloseable {
     }
 
     private static String header(Map<String, String> headers, String name) {
-        return headers.entrySet().stream().filter(entry -> entry.getKey().equalsIgnoreCase(name))
-                .map(Map.Entry::getValue).filter(Objects::nonNull).findFirst()
-                .orElseThrow(() -> new SecurityException("missing PayPal webhook header: " + name));
+        String result = null;
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            if (!entry.getKey().equalsIgnoreCase(name)) {
+                continue;
+            }
+            if (result != null || entry.getValue() == null) {
+                throw new SecurityException("ambiguous PayPal webhook header: " + name);
+            }
+            result = entry.getValue();
+        }
+        if (result == null) {
+            throw new SecurityException("missing PayPal webhook header: " + name);
+        }
+        if (result.isBlank() || result.length() > 4_096
+                || result.chars().anyMatch(character -> character < 0x20 || character == 0x7f)) {
+            throw new SecurityException("invalid PayPal webhook header: " + name);
+        }
+        return result;
     }
 
-    private static String firstProviderObjectId(String body) {
-        for (String prefix : List.of("WH-", "PAYID-", "O-", "I-", "CAPTURE-", "REFUND-")) {
-            String result = stringWithPrefix(body, "id", prefix);
-            if (!result.isBlank() && !result.startsWith("WH-")) {
-                return result;
-            }
+    private static Map<String, Object> strictJsonObject(String body, String label) {
+        try {
+            return StrictJson.object(body);
+        } catch (IllegalArgumentException exception) {
+            throw new SecurityException("invalid PayPal " + label + " JSON", exception);
         }
-        String eventId = requiredJsonString(body, "id");
-        int nextId = body.indexOf("\"id\"", body.indexOf(eventId) + eventId.length());
-        if (nextId < 0) {
-            throw new SecurityException("missing PayPal provider object id");
-        }
-        return jsonStringAt(body, nextId, "id");
     }
 
-    private static String stringWithPrefix(String body, String key, String prefix) {
-        int from = 0;
-        String needle = "\"" + key + "\"";
-        while (true) {
-            int index = body.indexOf(needle, from);
-            if (index < 0) {
-                return "";
-            }
-            String value = jsonStringAt(body, index, key);
-            if (value.startsWith(prefix)) {
-                return value;
-            }
-            from = index + needle.length();
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> requiredWebhookObject(Map<String, Object> source,
+            String key) {
+        Object value = source.get(key);
+        if (!(value instanceof Map<?, ?> map)) {
+            throw new SecurityException("missing PayPal webhook object field: " + key);
         }
+        return (Map<String, Object>) map;
+    }
+
+    private static String requiredWebhookString(Map<String, Object> source, String key) {
+        Object value = source.get(key);
+        if (!(value instanceof String text) || text.isBlank() || text.length() > 512
+                || text.chars().anyMatch(character -> character < 0x20
+                        || character == 0x7f)) {
+            throw new SecurityException("invalid PayPal webhook string field: " + key);
+        }
+        return text;
     }
 
     private static String requiredJsonString(String body, String key) {
@@ -497,36 +602,24 @@ public final class PayPalAdapter implements AutoCloseable {
     }
 
     private static String optionalJsonString(String body, String key) {
-        int index = body.indexOf("\"" + key + "\"");
-        return index < 0 ? "" : jsonStringAt(body, index, key);
-    }
-
-    private static String jsonStringAt(String body, int keyIndex, String key) {
-        int colon = body.indexOf(':', keyIndex + key.length() + 2);
-        int quote = colon < 0 ? -1 : body.indexOf('"', colon + 1);
-        int end = quote < 0 ? -1 : body.indexOf('"', quote + 1);
-        return end > quote ? body.substring(quote + 1, end) : "";
+        Object value = strictJsonObject(body, "provider response").get(key);
+        if (value == null) {
+            return "";
+        }
+        if (!(value instanceof String text) || text.length() > 8_192
+                || text.chars().anyMatch(character -> character < 0x20
+                        || character == 0x7f)) {
+            throw new SecurityException("invalid PayPal JSON string field: " + key);
+        }
+        return text;
     }
 
     private static long requiredJsonLong(String body, String key) {
-        int index = body.indexOf("\"" + key + "\"");
-        int colon = index < 0 ? -1 : body.indexOf(':', index + key.length() + 2);
-        if (colon < 0) {
-            throw new SecurityException("missing PayPal JSON field: " + key);
+        Object value = strictJsonObject(body, "provider response").get(key);
+        if (!(value instanceof Long number) || number < 0) {
+            throw new SecurityException("invalid PayPal numeric field: " + key);
         }
-        int start = colon + 1;
-        while (start < body.length() && Character.isWhitespace(body.charAt(start))) {
-            start++;
-        }
-        int end = start;
-        while (end < body.length() && Character.isDigit(body.charAt(end))) {
-            end++;
-        }
-        try {
-            return Long.parseLong(body.substring(start, end));
-        } catch (NumberFormatException exception) {
-            throw new SecurityException("invalid PayPal numeric field: " + key, exception);
-        }
+        return number;
     }
 
     private static long parseMinor(String value, int exponent) {

@@ -1,8 +1,9 @@
 const referencePattern = /^(psp|wallet|mandate):\/\/[^\s]{1,500}$/;
-const providerMethods = new Set([
+export const SUPPORTED_PROVIDER_METHODS = Object.freeze([
   'card', 'stripe_card', 'paypal', 'apple_pay', 'wechat_jsapi', 'wechat_h5',
   'wechat_app', 'alipay_web', 'alipay_wap', 'alipay_app',
 ]);
+const providerMethods = new Set(SUPPORTED_PROVIDER_METHODS);
 
 /**
  * First-party boundary around official PSP/wallet SDKs. Adapters execute in the
@@ -42,6 +43,15 @@ export class OfficialProviderHandlers {
     return validateReference(value);
   }
 
+  async prepare(context) {
+    exactContext(context, ['method', 'checkoutSessionId']);
+    const adapter = this.adapters.get(context.method);
+    if (!adapter) throw new Error('official provider SDK is unavailable for this method');
+    if (adapter.prepare === undefined) return;
+    if (typeof adapter.prepare !== 'function') throw new Error('official provider SDK preparation is invalid');
+    await adapter.prepare(Object.freeze({ ...context }));
+  }
+
   async handle(action, context) {
     exactContext(context, ['checkoutSessionId']);
     if (!action || Object.getPrototypeOf(action) !== Object.prototype) {
@@ -69,7 +79,7 @@ export class OfficialProviderHandlers {
 
   install(target = globalThis) {
     Object.defineProperty(target, 'ElmPayPaymentMethodTokenizer', {
-      value: Object.freeze({ tokenize: this.tokenize.bind(this) }), configurable: false,
+      value: Object.freeze({ tokenize: this.tokenize.bind(this), prepare: this.prepare.bind(this) }), configurable: false,
       enumerable: false, writable: false,
     });
     Object.defineProperty(target, 'ElmPayNextActionHandler', {
@@ -158,7 +168,3 @@ Object.defineProperty(globalThis, 'ElmPayOfficialProviderHandlersFactory', {
   }),
   configurable: false, enumerable: false, writable: false,
 });
-
-if (globalThis.ElmPayOfficialProviderConfiguration !== undefined) {
-  new OfficialProviderHandlers(globalThis.ElmPayOfficialProviderConfiguration).install(globalThis);
-}

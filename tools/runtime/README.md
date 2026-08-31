@@ -15,6 +15,7 @@ python3 tools/runtime/control.py capacity-gate --samples capacity-samples.json
 python3 tools/runtime/control.py release-gate --manifest release.json --trust /secure/release-trust.json --external-evidence /secure/external-evidence.json --external-trust /secure/external-trust.json
 python3 tools/runtime/control.py external-evidence --bundle /secure/external-evidence.json --trust /secure/external-trust.json --manifest release.json
 python3 tools/runtime/control.py go-no-go --manifest release.json --trust /secure/release-trust.json --shadow-baseline baseline.json --shadow-candidate shadow.json --canary-baseline baseline-metrics.json --canary-candidate candidate-metrics.json --capacity-samples capacity.json --operations operations.json
+python3 tools/runtime/release_control_cli.py --database /var/lib/elmpay/release-control.db --trust /secure/release-trust.json --rollout-policy platform/rollout/policy.json --release-policy platform/compliance/required-release-gates.json --capacity-policy platform/observability/capacity.json --external-evidence-policy platform/compliance/external-evidence-policy.json --external-evidence-trust /secure/external-trust.json reconcile-rollback --rollout-id "$ROLLOUT_ID" --receipt /secure/rollback-receipt.json
 python3 tools/platform_control.py render-service-controls
 python3 tools/platform_control.py render-data-plane
 python3 tools/platform_control.py restore-gate --report measured-restore.json --backup-digest "$BACKUP_DIGEST"
@@ -67,3 +68,18 @@ and `postlaunch_worker.py` provide fenced daily/weekly/monthly reconciliation;
 four-eyes credit memos. Their schema is
 `migrations/V120_127__release_control.sql`. None of these local executors emits
 an external approval or changes `NOT_CERTIFIED` on its own.
+
+Completed reconciliation and commercial audit exports retain the exact signed
+receipt bytes and immutable result material. A later retry can return the same
+durable result after receipt expiry, but any changed tenant, window, manifest,
+receipt, signer or digest fails closed.
+
+Rollback dispatch is pre-journaled before the external adapter is invoked. A
+lost response or process crash leaves `IN_FLIGHT`/`UNKNOWN` state and blocks
+further rollout. `release_control_cli.py reconcile-rollback` accepts only an
+Ed25519 DSSE receipt issued by the trusted `rollout_rollback_executor` and
+bound to the exact tenant, release, target, current/previous artifacts,
+operation id, idempotency key and fence token.
+The signed Go/No-Go record also binds every decision-affecting policy digest;
+the exact rollout policy is persisted with the rollout so stage definitions
+and automatic stop thresholds cannot drift after approval.

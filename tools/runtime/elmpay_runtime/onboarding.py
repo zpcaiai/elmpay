@@ -1,12 +1,15 @@
 """Durable production-onboarding readiness without fabricating activation (B122)."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import ipaddress
+from pathlib import Path
 import re
+import time
 from typing import Any, Callable, Mapping
 from urllib.parse import urlsplit
 
+from .attestation import ConnectionNonceStore
 from .common import ValidationError, canonical_json, require_mapping, require_text, sha256_json
 from .durable import DurableStore
 from .external_evidence import validate_external_evidence
@@ -16,8 +19,15 @@ REQUIRED_CONTROLS = frozenset({"merchant_account", "domain", "certificate", "web
 REFERENCE = re.compile(r"^(?:kms|vault|secret|directory|billing|alert)://[A-Za-z0-9._/:-]{3,240}$")
 
 
+def _current(value: datetime | None = None) -> datetime:
+    current = value or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        raise ValidationError("onboarding control time must be timezone-aware")
+    return current.astimezone(timezone.utc)
+
+
 def _now(value: datetime | None = None) -> str:
-    return (value or datetime.now(timezone.utc)).astimezone(timezone.utc).isoformat()
+    return _current(value).isoformat()
 
 
 class OnboardingControl:
@@ -94,30 +104,312 @@ class OnboardingControl:
         *,
         now: datetime | None = None,
     ) -> str:
-        instant = _now(now)
+        current = _current(now)
+        started_monotonic = time.monotonic()
+        instant = _now(current)
         with self.store.transaction() as connection:
             case = connection.execute("SELECT * FROM onboarding_case WHERE tenant_id=? AND case_id=?", (tenant_id, case_id)).fetchone()
-            if not case or case["state"] != "READY_FOR_EXTERNAL_ACTIVATION":
+            if not case:
+                raise ValidationError("tenant-scoped onboarding case not found")
+            if case["state"] == "ACTIVE":
+                replay_request = {
+                    "tenantId": tenant_id,
+                    "caseId": case_id,
+                    "providerId": case["provider_id"],
+                    "merchantAccountId": case["merchant_account_id"],
+                    "configurationVersion": case["configuration_version"],
+                    "configurationDigest": case["configuration_digest"],
+                    "externalEvidenceDigest": sha256_json(external_evidence_bundle),
+                }
+                completed = connection.execute(
+                    "SELECT binding_digest,request_digest,status "
+                    "FROM external_control_operation WHERE tenant_id=? "
+                    "AND operation_type='ONBOARDING_ACTIVATION' AND operation_id=?",
+                    (tenant_id, case_id),
+                ).fetchone()
+                if (
+                    completed
+                    and completed["status"] == "SUCCEEDED"
+                    and completed["binding_digest"] == case["configuration_digest"]
+                    and completed["request_digest"] == sha256_json(replay_request)
+                ):
+                    return "ACTIVE"
+                raise ValidationError("immutable onboarding activation replay mismatch")
+            if case["state"] != "READY_FOR_EXTERNAL_ACTIVATION":
                 raise ValidationError("onboarding case is not ready for external activation")
             if self.external_evidence_policy is None or self.external_evidence_trust is None:
                 raise ValidationError("external evidence verifier is not configured")
+            replay_database = self.external_evidence_trust.get("replayDatabase")
+            same_replay_database = replay_database == self.store.database
+            if (
+                isinstance(replay_database, str)
+                and not same_replay_database
+                and not replay_database.startswith("file:")
+                and not self.store.database.startswith("file:")
+            ):
+                same_replay_database = Path(replay_database).resolve() == Path(
+                    self.store.database
+                ).resolve()
             external_evidence = validate_external_evidence(
                 self.external_evidence_policy,
                 require_mapping(external_evidence_bundle, "external evidence bundle"),
                 self.external_evidence_trust,
                 now=now,
                 expected_binding=case["configuration_digest"],
+                expected_tenant_id=tenant_id,
+                nonce_store=(
+                    ConnectionNonceStore(connection)
+                    if same_replay_database else None
+                ),
             )
             if not external_evidence.allowed or not any(
                 check.startswith("external_evidence:provider_certification:")
                 for check in external_evidence.checks
             ):
                 raise ValidationError("official provider and production activation evidence is required")
-            result = adapter(dict(case))
+            certified_providers = {
+                item.get("attestation", {}).get("providerId")
+                for item in external_evidence_bundle.get("evidence", [])
+                if isinstance(item, Mapping)
+                and item.get("category") == "provider_certification"
+                and isinstance(item.get("attestation"), Mapping)
+            }
+            if case["provider_id"] not in certified_providers:
+                raise ValidationError(
+                    "onboarding provider is not covered by official certification evidence"
+                )
+            request = {
+                "tenantId": tenant_id,
+                "caseId": case_id,
+                "providerId": case["provider_id"],
+                "merchantAccountId": case["merchant_account_id"],
+                "configurationVersion": case["configuration_version"],
+                "configurationDigest": case["configuration_digest"],
+                "externalEvidenceDigest": sha256_json(external_evidence_bundle),
+            }
+            request_digest = sha256_json(request)
+            operation = connection.execute(
+                "SELECT * FROM external_control_operation WHERE tenant_id=? "
+                "AND operation_type='ONBOARDING_ACTIVATION' AND operation_id=?",
+                (tenant_id, case_id),
+            ).fetchone()
+            if operation:
+                if (
+                    operation["binding_digest"] != case["configuration_digest"]
+                    or operation["request_digest"] != request_digest
+                ):
+                    raise ValidationError("immutable onboarding activation request collision")
+                if operation["status"] == "SUCCEEDED":
+                    raise ValidationError(
+                        "onboarding activation durable state is inconsistent"
+                    )
+                if operation["status"] == "UNKNOWN":
+                    raise ValidationError(
+                        "onboarding activation outcome is UNKNOWN; reconcile before retry"
+                    )
+                if datetime.fromisoformat(operation["lease_until"]) > current:
+                    raise ValidationError("onboarding activation is already in flight")
+                raise ValidationError(
+                    "expired onboarding activation has an uncertain outcome; reconcile before retry"
+                )
+            else:
+                fence_token = 1
+            lease_owner = f"onboarding:{tenant_id}:{case_id}"
+            lease_until = (current + timedelta(minutes=2)).isoformat()
+            connection.execute(
+                "INSERT INTO external_control_operation VALUES(?,?,?,?,?,?,?,?,?,?,?) "
+                "ON CONFLICT(tenant_id,operation_type,operation_id) DO UPDATE SET "
+                "status='IN_FLIGHT',fence_token=excluded.fence_token,"
+                "lease_owner=excluded.lease_owner,lease_until=excluded.lease_until,"
+                "updated_at=excluded.updated_at",
+                (
+                    tenant_id, "ONBOARDING_ACTIVATION", case_id,
+                    case["configuration_digest"], request_digest, "IN_FLIGHT",
+                    fence_token, lease_owner, lease_until, None, instant,
+                ),
+            )
+        adapter_request = {
+            **dict(case),
+            **request,
+            "idempotencyKey": request_digest,
+            "fenceToken": fence_token,
+            "mode": "ACTIVATE",
+        }
+        try:
+            result = adapter(adapter_request)
             if result != case["configuration_digest"]:
-                raise ValidationError("activation adapter did not confirm configuration digest")
-            connection.execute("UPDATE onboarding_case SET state='ACTIVE',updated_at=? WHERE tenant_id=? AND case_id=?", (instant, tenant_id, case_id))
-            self._audit(connection, tenant_id, case_id, "ACTIVATE", case["configuration_digest"], instant)
+                raise ValidationError(
+                    "activation adapter did not confirm configuration digest"
+                )
+            completed = current + timedelta(
+                seconds=max(0.0, time.monotonic() - started_monotonic)
+            )
+            completion_instant = completed.isoformat()
+            with self.store.transaction() as connection:
+                changed = connection.execute(
+                    "UPDATE external_control_operation SET status='SUCCEEDED',"
+                    "result_digest=?,updated_at=? WHERE tenant_id=? "
+                    "AND operation_type='ONBOARDING_ACTIVATION' AND operation_id=? "
+                    "AND status='IN_FLIGHT' AND fence_token=? AND lease_owner=? "
+                    "AND lease_until>?",
+                    (
+                        result, completion_instant, tenant_id, case_id, fence_token,
+                        lease_owner, completion_instant,
+                    ),
+                ).rowcount
+                activated = connection.execute(
+                    "UPDATE onboarding_case SET state='ACTIVE',updated_at=? "
+                    "WHERE tenant_id=? AND case_id=? "
+                    "AND state='READY_FOR_EXTERNAL_ACTIVATION' "
+                    "AND configuration_digest=?",
+                    (completion_instant, tenant_id, case_id, case["configuration_digest"]),
+                ).rowcount
+                if changed != 1 or activated != 1:
+                    raise ValidationError("onboarding activation fencing failed")
+                self._audit(
+                    connection, tenant_id, case_id, "ACTIVATE",
+                    case["configuration_digest"], completion_instant,
+                )
+        except BaseException as exc:
+            failed_at = current + timedelta(
+                seconds=max(0.0, time.monotonic() - started_monotonic)
+            )
+            with self.store.transaction() as connection:
+                connection.execute(
+                    "UPDATE external_control_operation SET status='UNKNOWN',updated_at=? "
+                    "WHERE tenant_id=? AND operation_type='ONBOARDING_ACTIVATION' "
+                    "AND operation_id=? AND status='IN_FLIGHT' AND fence_token=?",
+                    (failed_at.isoformat(), tenant_id, case_id, fence_token),
+                )
+            raise ValidationError(
+                "onboarding activation outcome is UNKNOWN; reconcile before retry"
+            ) from exc
+        return "ACTIVE"
+
+    def reconcile_activation(
+        self,
+        tenant_id: str,
+        case_id: str,
+        adapter: Callable[[Mapping[str, Any]], str],
+        *,
+        now: datetime | None = None,
+    ) -> str:
+        """Resolve an UNKNOWN activation through the real idempotency adapter."""
+
+        current = _current(now)
+        with self.store.transaction() as connection:
+            case = connection.execute(
+                "SELECT * FROM onboarding_case WHERE tenant_id=? AND case_id=?",
+                (tenant_id, case_id),
+            ).fetchone()
+            operation = connection.execute(
+                "SELECT * FROM external_control_operation WHERE tenant_id=? "
+                "AND operation_type='ONBOARDING_ACTIVATION' AND operation_id=?",
+                (tenant_id, case_id),
+            ).fetchone()
+            if not case or not operation:
+                raise ValidationError(
+                    "onboarding activation has no uncertain outcome to reconcile"
+                )
+            if case["state"] == "ACTIVE" and operation["status"] == "SUCCEEDED":
+                return "ACTIVE"
+            if (
+                case["state"] != "READY_FOR_EXTERNAL_ACTIVATION"
+                or case["configuration_digest"] != operation["binding_digest"]
+            ):
+                raise ValidationError("onboarding reconciliation binding mismatch")
+            if operation["status"] == "SUCCEEDED":
+                raise ValidationError("onboarding activation durable state is inconsistent")
+            if (
+                operation["status"] == "IN_FLIGHT"
+                and datetime.fromisoformat(operation["lease_until"]) > current
+            ):
+                raise ValidationError("onboarding activation dispatch lease is still active")
+            if operation["status"] not in {"IN_FLIGHT", "UNKNOWN"}:
+                raise ValidationError(
+                    "onboarding activation has no uncertain outcome to reconcile"
+                )
+            fence_token = operation["fence_token"] + 1
+            lease_owner = f"onboarding-reconcile:{tenant_id}:{case_id}:{fence_token}"
+            lease_until = current + timedelta(minutes=2)
+            changed = connection.execute(
+                "UPDATE external_control_operation SET status='IN_FLIGHT',fence_token=?,"
+                "lease_owner=?,lease_until=?,updated_at=? WHERE tenant_id=? "
+                "AND operation_type='ONBOARDING_ACTIVATION' AND operation_id=? "
+                "AND request_digest=? AND status IN ('IN_FLIGHT','UNKNOWN') "
+                "AND fence_token=?",
+                (
+                    fence_token, lease_owner, lease_until.isoformat(),
+                    current.isoformat(), tenant_id, case_id,
+                    operation["request_digest"], operation["fence_token"],
+                ),
+            ).rowcount
+            if changed != 1:
+                raise ValidationError("onboarding activation reconciliation lease was lost")
+
+        started_monotonic = time.monotonic()
+        try:
+            result = adapter({
+                **dict(case),
+                "tenantId": tenant_id,
+                "caseId": case_id,
+                "configurationDigest": operation["binding_digest"],
+                "idempotencyKey": operation["request_digest"],
+                "fenceToken": fence_token,
+                "mode": "RECONCILE",
+            })
+            if result != operation["binding_digest"]:
+                raise ValidationError("activation remains UNKNOWN")
+            completed = current + timedelta(
+                seconds=max(0.0, time.monotonic() - started_monotonic)
+            )
+            with self.store.transaction() as connection:
+                changed = connection.execute(
+                    "UPDATE external_control_operation SET status='SUCCEEDED',"
+                    "result_digest=?,updated_at=? WHERE tenant_id=? "
+                    "AND operation_type='ONBOARDING_ACTIVATION' AND operation_id=? "
+                    "AND status='IN_FLIGHT' AND request_digest=? AND fence_token=? "
+                    "AND lease_owner=? AND lease_until>?",
+                    (
+                        result, completed.isoformat(), tenant_id, case_id,
+                        operation["request_digest"], fence_token, lease_owner,
+                        completed.isoformat(),
+                    ),
+                ).rowcount
+                activated = connection.execute(
+                    "UPDATE onboarding_case SET state='ACTIVE',updated_at=? "
+                    "WHERE tenant_id=? AND case_id=? "
+                    "AND state='READY_FOR_EXTERNAL_ACTIVATION' "
+                    "AND configuration_digest=?",
+                    (
+                        completed.isoformat(), tenant_id, case_id,
+                        operation["binding_digest"],
+                    ),
+                ).rowcount
+                if changed != 1 or activated != 1:
+                    raise ValidationError(
+                        "onboarding activation reconciliation fencing failed"
+                    )
+                self._audit(
+                    connection, tenant_id, case_id, "ACTIVATE_RECONCILED",
+                    operation["binding_digest"], completed.isoformat(),
+                )
+        except BaseException as exc:
+            failed_at = current + timedelta(
+                seconds=max(0.0, time.monotonic() - started_monotonic)
+            )
+            with self.store.transaction() as connection:
+                connection.execute(
+                    "UPDATE external_control_operation SET status='UNKNOWN',updated_at=? "
+                    "WHERE tenant_id=? AND operation_type='ONBOARDING_ACTIVATION' "
+                    "AND operation_id=? AND status='IN_FLIGHT' AND request_digest=? "
+                    "AND fence_token=? AND lease_owner=?",
+                    (
+                        failed_at.isoformat(), tenant_id, case_id,
+                        operation["request_digest"], fence_token, lease_owner,
+                    ),
+                )
+            raise ValidationError("onboarding activation remains UNKNOWN") from exc
         return "ACTIVE"
 
     def readiness(self, tenant_id: str, case_id: str) -> dict[str, Any]:
@@ -126,7 +418,7 @@ class OnboardingControl:
             if not case:
                 raise ValidationError("tenant-scoped onboarding case not found")
             present = {row[0] for row in connection.execute("SELECT control_name FROM onboarding_control WHERE tenant_id=? AND case_id=?", (tenant_id, case_id))}
-        return {"state": case["state"], "configurationDigest": case["configuration_digest"], "missingControls": sorted(REQUIRED_CONTROLS - present), "certificationStatus": "NOT_CERTIFIED" if case["state"] != "ACTIVE" else "EXTERNAL_EVIDENCE_VERIFIED"}
+        return {"state": case["state"], "configurationDigest": case["configuration_digest"], "missingControls": sorted(REQUIRED_CONTROLS - present), "certificationStatus": "NOT_CERTIFIED", "activationEvidenceStatus": "EXTERNAL_EVIDENCE_VERIFIED" if case["state"] == "ACTIVE" else "PENDING"}
 
     @staticmethod
     def _validate_details(control: str, details: Mapping[str, Any]) -> dict[str, Any]:

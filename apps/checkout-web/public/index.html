@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/integrity.mjs" integrity="__SRI_INTEGRITY_MJS__" crossorigin="anonymous" nonce="__CSP_NONCE__"></script>
   <script type="module" src="/provider-handlers.mjs" integrity="__SRI_PROVIDER-HANDLERS_MJS__" crossorigin="anonymous" nonce="__CSP_NONCE__"></script>
+  <script type="module" src="/provider-sdk-bootstrap.mjs" integrity="__SRI_PROVIDER-SDK-BOOTSTRAP_MJS__" crossorigin="anonymous" nonce="__CSP_NONCE__"></script>
   <script type="module" src="/checkout.mjs" integrity="__SRI_CHECKOUT_MJS__" crossorigin="anonymous" nonce="__CSP_NONCE__"></script>
 </head>
 <body>
@@ -16,6 +17,7 @@
     <fieldset id="methods" disabled>
       <legend id="method-legend">Choose a payment method</legend>
     </fieldset>
+    <section id="provider-sdk-container" aria-label="Secure payment provider input" hidden></section>
     <button id="continue" type="button" disabled>Continue securely</button>
     <p id="status" role="status" aria-live="polite">Loading secure session…</p>
     <p id="error" role="alert" hidden></p>

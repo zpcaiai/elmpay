@@ -1,5 +1,6 @@
 package com.elmpay.payment;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -128,7 +129,8 @@ public final class InMemoryPaymentRepository implements PaymentRepository {
         boolean queryInProgress = current.stream().anyMatch(attempt ->
                 attempt.operation() == AttemptOperation.QUERY
                         && (attempt.state() == AttemptState.INITIATED
-                            || attempt.state() == AttemptState.PENDING));
+                            || attempt.state() == AttemptState.PENDING)
+                        && attempt.leaseExpiresAt().isAfter(draft.startedAt()));
         if ((draft.operation() == AttemptOperation.QUERY && queryInProgress)
                 || (draft.operation() != AttemptOperation.QUERY && unresolvedMoneyMovement)) {
             throw new PaymentCoreException("ATTEMPT_IN_PROGRESS",
@@ -137,6 +139,44 @@ public final class InMemoryPaymentRepository implements PaymentRepository {
         PaymentAttempt attempt = PaymentAttempt.begin(draft, current.size() + 1);
         current.add(attempt);
         return attempt;
+    }
+
+    @Override
+    public synchronized Optional<PaymentAttempt> claimRecoverableAttempt(UUID tenantId,
+            UUID intentId, String leaseOwner, Instant now, Instant leaseExpiresAt) {
+        requireIntent(tenantId, intentId);
+        validateLease(leaseOwner, now, leaseExpiresAt);
+        List<PaymentAttempt> current = attempts.getOrDefault(intentId, List.of());
+        for (int index = current.size() - 1; index >= 0; index--) {
+            PaymentAttempt candidate = current.get(index);
+            if (candidate.tenantId().equals(tenantId)
+                    && candidate.operation() != AttemptOperation.QUERY
+                    && !candidate.state().finalState()
+                    && !candidate.leaseExpiresAt().isAfter(now)) {
+                PaymentAttempt claimed = candidate.withLease(leaseOwner,
+                        Math.addExact(candidate.fencingToken(), 1), leaseExpiresAt);
+                current.set(index, claimed);
+                return Optional.of(claimed);
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public synchronized void releaseAttemptLease(PaymentAttempt attempt, Instant releasedAt) {
+        java.util.Objects.requireNonNull(attempt, "attempt");
+        java.util.Objects.requireNonNull(releasedAt, "releasedAt");
+        requireIntent(attempt.tenantId(), attempt.intentId());
+        List<PaymentAttempt> current = attempts.getOrDefault(attempt.intentId(), List.of());
+        int index = attemptIndex(current, attempt.id());
+        if (index < 0 || current.get(index).state().finalState()
+                || !sameLease(current.get(index), attempt)) {
+            throw new PaymentCoreException("ATTEMPT_LEASE_LOST",
+                    "attempt recovery lease is no longer owned by this worker");
+        }
+        PaymentAttempt stored = current.get(index);
+        current.set(index, stored.withLease(stored.leaseOwner(), stored.fencingToken(),
+                releasedAt.isBefore(stored.startedAt()) ? stored.startedAt() : releasedAt));
     }
 
     @Override
@@ -152,6 +192,10 @@ public final class InMemoryPaymentRepository implements PaymentRepository {
         }
         if (index < 0 || current.get(index).state().finalState()) {
             throw new PaymentCoreException("ATTEMPT_NOT_RESOLVABLE", "attempt is missing or final");
+        }
+        if (!sameLease(current.get(index), attempt)) {
+            throw new PaymentCoreException("ATTEMPT_LEASE_LOST",
+                    "attempt recovery lease is no longer owned by this worker");
         }
         PaymentIntent stored = requireIntent(intent.tenantId(), intent.id());
         if (stored.version() != expectedIntentVersion
@@ -179,10 +223,16 @@ public final class InMemoryPaymentRepository implements PaymentRepository {
         List<PaymentAttempt> current = attempts.getOrDefault(intent.id(), List.of());
         int originalIndex = attemptIndex(current, originalAttempt.id());
         int queryIndex = attemptIndex(current, queryAttempt.id());
-        if (originalIndex < 0 || current.get(originalIndex).state() != AttemptState.UNKNOWN
+        if (originalIndex < 0 || current.get(originalIndex).operation() == AttemptOperation.QUERY
+                || current.get(originalIndex).state().finalState()
                 || queryIndex < 0 || current.get(queryIndex).state().finalState()) {
             throw new PaymentCoreException("ATTEMPT_NOT_RESOLVABLE",
-                    "recovery source must be unknown and query must be unresolved");
+                    "recovery source and query must be unresolved");
+        }
+        if (!sameLease(current.get(originalIndex), originalAttempt)
+                || !sameLease(current.get(queryIndex), queryAttempt)) {
+            throw new PaymentCoreException("ATTEMPT_LEASE_LOST",
+                    "attempt recovery lease is no longer owned by this worker");
         }
         PaymentIntent stored = requireIntent(intent.tenantId(), intent.id());
         if (stored.version() != expectedIntentVersion
@@ -216,6 +266,20 @@ public final class InMemoryPaymentRepository implements PaymentRepository {
             }
         }
         return -1;
+    }
+
+    private static boolean sameLease(PaymentAttempt stored, PaymentAttempt proposed) {
+        return stored.fencingToken() == proposed.fencingToken()
+                && stored.leaseOwner().equals(proposed.leaseOwner());
+    }
+
+    private static void validateLease(String leaseOwner, Instant now, Instant leaseExpiresAt) {
+        java.util.Objects.requireNonNull(leaseOwner, "leaseOwner");
+        java.util.Objects.requireNonNull(now, "now");
+        java.util.Objects.requireNonNull(leaseExpiresAt, "leaseExpiresAt");
+        if (leaseOwner.isBlank() || leaseOwner.length() > 128 || !leaseExpiresAt.isAfter(now)) {
+            throw new IllegalArgumentException("invalid payment attempt lease");
+        }
     }
 
     private static void requireReceiptMatchesIntent(PaymentIntent intent,

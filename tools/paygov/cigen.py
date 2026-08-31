@@ -84,6 +84,7 @@ if [[ "${ELMPAY_GATE_EVENT_NAME}" == "${TRUSTED_EVENT}" &&
   done
   for variable in ELMPAY_RELEASE_MANIFEST_B64 ELMPAY_RELEASE_TRUST_B64 \
                   ELMPAY_EXTERNAL_EVIDENCE_B64 ELMPAY_EXTERNAL_TRUST_B64 \
+                  ELMPAY_PRODUCT_IMAGE_INDEX_B64 \
                   ELMPAY_GATE_SHA; do
     if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
       echo "release gate blocked: protected evidence input '${variable}' is missing" >&2
@@ -322,6 +323,7 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
               "          ELMPAY_RELEASE_TRUST_B64: ${{ secrets.ELMPAY_RELEASE_TRUST_B64 }}",
               "          ELMPAY_EXTERNAL_EVIDENCE_B64: ${{ secrets.ELMPAY_EXTERNAL_EVIDENCE_B64 }}",
               "          ELMPAY_EXTERNAL_TRUST_B64: ${{ secrets.ELMPAY_EXTERNAL_TRUST_B64 }}",
+              "          ELMPAY_PRODUCT_IMAGE_INDEX_B64: ${{ secrets.ELMPAY_PRODUCT_IMAGE_INDEX_B64 }}",
               f'          ELMPAY_SIGNING_OPT_IN: '
               f'${{{{ vars.{signing["public_sigstore_opt_in_variable"]} }}}}']
     for stage_id in doc["required_stages"]:

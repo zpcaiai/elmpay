@@ -1,19 +1,21 @@
 package com.elmpay.audit;
 
+import com.elmpay.security.BoundedHttpTransport;
+import com.elmpay.security.MountedHttpsClient;
+import com.elmpay.security.WipeableFlatJson;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.time.Instant;
-import java.util.Base64;
-import java.util.LinkedHashMap;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /** HTTPS transport for an independently operated, Ed25519-signing timestamp authority. */
 public final class HttpsAuditTimestampAuthority implements AuditAnchorWorker.TimestampAuthority {
@@ -24,62 +26,115 @@ public final class HttpsAuditTimestampAuthority implements AuditAnchorWorker.Tim
     private final HttpClient mutualTlsClient;
     private final URI endpoint;
     private final Duration requestTimeout;
-    private final String bearerToken;
+    private final Supplier<String> bearerToken;
 
     public HttpsAuditTimestampAuthority(HttpClient mutualTlsClient, URI endpoint,
             Duration requestTimeout, String bearerToken) {
+        this(mutualTlsClient, endpoint, requestTimeout, () -> bearerToken, true);
+    }
+
+    HttpsAuditTimestampAuthority(HttpClient mutualTlsClient, URI endpoint,
+            Duration requestTimeout, Supplier<String> bearerToken) {
+        this(mutualTlsClient, endpoint, requestTimeout, bearerToken, true);
+    }
+
+    private HttpsAuditTimestampAuthority(HttpClient mutualTlsClient, URI endpoint,
+            Duration requestTimeout, Supplier<String> bearerToken,
+            boolean validateSupplierImmediately) {
         this.mutualTlsClient = Objects.requireNonNull(mutualTlsClient, "mutualTlsClient");
         if (mutualTlsClient.followRedirects() != HttpClient.Redirect.NEVER) {
             throw new IllegalArgumentException("timestamp authority client must reject redirects");
         }
+        BoundedHttpTransport.requireHttpsClient(mutualTlsClient);
         this.endpoint = requireHttpsEndpoint(endpoint);
         this.requestTimeout = positive(requestTimeout, "requestTimeout");
-        if (bearerToken == null || bearerToken.length() < 32 || bearerToken.length() > 4096
-                || bearerToken.chars().anyMatch(Character::isWhitespace)) {
-            throw new IllegalArgumentException("bearerToken has an invalid format");
+        if (requestTimeout.compareTo(Duration.ofSeconds(10)) > 0) {
+            throw new IllegalArgumentException("requestTimeout must not exceed 10 seconds");
         }
-        this.bearerToken = bearerToken;
+        this.bearerToken = Objects.requireNonNull(bearerToken, "bearerToken");
+        if (validateSupplierImmediately) {
+            requireToken(bearerToken.get());
+        }
+    }
+
+    /** Production composition from the exact {@code audit-timestamp-client} secret mount. */
+    public static HttpsAuditTimestampAuthority fromEnvironment(Map<String, String> environment,
+            java.time.Clock clock) {
+        Objects.requireNonNull(environment, "environment");
+        if (environment.containsKey("ELMPAY_AUDIT_TIMESTAMP_AUTHORITY_ACCESS_TOKEN")) {
+            throw new IllegalStateException("inline timestamp-authority access tokens are forbidden");
+        }
+        Duration timeout = milliseconds(environment,
+                "ELMPAY_AUDIT_TIMESTAMP_AUTHORITY_TIMEOUT_MILLISECONDS", 2_000);
+        MountedHttpsClient.Client mounted = MountedHttpsClient.fromEnvironment(environment,
+                "ELMPAY_AUDIT_TIMESTAMP_AUTHORITY", "audit-timestamp-client", clock, timeout);
+        URI endpoint;
+        try {
+            endpoint = URI.create(required(environment,
+                    "ELMPAY_AUDIT_TIMESTAMP_AUTHORITY_ENDPOINT"));
+        } catch (IllegalArgumentException failure) {
+            throw new IllegalStateException(
+                    "ELMPAY_AUDIT_TIMESTAMP_AUTHORITY_ENDPOINT is invalid", failure);
+        }
+        return new HttpsAuditTimestampAuthority(mounted.httpClient(), endpoint, timeout,
+                mounted.accessToken(), false);
     }
 
     @Override
     public AuditAnchorWorker.Receipt anchor(AuditAnchorWorker.Candidate candidate) {
         Objects.requireNonNull(candidate, "candidate");
-        HttpRequest request = HttpRequest.newBuilder(endpoint)
-                .timeout(requestTimeout)
-                .header("Authorization", "Bearer " + bearerToken)
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofByteArray(requestBody(candidate)))
-                .build();
-        HttpResponse<byte[]> response;
+        byte[] requestBody = requestBody(candidate);
         try {
-            response = mutualTlsClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            String token = requireToken(bearerToken.get());
+            HttpRequest request = HttpRequest.newBuilder(endpoint)
+                    .timeout(requestTimeout)
+                    .header("Authorization", "Bearer " + token)
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(requestBody))
+                    .build();
+            try (BoundedHttpTransport.Response response = BoundedHttpTransport.send(
+                        mutualTlsClient, request, MAX_RESPONSE_BYTES)) {
+                if (response.statusCode() != 200 || response.bodyLength() == 0) {
+                    throw new IllegalStateException(
+                            "timestamp authority returned an unsafe response");
+                }
+                requireContentType(response, "application/json");
+                byte[] body = response.body();
+                try (WipeableFlatJson values = WipeableFlatJson.parse(body)) {
+                    if (!values.keys().equals(RESPONSE_FIELDS)) {
+                        throw new SecurityException(
+                                "timestamp authority response fields are not exact");
+                    }
+                    try {
+                        byte[] signature = values.requireBase64Url("signature", 64, 64);
+                        try {
+                            return new AuditAnchorWorker.Receipt(
+                                    values.requireMetadata("authority_id", 256),
+                                    values.requireMetadata("receipt_id", 256),
+                                    UUID.fromString(values.requireMetadata("tenant_id", 64)),
+                                    Long.parseLong(values.requireMetadata(
+                                            "through_sequence", 32)),
+                                    values.requireMetadata("chain_hash", 128),
+                                    values.requireInstant("anchored_at"), signature);
+                        } finally {
+                            Arrays.fill(signature, (byte) 0);
+                        }
+                    } catch (IllegalArgumentException exception) {
+                        throw new SecurityException(
+                                "timestamp authority response is malformed", exception);
+                    }
+                } finally {
+                    Arrays.fill(body, (byte) 0);
+                }
+            }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("timestamp authority request was interrupted", exception);
         } catch (IOException exception) {
             throw new IllegalStateException("timestamp authority request failed", exception);
-        }
-        if (response.statusCode() != 200) {
-            throw new IllegalStateException("timestamp authority returned status "
-                    + response.statusCode());
-        }
-        byte[] body = response.body();
-        if (body == null || body.length == 0 || body.length > MAX_RESPONSE_BYTES) {
-            throw new SecurityException("timestamp authority response size is invalid");
-        }
-        Map<String, String> values = parseFlatJson(new String(body, StandardCharsets.UTF_8));
-        if (!values.keySet().equals(RESPONSE_FIELDS)) {
-            throw new SecurityException("timestamp authority response fields are not exact");
-        }
-        try {
-            return new AuditAnchorWorker.Receipt(required(values, "authority_id"),
-                    required(values, "receipt_id"), UUID.fromString(required(values, "tenant_id")),
-                    Long.parseLong(required(values, "through_sequence")),
-                    required(values, "chain_hash"), Instant.parse(required(values, "anchored_at")),
-                    Base64.getUrlDecoder().decode(required(values, "signature")));
-        } catch (IllegalArgumentException exception) {
-            throw new SecurityException("timestamp authority response is malformed", exception);
+        } finally {
+            Arrays.fill(requestBody, (byte) 0);
         }
     }
 
@@ -91,98 +146,12 @@ public final class HttpsAuditTimestampAuthority implements AuditAnchorWorker.Tim
         return json.getBytes(StandardCharsets.UTF_8);
     }
 
-    private static Map<String, String> parseFlatJson(String source) {
-        Map<String, String> result = new LinkedHashMap<>();
-        int[] at = {0};
-        skipWhitespace(source, at);
-        expect(source, at, '{');
-        skipWhitespace(source, at);
-        if (peek(source, at) == '}') {
-            at[0]++;
-            return result;
+    static void requireContentType(BoundedHttpTransport.Response response,
+            String expected) {
+        List<String> values = response.headers().allValues("Content-Type");
+        if (values.size() != 1 || !expected.equalsIgnoreCase(values.getFirst())) {
+            throw new SecurityException("timestamp authority content type is unsafe");
         }
-        while (true) {
-            String key = string(source, at);
-            skipWhitespace(source, at);
-            expect(source, at, ':');
-            skipWhitespace(source, at);
-            String value = string(source, at);
-            if (result.putIfAbsent(key, value) != null) {
-                throw new IllegalArgumentException("duplicate JSON field");
-            }
-            skipWhitespace(source, at);
-            char next = peek(source, at);
-            if (next == '}') {
-                at[0]++;
-                break;
-            }
-            expect(source, at, ',');
-            skipWhitespace(source, at);
-        }
-        skipWhitespace(source, at);
-        if (at[0] != source.length()) {
-            throw new IllegalArgumentException("trailing JSON data");
-        }
-        return Map.copyOf(result);
-    }
-
-    private static String string(String source, int[] at) {
-        expect(source, at, '"');
-        StringBuilder result = new StringBuilder();
-        while (at[0] < source.length()) {
-            char value = source.charAt(at[0]++);
-            if (value == '"') {
-                return result.toString();
-            }
-            if (value == '\\') {
-                if (at[0] >= source.length()) {
-                    throw new IllegalArgumentException("unterminated JSON escape");
-                }
-                char escaped = source.charAt(at[0]++);
-                result.append(switch (escaped) {
-                    case '"', '\\', '/' -> escaped;
-                    case 'b' -> '\b';
-                    case 'f' -> '\f';
-                    case 'n' -> '\n';
-                    case 'r' -> '\r';
-                    case 't' -> '\t';
-                    default -> throw new IllegalArgumentException("unsupported JSON escape");
-                });
-            } else if (value < 0x20) {
-                throw new IllegalArgumentException("control character in JSON string");
-            } else {
-                result.append(value);
-            }
-        }
-        throw new IllegalArgumentException("unterminated JSON string");
-    }
-
-    private static void skipWhitespace(String source, int[] at) {
-        while (at[0] < source.length() && Character.isWhitespace(source.charAt(at[0]))) {
-            at[0]++;
-        }
-    }
-
-    private static void expect(String source, int[] at, char expected) {
-        if (peek(source, at) != expected) {
-            throw new IllegalArgumentException("malformed JSON");
-        }
-        at[0]++;
-    }
-
-    private static char peek(String source, int[] at) {
-        if (at[0] >= source.length()) {
-            throw new IllegalArgumentException("unexpected end of JSON");
-        }
-        return source.charAt(at[0]);
-    }
-
-    private static String required(Map<String, String> values, String field) {
-        String value = values.get(field);
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("missing response field " + field);
-        }
-        return value;
     }
 
     private static URI requireHttpsEndpoint(URI endpoint) {
@@ -201,5 +170,34 @@ public final class HttpsAuditTimestampAuthority implements AuditAnchorWorker.Tim
             throw new IllegalArgumentException(field + " must be positive");
         }
         return value;
+    }
+
+    private static String requireToken(String value) {
+        if (value == null || value.length() < 32 || value.length() > 4_096
+                || !value.matches("[A-Za-z0-9\\-._~+/]+=*")) {
+            throw new IllegalArgumentException("bearerToken has an invalid format");
+        }
+        return value;
+    }
+
+    private static String required(Map<String, String> environment, String key) {
+        String value = environment.get(key);
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException(key + " is required");
+        }
+        return value;
+    }
+
+    private static Duration milliseconds(Map<String, String> environment, String key,
+            long fallback) {
+        String configured = environment.get(key);
+        long value = fallback;
+        if (configured != null) {
+            if (!configured.matches("(?:[1-9][0-9]{0,3}|10000)")) {
+                throw new IllegalStateException(key + " must be 1..10000");
+            }
+            value = Long.parseLong(configured);
+        }
+        return Duration.ofMillis(value);
     }
 }

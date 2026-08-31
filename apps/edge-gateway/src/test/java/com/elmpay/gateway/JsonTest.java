@@ -19,4 +19,17 @@ final class JsonTest {
         assertThrows(IllegalArgumentException.class, () -> Json.parse("{\"a\":1,\"a\":2}"));
         assertThrows(IllegalArgumentException.class, () -> Json.parse("{\"amount\":1.5}"));
     }
+
+    @Test
+    void acceptsUnicodeScalarPairsAndRejectsUnpairedSurrogates() {
+        assertEquals("\uD83D\uDE03", Json.object("{\"value\":\"\\uD83D\\uDE03\"}").get("value"));
+        assertThrows(IllegalArgumentException.class,
+                () -> Json.parse("{\"value\":\"\\uD83D\"}"));
+        assertThrows(IllegalArgumentException.class,
+                () -> Json.parse("{\"value\":\"\\uDE03\"}"));
+        assertThrows(IllegalArgumentException.class,
+                () -> Json.stringify(Map.of("value", "\uD83D")));
+        assertThrows(IllegalArgumentException.class,
+                () -> Json.parse("{\"value\":1}\u2003"));
+    }
 }

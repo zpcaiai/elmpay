@@ -176,6 +176,10 @@ final class ElmPayClient {
             !_retryable(response.status)) {
           throw StateError('request rejected: ${response.status}');
         }
+      } on StateError {
+        rethrow;
+      } on FormatException {
+        rethrow;
       } catch (_) {
         if (!retrySafe || attempt + 1 == maximumAttempts) rethrow;
       }

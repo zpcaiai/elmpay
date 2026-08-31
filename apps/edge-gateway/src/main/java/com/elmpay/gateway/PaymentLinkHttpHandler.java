@@ -14,12 +14,12 @@ import java.util.UUID;
 /** Authenticated creation and one-time token redemption for durable links/QRs. */
 public final class PaymentLinkHttpHandler implements HttpHandler {
     private static final int MAX_BODY_BYTES = 8_192;
-    private final ApiKeyAuthenticator authenticator;
+    private final ApiAuthenticator authenticator;
     private final DurablePaymentLinkService links;
     private final FixedWindowRateLimiter rateLimiter = new FixedWindowRateLimiter(60, 60,
             Clock.systemUTC());
 
-    public PaymentLinkHttpHandler(ApiKeyAuthenticator authenticator,
+    public PaymentLinkHttpHandler(ApiAuthenticator authenticator,
             DurablePaymentLinkService links) {
         this.authenticator = java.util.Objects.requireNonNull(authenticator, "authenticator");
         this.links = java.util.Objects.requireNonNull(links, "links");
@@ -27,10 +27,16 @@ public final class PaymentLinkHttpHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        String requestId = exchange.getRequestHeaders().getFirst("X-Request-Id");
+        String requestId = null;
         try {
+            StrictJsonHttpRequest.validateEnvelope(exchange);
+            if (exchange.getRequestURI().getRawQuery() != null) {
+                throw new IllegalArgumentException(
+                        "payment-link API query parameters are not supported");
+            }
+            requestId = StrictJsonHttpRequest.optionalHeader(exchange, "X-Request-Id", 128);
             if (!validRequestId(requestId) || !validTraceparent(
-                    exchange.getRequestHeaders().getFirst("traceparent"))) {
+                    StrictJsonHttpRequest.optionalHeader(exchange, "traceparent", 128))) {
                 error(exchange, 400, "invalid_request",
                         "X-Request-Id and a valid traceparent are required", safe(requestId));
                 return;
@@ -41,7 +47,7 @@ public final class PaymentLinkHttpHandler implements HttpHandler {
                 redeem(exchange, requestId);
                 return;
             }
-            ApiPrincipal principal = authenticator.authenticate(exchange.getRequestHeaders())
+            ApiPrincipal principal = authenticator.authenticate(exchange)
                     .orElse(null);
             if (principal == null) {
                 error(exchange, 401, "unauthenticated", "valid bearer credentials are required",
@@ -100,15 +106,7 @@ public final class PaymentLinkHttpHandler implements HttpHandler {
 
     private static Map<String, Object> body(HttpExchange exchange, Set<String> allowed)
             throws IOException {
-        byte[] raw = exchange.getRequestBody().readNBytes(MAX_BODY_BYTES + 1);
-        if (raw.length > MAX_BODY_BYTES) {
-            throw new IllegalArgumentException("request body is too large");
-        }
-        Map<String, Object> value = Json.object(new String(raw, StandardCharsets.UTF_8));
-        if (!allowed.containsAll(value.keySet())) {
-            throw new IllegalArgumentException("unknown request field");
-        }
-        return value;
+        return StrictJsonHttpRequest.body(exchange, MAX_BODY_BYTES, allowed);
     }
 
     private static String string(Map<String, Object> body, String name) {
@@ -128,15 +126,11 @@ public final class PaymentLinkHttpHandler implements HttpHandler {
     }
 
     private static String requiredHeader(HttpExchange exchange, String name) {
-        String value = exchange.getRequestHeaders().getFirst(name);
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(name + " is required");
-        }
-        return value;
+        return StrictJsonHttpRequest.requiredHeader(exchange, name, 128);
     }
 
     private static void requireProject(HttpExchange exchange, ApiPrincipal principal) {
-        String value = exchange.getRequestHeaders().getFirst("X-Project-Id");
+        String value = StrictJsonHttpRequest.requiredHeader(exchange, "X-Project-Id", 64);
         if (value == null || !principal.projectId().equals(UUID.fromString(value))) {
             throw new AccessDeniedException("request project does not match the authenticated principal");
         }

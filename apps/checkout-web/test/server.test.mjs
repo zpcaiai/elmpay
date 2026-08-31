@@ -20,6 +20,29 @@ test('rejects traversal and applies fail-closed CSP to missing assets', () => {
   assert.match(response.headers['content-security-policy'], /frame-ancestors 'none'/);
 });
 
+test('startup/live probes are real and readiness fails closed without upstream configuration', async () => {
+  const unconfigured = createHandler();
+  for (const path of ['/health/startup', '/health/live']) {
+    const response = responseCapture();
+    const probe = Readable.from([]); probe.url = path; probe.method = 'GET'; probe.headers = {};
+    await unconfigured(probe, response);
+    assert.equal(response.status, 200);
+    assert.equal(JSON.parse(response.body).service, 'checkout-web');
+  }
+  const unavailable = responseCapture();
+  const missing = Readable.from([]); missing.url = '/health/ready'; missing.method = 'GET'; missing.headers = {};
+  await unconfigured(missing, unavailable);
+  assert.equal(unavailable.status, 503);
+  assert.equal(JSON.parse(unavailable.body).checks.upstreamConfiguration, 'MISSING');
+
+  const configured = createHandler({ apiBaseUrl: 'https://api.example/' });
+  const ready = responseCapture();
+  const request = Readable.from([]); request.url = '/health/ready'; request.method = 'GET'; request.headers = {};
+  await configured(request, ready);
+  assert.equal(ready.status, 200);
+  assert.equal(JSON.parse(ready.body).status, 'UP');
+});
+
 test('browser route forwards only the signed checkout credential to the agreed API path', async () => {
   const session = '00000000-0000-4000-8000-000000000000'; const token = `${'M'.repeat(48)}.${'A'.repeat(43)}`;
   const calls = [];

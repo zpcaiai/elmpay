@@ -65,6 +65,18 @@
     },
     {
       "algorithms": [
+        "RS256"
+      ],
+      "audiences": [
+        "elmpay-api"
+      ],
+      "clock_skew_seconds": 60,
+      "id": "merchant-authorization-server",
+      "issuer": "https://identity.elmpay.example/merchant",
+      "max_token_minutes": 5
+    },
+    {
+      "algorithms": [
         "ES256"
       ],
       "audiences": [
@@ -118,6 +130,15 @@
       "kind": "workload_certificate",
       "lifetime_minutes": 60,
       "provider": "workload-ca",
+      "revocable": true
+    },
+    {
+      "audience": "elmpay-api",
+      "binding": "mtls",
+      "id": "merchant-api-access",
+      "kind": "access",
+      "lifetime_minutes": 5,
+      "provider": "merchant-authorization-server",
       "revocable": true
     },
     {

@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,6 +41,20 @@ final class WechatPayAdapterTest {
             .getBytes(StandardCharsets.UTF_8);
     private static KeyPair merchantKeys;
     private static KeyPair platformKeys;
+
+    @Test
+    void transportResponseIsDefensiveWipeableAndRejectsUseAfterClose() {
+        byte[] supplied = {1, 2, 3};
+        WechatPayAdapter.HttpResult response = new WechatPayAdapter.HttpResult(
+                200, Map.of("Content-Type", List.of("application/json")), supplied);
+        supplied[0] = 9;
+        assertEquals(1, response.body()[0]);
+        assertEquals(3, response.bodyLength());
+        response.close();
+        response.close();
+        assertThrows(IllegalStateException.class, response::body);
+        assertThrows(IllegalStateException.class, response::bodyLength);
+    }
     private static KeyPair nextPlatformKeys;
 
     @BeforeAll
@@ -80,6 +95,23 @@ final class WechatPayAdapterTest {
     }
 
     @Test
+    void rejectsCaseVariantDuplicateWebhookHeadersAndUnsafeBillQueries() throws Exception {
+        WechatPayAdapter adapter = adapter(request -> new WechatPayAdapter.HttpResult(200, new byte[0]));
+        Fixture valid = fixture(platformKeys.getPrivate(), "serial-old", 1250, "merchant-001");
+        Map<String, String> ambiguous = new LinkedHashMap<>(valid.headers());
+        ambiguous.put("wechatpay-timestamp", Long.toString(NOW.getEpochSecond()));
+
+        assertThrows(SecurityException.class,
+                () -> adapter.verifyWebhook(ambiguous, valid.body(), NOW, expected(1250, "merchant-001")));
+        assertThrows(IllegalArgumentException.class,
+                () -> adapter.requestBill("2026-08-26&bill_type=ALL", "SUCCESS",
+                        "idem-wechat-00000001"));
+        assertThrows(IllegalArgumentException.class,
+                () -> adapter.requestBill("2026-08-26", "SUCCESS&tar_type=GZIP",
+                        "idem-wechat-00000001"));
+    }
+
+    @Test
     void enforcesOverlappingPlatformKeyRotation() {
         WechatPayAdapter adapter = adapter(request -> new WechatPayAdapter.HttpResult(200, new byte[0]));
         assertThrows(IllegalArgumentException.class,
@@ -107,10 +139,38 @@ final class WechatPayAdapterTest {
     }
 
     @Test
-    void commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed() {
+    void rejectsForgedSuccessfulSynchronousResponse() throws Exception {
+        WechatPayAdapter.HttpResult forged = signedResponse(200,
+                "{\"code_url\":\"weixin://trusted\"}", platformKeys.getPrivate(),
+                "{\"code_url\":\"weixin://forged\"}");
+        WechatPayAdapter.OperationResult result = adapter(request -> forged).createPayment(
+                new WechatPayAdapter.PaymentRequest("order_123456", 1250, "CNY", "fixture",
+                        WechatPayAdapter.Channel.NATIVE, null, "idem-wechat-00000001"));
+        assertEquals(WechatPayAdapter.State.UNKNOWN, result.state());
+        assertFalse(result.finalState());
+        assertEquals("", result.providerReference());
+    }
+
+    @Test
+    void retriesUnsignedTransientFailureButStillRequiresSignatureOnSuccess() throws Exception {
+        AtomicInteger calls = new AtomicInteger();
+        WechatPayAdapter.HttpResult signed = signedResponse(200,
+                "{\"transaction_id\":\"tx_retry\"}", platformKeys.getPrivate(), null);
+        WechatPayAdapter.OperationResult result = adapter(request -> calls.getAndIncrement() == 0
+                ? new WechatPayAdapter.HttpResult(503, new byte[0]) : signed).createPayment(
+                new WechatPayAdapter.PaymentRequest("order_123456", 1250, "CNY", "fixture",
+                        WechatPayAdapter.Channel.NATIVE, null, "idem-wechat-00000001"));
+        assertEquals(2, calls.get());
+        assertEquals(WechatPayAdapter.State.PENDING, result.state());
+        assertEquals("tx_retry", result.providerReference());
+    }
+
+    @Test
+    void commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed() throws Exception {
+        WechatPayAdapter.HttpResult response = signedResponse(200,
+                "{\"code_url\":\"weixin://fixture\"}", platformKeys.getPrivate(), null);
         WechatProviderBridge bridge = new WechatProviderBridge(new WechatProviderBridge.Runtime(
-                adapter(request -> new WechatPayAdapter.HttpResult(200,
-                        "{\"code_url\":\"weixin://fixture\"}".getBytes(StandardCharsets.UTF_8))),
+                adapter(request -> response),
                 command -> 1250, (request, identity) -> expected(1250, "merchant-001")));
         assertTrue(bridge.configured());
         assertEquals(ProviderOutcome.REQUIRES_ACTION, bridge.createPayment(command()).outcome());
@@ -183,6 +243,23 @@ final class WechatPayAdapterTest {
                 "Wechatpay-Serial", serial,
                 "Wechatpay-Signature", Base64.getEncoder().encodeToString(signature.sign()));
         return new Fixture(headers, body.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static WechatPayAdapter.HttpResult signedResponse(int status, String body,
+            PrivateKey signingKey, String signedBodyOverride) throws Exception {
+        String timestamp = Long.toString(NOW.getEpochSecond());
+        String nonce = "response-nonce";
+        String signedBody = signedBodyOverride == null ? body : signedBodyOverride;
+        Signature signature = Signature.getInstance("SHA256withRSA");
+        signature.initSign(signingKey);
+        signature.update((timestamp + "\n" + nonce + "\n" + signedBody + "\n")
+                .getBytes(StandardCharsets.UTF_8));
+        return new WechatPayAdapter.HttpResult(status, Map.of(
+                "Wechatpay-Timestamp", List.of(timestamp),
+                "Wechatpay-Nonce", List.of(nonce),
+                "Wechatpay-Serial", List.of("serial-old"),
+                "Wechatpay-Signature", List.of(Base64.getEncoder().encodeToString(signature.sign()))),
+                body.getBytes(StandardCharsets.UTF_8));
     }
 
     private record Fixture(Map<String, String> headers, byte[] body) {

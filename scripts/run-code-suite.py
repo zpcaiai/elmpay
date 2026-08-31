@@ -69,10 +69,11 @@ SUITES: dict[str, SuiteSpec] = {
                 "tools.tests.test_b18_mfa", "tools.tests.test_b19_authz",
                 "tools.tests.test_b20_keys", "tools.tests.test_b21_certs",
                 "tools.tests.test_b22_baseline", "tools.tests.test_b23_audit",
+                "testing.test_mounted_secrets",
             ),
             _unittest("testing.test_b16_b21_identity_security"),
         ),
-        test_modules=("testing.test_b16_b21_identity_security",),
+        test_modules=("testing.test_b16_b21_identity_security", "testing.test_mounted_secrets"),
     ),
     "merchant": SuiteSpec(
         commands=(
@@ -137,6 +138,7 @@ SUITES: dict[str, SuiteSpec] = {
             _unittest(
                 "testing.test_b80_b83_b87_risk_control",
                 "testing.test_b80_product_risk_runtime",
+                "testing.test_risk_engine_deployment",
                 "testing.test_b84_b86_cli",
                 "testing.test_b84_b86_security",
             ),
@@ -144,6 +146,7 @@ SUITES: dict[str, SuiteSpec] = {
         test_modules=(
             "testing.test_b80_b83_b87_risk_control",
             "testing.test_b80_product_risk_runtime",
+            "testing.test_risk_engine_deployment",
             "testing.test_b84_b86_cli",
             "testing.test_b84_b86_security",
         ),
@@ -158,6 +161,8 @@ SUITES: dict[str, SuiteSpec] = {
                 "testing.test_b88_edge_security",
                 "testing.test_b89_b95_infrastructure",
                 "testing.test_b89_egress_policy",
+                "testing.test_admin_action_runtime",
+                "testing.test_product_oci",
                 "testing.test_platform_control_cli",
                 "testing.test_runtime_controls",
             ),
@@ -166,6 +171,8 @@ SUITES: dict[str, SuiteSpec] = {
             "testing.test_b88_edge_security",
             "testing.test_b89_b95_infrastructure",
             "testing.test_b89_egress_policy",
+            "testing.test_admin_action_runtime",
+            "testing.test_product_oci",
             "testing.test_platform_control_cli",
             "testing.test_runtime_controls",
         ),

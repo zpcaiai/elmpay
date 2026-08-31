@@ -26,21 +26,23 @@ public final class OutboxRelay {
 
     /** Exact canonical payload and lease identity read from the transactional outbox. */
     public record Message(long sequenceNo, UUID eventId, UUID tenantId, UUID projectId,
-            String aggregateType, UUID aggregateId, String eventType, int eventVersion,
-            String payloadJson, String correlationId, Instant createdAt, int deliveryAttempt,
-            String leaseOwner, long fencingToken) {
+            String aggregateType, UUID aggregateId, long aggregateRevision, String eventName,
+            int eventVersion, String payloadJson, Instant occurredAt, Instant recordedAt,
+            String traceId, int deliveryAttempt, String leaseOwner, long fencingToken) {
         public Message {
             Objects.requireNonNull(eventId, "eventId");
             Objects.requireNonNull(tenantId, "tenantId");
             Objects.requireNonNull(projectId, "projectId");
             requireText(aggregateType, "aggregateType");
             Objects.requireNonNull(aggregateId, "aggregateId");
-            requireText(eventType, "eventType");
+            requireText(eventName, "eventName");
             requireText(payloadJson, "payloadJson");
-            requireText(correlationId, "correlationId");
-            Objects.requireNonNull(createdAt, "createdAt");
+            Objects.requireNonNull(occurredAt, "occurredAt");
+            Objects.requireNonNull(recordedAt, "recordedAt");
+            requireText(traceId, "traceId");
             requireText(leaseOwner, "leaseOwner");
-            if (sequenceNo <= 0 || eventVersion <= 0 || deliveryAttempt <= 0 || fencingToken <= 0) {
+            if (sequenceNo <= 0 || aggregateRevision <= 0 || eventVersion <= 0
+                    || deliveryAttempt <= 0 || fencingToken <= 0) {
                 throw new IllegalArgumentException("invalid outbox message identity");
             }
         }

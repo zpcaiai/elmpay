@@ -26,6 +26,9 @@ TEST_TOKEN = "test-b116-security-token-0000000000000000"
 class _SecurityTarget(BaseHTTPRequestHandler):
     bound_artifact_digest = ""
     observed_dast_requests = 0
+    agent_digest = "1" * 64
+    omit_security_headers = False
+    fabricate_iast_all_clear = False
 
     def log_message(self, *_args: object) -> None:
         return
@@ -45,21 +48,36 @@ class _SecurityTarget(BaseHTTPRequestHandler):
             return
         if self.path == "/dast":
             type(self).observed_dast_requests += 1
+            correlation = self.headers.get("X-Elmpay-IAST-Correlation")
+            if correlation:
+                type(self).last_correlation = correlation
             self._json(200, {
                 "environment": "TEST",
                 "securityFinding": False,
             })
             return
         if self.path == "/iast":
-            self._json(200, {
-                "environment": "TEST",
-                "hookActive": True,
-                "artifactDigest": type(self).bound_artifact_digest,
-                "observedRequests": type(self).observed_dast_requests,
-                "criticalFindings": 0,
-                "highFindings": 0,
-                "processExitCode": 0,
-            })
+            correlation = self.headers.get("X-Elmpay-IAST-Correlation", "")
+            if type(self).fabricate_iast_all_clear:
+                self._json(200, {
+                    "environment": "TEST", "hookActive": True,
+                    "artifactDigest": type(self).bound_artifact_digest,
+                    "criticalFindings": 0, "highFindings": 0,
+                    "processExitCode": 0,
+                })
+            else:
+                self._json(200, {
+                    "environment": "TEST",
+                    "artifactDigest": type(self).bound_artifact_digest,
+                    "agentDigest": type(self).agent_digest,
+                    "correlationId": correlation,
+                    "events": [{
+                        "correlationId": correlation,
+                        "sink": "dynamic-sql",
+                        "tainted": True,
+                        "blocked": True,
+                    }],
+                })
             return
         self._json(404, {"environment": "TEST"})
 
@@ -67,6 +85,9 @@ class _SecurityTarget(BaseHTTPRequestHandler):
         body = json.dumps(value).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
+        if not type(self).omit_security_headers:
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -75,6 +96,8 @@ class _SecurityTarget(BaseHTTPRequestHandler):
 class SecurityOrchestrationTest(unittest.TestCase):
     def setUp(self) -> None:
         _SecurityTarget.observed_dast_requests = 0
+        _SecurityTarget.omit_security_headers = False
+        _SecurityTarget.fabricate_iast_all_clear = False
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), _SecurityTarget)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -140,6 +163,42 @@ class SecurityOrchestrationTest(unittest.TestCase):
         self.assertEqual({"sast", "secret", "dependency"}, set(blocked))
         self.assertTrue(all(report["exitCode"] == 127 for report in blocked.values()))
 
+    def test_application_supplied_all_clear_cannot_self_attest_dast_or_iast(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifact = self._artifact(root)
+            scanners = root / "bin"
+            scanners.mkdir()
+            for name in ("semgrep", "gitleaks", "trivy"):
+                executable = scanners / name
+                executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+                executable.chmod(0o700)
+            sast_config = root / "semgrep.yml"
+            sast_config.write_text("rules: []\n", encoding="utf-8")
+            environment = {
+                "PATH": str(scanners),
+                "ELMPAY_TEST_SECURITY_TOKEN": TEST_TOKEN,
+            }
+
+            _SecurityTarget.omit_security_headers = True
+            dast_result = orchestrate_security_pipeline(
+                self._plan(artifact, sast_config), environment=environment,
+            )
+            _SecurityTarget.omit_security_headers = False
+            _SecurityTarget.fabricate_iast_all_clear = True
+            iast_result = orchestrate_security_pipeline(
+                self._plan(artifact, sast_config), environment=environment,
+            )
+
+        self.assertFalse(dast_result.allowed)
+        self.assertEqual("FAIL", next(
+            report for report in dast_result.reports if report["tool"] == "dast"
+        )["status"])
+        self.assertFalse(iast_result.allowed)
+        self.assertEqual("FAIL", next(
+            report for report in iast_result.reports if report["tool"] == "iast"
+        )["status"])
+
     def _artifact(self, root: Path) -> Path:
         artifact = root / "artifact"
         artifact.mkdir()
@@ -162,8 +221,17 @@ class SecurityOrchestrationTest(unittest.TestCase):
             "artifactDigest": artifact_digest(artifact),
             "scannerTimeoutSeconds": 5,
             "sastConfigPath": str(sast_config),
-            "dast": {**endpoint, "probes": [{"path": "/dast", "expectedStatus": 200}]},
-            "iast": {**endpoint, "resultPath": "/iast"},
+            "dast": {**endpoint, "probes": [{
+                "path": "/dast", "expectedStatus": 200,
+                "requiredHeaders": {
+                    "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store",
+                },
+                "forbiddenResponsePatterns": ["Traceback", "BEGIN PRIVATE KEY"],
+            }]},
+            "iast": {
+                **endpoint, "probePath": "/dast", "resultPath": "/iast",
+                "agentDigest": _SecurityTarget.agent_digest,
+            },
         }
 
 

@@ -165,6 +165,12 @@
     },
     {
       "key_id": "kek-provider-credentials",
+      "material": "external_jwks",
+      "provider": "merchant-authorization-server",
+      "signing_algorithm": "RS256"
+    },
+    {
+      "key_id": "kek-provider-credentials",
       "material": "envelope_encrypted",
       "provider": "paypal",
       "signing_algorithm": "none"

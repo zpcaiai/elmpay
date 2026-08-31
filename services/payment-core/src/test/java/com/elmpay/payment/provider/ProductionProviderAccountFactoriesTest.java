@@ -92,7 +92,8 @@ final class ProductionProviderAccountFactoriesTest {
     }
 
     @Test
-    void productionAggregatorRequiresExplicitMtlsAndReturnsEveryProvider() {
+    void productionAggregatorRejectsLegacyMtlsBooleanAndReturnsEveryProviderWithInjectedContext()
+            throws Exception {
         Map<String, String> environment = new LinkedHashMap<>();
         environment.put("ELMPAY_CHECKOUT_RETURN_ROUTES",
                 "checkout-complete=https://merchant.example/complete");
@@ -107,9 +108,13 @@ final class ProductionProviderAccountFactoriesTest {
                 ProductionProviderAccountFactories.create(unusedDataSource(), environment,
                         Clock.systemUTC()));
         environment.put("ELMPAY_APPLE_PAY_PSP_MTLS", "true");
+        assertThrows(IllegalStateException.class, () ->
+                ProductionProviderAccountFactories.create(unusedDataSource(), environment,
+                        Clock.systemUTC()));
         assertEquals(List.of("wechat", "alipay", "stripe", "paypal", "apple_pay"),
                 ProductionProviderAccountFactories.create(unusedDataSource(), environment,
-                        Clock.systemUTC()).stream().map(ProviderAccountAdapterFactory::provider)
+                        Clock.systemUTC(), SSLContext.getDefault()).stream()
+                        .map(ProviderAccountAdapterFactory::provider)
                         .toList());
     }
 

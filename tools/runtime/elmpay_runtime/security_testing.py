@@ -4,14 +4,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
+import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 from typing import Any, Mapping
 
-from .common import GateReport, ValidationError, canonical_json, require_list, require_mapping, require_text
-from .quality import (_http_json, _loopback_base, _safe_http_path, _same_origin,
-                      _validate_test_token)
+from .common import GateReport, ValidationError, canonical_json, require_mapping, require_text
+from .quality import _validate_test_token
 
 
 SCANNER_EXECUTABLES: Mapping[str, tuple[str, ...]] = {
@@ -52,8 +53,14 @@ def orchestrate_security_pipeline(plan: Mapping[str, Any], *, environment: Mappi
         reports.append(report)
         if artifact_digest(artifact) != expected_digest:
             raise ValidationError(f"security scanner mutated the bound artifact: {tool}")
-    reports.append(_run_dast(plan, expected_digest, environment, observed_at))
-    reports.append(_read_iast_hook(plan, expected_digest, environment, observed_at))
+    reports.append(_run_dynamic_scanner(
+        "dast", require_mapping(plan.get("dast"), "dast"), expected_digest,
+        environment, timeout_seconds, observed_at,
+    ))
+    reports.append(_run_dynamic_scanner(
+        "iast", require_mapping(plan.get("iast"), "iast"), expected_digest,
+        environment, timeout_seconds, observed_at,
+    ))
     if artifact_digest(artifact) != expected_digest:
         raise ValidationError("dynamic security testing mutated the bound artifact")
     gate = _evaluate_orchestrated_reports(REQUIRED_SECURITY_TOOLS, reports, expected_digest)
@@ -138,107 +145,91 @@ def _scanner_command(tool: str, executable: str, artifact: Path,
     return [executable, target, "--fail-on", "high"]
 
 
-def _run_dast(plan: Mapping[str, Any], artifact_digest_value: str,
-              environment: Mapping[str, str], observed_at: datetime) -> Mapping[str, Any]:
-    dast = require_mapping(plan.get("dast"), "dast")
-    base_url, headers, timeout_ms = _test_http_context(dast, environment)
-    _test_health_preflight(base_url, dast, headers, timeout_ms)
-    probes = require_list(dast.get("probes"), "dast.probes")
-    if not probes or len(probes) > 50:
-        raise ValidationError("DAST probes must contain 1..50 bounded requests")
-    observations: list[Mapping[str, Any]] = []
-    failures = 0
-    for raw in probes:
-        probe = require_mapping(raw, "DAST probe")
-        path = _safe_http_path(probe.get("path"), "dast.probe.path")
-        expected = _bounded_integer(
-            probe.get("expectedStatus"), "dast.probe.expectedStatus", 100, 599
-        )
-        status, response = _http_json(
-            _same_origin(base_url, path), "GET",
-            {**headers, "X-Elmpay-DAST-Probe": "synthetic"}, None, timeout_ms,
-        )
-        safe = (status == expected and response.get("environment") == "TEST"
-                and response.get("securityFinding") is not True)
-        failures += 0 if safe else 1
-        observations.append({"path": path, "status": status, "safe": safe})
-    digest = hashlib.sha256(canonical_json({
-        "artifactDigest": artifact_digest_value, "probes": observations,
-    })).hexdigest()
-    return _report("dast", "COMPLETE" if failures == 0 else "FAIL",
-                   artifact_digest_value, 0 if failures == 0 else 2, 0, failures,
-                   digest, observed_at)
+def _run_dynamic_scanner(tool: str, configuration: Mapping[str, Any],
+                         artifact_digest_value: str, environment: Mapping[str, str],
+                         timeout_seconds: int, observed_at: datetime) -> Mapping[str, Any]:
+    """Run the reviewed scanner executable and derive status from its strict report."""
 
-
-def _read_iast_hook(plan: Mapping[str, Any], artifact_digest_value: str,
-                    environment: Mapping[str, str], observed_at: datetime) -> Mapping[str, Any]:
-    iast = require_mapping(plan.get("iast"), "iast")
-    base_url, headers, timeout_ms = _test_http_context(iast, environment)
-    _test_health_preflight(base_url, iast, headers, timeout_ms)
-    result_path = _safe_http_path(iast.get("resultPath"), "iast.resultPath")
-    status, hook = _http_json(
-        _same_origin(base_url, result_path), "GET",
-        {**headers, "X-Elmpay-IAST-Hook": "result"}, None, timeout_ms,
-    )
-    observed_requests = hook.get("observedRequests")
-    critical = hook.get("criticalFindings")
-    high = hook.get("highFindings")
-    exit_code = hook.get("processExitCode")
-    valid = (
-        status == 200
-        and hook.get("environment") == "TEST"
-        and hook.get("hookActive") is True
-        and hook.get("artifactDigest") == artifact_digest_value
-        and isinstance(observed_requests, int) and not isinstance(observed_requests, bool)
-        and observed_requests > 0
-        and isinstance(critical, int) and not isinstance(critical, bool)
-        and isinstance(high, int) and not isinstance(high, bool)
-        and isinstance(exit_code, int) and not isinstance(exit_code, bool)
-    )
-    digest = hashlib.sha256(canonical_json({
-        "artifactDigest": artifact_digest_value,
-        "hook": dict(hook),
-        "httpStatus": status,
-    })).hexdigest()
-    return _report(
-        "iast", "COMPLETE" if valid and exit_code == 0 else "FAIL",
-        artifact_digest_value, int(exit_code) if valid else 2,
-        int(critical) if valid else 1, int(high) if valid else 1,
-        digest, observed_at,
-    )
-
-
-def _test_http_context(configuration: Mapping[str, Any], environment: Mapping[str, str]
-                       ) -> tuple[str, Mapping[str, str], int]:
-    base_url = _loopback_base(require_text(configuration.get("baseUrl"), "baseUrl"))
-    token_env = require_text(configuration.get("testTokenEnv"), "testTokenEnv")
-    if not token_env.startswith("ELMPAY_TEST_") or not token_env.replace("_", "").isalnum():
-        raise ValidationError("security test token environment name is invalid")
+    scanner = Path(__file__).resolve().parents[2] / "dynamic_security_scanner.py"
+    if not scanner.is_file() or scanner.is_symlink():
+        return _report(tool, "BLOCKED", artifact_digest_value, 127, 1, 0,
+                       hashlib.sha256(f"missing:{tool}:scanner".encode()).hexdigest(),
+                       observed_at, blocked_reason="dynamic_scanner_not_installed")
+    token_env = require_text(configuration.get("testTokenEnv"), f"{tool}.testTokenEnv")
     token = environment.get(token_env)
     if token is None:
         raise ValidationError("security test token is unavailable")
     _validate_test_token(token)
-    timeout_ms = _bounded_integer(
-        configuration.get("timeoutMilliseconds", 2_000), "timeoutMilliseconds", 50, 10_000
+    command = [sys.executable, str(scanner), "--mode", tool,
+               "--artifact-digest", artifact_digest_value]
+    safe_environment = {
+        "PATH": environment.get("PATH", ""),
+        "LANG": environment.get("LANG", "C.UTF-8"),
+        token_env: token,
+    }
+    payload = canonical_json(configuration)
+    started_at = datetime.now(timezone.utc)
+    try:
+        completed = subprocess.run(
+            command, cwd=scanner.parents[1], env=safe_environment,
+            input=payload, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            timeout=timeout_seconds, check=False,
+        )
+    except subprocess.TimeoutExpired as exception:
+        output_digest = hashlib.sha256(
+            (exception.stdout or b"") + b"\0" + (exception.stderr or b"")
+        ).hexdigest()
+        return _report(tool, "FAIL", artifact_digest_value, 124, 1, 0,
+                       output_digest, observed_at, output_digest=output_digest,
+                       executable_digest=_file_digest(scanner))
+    if len(completed.stdout) > 131_072 or len(completed.stderr) > 65_536:
+        raise ValidationError(f"{tool} scanner output exceeded the safe size")
+    output_digest = hashlib.sha256(completed.stdout + b"\0" + completed.stderr).hexdigest()
+    try:
+        decoded = json.loads(completed.stdout)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exception:
+        raise ValidationError(f"{tool} scanner output is not strict JSON") from exception
+    report = require_mapping(decoded, f"{tool} scanner report")
+    critical = report.get("criticalFindings")
+    high = report.get("highFindings")
+    observed_requests = report.get("observedRequests")
+    exit_code = report.get("exitCode")
+    valid = (
+        report.get("tool") == tool
+        and report.get("artifactDigest") == artifact_digest_value
+        and isinstance(critical, int) and not isinstance(critical, bool) and critical >= 0
+        and isinstance(high, int) and not isinstance(high, bool) and high >= 0
+        and isinstance(observed_requests, int) and not isinstance(observed_requests, bool)
+        and observed_requests > 0
+        and isinstance(exit_code, int) and not isinstance(exit_code, bool)
+        and exit_code == completed.returncode
+        and report.get("status") in {"COMPLETE", "FAIL"}
+        and report.get("scannerVersion") == "elmpay-dynamic-security/1"
+        and isinstance(report.get("executionDigest"), str)
+        and _is_digest(str(report.get("executionDigest")))
     )
-    return base_url, {
-        "Accept": "application/json",
-        "Authorization": f"Bearer {token}",
-        "X-Elmpay-Security-Test": "true",
-    }, timeout_ms
-
-
-def _test_health_preflight(base_url: str, configuration: Mapping[str, Any],
-                           headers: Mapping[str, str], timeout_ms: int) -> None:
-    health_path = _safe_http_path(configuration.get("healthPath", "/healthz"), "healthPath")
-    status, health = _http_json(
-        _same_origin(base_url, health_path), "GET", headers, None, timeout_ms
+    if not valid:
+        return _report(tool, "FAIL", artifact_digest_value, 2, 1, 0,
+                       output_digest, observed_at, output_digest=output_digest,
+                       executable_digest=_file_digest(scanner),
+                       blocked_reason="invalid_dynamic_scanner_report")
+    command_binding = {
+        "tool": tool, "scannerSourceDigest": _file_digest(scanner),
+        "pythonExecutableDigest": _file_digest(Path(sys.executable).resolve()),
+        "arguments": command[2:], "configurationDigest": hashlib.sha256(payload).hexdigest(),
+        "artifactDigest": artifact_digest_value, "startedAt": started_at.isoformat(),
+        "outputDigest": output_digest, "scannerExecutionDigest": report["executionDigest"],
+    }
+    execution_digest = hashlib.sha256(canonical_json(command_binding)).hexdigest()
+    status = "COMPLETE" if (completed.returncode == 0 and exit_code == 0
+                            and critical == 0 and high == 0
+                            and report.get("status") == "COMPLETE") else "FAIL"
+    return _report(
+        tool, status, artifact_digest_value, int(exit_code), int(critical), int(high),
+        execution_digest, observed_at, output_digest=output_digest,
+        executable_digest=_file_digest(scanner), scanner_version=report["scannerVersion"],
+        observed_requests=observed_requests,
     )
-    if (status != 200 or health.get("environment") != "TEST"
-            or health.get("securityTest") is not True
-            or health.get("production") is not False
-            or health.get("tokenRequired") is not True):
-        raise ValidationError("security target did not prove TEST-only mode")
 
 
 def _evaluate_orchestrated_reports(required_tools: tuple[str, ...],

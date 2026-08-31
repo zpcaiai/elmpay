@@ -13,6 +13,7 @@ import com.elmpay.payment.PaymentCoreException;
 import com.elmpay.payment.PaymentIntent;
 import com.elmpay.payment.PaymentMethodReference;
 import com.elmpay.payment.PaymentService;
+import com.elmpay.payment.readmodel.JdbcPaymentTimeline;
 import com.elmpay.payment.checkout.HostedCheckoutService;
 import com.elmpay.payment.refund.RefundApplicationService;
 import com.elmpay.payment.refund.RefundApprovalCommand;
@@ -56,27 +57,49 @@ public final class PaymentHttpHandler implements HttpHandler {
     private static final Set<String> REFUND_RECOVER_FIELDS = Set.of("ticket_id");
     private final RuntimeComponents runtime;
     private final HostedCheckoutService checkout;
+    private final CheckoutProviderSdkRuntime providerSdk;
     private final FixedWindowRateLimiter rateLimiter;
 
     public PaymentHttpHandler(RuntimeComponents runtime) {
-        this(runtime, localCheckout(runtime));
+        this(runtime, localCheckoutRuntime(runtime));
+    }
+
+    private PaymentHttpHandler(RuntimeComponents runtime, CheckoutRuntimeFactory.Runtime checkout) {
+        this(runtime, checkout.checkout(), checkout.providerSdk());
     }
 
     public PaymentHttpHandler(RuntimeComponents runtime, HostedCheckoutService checkout) {
+        this(runtime, checkout, null);
+    }
+
+    public PaymentHttpHandler(RuntimeComponents runtime, HostedCheckoutService checkout,
+            CheckoutProviderSdkRuntime providerSdk) {
         this.runtime = java.util.Objects.requireNonNull(runtime, "runtime");
         this.checkout = java.util.Objects.requireNonNull(checkout, "checkout");
+        this.providerSdk = providerSdk;
         this.rateLimiter = new FixedWindowRateLimiter(120, 60, Clock.systemUTC());
     }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        String requestId = validRequestId(exchange.getRequestHeaders().getFirst("X-Request-Id"));
+        String requestId = null;
         try {
-            if (health(exchange, requestId)) {
+            StrictJsonHttpRequest.validateEnvelope(exchange);
+            requireSupportedQueryRoute(exchange);
+            requestId = validRequestId(StrictJsonHttpRequest.optionalHeader(
+                    exchange, "X-Request-Id", 128));
+            if (exchange.getRequestHeaders().containsKey(
+                    OidcJwtAuthenticator.FORBIDDEN_CLIENT_CERTIFICATE_HEADER)) {
+                error(exchange, 400, "invalid_request",
+                        "client certificate binding headers are forbidden",
+                        safeRequestId(requestId));
+                return;
+            }
+            if ("local".equals(runtime.mode()) && health(exchange, requestId)) {
                 return;
             }
             if (requestId == null || !validTraceparent(
-                    exchange.getRequestHeaders().getFirst("traceparent"))) {
+                    StrictJsonHttpRequest.optionalHeader(exchange, "traceparent", 128))) {
                 error(exchange, 400, "invalid_request",
                         "X-Request-Id and a valid traceparent are required", safeRequestId(requestId));
                 return;
@@ -85,7 +108,7 @@ public final class PaymentHttpHandler implements HttpHandler {
                 browserCheckoutRoute(exchange, requestId);
                 return;
             }
-            ApiPrincipal principal = runtime.authenticator().authenticate(exchange.getRequestHeaders())
+            ApiPrincipal principal = runtime.authenticator().authenticate(exchange)
                     .orElse(null);
             if (principal == null) {
                 error(exchange, 401, "unauthenticated", "valid bearer credentials are required",
@@ -121,6 +144,11 @@ public final class PaymentHttpHandler implements HttpHandler {
 
     private boolean health(HttpExchange exchange, String requestId) throws IOException {
         String path = exchange.getRequestURI().getPath();
+        if ("/health/startup".equals(path)) {
+            response(exchange, 200, Map.of("status", "started", "mode", runtime.mode()),
+                    safeRequestId(requestId));
+            return true;
+        }
         if ("/health/live".equals(path)) {
             response(exchange, 200, Map.of("status", "live", "mode", runtime.mode()),
                     safeRequestId(requestId));
@@ -175,6 +203,24 @@ public final class PaymentHttpHandler implements HttpHandler {
             requireScope(principal, ApiPrincipal.PAYMENTS_READ);
             response(exchange, 200, intent(runtime.payments().get(principal.tenantId(), intentId)),
                     requestId);
+        } else if (parts.length == 2 && "status".equals(parts[1]) && "GET".equals(method)) {
+            requireScope(principal, ApiPrincipal.PAYMENTS_READ);
+            if (exchange.getRequestURI().getRawQuery() != null) {
+                throw new IllegalArgumentException("status query parameters are not supported");
+            }
+            JdbcPaymentTimeline.PaymentStatus value = runtime.timeline().status(
+                    principal.tenantId(), principal.projectId(), intentId)
+                    .orElseThrow(() -> new PaymentCoreException("RESOURCE_NOT_FOUND",
+                            "payment status does not exist in this project"));
+            response(exchange, 200, paymentStatus(value), requestId);
+        } else if (parts.length == 2 && "timeline".equals(parts[1]) && "GET".equals(method)) {
+            requireScope(principal, ApiPrincipal.PAYMENTS_READ);
+            TimelineQuery query = timelineQuery(exchange.getRequestURI().getRawQuery());
+            PaymentTimelineRuntime.TimelinePage page = runtime.timeline().timeline(
+                    principal.tenantId(), principal.projectId(), intentId, query.afterSequence(),
+                    query.limit()).orElseThrow(() -> new PaymentCoreException(
+                            "RESOURCE_NOT_FOUND", "payment timeline does not exist in this project"));
+            response(exchange, 200, paymentTimeline(page, query.afterSequence()), requestId);
         } else if (parts.length == 2 && "POST".equals(method)) {
             requireScope(principal, ApiPrincipal.PAYMENTS_WRITE);
             action(exchange, principal, intentId, parts[1], requestId);
@@ -185,6 +231,16 @@ public final class PaymentHttpHandler implements HttpHandler {
 
     private static boolean isPaymentIntentsCollection(String path) {
         return PAYMENT_INTENTS_PATH.equals(path) || LEGACY_PAYMENT_INTENTS_PATH.equals(path);
+    }
+
+    private static void requireSupportedQueryRoute(HttpExchange exchange) {
+        if (exchange.getRequestURI().getRawQuery() == null) {
+            return;
+        }
+        String path = exchange.getRequestURI().getPath();
+        if (!path.endsWith("/timeline") && !path.endsWith("/provider-sdk-config")) {
+            throw new IllegalArgumentException("query parameters are not supported by this route");
+        }
     }
 
     private static String paymentIntentMemberPrefix(String path) {
@@ -206,7 +262,8 @@ public final class PaymentHttpHandler implements HttpHandler {
                         principal.merchantId(), string(body, "business_order_no"),
                         integer(body, "amount"), string(body, "currency"),
                         optionalString(body, "return_route_id"),
-                        exchange.getRequestHeaders().getFirst("X-Device-Context-Digest"),
+                        StrictJsonHttpRequest.optionalHeader(
+                                exchange, "X-Device-Context-Digest", 64),
                         requiredHeader(exchange, "Idempotency-Key")));
         response(exchange, 201, Map.of("checkout_session_id", created.checkoutSessionId(),
                 "expires_at", created.expiresAt(), "checkout_url", created.checkoutUrl().toString(),
@@ -318,6 +375,16 @@ public final class PaymentHttpHandler implements HttpHandler {
                     deviceClass(exchange))), requestId);
             return;
         }
+        if (parts.length == 2 && "provider-sdk-config".equals(parts[1])
+                && "GET".equals(exchange.getRequestMethod())) {
+            requireScope(principal, ApiPrincipal.PAYMENTS_READ);
+            requireBodyless(exchange);
+            ProviderSdkQuery query = providerSdkQuery(exchange.getRequestURI().getRawQuery());
+            response(exchange, 200, providerSdkConfiguration(requireProviderSdk()
+                    .authorizePrincipal(principal, parts[0], query.method(), query.channel(),
+                            requestId)), requestId);
+            return;
+        }
         if (parts.length == 2 && "confirm".equals(parts[1])
                 && "POST".equals(exchange.getRequestMethod())) {
             requireScope(principal, ApiPrincipal.PAYMENTS_WRITE);
@@ -346,6 +413,15 @@ public final class PaymentHttpHandler implements HttpHandler {
         if (parts.length == 1 && "GET".equals(exchange.getRequestMethod())) {
             response(exchange, 200, browserCheckout(checkout.getForBrowser(parts[0], token,
                     preferredLocale(exchange), "WEB")), requestId);
+            return;
+        }
+        if (parts.length == 2 && "provider-sdk-config".equals(parts[1])
+                && "GET".equals(exchange.getRequestMethod())) {
+            requireBodyless(exchange);
+            ProviderSdkQuery query = providerSdkQuery(exchange.getRequestURI().getRawQuery());
+            response(exchange, 200, providerSdkConfiguration(requireProviderSdk()
+                    .authorizeBrowser(parts[0], token, query.method(), query.channel(), requestId)),
+                    requestId);
             return;
         }
         if (parts.length == 2 && "confirm".equals(parts[1])
@@ -405,7 +481,7 @@ public final class PaymentHttpHandler implements HttpHandler {
     }
 
     private static Locale preferredLocale(HttpExchange exchange) {
-        String header = exchange.getRequestHeaders().getFirst("Accept-Language");
+        String header = StrictJsonHttpRequest.optionalHeader(exchange, "Accept-Language", 256);
         if (header == null || header.isBlank() || header.length() > 256) {
             return Locale.ENGLISH;
         }
@@ -419,7 +495,8 @@ public final class PaymentHttpHandler implements HttpHandler {
     }
 
     private static String deviceClass(HttpExchange exchange) {
-        String value = exchange.getRequestHeaders().getFirst("X-ElmPay-Device-Class");
+        String value = StrictJsonHttpRequest.optionalHeader(
+                exchange, "X-ElmPay-Device-Class", 32);
         if (value == null || value.isBlank()) {
             return "WEB";
         }
@@ -445,7 +522,8 @@ public final class PaymentHttpHandler implements HttpHandler {
     }
 
     private static String checkoutToken(HttpExchange exchange) {
-        String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+        String authorization = StrictJsonHttpRequest.optionalHeader(
+                exchange, "Authorization", 4_096);
         String prefix = "CheckoutSession ";
         if (authorization == null || !authorization.startsWith(prefix)
                 || !authorization.substring(prefix.length()).matches(
@@ -461,12 +539,70 @@ public final class PaymentHttpHandler implements HttpHandler {
         }
     }
 
-    private static HostedCheckoutService localCheckout(RuntimeComponents runtime) {
+    private CheckoutProviderSdkRuntime requireProviderSdk() {
+        if (providerSdk == null) {
+            throw new PaymentCoreException("PROVIDER_NOT_CONFIGURED",
+                    "provider SDK runtime is not configured");
+        }
+        return providerSdk;
+    }
+
+    private static Map<String, Object> providerSdkConfiguration(
+            CheckoutProviderSdkRuntime.Configuration value) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("method", value.method());
+        result.put("provider", value.provider());
+        result.put("sdkVersion", value.sdkVersion());
+        result.put("publicParameters", value.publicParameters());
+        return result;
+    }
+
+    private static ProviderSdkQuery providerSdkQuery(String rawQuery) {
+        if (rawQuery == null || rawQuery.length() > 256 || rawQuery.indexOf('%') >= 0) {
+            throw new IllegalArgumentException("provider SDK query is invalid");
+        }
+        String method = null;
+        String channel = null;
+        for (String item : rawQuery.split("&", -1)) {
+            String[] fields = item.split("=", -1);
+            if (fields.length != 2) {
+                throw new IllegalArgumentException("provider SDK query is invalid");
+            }
+            if ("method".equals(fields[0]) && method == null
+                    && fields[1].matches("[a-z0-9][a-z0-9._-]{0,63}")) {
+                method = fields[1];
+            } else if ("channel".equals(fields[0]) && channel == null
+                    && fields[1].matches("[A-Za-z0-9_-]{20,128}")) {
+                channel = fields[1];
+            } else {
+                throw new IllegalArgumentException("provider SDK query is invalid");
+            }
+        }
+        if (method == null || channel == null) {
+            throw new IllegalArgumentException("provider SDK query is incomplete");
+        }
+        return new ProviderSdkQuery(method, channel);
+    }
+
+    private static void requireBodyless(HttpExchange exchange) {
+        String transferEncoding = StrictJsonHttpRequest.optionalHeader(
+                exchange, "Transfer-Encoding", 128);
+        String contentLength = StrictJsonHttpRequest.optionalHeader(
+                exchange, "Content-Length", 16);
+        if (transferEncoding != null || (contentLength != null && !"0".equals(contentLength))) {
+            throw new IllegalArgumentException("provider SDK configuration requests cannot have a body");
+        }
+    }
+
+    private static CheckoutRuntimeFactory.Runtime localCheckoutRuntime(RuntimeComponents runtime) {
         if (!"local".equals(runtime.mode())) {
             throw new IllegalStateException(
                     "production checkout requires explicit signing and return-route configuration");
         }
-        return CheckoutRuntimeFactory.local(runtime.payments());
+        return CheckoutRuntimeFactory.createRuntime(runtime.payments(), "local", Map.of());
+    }
+
+    private record ProviderSdkQuery(String method, String channel) {
     }
 
     private void create(HttpExchange exchange, ApiPrincipal principal, String requestId)
@@ -627,17 +763,94 @@ public final class PaymentHttpHandler implements HttpHandler {
                 "client_action", value.clientAction(), "replayed", value.replayed());
     }
 
+    private static Map<String, Object> paymentStatus(JdbcPaymentTimeline.PaymentStatus value) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("payment_intent_id", value.paymentIntentId());
+        result.put("state", value.state());
+        result.put("amount_minor", value.amountMinor());
+        result.put("currency", value.currency());
+        result.put("captured_amount_minor", value.capturedAmountMinor());
+        result.put("refunded_amount_minor", value.refundedAmountMinor());
+        result.put("provider", value.provider());
+        result.put("provider_transaction_id", value.providerTransactionId());
+        result.put("provider_status", value.providerStatus());
+        result.put("risk_outcome", value.riskOutcome());
+        result.put("last_sequence_no", value.lastSequenceNo());
+        result.put("generation", value.generation());
+        result.put("updated_at", value.updatedAt());
+        return result;
+    }
+
+    private static Map<String, Object> paymentTimeline(PaymentTimelineRuntime.TimelinePage page,
+            long afterSequence) {
+        List<Map<String, Object>> entries = page.entries().stream().map(value -> {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("sequence_no", value.sequenceNo());
+            entry.put("event_id", value.eventId());
+            entry.put("event_type", value.eventType());
+            entry.put("event_version", value.eventVersion());
+            entry.put("provider", value.provider());
+            entry.put("provider_transaction_id", value.providerTransactionId());
+            entry.put("risk_outcome", value.riskOutcome());
+            entry.put("correlation_id", value.correlationId());
+            entry.put("payload_sha256", value.payloadSha256());
+            entry.put("occurred_at", value.occurredAt());
+            return entry;
+        }).toList();
+        long next = entries.isEmpty() ? afterSequence
+                : ((Number) entries.getLast().get("sequence_no")).longValue();
+        return Map.of("status", paymentStatus(page.status()), "events", entries,
+                "after_sequence", afterSequence, "next_after_sequence", next);
+    }
+
+    static TimelineQuery timelineQuery(String rawQuery) {
+        long afterSequence = 0;
+        int limit = 100;
+        boolean afterSeen = false;
+        boolean limitSeen = false;
+        if (rawQuery == null) {
+            return new TimelineQuery(afterSequence, limit);
+        }
+        if (rawQuery.isBlank() || rawQuery.length() > 256) {
+            throw new IllegalArgumentException("invalid payment timeline query");
+        }
+        for (String parameter : rawQuery.split("&", -1)) {
+            String[] pair = parameter.split("=", -1);
+            if (pair.length != 2 || pair[1].isBlank() || !pair[1].matches("[0-9]{1,19}")) {
+                throw new IllegalArgumentException("invalid payment timeline query");
+            }
+            try {
+                if ("after_sequence".equals(pair[0]) && !afterSeen) {
+                    afterSequence = Long.parseLong(pair[1]);
+                    afterSeen = true;
+                } else if ("limit".equals(pair[0]) && !limitSeen) {
+                    long parsed = Long.parseLong(pair[1]);
+                    if (parsed < 1 || parsed > 100) {
+                        throw new IllegalArgumentException("timeline limit is invalid");
+                    }
+                    limit = Math.toIntExact(parsed);
+                    limitSeen = true;
+                } else {
+                    throw new IllegalArgumentException("unknown or duplicate timeline query field");
+                }
+            } catch (NumberFormatException exception) {
+                throw new IllegalArgumentException("invalid payment timeline query", exception);
+            }
+        }
+        return new TimelineQuery(afterSequence, limit);
+    }
+
+    record TimelineQuery(long afterSequence, int limit) {
+    }
+
     private static Map<String, Object> body(HttpExchange exchange) throws IOException {
-        String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
-        if (contentType == null || !contentType.toLowerCase(Locale.ROOT)
-                .startsWith("application/json")) {
-            throw new IllegalArgumentException("application/json is required");
-        }
-        byte[] bytes = exchange.getRequestBody().readNBytes(MAX_BODY_BYTES + 1);
-        if (bytes.length > MAX_BODY_BYTES) {
-            throw new IllegalArgumentException("request body is too large");
-        }
-        return Json.object(new String(bytes, StandardCharsets.UTF_8));
+        return StrictJsonHttpRequest.body(exchange, MAX_BODY_BYTES, Set.of(
+                "external_reference", "amount_minor", "currency", "allowed_methods",
+                "confirmation_mode", "region", "ttl_minutes", "business_order_no",
+                "amount", "capture_method", "allowed_payment_methods", "metadata",
+                "method", "payment_method_type", "payment_method_reference", "fingerprint",
+                "approved_return_route_id", "return_url_token", "provider_parameters",
+                "return_route_id", "payment_intent_id", "reason", "ticket_id"));
     }
 
     private static void requireOnly(Map<String, Object> body, Set<String> allowed) {
@@ -677,7 +890,7 @@ public final class PaymentHttpHandler implements HttpHandler {
     }
 
     private static String optionalHeader(HttpExchange exchange, String name, String fallback) {
-        String value = exchange.getRequestHeaders().getFirst(name);
+        String value = StrictJsonHttpRequest.optionalHeader(exchange, name, 8_192);
         return value == null || value.isBlank() ? fallback : value;
     }
 
@@ -746,11 +959,7 @@ public final class PaymentHttpHandler implements HttpHandler {
     }
 
     private static String requiredHeader(HttpExchange exchange, String name) {
-        String value = exchange.getRequestHeaders().getFirst(name);
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(name + " is required");
-        }
-        return value;
+        return StrictJsonHttpRequest.requiredHeader(exchange, name, 8_192);
     }
 
     private static String validRequestId(String value) {
@@ -775,7 +984,8 @@ public final class PaymentHttpHandler implements HttpHandler {
             case "RISK_REVIEW_REQUIRED" -> 409;
             case "ATTEMPT_IN_PROGRESS", "CONCURRENT_MODIFICATION" -> 409;
             case "PROVIDER_NOT_CONFIGURED", "NO_ELIGIBLE_PROVIDER",
-                    "PROVIDER_ACCOUNT_REFUND_DISABLED" -> 503;
+                    "PROVIDER_ACCOUNT_REFUND_DISABLED", "READ_MODEL_UNAVAILABLE",
+                    "READ_MODEL_LAGGING" -> 503;
             case "REFUND_AMOUNT_EXCEEDS_REFUNDABLE", "REFUND_QUERY_TOO_EARLY",
                     "REFUND_APPROVAL_NOT_ALLOWED", "REFUND_FOUR_EYES_REQUIRED",
                     "REFUND_CAPABILITY_MISSING", "REFUND_NOT_ALLOWED" -> 409;
@@ -791,6 +1001,7 @@ public final class PaymentHttpHandler implements HttpHandler {
             case "CONCURRENT_MODIFICATION", "ATTEMPT_IN_PROGRESS", "IDEMPOTENCY_KEY_REUSE" ->
                 "idempotency_key_reuse";
             case "PROVIDER_NOT_CONFIGURED", "NO_ELIGIBLE_PROVIDER" -> "provider_unavailable";
+            case "READ_MODEL_UNAVAILABLE", "READ_MODEL_LAGGING" -> "read_model_unavailable";
             case "REFUND_AMOUNT_EXCEEDS_REFUNDABLE" -> "refund_amount_exceeds_refundable";
             case "REFUND_QUERY_TOO_EARLY" -> "refund_recovery_not_ready";
             case "REFUND_APPROVAL_NOT_ALLOWED", "REFUND_FOUR_EYES_REQUIRED" ->

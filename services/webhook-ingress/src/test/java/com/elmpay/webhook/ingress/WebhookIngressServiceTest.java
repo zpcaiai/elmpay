@@ -29,13 +29,13 @@ final class WebhookIngressServiceTest {
         AtomicInteger verificationCalls = new AtomicInteger();
         Set<String> inbox = new HashSet<>();
         WebhookIngressService service = new WebhookIngressService(Map.of("stripe",
-                (merchant, headers, body, receivedAt) -> {
+                (context, headers, body, receivedAt) -> {
                     verificationCalls.incrementAndGet();
                     if (!"valid".equals(headers.get("signature"))) {
                         throw new SecurityException("bad signature");
                     }
                     return event("evt-001", receivedAt);
-                }), (context, event, body, digest) -> inbox.add(event.providerEventId()));
+                }), (context, event, digest) -> inbox.add(event.providerEventId()));
 
         WebhookIngressService.Receipt first = service.ingest(context(), Map.of("signature", "valid"),
                 "{\"safe\":true}".getBytes(StandardCharsets.UTF_8));
@@ -52,9 +52,9 @@ final class WebhookIngressServiceTest {
     void badSignatureCannotReachInbox() {
         AtomicInteger writes = new AtomicInteger();
         WebhookIngressService service = new WebhookIngressService(Map.of("stripe",
-                (merchant, headers, body, receivedAt) -> {
+                (context, headers, body, receivedAt) -> {
                     throw new SecurityException("bad signature");
-                }), (context, event, body, digest) -> {
+                }), (context, event, digest) -> {
                     writes.incrementAndGet();
                     return true;
                 });
@@ -67,9 +67,9 @@ final class WebhookIngressServiceTest {
     void preservesOutOfOrderVerifiedFactsForAsynchronousStateMachine() {
         Set<String> stored = new HashSet<>();
         WebhookIngressService service = new WebhookIngressService(Map.of("stripe",
-                (merchant, headers, body, receivedAt) -> event(headers.get("event"),
+                (context, headers, body, receivedAt) -> event(headers.get("event"),
                         Instant.parse(headers.get("occurred")))),
-                (context, event, body, digest) -> stored.add(event.providerEventId()));
+                (context, event, digest) -> stored.add(event.providerEventId()));
         WebhookIngressService.Receipt recent = service.ingest(context(),
                 Map.of("event", "evt-recent", "occurred", "2026-08-26T00:00:10Z"),
                 "{\"safe\":true}".getBytes(StandardCharsets.UTF_8));
@@ -85,10 +85,10 @@ final class WebhookIngressServiceTest {
     void rejectsCardFieldsBeforeVerificationOrPersistence() {
         AtomicInteger verifierCalls = new AtomicInteger();
         WebhookIngressService service = new WebhookIngressService(Map.of("stripe",
-                (merchant, headers, body, receivedAt) -> {
+                (context, headers, body, receivedAt) -> {
                     verifierCalls.incrementAndGet();
                     return event("evt-001", receivedAt);
-                }), (context, event, body, digest) -> true);
+                }), (context, event, digest) -> true);
         assertThrows(SecurityException.class, () -> service.ingest(context(), Map.of(),
                 "{\"card_number\":\"4242424242424242\"}".getBytes(StandardCharsets.UTF_8)));
         assertEquals(0, verifierCalls.get());
@@ -99,10 +99,10 @@ final class WebhookIngressServiceTest {
         AtomicReference<WebhookIngressService.Context> storedContext = new AtomicReference<>();
         AtomicReference<String> verifiedMerchant = new AtomicReference<>();
         WebhookIngressService service = new WebhookIngressService(Map.of("stripe",
-                (merchant, headers, body, receivedAt) -> {
-                    verifiedMerchant.set(merchant);
+                (context, headers, body, receivedAt) -> {
+                    verifiedMerchant.set(context.merchantAccountId());
                     return event("evt-bound", receivedAt);
-                }), (context, event, body, digest) -> {
+                }), (context, event, digest) -> {
                     storedContext.set(context);
                     return true;
                 });
@@ -122,10 +122,10 @@ final class WebhookIngressServiceTest {
     void unknownPublicEndpointCannotReachVerifierOrInbox() {
         AtomicInteger calls = new AtomicInteger();
         WebhookIngressService service = new WebhookIngressService(Map.of("stripe",
-                (merchant, headers, body, receivedAt) -> {
+                (context, headers, body, receivedAt) -> {
                     calls.incrementAndGet();
                     return event("evt", receivedAt);
-                }), (context, event, body, digest) -> {
+                }), (context, event, digest) -> {
                     calls.incrementAndGet();
                     return true;
                 });
@@ -139,8 +139,8 @@ final class WebhookIngressServiceTest {
     void canonicalHttpRouteIsReachableAndUsesOnlyServerOwnedScope() throws Exception {
         AtomicReference<WebhookIngressService.Context> stored = new AtomicReference<>();
         WebhookIngressService service = new WebhookIngressService(Map.of("stripe",
-                (merchant, headers, body, receivedAt) -> event("evt-http", receivedAt)),
-                (context, event, body, digest) -> {
+                (context, headers, body, receivedAt) -> event("evt-http", receivedAt)),
+                (context, event, digest) -> {
                     stored.set(context);
                     return true;
                 });

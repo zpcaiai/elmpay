@@ -29,6 +29,7 @@ public final class SynchronousRiskRefundPolicy implements RefundRiskPolicy {
         try {
             RiskGateEnforcer.requireApproved(riskGate, new RiskEvaluationRequest(
                     command.tenantId().toString(),
+                    intent.projectId().toString(),
                     RiskOperation.REFUND_REQUEST.name() + ":" + command.idempotencyKey(),
                     RiskOperation.REFUND_REQUEST, command.requesterId(), command.amountMinor(),
                     intent.amount().currency().code(), context.evaluatedAt(),

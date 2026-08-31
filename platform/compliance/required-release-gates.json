@@ -25,5 +25,21 @@
   "maximumApprovalAgeHours": 24,
   "evidenceMustBeIndependent": true,
   "manifestMustExpire": true,
-  "externalEvidenceRequired": true
+  "externalEvidenceRequired": true,
+  "canonicalGateInputsRequired": true,
+  "gateInputsDigestAlgorithm": "SHA-256",
+  "controlPolicyDigestRequired": true,
+  "productImageIndexRequired": true,
+  "productImageManifestDigest": "4f2b62b95832b57833941442182f9133b9792887ff5883d8733d8441d5f424c5",
+  "imageAdmissionPolicyDigest": "f5bae0c772f806a928cb91acea523b20b575edd34148104d8cf08bf2f42925f6",
+  "requiredProductImages": [
+    "edge-gateway",
+    "checkout-web",
+    "admin-web",
+    "risk-engine",
+    "worker-scheduler",
+    "webhook-processor"
+  ],
+  "revalidateSignedGateInputsBeforeRollout": true,
+  "unknownExternalOutcomePolicy": "BLOCK_AND_RECONCILE"
 }

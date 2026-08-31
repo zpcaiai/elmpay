@@ -174,6 +174,13 @@
       "notes": "外部身份提供方的验签公钥来自 JWKS，本平台不持有其私钥。"
     },
     {
+      "provider": "merchant-authorization-server",
+      "key_id": "kek-provider-credentials",
+      "material": "external_jwks",
+      "signing_algorithm": "RS256",
+      "notes": "商户 OAuth2 authorization server 的 at+jwt 验签公钥仅通过轮换 JWKS 获取，本平台不持有其签发私钥。"
+    },
+    {
       "provider": "corporate-idp",
       "key_id": "kek-provider-credentials",
       "material": "external_jwks",

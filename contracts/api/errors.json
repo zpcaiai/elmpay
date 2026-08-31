@@ -110,7 +110,7 @@
       "category": "auth",
       "code": "tenant_mismatch",
       "http_status": 403,
-      "remedy": "确认使用了正确租户的密钥；不要跨租户引用对象 ID",
+      "remedy": "确认 access token 的租户、项目与商户声明；不要跨租户引用对象 ID",
       "retryable": false,
       "safe_message": "该对象不属于当前租户。"
     },
@@ -118,7 +118,7 @@
       "category": "auth",
       "code": "unauthenticated",
       "http_status": 401,
-      "remedy": "使用有效的 API 密钥重新签名请求",
+      "remedy": "使用有效的短期 OAuth2 access token，并完成 mTLS 持有者绑定",
       "retryable": false,
       "safe_message": "凭据缺失或无效。"
     }

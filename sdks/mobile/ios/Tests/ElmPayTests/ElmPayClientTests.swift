@@ -12,6 +12,15 @@ actor RecordingTransport: ElmPayTransport {
     }
     func recorded() -> [URLRequest] { values }
 }
+actor TerminalTransport: ElmPayTransport {
+    private var count = 0
+    func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        count += 1
+        return (Data(), HTTPURLResponse(url: request.url!, statusCode: 400, httpVersion: nil,
+                                       headerFields: [:])!)
+    }
+    func attempts() -> Int { count }
+}
 struct Attestation: DeviceAttestationProvider {
     func assertion(challenge: Data) async throws -> String { "device-assertion" }
 }
@@ -64,6 +73,16 @@ actor Launcher: PaymentMethodLauncher {
         XCTAssertEqual(launched.first?.0, "apple_pay")
         await XCTAssertThrowsErrorAsync(try await client.launchPaymentMethod(method: "card",
             launchURL: URL(string: "http://evil.example/pay")!, launcher: launcher))
+    }
+
+    func testTerminalClientErrorIsNeverRetried() async throws {
+        let transport = TerminalTransport()
+        let client = try ElmPayClient(baseURL: URL(string: "https://api.example/")!,
+            bearerToken: "token", projectId: "10000000-0000-4000-8000-000000000002",
+            transport: transport, maximumAttempts: 5)
+        await XCTAssertThrowsErrorAsync(try await client.retrieveSession(id: "session-1"))
+        let attempts = await transport.attempts()
+        XCTAssertEqual(attempts, 1)
     }
 }
 

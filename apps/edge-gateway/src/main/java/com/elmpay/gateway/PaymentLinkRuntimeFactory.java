@@ -33,9 +33,8 @@ public final class PaymentLinkRuntimeFactory {
             throw new IllegalStateException(
                     "production payment links require exactly one ready KMS/HSM MAC signer");
         }
-        var dataSource = new DriverManagerDataSource(required(environment, "ELMPAY_DATABASE_URL"),
-                required(environment, "ELMPAY_DATABASE_USER"),
-                required(environment, "ELMPAY_DATABASE_PASSWORD"));
+        var dataSource = DriverManagerDataSource.fromEnvironment(environment,
+                "elmpay-edge-payment-links");
         return new DurablePaymentLinkService(new JdbcPaymentLinkRepository(dataSource),
                 signers.getFirst(), Clock.systemUTC());
     }

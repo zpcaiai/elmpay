@@ -37,28 +37,28 @@
 | `rate_limited` | 429 | 是 | throttle | 请求过于频繁。 | 读取 Retry-After 并退避重试 |
 | `resource_not_found` | 404 | 否 | client | 对象不存在，或不属于当前租户。 | 确认对象 ID；注意本接口不区分不存在与无权访问 |
 | `state_transition_not_allowed` | 409 | 否 | state | 对象当前状态不允许该操作。 | 先读取对象当前状态；不要假设本地缓存的状态仍然有效 |
-| `tenant_mismatch` | 403 | 否 | auth | 该对象不属于当前租户。 | 确认使用了正确租户的密钥；不要跨租户引用对象 ID |
-| `unauthenticated` | 401 | 否 | auth | 凭据缺失或无效。 | 使用有效的 API 密钥重新签名请求 |
+| `tenant_mismatch` | 403 | 否 | auth | 该对象不属于当前租户。 | 确认 access token 的租户、项目与商户声明；不要跨租户引用对象 ID |
+| `unauthenticated` | 401 | 否 | auth | 凭据缺失或无效。 | 使用有效的短期 OAuth2 access token，并完成 mTLS 持有者绑定 |
 
 ## 操作
 
-| 操作 | 方法 | 路径 | 调用方 | 认证 | 幂等键作用域 | 驱动的状态转移 |
-| --- | --- | --- | --- | --- | --- | --- |
-| `create_payment_intent` | POST | `/v1/payment_intents` | `merchant` | `api_key` | `idempotency_key` | — |
-| `get_payment_intent` | GET | `/v1/payment_intents/{payment_intent_id}` | `merchant` | `api_key` | — | — |
-| `list_payment_intents` | GET | `/v1/payment_intents` | `merchant` | `api_key` | — | — |
-| `capture_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/capture` | `merchant` | `api_key` | `idempotency_key` | — |
-| `cancel_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/cancel` | `merchant` | `api_key` | `idempotency_key` | `payment-intent` / `merchant.cancel` |
-| `void_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/void` | `merchant` | `api_key` | `idempotency_key` | `payment-intent` / `merchant.void` |
-| `close_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/close` | `merchant` | `api_key` | `idempotency_key` | — |
-| `create_refund` | POST | `/v1/refunds` | `merchant` | `api_key` | `idempotency_key` | — |
-| `cancel_refund` | POST | `/v1/refunds/{refund_id}/cancel` | `merchant` | `api_key` | `idempotency_key` | `refund` / `merchant.cancel_refund` |
-| `get_refund` | GET | `/v1/refunds/{refund_id}` | `merchant` | `api_key` | — | — |
-| `list_refunds` | GET | `/v1/refunds` | `merchant` | `api_key` | — | — |
-| `get_dispute` | GET | `/v1/disputes/{dispute_id}` | `merchant` | `api_key` | — | — |
-| `list_disputes` | GET | `/v1/disputes` | `merchant` | `api_key` | — | — |
-| `submit_dispute_evidence` | POST | `/v1/disputes/{dispute_id}/evidence` | `merchant` | `api_key` | `dispute_id+evidence_revision` | `dispute` / `merchant.evidence_submitted` |
-| `cancel_subscription` | POST | `/v1/subscriptions/{subscription_id}/cancel` | `customer` | `api_key` | `idempotency_key` | `subscription` / `customer.cancel` |
-| `receive_provider_event` | POST | `/v1/webhooks/providers/{provider}` | `provider-event` | `provider_signature` | `provider_event_id` | — |
+| 操作 | 方法 | 路径 | 调用方 | 认证 | 权限范围 | 幂等键作用域 | 驱动的状态转移 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `create_payment_intent` | POST | `/v1/payment_intents` | `merchant` | `oauth2_mtls` | `payments.write` | `idempotency_key` | — |
+| `get_payment_intent` | GET | `/v1/payment_intents/{payment_intent_id}` | `merchant` | `oauth2_mtls` | `payments.read` | — | — |
+| `list_payment_intents` | GET | `/v1/payment_intents` | `merchant` | `oauth2_mtls` | `payments.read` | — | — |
+| `capture_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/capture` | `merchant` | `oauth2_mtls` | `payments.write` | `idempotency_key` | — |
+| `cancel_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/cancel` | `merchant` | `oauth2_mtls` | `payments.write` | `idempotency_key` | `payment-intent` / `merchant.cancel` |
+| `void_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/void` | `merchant` | `oauth2_mtls` | `payments.write` | `idempotency_key` | `payment-intent` / `merchant.void` |
+| `close_payment_intent` | POST | `/v1/payment_intents/{payment_intent_id}/close` | `merchant` | `oauth2_mtls` | `payments.write` | `idempotency_key` | — |
+| `create_refund` | POST | `/v1/refunds` | `merchant` | `oauth2_mtls` | `payments.write` | `idempotency_key` | — |
+| `cancel_refund` | POST | `/v1/refunds/{refund_id}/cancel` | `merchant` | `oauth2_mtls` | `payments.write` | `idempotency_key` | `refund` / `merchant.cancel_refund` |
+| `get_refund` | GET | `/v1/refunds/{refund_id}` | `merchant` | `oauth2_mtls` | `payments.read` | — | — |
+| `list_refunds` | GET | `/v1/refunds` | `merchant` | `oauth2_mtls` | `payments.read` | — | — |
+| `get_dispute` | GET | `/v1/disputes/{dispute_id}` | `merchant` | `oauth2_mtls` | `payments.read` | — | — |
+| `list_disputes` | GET | `/v1/disputes` | `merchant` | `oauth2_mtls` | `payments.read` | — | — |
+| `submit_dispute_evidence` | POST | `/v1/disputes/{dispute_id}/evidence` | `merchant` | `oauth2_mtls` | `payments.write` | `dispute_id+evidence_revision` | `dispute` / `merchant.evidence_submitted` |
+| `cancel_subscription` | POST | `/v1/subscriptions/{subscription_id}/cancel` | `customer` | `oauth2_mtls` | `payments.write` | `idempotency_key` | `subscription` / `customer.cancel` |
+| `receive_provider_event` | POST | `/v1/webhooks/providers/{provider}` | `provider-event` | `provider_signature` | — | `provider_event_id` | — |
 
 共 16 个操作（其中 10 个写操作，全部要求幂等键）、15 个错误码。

@@ -23,6 +23,7 @@ import com.elmpay.risk.SynchronousRiskGate;
 import com.elmpay.security.CanonicalPayload;
 import com.elmpay.security.SensitiveDataGuard;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,10 +41,19 @@ public final class PaymentService {
     private final SynchronousRiskGate riskGate;
     private final PaymentStateMachine stateMachine;
     private final Clock clock;
+    private final Duration attemptLease;
 
     public PaymentService(PaymentRepository repository,
             MerchantConfigurationRepository merchantConfiguration, RoutingService routing,
             ProviderAdapterRegistry adapters, SynchronousRiskGate riskGate, Clock clock) {
+        this(repository, merchantConfiguration, routing, adapters, riskGate, clock,
+                Duration.ofSeconds(30));
+    }
+
+    public PaymentService(PaymentRepository repository,
+            MerchantConfigurationRepository merchantConfiguration, RoutingService routing,
+            ProviderAdapterRegistry adapters, SynchronousRiskGate riskGate, Clock clock,
+            Duration attemptLease) {
         this.repository = Objects.requireNonNull(repository, "repository");
         this.merchantConfiguration = Objects.requireNonNull(
                 merchantConfiguration, "merchantConfiguration");
@@ -52,6 +62,10 @@ public final class PaymentService {
         this.riskGate = Objects.requireNonNull(riskGate, "riskGate");
         this.stateMachine = new PaymentStateMachine();
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.attemptLease = Objects.requireNonNull(attemptLease, "attemptLease");
+        if (attemptLease.isZero() || attemptLease.isNegative()) {
+            throw new IllegalArgumentException("attemptLease must be positive");
+        }
     }
 
     public PaymentIntent create(CreateIntentCommand command) {
@@ -69,6 +83,7 @@ public final class PaymentService {
             return byOrder;
         }
         requireRiskApproval(new RiskEvaluationRequest(command.tenantId().toString(),
+                command.projectId().toString(),
                 riskRequestId(RiskOperation.PAYMENT_CREATE, command.idempotencyKey()),
                 RiskOperation.PAYMENT_CREATE, command.merchantId().toString(),
                 command.amount().amountMinor(), command.amount().currency().code(), clock.instant(),
@@ -149,6 +164,7 @@ public final class PaymentService {
                     "payment method is outside the immutable intent snapshot");
         }
         requireRiskApproval(new RiskEvaluationRequest(intent.tenantId().toString(),
+                intent.projectId().toString(),
                 riskRequestId(RiskOperation.PAYMENT_CONFIRM, command.idempotencyKey()),
                 RiskOperation.PAYMENT_CONFIRM, command.paymentMethod().fingerprint(),
                 intent.amount().amountMinor(), intent.amount().currency().code(), clock.instant(),
@@ -167,10 +183,11 @@ public final class PaymentService {
         } catch (RoutingException exception) {
             throw new PaymentCoreException(exception.code(), exception.getMessage(), exception);
         }
-        PaymentAttempt attempt = repository.beginAttempt(new AttemptDraft(intent.tenantId(),
+        PaymentAttempt attempt = beginAttempt(new AttemptDraft(intent.tenantId(),
                 intent.id(), route.account().id(), route.account().provider(),
                 AttemptOperation.PAYMENT, intent.version(), requestDigest,
-                command.idempotencyKey(), clock.instant()));
+                command.idempotencyKey(), attemptStartedAt(), newLeaseOwner("dispatch"),
+                attemptLeaseExpiresAt()));
         ProviderRequestContext context = context(route.account(), command.idempotencyKey(),
                 command.correlationId());
         ProviderAdapter adapter = adapters.require(route.account().provider());
@@ -205,6 +222,7 @@ public final class PaymentService {
                 cumulativeCapture == intent.amount().amountMinor(),
                 AuthoritySource.SERVER_SIDE_PROVIDER_RESULT, clock.instant());
         requireRiskApproval(new RiskEvaluationRequest(intent.tenantId().toString(),
+                intent.projectId().toString(),
                 riskRequestId(RiskOperation.PAYMENT_CAPTURE, command.idempotencyKey()),
                 RiskOperation.PAYMENT_CAPTURE, intent.id().toString(), command.amountMinor(),
                 intent.amount().currency().code(), clock.instant(),
@@ -215,9 +233,13 @@ public final class PaymentService {
         PaymentAttempt source = lastProviderTransaction(intent);
         ProviderAccount account = requireAccount(intent, source.providerAccountId());
         Money requested = Money.of(command.amountMinor(), intent.amount().currency().code());
-        PaymentAttempt attempt = repository.beginAttempt(new AttemptDraft(intent.tenantId(),
+        PaymentAttempt attempt = beginAttempt(new AttemptDraft(intent.tenantId(),
                 intent.id(), account.id(), account.provider(), AttemptOperation.CAPTURE,
-                intent.version(), requestDigest, command.idempotencyKey(), clock.instant()));
+                intent.version(), requestDigest, command.idempotencyKey(), attemptStartedAt(),
+                newLeaseOwner("dispatch"), attemptLeaseExpiresAt(), command.amountMinor(),
+                intent.amount().currency().code(),
+                ProviderEffectExpectationService.businessOrderDigest(
+                        intent.externalReference())));
         try {
             ProviderPayment payment = adapters.require(account.provider()).capture(
                     context(account, command.idempotencyKey(), command.correlationId()),
@@ -245,9 +267,10 @@ public final class PaymentService {
                 clock.instant());
         PaymentAttempt source = lastProviderTransaction(intent);
         ProviderAccount account = requireAccount(intent, source.providerAccountId());
-        PaymentAttempt attempt = repository.beginAttempt(new AttemptDraft(intent.tenantId(),
+        PaymentAttempt attempt = beginAttempt(new AttemptDraft(intent.tenantId(),
                 intent.id(), account.id(), account.provider(), AttemptOperation.CANCEL,
-                intent.version(), requestDigest, command.idempotencyKey(), clock.instant()));
+                intent.version(), requestDigest, command.idempotencyKey(), attemptStartedAt(),
+                newLeaseOwner("dispatch"), attemptLeaseExpiresAt()));
         try {
             ProviderPayment payment = adapters.require(account.provider()).cancel(
                     context(account, command.idempotencyKey(), command.correlationId()),
@@ -279,9 +302,10 @@ public final class PaymentService {
                 clock.instant());
         PaymentAttempt source = lastProviderTransaction(intent);
         ProviderAccount account = requireAccount(intent, source.providerAccountId());
-        PaymentAttempt attempt = repository.beginAttempt(new AttemptDraft(intent.tenantId(),
+        PaymentAttempt attempt = beginAttempt(new AttemptDraft(intent.tenantId(),
                 intent.id(), account.id(), account.provider(), AttemptOperation.CLOSE,
-                intent.version(), requestDigest, command.idempotencyKey(), clock.instant()));
+                intent.version(), requestDigest, command.idempotencyKey(), attemptStartedAt(),
+                newLeaseOwner("dispatch"), attemptLeaseExpiresAt()));
         try {
             ProviderPayment payment = adapters.require(account.provider()).cancel(
                     context(account, command.idempotencyKey(), command.correlationId()),
@@ -294,28 +318,32 @@ public final class PaymentService {
 
     public ConfirmationResult resolveUnknown(UUID tenantId, UUID intentId, String correlationId) {
         PaymentIntent intent = requireIntent(tenantId, intentId);
-        PaymentAttempt source = repository.attempts(tenantId, intentId).stream()
-                .filter(attempt -> attempt.state() == AttemptState.UNKNOWN
-                        && attempt.operation() != AttemptOperation.QUERY
-                        && attempt.providerTransactionId() != null)
-                .reduce((first, second) -> second)
+        InstantLease recoveryLease = newLease("recovery");
+        PaymentAttempt source = repository.claimRecoverableAttempt(tenantId, intentId,
+                recoveryLease.owner(), recoveryLease.startedAt(), recoveryLease.expiresAt())
                 .orElseThrow(() -> new PaymentCoreException("NO_UNKNOWN_ATTEMPT",
-                        "intent has no attributable unknown provider outcome"));
+                        "intent has no expired unresolved provider outcome"));
         ProviderAccount account = requireAccount(intent, source.providerAccountId());
         String key = "query:" + UUID.randomUUID();
         String requestDigest = CanonicalPayload.sha256Hex(Map.of(
                 "intent_id", intent.id().toString(), "operation", "query",
-                "provider_transaction_id", source.providerTransactionId()));
-        PaymentAttempt query = repository.beginAttempt(new AttemptDraft(intent.tenantId(),
+                "provider_transaction_id", value(source.providerTransactionId()),
+                "external_reference", intent.externalReference()));
+        InstantLease queryLease = newLease("query");
+        PaymentAttempt query = beginAttempt(new AttemptDraft(intent.tenantId(),
                 intent.id(), account.id(), account.provider(), AttemptOperation.QUERY,
-                intent.version(), requestDigest, key, clock.instant()));
+                intent.version(), requestDigest, key, queryLease.startedAt(), queryLease.owner(),
+                queryLease.expiresAt()));
         try {
             ProviderPayment payment = adapters.require(account.provider()).queryPayment(
                     context(account, key, correlationId), source.providerTransactionId(),
                     intent.externalReference());
             return commitRecoveryResult(intent, source, query, payment, correlationId);
         } catch (ProviderException exception) {
-            return commitProviderException(intent, query, exception, correlationId);
+            ConfirmationResult failure = commitProviderException(intent, query, exception,
+                    correlationId);
+            repository.releaseAttemptLease(source, clock.instant());
+            return failure;
         }
     }
 
@@ -366,7 +394,7 @@ public final class PaymentService {
 
     private ConfirmationResult commitRecoveryResult(PaymentIntent intent, PaymentAttempt source,
             PaymentAttempt query, ProviderPayment payment, String correlationId) {
-        validateOrRecordRecoveryResult(intent, query, payment, correlationId,
+        validateOrRecordRecoveryResult(intent, source, query, payment, correlationId,
                 source.operation());
         AttemptResolution recoveredResolution = normalize(payment, source.operation());
         AttemptResolution sourceResolution = new AttemptResolution(recoveredResolution.state(),
@@ -384,8 +412,9 @@ public final class PaymentService {
         return new ConfirmationResult(next, resolvedQuery, payment.clientAction(), false);
     }
 
-    private void validateOrRecordRecoveryResult(PaymentIntent intent, PaymentAttempt query,
-            ProviderPayment payment, String correlationId, AttemptOperation sourceOperation) {
+    private void validateOrRecordRecoveryResult(PaymentIntent intent, PaymentAttempt source,
+            PaymentAttempt query, ProviderPayment payment, String correlationId,
+            AttemptOperation sourceOperation) {
         try {
             validateRecoveryAmounts(intent, payment, sourceOperation);
         } catch (PaymentCoreException validationFailure) {
@@ -405,6 +434,7 @@ public final class PaymentService {
                     "adapter.query.invalid_result", validationFailure.code(), clock.instant()));
             repository.resolveAttempt(invalid, intent, intent.version(),
                     "payment.query.invalid_provider_result.v1", correlationId);
+            repository.releaseAttemptLease(source, clock.instant());
             throw validationFailure;
         }
     }
@@ -749,5 +779,30 @@ public final class PaymentService {
 
     private static String value(String nullable) {
         return nullable == null ? "" : nullable;
+    }
+
+    private PaymentAttempt beginAttempt(AttemptDraft draft) {
+        return repository.beginAttempt(draft);
+    }
+
+    private java.time.Instant attemptStartedAt() {
+        return clock.instant();
+    }
+
+    private java.time.Instant attemptLeaseExpiresAt() {
+        return clock.instant().plus(attemptLease);
+    }
+
+    private String newLeaseOwner(String purpose) {
+        return purpose + ":" + UUID.randomUUID();
+    }
+
+    private InstantLease newLease(String purpose) {
+        java.time.Instant startedAt = clock.instant();
+        return new InstantLease(startedAt, startedAt.plus(attemptLease), newLeaseOwner(purpose));
+    }
+
+    private record InstantLease(java.time.Instant startedAt, java.time.Instant expiresAt,
+            String owner) {
     }
 }

@@ -32,48 +32,58 @@ public final class SecretMaterialProviderCredential implements ProviderCredentia
         this.version = requireText(version, "version");
         this.leaseId = requireText(leaseId, "leaseId");
         this.expiresAt = Objects.requireNonNull(expiresAt, "expiresAt");
+        this.revoker = Objects.requireNonNull(revoker, "revoker");
         Objects.requireNonNull(material, "material");
         if (material.isEmpty() || material.size() > 64) {
             throw new IllegalArgumentException("credential material must contain 1..64 fields");
         }
         Map<String, byte[]> copy = new LinkedHashMap<>();
         long total = 0;
-        for (Map.Entry<String, byte[]> entry : material.entrySet()) {
-            String field = requireField(entry.getKey());
-            byte[] secret = Objects.requireNonNull(entry.getValue(), "secret").clone();
-            if (secret.length == 0 || secret.length > 65_536) {
-                Arrays.fill(secret, (byte) 0);
-                wipe(copy);
-                throw new IllegalArgumentException("credential field has an invalid size");
+        try {
+            for (Map.Entry<String, byte[]> entry : material.entrySet()) {
+                String field = requireField(entry.getKey());
+                byte[] secret = null;
+                try {
+                    secret = Objects.requireNonNull(entry.getValue(), "secret").clone();
+                    if (secret.length == 0 || secret.length > 65_536) {
+                        throw new IllegalArgumentException(
+                                "credential field has an invalid size");
+                    }
+                    total += secret.length;
+                    if (total > 262_144 || copy.putIfAbsent(field, secret) != null) {
+                        throw new IllegalArgumentException("credential material is invalid");
+                    }
+                    secret = null;
+                } finally {
+                    if (secret != null) {
+                        Arrays.fill(secret, (byte) 0);
+                    }
+                }
             }
-            total += secret.length;
-            if (total > 262_144 || copy.putIfAbsent(field, secret) != null) {
-                Arrays.fill(secret, (byte) 0);
-                wipe(copy);
-                throw new IllegalArgumentException("credential material is invalid");
-            }
+        } catch (RuntimeException | Error exception) {
+            wipe(copy);
+            throw exception;
         }
         this.material = copy;
-        this.revoker = Objects.requireNonNull(revoker, "revoker");
     }
 
     @Override
-    public String version() {
+    public synchronized String version() {
         ensureOpen();
         return version;
     }
 
-    public String leaseId() {
+    public synchronized String leaseId() {
         ensureOpen();
         return leaseId;
     }
 
-    public Instant expiresAt() {
+    public synchronized Instant expiresAt() {
         ensureOpen();
         return expiresAt;
     }
 
-    public byte[] require(String field) {
+    public synchronized byte[] require(String field) {
         ensureOpen();
         byte[] value = material.get(requireField(field));
         if (value == null) {
@@ -82,7 +92,7 @@ public final class SecretMaterialProviderCredential implements ProviderCredentia
         return value.clone();
     }
 
-    public <T> T use(String field, SecretOperation<T> operation) {
+    public synchronized <T> T use(String field, SecretOperation<T> operation) {
         Objects.requireNonNull(operation, "operation");
         byte[] copy = require(field);
         try {
@@ -93,7 +103,7 @@ public final class SecretMaterialProviderCredential implements ProviderCredentia
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         if (!closed.compareAndSet(false, true)) {
             return;
         }

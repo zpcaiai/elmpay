@@ -91,8 +91,8 @@ final class OutboxRelayTest {
 
     private static OutboxRelay.Message message(String owner, int attempt) {
         return new OutboxRelay.Message(1, EVENT, TENANT, PROJECT, "payment_intent", AGGREGATE,
-                "payment.intent.updated.v1", 1, "{\"state\":\"authorized\"}",
-                "correlation-b12", NOW, attempt, owner, attempt);
+                1, "payment.intent.updated.v1", 1, "{\"state\":\"authorized\"}",
+                NOW, NOW, "correlation-b12", attempt, owner, attempt);
     }
 
     private static final class FakeStore implements OutboxRelay.Store {

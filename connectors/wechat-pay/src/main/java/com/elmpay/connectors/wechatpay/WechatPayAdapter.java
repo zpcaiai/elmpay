@@ -3,8 +3,8 @@ package com.elmpay.connectors.wechatpay;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
@@ -17,12 +17,17 @@ import java.security.Signature;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -31,6 +36,9 @@ import java.util.regex.Pattern;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.net.ssl.SSLParameters;
+
+import com.elmpay.security.BoundedHttpTransport;
 
 /**
  * A narrow WeChat Pay APIv3 adapter. It implements the public APIv3 signing and
@@ -187,14 +195,60 @@ public final class WechatPayAdapter implements AutoCloseable {
         }
     }
 
-    public record HttpResult(int statusCode, byte[] body) {
-        public HttpResult {
-            body = Objects.requireNonNull(body, "body").clone();
+    /** Transport response whose owned body must be wiped after one attempt. */
+    public static final class HttpResult implements AutoCloseable {
+        private final int statusCode;
+        private final Map<String, List<String>> headers;
+        private byte[] body;
+        private boolean closed;
+
+        public HttpResult(int statusCode, byte[] body) {
+            this(statusCode, Map.of(), body);
+        }
+
+        public HttpResult(int statusCode, Map<String, List<String>> headers, byte[] body) {
+            this.statusCode = statusCode;
+            Objects.requireNonNull(headers, "headers");
+            Map<String, List<String>> safeHeaders = new LinkedHashMap<>();
+            headers.forEach((name, values) -> safeHeaders.put(Objects.requireNonNull(name, "header name"),
+                    List.copyOf(Objects.requireNonNull(values, "header values"))));
+            this.headers = Map.copyOf(safeHeaders);
+            this.body = Objects.requireNonNull(body, "body").clone();
+        }
+
+        public int statusCode() {
+            return statusCode;
+        }
+
+        public Map<String, List<String>> headers() {
+            return headers;
+        }
+
+        public synchronized int bodyLength() {
+            ensureOpen();
+            return body.length;
+        }
+
+        /** Returns an owned copy; the caller must wipe it. */
+        public synchronized byte[] body() {
+            ensureOpen();
+            return body.clone();
         }
 
         @Override
-        public byte[] body() {
-            return body.clone();
+        public synchronized void close() {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            Arrays.fill(body, (byte) 0);
+            body = new byte[0];
+        }
+
+        private void ensureOpen() {
+            if (closed) {
+                throw new IllegalStateException("WeChat HTTP response is closed");
+            }
         }
     }
 
@@ -208,16 +262,45 @@ public final class WechatPayAdapter implements AutoCloseable {
 
         public JdkTransport(Duration connectTimeout) {
             positive(connectTimeout, "connectTimeout");
+            SSLParameters tls = new SSLParameters();
+            tls.setProtocols(new String[] {"TLSv1.3"});
+            tls.setEndpointIdentificationAlgorithm("HTTPS");
             this.client = HttpClient.newBuilder()
                     .connectTimeout(connectTimeout)
+                    .sslParameters(tls)
                     .followRedirects(HttpClient.Redirect.NEVER)
                     .build();
         }
 
         @Override
         public HttpResult send(HttpRequest request) throws IOException, InterruptedException {
-            HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            return new HttpResult(response.statusCode(), response.body());
+            try (BoundedHttpTransport.Response response = BoundedHttpTransport.send(
+                    client, request, MAX_BODY_BYTES)) {
+                requireJsonContentType(response.headers(), response.bodyLength());
+                byte[] body = response.body();
+                try {
+                    return new HttpResult(response.statusCode(), response.headers().map(), body);
+                } finally {
+                    Arrays.fill(body, (byte) 0);
+                }
+            }
+        }
+
+        private static void requireJsonContentType(HttpHeaders headers, int bodyLength) {
+            List<String> values = headers.allValues("Content-Type");
+            if (bodyLength == 0 && values.isEmpty()) {
+                return;
+            }
+            if (values.size() != 1) {
+                throw new SecurityException("WeChat response Content-Type is missing or ambiguous");
+            }
+            String value = values.getFirst().trim();
+            int separator = value.indexOf(';');
+            String mediaType = separator < 0 ? value : value.substring(0, separator).trim();
+            if (!"application/json".equalsIgnoreCase(mediaType)
+                    || value.indexOf(',') >= 0) {
+                throw new SecurityException("WeChat response Content-Type is not application/json");
+            }
         }
     }
 
@@ -368,8 +451,10 @@ public final class WechatPayAdapter implements AutoCloseable {
 
     public OperationResult requestBill(String billDate, String billType, String idempotencyKey) {
         ensureOpen();
-        requireText(billDate, "billDate");
-        requireText(billType, "billType");
+        requireBillDate(billDate);
+        if (!Set.of("ALL", "SUCCESS", "REFUND").contains(billType)) {
+            throw new IllegalArgumentException("billType must be ALL, SUCCESS, or REFUND");
+        }
         requireIdempotency(idempotencyKey);
         String path = "/v3/bill/tradebill?bill_date=" + billDate + "&bill_type=" + billType;
         return execute("GET", path, "", idempotencyKey);
@@ -443,16 +528,22 @@ public final class WechatPayAdapter implements AutoCloseable {
         String body = strictUtf8(rawBody);
         byte[] message = (timestampText + "\n" + nonce + "\n" + body + "\n")
                 .getBytes(StandardCharsets.UTF_8);
+        byte[] supplied = null;
         try {
             Signature verifier = Signature.getInstance("SHA256withRSA");
             verifier.initVerify(platformKey);
             verifier.update(message);
-            byte[] supplied = Base64.getDecoder().decode(signatureText);
+            supplied = Base64.getDecoder().decode(signatureText);
             if (!verifier.verify(supplied)) {
                 throw new SecurityException("invalid webhook signature");
             }
         } catch (GeneralSecurityException | IllegalArgumentException exception) {
             throw new SecurityException("invalid webhook signature", exception);
+        } finally {
+            Arrays.fill(message, (byte) 0);
+            if (supplied != null) {
+                Arrays.fill(supplied, (byte) 0);
+            }
         }
 
         String eventId = requiredString(body, "id");
@@ -504,32 +595,104 @@ public final class WechatPayAdapter implements AutoCloseable {
     }
 
     private OperationResult execute(String method, String path, String body, String idempotencyKey) {
-        HttpResult last = null;
+        int lastStatus = 0;
         for (int attempt = 1; attempt <= config.maxAttempts(); attempt++) {
             HttpRequest request = signedRequest(method, path, body, idempotencyKey);
-            try {
-                last = transport.send(request);
-                if (last.body().length > MAX_BODY_BYTES) {
-                    return new OperationResult(State.UNKNOWN, false, last.statusCode(), "", "");
+            try (HttpResult result = transport.send(request)) {
+                lastStatus = result.statusCode();
+                if (result.bodyLength() > MAX_BODY_BYTES) {
+                    return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
                 }
-                String response = strictUtf8(last.body());
-                if (last.statusCode() >= 200 && last.statusCode() < 300) {
-                    return new OperationResult(State.PENDING, false, last.statusCode(),
+                if ((lastStatus < 200 || lastStatus >= 300) && retryable(lastStatus)) {
+                    continue;
+                }
+                byte[] responseBytes = result.body();
+                String response;
+                try {
+                    response = strictUtf8(responseBytes);
+                } finally {
+                    Arrays.fill(responseBytes, (byte) 0);
+                }
+                if (lastStatus >= 200 && lastStatus < 300) {
+                    verifySynchronousResponse(result.headers(), response, Instant.now(config.clock()));
+                    return new OperationResult(State.PENDING, false, lastStatus,
                             optionalString(response, "transaction_id"), response);
                 }
-                if (!retryable(last.statusCode())) {
-                    return new OperationResult(State.FAILED, true, last.statusCode(), "", response);
-                }
+                return new OperationResult(State.FAILED, true, lastStatus, "", response);
             } catch (IOException exception) {
-                last = null;
+                lastStatus = 0;
+            } catch (SecurityException exception) {
+                return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 return new OperationResult(State.UNKNOWN, false, 0, "", "");
             }
         }
-        int status = last == null ? 0 : last.statusCode();
-        String response = last == null ? "" : strictUtf8(last.body());
-        return new OperationResult(State.UNKNOWN, false, status, "", response);
+        return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
+    }
+
+    private void verifySynchronousResponse(Map<String, List<String>> headers, String body,
+            Instant receivedAt) {
+        String timestampText = responseHeader(headers, "Wechatpay-Timestamp");
+        String nonce = responseHeader(headers, "Wechatpay-Nonce");
+        String serial = responseHeader(headers, "Wechatpay-Serial");
+        String suppliedSignature = responseHeader(headers, "Wechatpay-Signature");
+        long timestamp;
+        try {
+            timestamp = Long.parseLong(timestampText);
+            long difference = Math.subtractExact(receivedAt.getEpochSecond(), timestamp);
+            if (difference == Long.MIN_VALUE
+                    || Math.abs(difference) > config.webhookTolerance().toSeconds()) {
+                throw new SecurityException("stale WeChat response signature");
+            }
+        } catch (NumberFormatException | ArithmeticException exception) {
+            throw new SecurityException("invalid WeChat response timestamp", exception);
+        }
+        if (nonce.isBlank() || nonce.length() > 128 || nonce.indexOf('\n') >= 0
+                || nonce.indexOf('\r') >= 0) {
+            throw new SecurityException("invalid WeChat response nonce");
+        }
+        PublicKey key = platformKeys.get().get(serial);
+        if (key == null) {
+            throw new SecurityException("unknown WeChat response key serial");
+        }
+        byte[] message = (timestampText + "\n" + nonce + "\n" + body + "\n")
+                .getBytes(StandardCharsets.UTF_8);
+        byte[] supplied = null;
+        try {
+            Signature verifier = Signature.getInstance("SHA256withRSA");
+            verifier.initVerify(key);
+            verifier.update(message);
+            supplied = Base64.getDecoder().decode(suppliedSignature);
+            if (!verifier.verify(supplied)) {
+                throw new SecurityException("invalid WeChat response signature");
+            }
+        } catch (GeneralSecurityException | IllegalArgumentException exception) {
+            throw new SecurityException("invalid WeChat response signature", exception);
+        } finally {
+            Arrays.fill(message, (byte) 0);
+            if (supplied != null) {
+                Arrays.fill(supplied, (byte) 0);
+            }
+        }
+    }
+
+    private static String responseHeader(Map<String, List<String>> headers, String expected) {
+        String result = null;
+        for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
+            if (!entry.getKey().equalsIgnoreCase(expected)) {
+                continue;
+            }
+            if (result != null || entry.getValue().size() != 1
+                    || entry.getValue().getFirst() == null) {
+                throw new SecurityException("ambiguous WeChat response header: " + expected);
+            }
+            result = entry.getValue().getFirst();
+        }
+        if (result == null) {
+            throw new SecurityException("missing WeChat response header: " + expected);
+        }
+        return requireSafeHeaderValue(result, "WeChat response header: " + expected);
     }
 
     private HttpRequest signedRequest(String method, String path, String body, String idempotencyKey) {
@@ -564,16 +727,31 @@ public final class WechatPayAdapter implements AutoCloseable {
     }
 
     private String decryptResource(String ciphertext, String nonce, String associatedData) {
+        byte[] encrypted = null;
+        byte[] cleartext = null;
+        byte[] keyBytes = null;
         try {
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            SecretKeySpec key = new SecretKeySpec(config.apiV3Key(), "AES");
+            keyBytes = config.apiV3Key();
+            SecretKeySpec key = new SecretKeySpec(keyBytes, "AES");
             cipher.init(Cipher.DECRYPT_MODE, key,
                     new GCMParameterSpec(128, nonce.getBytes(StandardCharsets.UTF_8)));
             cipher.updateAAD(associatedData.getBytes(StandardCharsets.UTF_8));
-            byte[] cleartext = cipher.doFinal(Base64.getDecoder().decode(ciphertext));
+            encrypted = Base64.getDecoder().decode(ciphertext);
+            cleartext = cipher.doFinal(encrypted);
             return strictUtf8(cleartext);
         } catch (GeneralSecurityException | IllegalArgumentException exception) {
             throw new SecurityException("unable to decrypt webhook resource", exception);
+        } finally {
+            if (encrypted != null) {
+                Arrays.fill(encrypted, (byte) 0);
+            }
+            if (cleartext != null) {
+                Arrays.fill(cleartext, (byte) 0);
+            }
+            if (keyBytes != null) {
+                Arrays.fill(keyBytes, (byte) 0);
+            }
         }
     }
 
@@ -582,12 +760,39 @@ public final class WechatPayAdapter implements AutoCloseable {
     }
 
     private static String header(Map<String, String> headers, String name) {
-        return headers.entrySet().stream()
-                .filter(entry -> entry.getKey().equalsIgnoreCase(name))
-                .map(Map.Entry::getValue)
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElseThrow(() -> new SecurityException("missing webhook header: " + name));
+        String result = null;
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            if (!entry.getKey().equalsIgnoreCase(name)) {
+                continue;
+            }
+            if (result != null || entry.getValue() == null) {
+                throw new SecurityException("ambiguous webhook header: " + name);
+            }
+            result = entry.getValue();
+        }
+        if (result == null) {
+            throw new SecurityException("missing webhook header: " + name);
+        }
+        return requireSafeHeaderValue(result, "webhook header: " + name);
+    }
+
+    private static String requireSafeHeaderValue(String value, String name) {
+        if (value.isBlank() || value.length() > 4_096
+                || value.chars().anyMatch(character -> character < 0x20 || character == 0x7f)) {
+            throw new SecurityException("invalid " + name);
+        }
+        return value;
+    }
+
+    private static void requireBillDate(String value) {
+        requireText(value, "billDate");
+        try {
+            if (!LocalDate.parse(value).toString().equals(value)) {
+                throw new DateTimeParseException("non-canonical bill date", value, 0);
+            }
+        } catch (DateTimeParseException exception) {
+            throw new IllegalArgumentException("billDate must be a canonical ISO date", exception);
+        }
     }
 
     private static String firstPresent(String json, String... names) {

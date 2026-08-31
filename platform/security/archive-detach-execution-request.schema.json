@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://elmpay.example/schemas/archive-detach-execution-request-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "releaseId", "partitionName", "canonicalAuthorizationDigest"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "releaseId": {"type": "string", "format": "uuid"},
+    "partitionName": {"type": "string", "pattern": "^tenant_archive_fact_[0-9]{6}$"},
+    "canonicalAuthorizationDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

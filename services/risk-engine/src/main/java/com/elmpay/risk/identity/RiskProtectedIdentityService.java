@@ -45,7 +45,8 @@ public final class RiskProtectedIdentityService {
         Map<String, String> attributes = new LinkedHashMap<>(command.attributes());
         attributes.put("identityOperation", operation.name());
         RiskGateEnforcer.requireApproved(riskGate, new RiskEvaluationRequest(
-                command.tenantId(), operation.name() + ":" + command.requestId(), operation,
+                command.tenantId(), command.projectId(),
+                operation.name() + ":" + command.requestId(), operation,
                 command.subjectId(), 0, "XXX", clock.instant(), attributes));
     }
 }

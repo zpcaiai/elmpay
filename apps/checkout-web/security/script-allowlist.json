@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "manifestVersion": "checkout-scripts-2026-08-28-v1",
+  "manifestVersion": "checkout-scripts-2026-08-30-v2",
   "reviewExpiresAt": "2027-02-28T00:00:00Z",
-  "pageTemplateSha256": "6fb21f173e51b30aad37ef6c24769980b40b22f0d965f28a5cd56b2d9379be48",
+  "pageTemplateSha256": "b314a90949ec7cf920f2c7ef886ee470ee1393354101058bc071eedb71bc933b",
   "trustedTypesPolicy": "elmpay-checkout",
   "scripts": [
     {
@@ -19,7 +19,7 @@
     {
       "id": "official-provider-handlers",
       "source": "/provider-handlers.mjs",
-      "sri": "sha384-SYJQpsiB4d1SniZSG8PrVlckwDZgRfabCvY7F/q+QDBKObNIPvec9/Y0paT4YGGD",
+      "sri": "sha384-iwTF4rn3V13D9szofy6FOIgzlwmzDMx/mZKitflgm1QvtNcykIqE9z7jAoNAb1iH",
       "owner": "payment-platform-connectors",
       "purpose": "Wrap official PSP and wallet SDK tokenization and authorization behind opaque-reference controls.",
       "reviewExpiresAt": "2027-02-28T00:00:00Z",
@@ -28,9 +28,20 @@
       "privileges": ["provider-sdk:tokenize", "provider-sdk:authorize"]
     },
     {
+      "id": "isolated-provider-sdk-bootstrap",
+      "source": "/provider-sdk-bootstrap.mjs",
+      "sri": "sha384-qKbCYe2vWc4aYYy36+/sB/zaVcXMdAAJmjhY1Pj33XqlGOFSmr8cApvozLWZKzDi",
+      "owner": "checkout-web",
+      "purpose": "Fetch only same-origin reviewed provider configuration and mediate SDK calls through an opaque-origin sandboxed frame.",
+      "reviewExpiresAt": "2027-02-28T00:00:00Z",
+      "thirdParty": false,
+      "executionContext": "main",
+      "privileges": ["network:self", "provider-sdk:tokenize", "provider-sdk:authorize"]
+    },
+    {
       "id": "checkout-controller",
       "source": "/checkout.mjs",
-      "sri": "sha384-LN/cd19inFZ7CUzItGSzhlOsZozYEmaUtofcS7Zs2lQE4SToqMRcvIzH6CNxLSy9",
+      "sri": "sha384-q165wUcSqtwtOMzMoFCejcYfFT02sZQzipEjDwhQGOc/hC3rE2ABLr78zy8xF7Bj",
       "owner": "checkout-web",
       "purpose": "Render server-authoritative payment state and submit tokenized payment method references.",
       "reviewExpiresAt": "2027-02-28T00:00:00Z",

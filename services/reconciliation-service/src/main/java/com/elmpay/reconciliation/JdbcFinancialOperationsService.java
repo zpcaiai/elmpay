@@ -21,9 +21,9 @@ import javax.sql.DataSource;
 
 /** PostgreSQL financial runtime with durable jobs and KMS-versioned report manifests. */
 public final class JdbcFinancialOperationsService implements FinancialOperationsService {
-    private static final Duration JOB_LEASE = Duration.ofMinutes(10);
     private final DataSource dataSource;
     private final Clock clock;
+    private final Duration jobLease;
     private final StatementIngestionService statements;
     private final ReconciliationEngine engine;
     private final ReconciliationRepository repository;
@@ -31,13 +31,42 @@ public final class JdbcFinancialOperationsService implements FinancialOperations
 
     public JdbcFinancialOperationsService(DataSource dataSource, Clock clock,
             ExportManifestSigner signer, int maximumStatementBytes, int maximumStatementRows) {
+        this(dataSource, clock, signer, maximumStatementBytes, maximumStatementRows,
+                Duration.ofMinutes(10));
+    }
+
+    public JdbcFinancialOperationsService(DataSource dataSource, Clock clock,
+            ExportManifestSigner signer, int maximumStatementBytes, int maximumStatementRows,
+            Duration jobLease) {
+        this(dataSource, clock, maximumStatementBytes, maximumStatementRows, jobLease,
+                new FinancialReportService(signer));
+    }
+
+    /**
+     * Constructs the worker-owned reconciliation surface without granting report-signing
+     * capability. Report generation remains available only in a runtime that has a ready
+     * KMS/HSM signer.
+     */
+    public static JdbcFinancialOperationsService reconciliationOnly(DataSource dataSource,
+            Clock clock, Duration jobLease) {
+        return new JdbcFinancialOperationsService(dataSource, clock, 1, 1, jobLease, null);
+    }
+
+    private JdbcFinancialOperationsService(DataSource dataSource, Clock clock,
+            int maximumStatementBytes, int maximumStatementRows, Duration jobLease,
+            FinancialReportService reports) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.jobLease = Objects.requireNonNull(jobLease, "jobLease");
+        if (jobLease.compareTo(Duration.ofSeconds(30)) < 0
+                || jobLease.compareTo(Duration.ofHours(1)) > 0) {
+            throw new IllegalArgumentException("jobLease must be between PT30S and PT1H");
+        }
         this.statements = new StatementIngestionService(dataSource, clock, maximumStatementBytes,
                 maximumStatementRows);
         this.engine = new ReconciliationEngine();
         this.repository = new ReconciliationRepository(dataSource, clock);
-        this.reports = new FinancialReportService(signer);
+        this.reports = reports;
     }
 
     @Override
@@ -55,22 +84,37 @@ public final class JdbcFinancialOperationsService implements FinancialOperations
             List<ReconciliationEngine.Fact> facts, String workerId) {
         Objects.requireNonNull(command, "command");
         Objects.requireNonNull(facts, "facts");
-        required(workerId, "workerId");
+        if (workerId == null
+                || !workerId.matches("[A-Za-z0-9][A-Za-z0-9._:-]{1,127}")) {
+            throw new IllegalArgumentException("workerId has an invalid format");
+        }
         UUID tenant = TenantSession.tenant(command.tenantId());
         String jobName = "reconciliation:" + provider(command.provider());
-        long fencingToken = claimJob(tenant, jobName, command.businessDate(), workerId,
-                command.inputManifestDigest());
+        JobClaim claim = claimJob(tenant, jobName, command, workerId);
+        if (claim.replayed()) {
+            return completedResult(tenant, claim.resultReference(), command);
+        }
         try {
             ReconciliationEngine.Run run = engine.reconcile(command.tenantId(), command.cutoff(),
                     List.copyOf(facts));
             String runId = repository.saveRun(run, command.provider(), command.businessDate(),
                     command.sourceFileDigest(), command.inputManifestDigest());
-            finishJob(tenant, jobName, command.businessDate(), workerId, fencingToken, runId,
-                    null);
+            try {
+                finishJob(tenant, jobName, command.businessDate(), workerId,
+                        claim.fencingToken(), runId, "completed", null);
+            } catch (RuntimeException uncertain) {
+                throw new UncertainFinancialOutcomeException(
+                        "reconciliation result committed but job completion is uncertain",
+                        uncertain);
+            }
             return new ReconciliationResult(runId, run.matched(), run.exceptions());
         } catch (RuntimeException | SQLException failure) {
             try {
-                finishJob(tenant, jobName, command.businessDate(), workerId, fencingToken, null,
+                String terminalState = failure instanceof SQLException
+                        || failure instanceof UncertainFinancialOutcomeException
+                        ? "unknown" : "failed";
+                finishJob(tenant, jobName, command.businessDate(), workerId,
+                        claim.fencingToken(), null, terminalState,
                         failure.getClass().getSimpleName());
             } catch (RuntimeException finishFailure) {
                 failure.addSuppressed(finishFailure);
@@ -84,6 +128,10 @@ public final class JdbcFinancialOperationsService implements FinancialOperations
 
     @Override
     public SignedReport generateReport(String tenantId, Instant from, Instant to) {
+        if (reports == null) {
+            throw new IllegalStateException(
+                    "financial report signing capability is not installed in this runtime");
+        }
         UUID tenant = TenantSession.tenant(tenantId);
         Objects.requireNonNull(from, "from");
         Objects.requireNonNull(to, "to");
@@ -402,55 +450,97 @@ public final class JdbcFinancialOperationsService implements FinancialOperations
         }
     }
 
-    private long claimJob(UUID tenant, String jobName, java.time.LocalDate date, String workerId,
-            String manifestDigest) {
+    private JobClaim claimJob(UUID tenant, String jobName, ReconciliationCommand command,
+            String workerId) {
         return query(tenant, connection -> {
-            Instant now = clock.instant();
+            Instant now = databaseNow(connection);
             try (PreparedStatement insert = connection.prepareStatement("""
                     INSERT INTO financial_runtime_job
-                      (tenant_id,job_name,business_date,state,input_manifest_sha256,
-                       created_at,updated_at)
-                    VALUES (?,?,?,'queued',?,?,?) ON CONFLICT DO NOTHING
+                      (tenant_id,job_name,business_date,state,input_manifest_sha256,cutoff_at,
+                       source_set_sha256,created_at,updated_at)
+                    VALUES (?,?,?,'queued',?,?,?,?,?) ON CONFLICT DO NOTHING
                     """)) {
                 insert.setObject(1, tenant);
                 insert.setString(2, jobName);
-                insert.setObject(3, date);
-                insert.setString(4, requiredDigest(manifestDigest));
-                insert.setTimestamp(5, Timestamp.from(now));
-                insert.setTimestamp(6, Timestamp.from(now));
+                insert.setObject(3, command.businessDate());
+                insert.setString(4, requiredDigest(command.inputManifestDigest()));
+                insert.setTimestamp(5, Timestamp.from(command.cutoff()));
+                insert.setString(6, requiredDigest(command.sourceFileDigest()));
+                insert.setTimestamp(7, Timestamp.from(now));
+                insert.setTimestamp(8, Timestamp.from(now));
                 insert.executeUpdate();
+            }
+            String state;
+            String resultReference;
+            long previousFence;
+            Instant leaseUntil;
+            try (PreparedStatement select = connection.prepareStatement("""
+                    SELECT state,result_reference,fencing_token,lease_until,
+                           input_manifest_sha256,cutoff_at,source_set_sha256
+                      FROM financial_runtime_job
+                     WHERE tenant_id=? AND job_name=? AND business_date=? FOR UPDATE
+                    """)) {
+                select.setObject(1, tenant);
+                select.setString(2, jobName);
+                select.setObject(3, command.businessDate());
+                try (ResultSet result = select.executeQuery()) {
+                    if (!result.next()) {
+                        throw new SQLException("financial job insert disappeared");
+                    }
+                    state = result.getString(1);
+                    resultReference = result.getString(2);
+                    previousFence = result.getLong(3);
+                    Timestamp lease = result.getTimestamp(4);
+                    leaseUntil = lease == null ? null : lease.toInstant();
+                    Timestamp storedCutoff = result.getTimestamp(6);
+                    if (!sameDigest(command.inputManifestDigest(), result.getString(5))
+                            || storedCutoff == null
+                            || !command.cutoff().equals(storedCutoff.toInstant())
+                            || !sameDigest(command.sourceFileDigest(), result.getString(7))) {
+                        throw new IllegalStateException(
+                                "financial job identity was reused with different inputs");
+                    }
+                    if (result.next()) {
+                        throw new SQLException("financial job identity is not unique");
+                    }
+                }
+            }
+            JobDisposition disposition = disposition(state, leaseUntil, now, resultReference);
+            if (disposition == JobDisposition.REPLAY) {
+                return new JobClaim(previousFence, resultReference, true);
+            }
+            if (disposition == JobDisposition.BUSY) {
+                throw new JobBusyException("financial job is owned by an unexpired lease");
             }
             try (PreparedStatement update = connection.prepareStatement("""
                     UPDATE financial_runtime_job
                        SET state='running',lease_owner=?,lease_until=?,
-                           fencing_token=fencing_token+1,updated_at=?,last_error_code=NULL
+                           fencing_token=fencing_token+1,updated_at=?,last_error_code=NULL,
+                           result_reference=NULL
                      WHERE tenant_id=? AND job_name=? AND business_date=?
-                       AND state<>'completed'
-                       AND (state<>'running' OR lease_until<=?)
-                       AND input_manifest_sha256=?
                     RETURNING fencing_token
                     """)) {
                 update.setString(1, workerId);
-                update.setTimestamp(2, Timestamp.from(now.plus(JOB_LEASE)));
+                update.setTimestamp(2, Timestamp.from(now.plus(jobLease)));
                 update.setTimestamp(3, Timestamp.from(now));
                 update.setObject(4, tenant);
                 update.setString(5, jobName);
-                update.setObject(6, date);
-                update.setTimestamp(7, Timestamp.from(now));
-                update.setString(8, requiredDigest(manifestDigest));
+                update.setObject(6, command.businessDate());
                 try (ResultSet result = update.executeQuery()) {
                     if (!result.next()) {
-                        throw new IllegalStateException(
-                                "financial job is busy, completed, or manifest-conflicted");
+                        throw new SQLException("financial job claim was not fenced");
                     }
-                    return result.getLong(1);
+                    return new JobClaim(result.getLong(1), null, false);
                 }
             }
         });
     }
 
     private void finishJob(UUID tenant, String jobName, java.time.LocalDate date, String workerId,
-            long fencingToken, String resultReference, String failureCode) {
+            long fencingToken, String resultReference, String terminalState, String failureCode) {
+        if (!java.util.Set.of("completed", "failed", "unknown").contains(terminalState)) {
+            throw new IllegalArgumentException("invalid financial job terminal state");
+        }
         query(tenant, connection -> {
             try (PreparedStatement statement = connection.prepareStatement("""
                     UPDATE financial_runtime_job
@@ -459,8 +549,8 @@ public final class JdbcFinancialOperationsService implements FinancialOperations
                      WHERE tenant_id=? AND job_name=? AND business_date=? AND state='running'
                        AND lease_owner=? AND fencing_token=? AND lease_until>?
                     """)) {
-                Instant now = clock.instant();
-                statement.setString(1, failureCode == null ? "completed" : "failed");
+                Instant now = databaseNow(connection);
+                statement.setString(1, terminalState);
                 statement.setString(2, resultReference);
                 statement.setString(3, failureCode == null ? null : safeCode(failureCode));
                 statement.setTimestamp(4, Timestamp.from(now));
@@ -475,6 +565,62 @@ public final class JdbcFinancialOperationsService implements FinancialOperations
                 }
             }
             return null;
+        });
+    }
+
+    private static Instant databaseNow(Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT clock_timestamp()"); ResultSet result = statement.executeQuery()) {
+            if (!result.next()) {
+                throw new SQLException("database clock returned no value");
+            }
+            return result.getTimestamp(1).toInstant();
+        }
+    }
+
+    private ReconciliationResult completedResult(UUID tenant, String runId,
+            ReconciliationCommand command) {
+        UUID id = UUID.fromString(runId);
+        return query(tenant, connection -> {
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    SELECT count(reconciliation_match.id)
+                               FILTER (WHERE reconciliation_match.outcome='MATCHED'),
+                           count(reconciliation_match.id)
+                               FILTER (WHERE reconciliation_match.outcome<>'MATCHED')
+                      FROM recon_run reconciliation_run
+                      LEFT JOIN recon_match reconciliation_match
+                        ON reconciliation_match.tenant_id=reconciliation_run.tenant_id
+                       AND reconciliation_match.run_id=reconciliation_run.id
+                     WHERE reconciliation_run.tenant_id=? AND reconciliation_run.id=?
+                       AND reconciliation_run.state='completed'
+                       AND reconciliation_run.provider=?
+                       AND reconciliation_run.business_date=?
+                       AND reconciliation_run.source_file_digest=?
+                       AND reconciliation_run.cutoff_at=?
+                       AND reconciliation_run.input_manifest_sha256=?
+                     GROUP BY reconciliation_run.id
+                    """)) {
+                statement.setObject(1, tenant);
+                statement.setObject(2, id);
+                statement.setString(3, command.provider());
+                statement.setString(4, command.businessDate().toString());
+                statement.setString(5, command.sourceFileDigest());
+                statement.setTimestamp(6, Timestamp.from(command.cutoff()));
+                statement.setString(7, command.inputManifestDigest());
+                try (ResultSet result = statement.executeQuery()) {
+                    if (!result.next()) {
+                        throw new IllegalStateException(
+                                "completed reconciliation result is missing or has drifted");
+                    }
+                    ReconciliationResult replay = new ReconciliationResult(runId,
+                            result.getLong(1), result.getLong(2), true);
+                    if (result.next()) {
+                        throw new IllegalStateException(
+                                "completed reconciliation result identity is not unique");
+                    }
+                    return replay;
+                }
+            }
         });
     }
 
@@ -529,6 +675,40 @@ public final class JdbcFinancialOperationsService implements FinancialOperations
         return digest;
     }
 
+    private static boolean sameDigest(String expected, String actual) {
+        return actual != null && MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.US_ASCII),
+                actual.getBytes(StandardCharsets.US_ASCII));
+    }
+
+    static JobDisposition disposition(String state, Instant leaseUntil, Instant now,
+            String resultReference) {
+        Objects.requireNonNull(state, "state");
+        Objects.requireNonNull(now, "now");
+        return switch (state) {
+            case "completed" -> {
+                if (resultReference == null) {
+                    throw new IllegalStateException("completed financial job has no result");
+                }
+                UUID.fromString(resultReference);
+                yield JobDisposition.REPLAY;
+            }
+            case "running" -> leaseUntil != null && leaseUntil.isAfter(now)
+                    ? JobDisposition.BUSY : JobDisposition.CLAIM;
+            case "queued", "failed", "unknown" -> JobDisposition.CLAIM;
+            default -> throw new IllegalStateException("unknown financial job state");
+        };
+    }
+
+    /** Expected multi-replica contention; callers must not treat it as a failed money effect. */
+    public static final class JobBusyException extends IllegalStateException {
+        private static final long serialVersionUID = 1L;
+
+        private JobBusyException(String message) {
+            super(message);
+        }
+    }
+
     private static String required(String value, String label) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(label + " is required");
@@ -560,11 +740,21 @@ public final class JdbcFinancialOperationsService implements FinancialOperations
         return new IllegalStateException(message, cause);
     }
 
+    private static final class UncertainFinancialOutcomeException extends IllegalStateException {
+        private static final long serialVersionUID = 1L;
+
+        private UncertainFinancialOutcomeException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
     @FunctionalInterface
     private interface SqlWork<T> {
         T run(Connection connection) throws SQLException;
     }
 
     private enum ExceptionAction { CLAIM, PROPOSE, APPROVE, REJECT }
+    enum JobDisposition { CLAIM, REPLAY, BUSY }
     private record CurrentActors(String proposer) {}
+    private record JobClaim(long fencingToken, String resultReference, boolean replayed) {}
 }

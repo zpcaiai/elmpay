@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "manifestVersion": "checkout-provider-sdk-v1",
+  "providers": [
+    {
+      "provider": "stripe",
+      "methods": ["card"],
+      "sdkVersion": "stripe-js-v3",
+      "enabled": false,
+      "publicParameters": {
+        "publishableKey": "ELMPAY_PROVIDER_PUBLIC_STRIPE_PUBLISHABLE_KEY"
+      }
+    }
+  ]
+}

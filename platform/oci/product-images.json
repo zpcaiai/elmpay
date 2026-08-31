@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "targetPlatform": "linux/amd64",
+  "registry": "ghcr.io/zpcaiai/elmpay",
+  "runtimeUser": 10001,
+  "contextPolicy": {
+    "dockerignore": ".dockerignore",
+    "dockerignoreDigest": "2bca895afd3bebafa312c0f119df251b15f3b9b03c8d74d1470d526351ea68f3",
+    "mode": "EXACT_ALLOWLIST"
+  },
+  "buildEngine": {
+    "name": "docker-buildx",
+    "versionInputEnvironment": "ELMPAY_BUILDX_VERSION",
+    "executableDigestInputEnvironment": "ELMPAY_DOCKER_CLI_SHA256",
+    "output": "oci",
+    "network": "none",
+    "reproducibleTimestamps": true
+  },
+  "publicationTool": {
+    "name": "skopeo",
+    "versionInputEnvironment": "ELMPAY_SKOPEO_VERSION",
+    "executableDigestInputEnvironment": "ELMPAY_SKOPEO_SHA256",
+    "preserveDigests": true
+  },
+  "baseImages": [
+    {
+      "id": "java25-runtime",
+      "inputEnvironment": "ELMPAY_JAVA25_RUNTIME_BASE_IMAGE",
+      "runtimeExecutable": "/opt/java/openjdk/bin/java",
+      "requiredPaths": ["/bin/sh", "/opt/java/openjdk/bin/java"]
+    },
+    {
+      "id": "node24-runtime",
+      "inputEnvironment": "ELMPAY_NODE24_RUNTIME_BASE_IMAGE",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "requiredPaths": ["/usr/local/bin/node"]
+    },
+    {
+      "id": "node24-postgres18-client-runtime",
+      "inputEnvironment": "ELMPAY_NODE24_POSTGRES18_RUNTIME_BASE_IMAGE",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "requiredPaths": ["/usr/local/bin/node", "/usr/bin/psql"]
+    }
+  ],
+  "images": [
+    {
+      "name": "edge-gateway",
+      "kind": "java-install-dist",
+      "context": ".",
+      "containerfile": "platform/oci/java-runtime.Containerfile",
+      "containerfileContractDigest": "8ed6cf29762a8bf6e9aa868f7a285e8f10b282965fe385a5d37ec8b0b7b2b9a0",
+      "baseImage": "java25-runtime",
+      "sourcePath": "apps/edge-gateway",
+      "artifactPath": "apps/edge-gateway/build/install/edge-gateway",
+      "includedPaths": [
+        "apps/edge-gateway/build/install/edge-gateway",
+        "platform/oci/java-main-classes/edge-gateway.default",
+        "platform/oci/java-main-classes/edge-gateway.allowlist"
+      ],
+      "prepareCommand": ["./gradlew", "--no-daemon", ":apps:edge-gateway:installDist"],
+      "launcher": "/opt/elmpay/bin/java-main",
+      "entrypoint": "/opt/elmpay/bin/java-main",
+      "mainClassFile": "platform/oci/java-main-classes/edge-gateway.default",
+      "mainClassAllowlist": "platform/oci/java-main-classes/edge-gateway.allowlist",
+      "mainClasses": [
+        "com.elmpay.gateway.PaymentGatewayApplication",
+        "com.elmpay.gateway.DatabaseMigrationApplication"
+      ]
+    },
+    {
+      "name": "checkout-web",
+      "kind": "node-source",
+      "context": ".",
+      "containerfile": "platform/oci/checkout-web.Containerfile",
+      "containerfileContractDigest": "05612036eabb62773b3d89da6b6c157ab050390b441db669f8ab26c8f9f550c0",
+      "baseImage": "node24-runtime",
+      "sourcePath": "apps/checkout-web",
+      "artifactPath": "apps/checkout-web",
+      "includedPaths": [
+        "apps/checkout-web/package.json",
+        "apps/checkout-web/src",
+        "apps/checkout-web/public",
+        "apps/checkout-web/security"
+      ],
+      "prepareCommand": [],
+      "launcher": "/usr/local/bin/node",
+      "entrypoint": "/usr/local/bin/node",
+      "mainClasses": []
+    },
+    {
+      "name": "admin-web",
+      "kind": "node-source",
+      "context": ".",
+      "containerfile": "platform/oci/admin-web.Containerfile",
+      "containerfileContractDigest": "2e4f5266826cc39dbd5ec4ad3edc935956f490af915ded0ed0c691adb9ec17f2",
+      "baseImage": "node24-postgres18-client-runtime",
+      "sourcePath": "apps/admin-web",
+      "artifactPath": "apps/admin-web",
+      "includedPaths": [
+        "apps/admin-web/package.json",
+        "apps/admin-web/src",
+        "apps/admin-web/security"
+      ],
+      "prepareCommand": [],
+      "launcher": "/usr/local/bin/node",
+      "entrypoint": "/usr/local/bin/node",
+      "mainClasses": []
+    },
+    {
+      "name": "risk-engine",
+      "kind": "java-install-dist",
+      "context": ".",
+      "containerfile": "platform/oci/java-runtime.Containerfile",
+      "containerfileContractDigest": "8ed6cf29762a8bf6e9aa868f7a285e8f10b282965fe385a5d37ec8b0b7b2b9a0",
+      "baseImage": "java25-runtime",
+      "sourcePath": "services/risk-engine",
+      "artifactPath": "services/risk-engine/build/install/risk-engine",
+      "includedPaths": [
+        "services/risk-engine/build/install/risk-engine",
+        "platform/oci/java-main-classes/risk-engine.default",
+        "platform/oci/java-main-classes/risk-engine.allowlist"
+      ],
+      "prepareCommand": ["./gradlew", "--no-daemon", ":services:risk-engine:installDist"],
+      "launcher": "/opt/elmpay/bin/java-main",
+      "entrypoint": "/opt/elmpay/bin/java-main",
+      "mainClassFile": "platform/oci/java-main-classes/risk-engine.default",
+      "mainClassAllowlist": "platform/oci/java-main-classes/risk-engine.allowlist",
+      "mainClasses": ["com.elmpay.risk.runtime.RiskEngineApplication"]
+    },
+    {
+      "name": "worker-scheduler",
+      "kind": "java-install-dist",
+      "context": ".",
+      "containerfile": "platform/oci/java-runtime.Containerfile",
+      "containerfileContractDigest": "8ed6cf29762a8bf6e9aa868f7a285e8f10b282965fe385a5d37ec8b0b7b2b9a0",
+      "baseImage": "java25-runtime",
+      "sourcePath": "services/worker-scheduler",
+      "artifactPath": "services/worker-scheduler/build/install/worker-scheduler",
+      "includedPaths": [
+        "services/worker-scheduler/build/install/worker-scheduler",
+        "platform/oci/java-main-classes/worker-scheduler.default",
+        "platform/oci/java-main-classes/worker-scheduler.allowlist"
+      ],
+      "prepareCommand": ["./gradlew", "--no-daemon", ":services:worker-scheduler:installDist"],
+      "launcher": "/opt/elmpay/bin/java-main",
+      "entrypoint": "/opt/elmpay/bin/java-main",
+      "mainClassFile": "platform/oci/java-main-classes/worker-scheduler.default",
+      "mainClassAllowlist": "platform/oci/java-main-classes/worker-scheduler.allowlist",
+      "mainClasses": [
+        "com.elmpay.scheduler.WorkerSchedulerApplication",
+        "com.elmpay.scheduler.data.PartitionMaintenanceApplication",
+        "com.elmpay.scheduler.data.ArchiveReceiptVerifierApplication",
+        "com.elmpay.scheduler.data.ArchiveDetachAuthorizationVerifierApplication",
+        "com.elmpay.scheduler.data.ArchivePartitionDetacherApplication"
+      ]
+    },
+    {
+      "name": "webhook-processor",
+      "kind": "java-install-dist",
+      "context": ".",
+      "containerfile": "platform/oci/java-runtime.Containerfile",
+      "containerfileContractDigest": "8ed6cf29762a8bf6e9aa868f7a285e8f10b282965fe385a5d37ec8b0b7b2b9a0",
+      "baseImage": "java25-runtime",
+      "sourcePath": "services/webhook-ingress",
+      "artifactPath": "services/webhook-ingress/build/install/webhook-ingress",
+      "includedPaths": [
+        "services/webhook-ingress/build/install/webhook-ingress",
+        "platform/oci/java-main-classes/webhook-processor.default",
+        "platform/oci/java-main-classes/webhook-processor.allowlist"
+      ],
+      "prepareCommand": ["./gradlew", "--no-daemon", ":services:webhook-ingress:installDist"],
+      "launcher": "/opt/elmpay/bin/java-main",
+      "entrypoint": "/opt/elmpay/bin/java-main",
+      "mainClassFile": "platform/oci/java-main-classes/webhook-processor.default",
+      "mainClassAllowlist": "platform/oci/java-main-classes/webhook-processor.allowlist",
+      "mainClasses": ["com.elmpay.webhook.ingress.WebhookProcessorApplication"]
+    }
+  ],
+  "evidence": {
+    "sbomFormat": "CycloneDX-1.6-json",
+    "sbomCoverage": "FULL_IMAGE_PACKAGES",
+    "sbomPredicateType": "https://cyclonedx.org/bom",
+    "provenancePredicateType": "https://slsa.dev/provenance/v1",
+    "signatureScheme": "Sigstore-keyless",
+    "signatureTool": {
+      "name": "cosign",
+      "versionInputEnvironment": "ELMPAY_COSIGN_VERSION",
+      "executableDigestInputEnvironment": "ELMPAY_COSIGN_SHA256"
+    },
+    "scanTool": {
+      "name": "trivy",
+      "versionInputEnvironment": "ELMPAY_TRIVY_VERSION",
+      "executableDigestInputEnvironment": "ELMPAY_TRIVY_SHA256",
+      "cacheDirectoryEnvironment": "ELMPAY_TRIVY_CACHE_DIR",
+      "databaseDigestInputEnvironment": "ELMPAY_TRIVY_DB_SHA256"
+    },
+    "scanPolicy": "platform/compliance/vulnerability-policy.json",
+    "admissionPolicy": "platform/kubernetes/image-admission-policy.json",
+    "missingAction": "BLOCK_RELEASE"
+  }
+}

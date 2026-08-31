@@ -154,6 +154,7 @@ class PipelineHappyPath(FixtureTestCase):
             "apps/admin-web/test/*.test.mjs",
             "scripts/sdk-contract-smoke.py",
             "./gradlew --no-daemon test",
+            "scripts/run-test-matrix.py --execution local",
             "node-version: '24.9.0'",
             "go-version: '1.25.0'",
             "dotnet-version: '8.0.424'",
@@ -181,6 +182,10 @@ class PipelineHappyPath(FixtureTestCase):
         self.assertIn("**/build/reports/jacoco/test/jacocoTestReport.xml", quality)
         self.assertIn("**/build/reports/pitest/mutations.xml", quality)
         self.assertIn("cache-read-only: true", quality)
+
+        self.assertIn("build/test-matrix/local-report.json", unit)
+        self.assertIn("build/test-matrix/local-junit.xml", unit)
+        self.assertIn("build/test-matrix/", unit)
 
     def test_make_verify_covers_the_same_complete_surface(self):
         problems = ci._test_surfaces(
@@ -274,11 +279,15 @@ class PipelineHappyPath(FixtureTestCase):
             self.assertIn(expected["command"], by_id[stage_id]["commands"])
             self.assertEqual(by_id[stage_id]["artifacts"], [expected["artifact"]])
 
-    def test_pipeline_does_not_claim_unimplemented_product_scanners(self):
+    def test_pipeline_distinguishes_source_controls_from_external_image_execution(self):
         doc = self.fixture.read("governance/ci-pipeline.json")
         by_id = {stage["id"]: stage for stage in doc["stages"]}
         self.assertIn("不宣称生产源码 SAST", by_id["static-analysis"]["purpose"])
-        self.assertIn("不宣称镜像漏洞扫描", by_id["container-scan"]["purpose"])
+        self.assertIn("未执行不宣称通过", by_id["container-scan"]["purpose"])
+        self.assertIn(
+            "python3 scripts/product-image-pipeline.py source-gate",
+            by_id["container-scan"]["commands"],
+        )
         self.assertIn("不宣称生产 Kubernetes/Terraform 扫描", by_id["iac-scan"]["purpose"])
         self.assertIn("不把聚合 BOM 冒充逐制品 SBOM", by_id["sbom"]["purpose"])
 
@@ -327,6 +336,17 @@ class PipelineRejects(FixtureTestCase):
                 "commands",
                 [command for command in self._stage(data, "unit-test")["commands"]
                  if "unittest discover -s testing" not in command],
+            ),
+        )
+        self.assertIn("CI_TEST_SURFACE", self.codes(self._validate()))
+
+    def test_rejects_missing_executable_batch_matrix(self):
+        self.fixture.mutate(
+            self.REL,
+            lambda data: self._stage(data, "unit-test").__setitem__(
+                "commands",
+                [command for command in self._stage(data, "unit-test")["commands"]
+                 if "run-test-matrix.py --execution local" not in command],
             ),
         )
         self.assertIn("CI_TEST_SURFACE", self.codes(self._validate()))

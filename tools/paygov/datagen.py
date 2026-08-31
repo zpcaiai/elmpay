@@ -26,6 +26,11 @@ def rls_sql(root: Path, budget: Budget | None = None) -> str:
         rls = table["rls"]
         if not rls.get("enabled"):
             out.append(f"-- {table['table']}: 不做行级隔离 — {rls.get('reason', '')}")
+            if table["mutability"] == "append_only":
+                name = table["table"]
+                out.append(f"REVOKE UPDATE, DELETE ON {name} FROM PUBLIC;")
+                out.append(f"-- {name} 是仅追加表：更新与删除在权限层就被拿掉。")
+            out.append("")
             continue
         name = table["table"]
         out.append(f"ALTER TABLE {name} ENABLE ROW LEVEL SECURITY;")

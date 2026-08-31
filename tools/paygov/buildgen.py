@@ -34,6 +34,7 @@ LIBRARIES = {
     "jqwik": "net.jqwik:jqwik",
     "opentelemetry-java": "io.opentelemetry.javaagent:opentelemetry-javaagent",
     "postgresql-jdbc": "org.postgresql:postgresql",
+    "kafka": "org.apache.kafka:kafka-clients",
 }
 
 
@@ -136,6 +137,7 @@ def build_gradle(root: Path, budget: Budget | None = None) -> str:
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.JavaApplication
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.testing.jacoco.plugins.JacocoPluginExtension
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
@@ -246,6 +248,11 @@ project(":apps:edge-gateway") {{
     extensions.configure<JavaApplication> {{
         mainClass.set("com.elmpay.gateway.PaymentGatewayApplication")
     }}
+    extensions.configure<SourceSetContainer> {{
+        named("main") {{
+            resources.srcDir(rootProject.file("apps/admin-web/migrations"))
+        }}
+    }}
     dependencies {{
         add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())
         add("runtimeOnly", project(":services:webhook-ingress"))
@@ -254,6 +261,37 @@ project(":apps:edge-gateway") {{
         add("runtimeOnly", project(":services:reconciliation-service"))
         add("runtimeOnly", project(":services:worker-scheduler"))
         add("runtimeOnly", project(":connectors:apple-pay"))
+    }}
+}}
+
+project(":services:worker-scheduler") {{
+    apply(plugin = "application")
+    extensions.configure<JavaApplication> {{
+        mainClass.set("com.elmpay.scheduler.WorkerSchedulerApplication")
+    }}
+    dependencies {{
+        add("implementation", governedLibraries.findLibrary("kafka").get())
+        add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())
+    }}
+}}
+
+project(":services:risk-engine") {{
+    apply(plugin = "application")
+    extensions.configure<JavaApplication> {{
+        mainClass.set("com.elmpay.risk.runtime.RiskEngineApplication")
+    }}
+    dependencies {{
+        add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())
+    }}
+}}
+
+project(":services:webhook-ingress") {{
+    apply(plugin = "application")
+    extensions.configure<JavaApplication> {{
+        mainClass.set("com.elmpay.webhook.ingress.WebhookProcessorApplication")
+    }}
+    dependencies {{
+        add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())
     }}
 }}
 

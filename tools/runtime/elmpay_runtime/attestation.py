@@ -210,6 +210,35 @@ class NonceStore:
             return row[0] == payload_digest
 
 
+class ConnectionNonceStore:
+    """Replay protection bound to an already-open durable transaction.
+
+    This avoids opening a second SQLite writer when the control state and
+    replay table intentionally share one database. The caller owns commit and
+    rollback, so consuming the nonce is atomic with the privileged mutation.
+    """
+
+    def __init__(self, connection: sqlite3.Connection) -> None:
+        self.connection = connection
+
+    def accept(self, key_id: str, nonce: str, payload_digest: str, now: datetime) -> bool:
+        row = self.connection.execute(
+            "SELECT payload_digest FROM attestation_nonce "
+            "WHERE issuer_key_id=? AND nonce=?",
+            (key_id, nonce),
+        ).fetchone()
+        if row is None:
+            self.connection.execute(
+                "INSERT INTO attestation_nonce VALUES (?,?,?,?)",
+                (
+                    key_id, nonce, payload_digest,
+                    now.astimezone(timezone.utc).isoformat(),
+                ),
+            )
+            return True
+        return row[0] == payload_digest
+
+
 def nonce_store_from_trust(trust: Mapping[str, Any]) -> NonceStore:
     database = require_text(trust.get("replayDatabase"), "trust.replayDatabase")
     return NonceStore(database)
@@ -221,9 +250,12 @@ def verify_dsse_record(
     expected_binding: str,
     *,
     now: datetime | None = None,
-    nonce_store: NonceStore | None = None,
+    nonce_store: NonceStore | ConnectionNonceStore | None = None,
 ) -> VerifiedSigner:
-    current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        raise ValidationError("attestation verification time must be timezone-aware")
+    current = current.astimezone(timezone.utc)
     if record.get("bindingDigest") != expected_binding:
         raise ValidationError("release_binding_mismatch")
     nonce = require_text(record.get("nonce"), "record.nonce")
@@ -273,7 +305,16 @@ def verify_dsse_record(
         raise ValidationError("role_key_mismatch")
     digest = hashlib.sha256(payload).hexdigest()
     replay = nonce_store or nonce_store_from_trust(trust)
-    if not replay.accept(key_id, nonce, digest, current):
+    # Replay scope follows the actual trust-root entry. Rotated keys may reuse
+    # a key id, but must never share replay identity with the previous key.
+    issuer_scope = hashlib.sha256(canonical_json({
+        "keyId": key_id,
+        "algorithm": key.get("algorithm"),
+        "publicKeyPem": public_key,
+        "identity": key.get("identity"),
+        "role": key.get("role"),
+    })).hexdigest()
+    if not replay.accept(issuer_scope, nonce, digest, current):
         raise ValidationError("attestation_nonce_reused_for_different_payload")
     return VerifiedSigner(
         key_id=key_id,

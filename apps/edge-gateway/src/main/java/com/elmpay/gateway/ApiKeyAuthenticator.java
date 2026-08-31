@@ -1,6 +1,6 @@
 package com.elmpay.gateway;
 
-import com.sun.net.httpserver.Headers;
+import com.sun.net.httpserver.HttpExchange;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -12,7 +12,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /** API keys are configured and compared as SHA-256 digests; plaintext keys are never retained. */
-public final class ApiKeyAuthenticator {
+public final class ApiKeyAuthenticator implements ApiAuthenticator {
     private final List<Entry> entries;
 
     public ApiKeyAuthenticator(List<Entry> entries) {
@@ -48,7 +48,9 @@ public final class ApiKeyAuthenticator {
         return new ApiKeyAuthenticator(result);
     }
 
-    public Optional<ApiPrincipal> authenticate(Headers headers) {
+    @Override
+    public Optional<ApiPrincipal> authenticate(HttpExchange exchange) {
+        var headers = java.util.Objects.requireNonNull(exchange, "exchange").getRequestHeaders();
         List<String> values = headers.get("Authorization");
         if (values == null || values.size() != 1) {
             return Optional.empty();

@@ -1,5 +1,6 @@
 package com.elmpay.merchant;
 
+import com.elmpay.tenant.VerifiedTenantEvidence;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -17,6 +18,21 @@ import javax.sql.DataSource;
 
 /** PostgreSQL implementation of the tenant, merchant-profile and onboarding control plane. */
 public final class JdbcMerchantControlPlane implements MerchantControlPlane.Store {
+    static final String TRANSITION_TENANT_SQL = """
+            UPDATE tenant_registry
+               SET state = ?, last_transition_evidence_flags = ARRAY[]::text[],
+                   last_transition_receipt_digests = ?, last_transition_audit_id = ?::uuid,
+                   last_transition_actor_id = ?, last_transition_second_approver_id = ?,
+                   version = version + 1, updated_at = ?::timestamptz
+             WHERE id = ?::uuid AND version = ? AND state = ?
+            RETURNING id, external_reference, code, state, version, created_at, updated_at
+            """;
+    static final String INSERT_TRANSITION_EVIDENCE_AUDIT_SQL = """
+            INSERT INTO merchant_tenant_authority_evidence_audit
+              (id,tenant_id,control_audit_id,evidence_type,authority,decision_reference,
+               payload_digest,receipt_digest,signer_identity,key_id,issued_at,expires_at)
+            VALUES (?::uuid,?::uuid,?::uuid,?,?,?,?,?,?,?,?::timestamptz,?::timestamptz)
+            """;
     static final String CLAIM_STEP_SQL = """
             SELECT step.step_name, step.fencing_token
               FROM merchant_onboarding_step step
@@ -104,47 +120,64 @@ public final class JdbcMerchantControlPlane implements MerchantControlPlane.Stor
     @Override
     public MerchantControlPlane.Tenant transitionTenant(UUID tenantId, long expectedVersion,
             MerchantControlPlane.TenantState current, MerchantControlPlane.TenantState next,
-            MerchantControlPlane.TenantTransitionEvidence evidence, String actorId,
-            String reason, String ticketId, Instant now) {
+            List<VerifiedTenantEvidence> verifiedEvidence, String secondApproverId,
+            String actorId, String reason, String ticketId, Instant now) {
+        verifiedEvidence = List.copyOf(Objects.requireNonNull(verifiedEvidence,
+                "verifiedEvidence"));
+        List<VerifiedTenantEvidence> receipts = verifiedEvidence;
         return transaction(tenantId, "cannot transition tenant registry entry", connection -> {
-            MerchantControlPlane.Tenant changed;
-            try (PreparedStatement statement = connection.prepareStatement("""
-                    UPDATE tenant_registry
-                       SET state = ?, last_transition_evidence_flags = ?,
-                           last_transition_actor_id = ?, last_transition_second_approver_id = ?,
-                           version = version + 1, updated_at = ?::timestamptz
-                     WHERE id = ?::uuid AND version = ? AND state = ?
-                    RETURNING id, external_reference, code, state, version, created_at, updated_at
-                    """)) {
-                statement.setString(1, next.name());
-                statement.setArray(2, stringArray(connection, transitionEvidenceFlags(evidence)));
-                statement.setString(3, actorId);
-                statement.setString(4, evidence.secondApproverId());
-                statement.setString(5, now.toString());
-                statement.setString(6, tenantId.toString());
-                statement.setLong(7, expectedVersion);
-                statement.setString(8, current.name());
-                try (ResultSet result = statement.executeQuery()) {
-                    changed = requiredTenant(result);
-                }
-            }
+            UUID auditId = UUID.randomUUID();
             try (PreparedStatement statement = connection.prepareStatement("""
                     INSERT INTO merchant_control_audit
                       (id, tenant_id, action, target_type, target_id, actor_id, reason,
                        ticket_id, evidence_flags, second_approver_id, occurred_at)
-                    VALUES (?::uuid, ?::uuid, 'TENANT_STATE_CHANGED', 'tenant', ?, ?, ?, ?, ?,
-                            ?, ?::timestamptz)
+                    VALUES (?::uuid, ?::uuid, 'TENANT_STATE_CHANGED', 'tenant', ?, ?, ?, ?,
+                            ARRAY[]::text[], ?, ?::timestamptz)
                     """)) {
-                statement.setString(1, UUID.randomUUID().toString());
+                statement.setString(1, auditId.toString());
                 statement.setString(2, tenantId.toString());
                 statement.setString(3, tenantId.toString());
                 statement.setString(4, actorId);
                 statement.setString(5, reason);
                 statement.setString(6, ticketId);
-                statement.setArray(7, stringArray(connection, transitionEvidenceFlags(evidence)));
-                statement.setString(8, evidence.secondApproverId());
-                statement.setString(9, now.toString());
+                statement.setString(7, secondApproverId);
+                statement.setString(8, now.toString());
                 statement.executeUpdate();
+            }
+            for (VerifiedTenantEvidence receipt : receipts) {
+                try (PreparedStatement statement = connection.prepareStatement(
+                        INSERT_TRANSITION_EVIDENCE_AUDIT_SQL)) {
+                    statement.setString(1, UUID.randomUUID().toString());
+                    statement.setString(2, tenantId.toString());
+                    statement.setString(3, auditId.toString());
+                    statement.setString(4, receipt.evidenceType().name());
+                    statement.setString(5, receipt.authority());
+                    statement.setString(6, receipt.decisionReference());
+                    statement.setString(7, receipt.payloadDigest());
+                    statement.setString(8, receipt.receiptDigest());
+                    statement.setString(9, receipt.signerIdentity());
+                    statement.setString(10, receipt.keyId());
+                    statement.setString(11, receipt.issuedAt().toString());
+                    statement.setString(12, receipt.expiresAt().toString());
+                    statement.executeUpdate();
+                }
+            }
+            MerchantControlPlane.Tenant changed;
+            try (PreparedStatement statement = connection.prepareStatement(
+                    TRANSITION_TENANT_SQL)) {
+                statement.setString(1, next.name());
+                statement.setArray(2, stringArray(connection, receipts.stream()
+                        .map(VerifiedTenantEvidence::receiptDigest).toList()));
+                statement.setString(3, auditId.toString());
+                statement.setString(4, actorId);
+                statement.setString(5, secondApproverId);
+                statement.setString(6, now.toString());
+                statement.setString(7, tenantId.toString());
+                statement.setLong(8, expectedVersion);
+                statement.setString(9, current.name());
+                try (ResultSet result = statement.executeQuery()) {
+                    changed = requiredTenant(result);
+                }
             }
             return changed;
         });
@@ -783,27 +816,6 @@ public final class JdbcMerchantControlPlane implements MerchantControlPlane.Stor
                 && existing.providerAccountId().equals(requested.providerAccountId())
                 && existing.requestDigest().equals(requested.requestDigest())
                 && existing.requesterId().equals(requested.requesterId());
-    }
-
-    private static List<String> transitionEvidenceFlags(
-            MerchantControlPlane.TenantTransitionEvidence evidence) {
-        java.util.ArrayList<String> flags = new java.util.ArrayList<>();
-        if (evidence.kybVerified()) {
-            flags.add("kyb_verified");
-        }
-        if (evidence.contractSigned()) {
-            flags.add("contract_signed");
-        }
-        if (evidence.settlementComplete()) {
-            flags.add("settlement_complete");
-        }
-        if (evidence.retentionPeriodStarted()) {
-            flags.add("retention_period_started");
-        }
-        if (evidence.kekDestroyed()) {
-            flags.add("kek_destroyed");
-        }
-        return List.copyOf(flags);
     }
 
     private static void insertControlAudit(Connection connection, UUID tenantId, String action,

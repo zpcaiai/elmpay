@@ -68,7 +68,7 @@ public final class PayPalAccountAdapterFactory implements ProviderAccountAdapter
                             facts.currency()).fractionDigits();
                     return new PayPalAdapter.ExpectedWebhook(facts.providerObjectId(),
                             account.providerMerchantId(), facts.amountMinor(), facts.currency(),
-                            exponent);
+                            exponent, facts.businessReference());
                 }));
         return new ScopedProviderRuntimeAdapter(bridge, adapter::close);
     }

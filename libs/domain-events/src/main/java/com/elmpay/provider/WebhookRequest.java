@@ -1,12 +1,13 @@
 package com.elmpay.provider;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
 public record WebhookRequest(UUID tenantId, UUID merchantAccountId, Map<String, String> headers,
-        byte[] rawBody, Instant receivedAt) {
+        byte[] rawBody, Instant receivedAt) implements AutoCloseable {
     public WebhookRequest {
         Objects.requireNonNull(tenantId, "tenantId");
         Objects.requireNonNull(merchantAccountId, "merchantAccountId");
@@ -23,5 +24,11 @@ public record WebhookRequest(UUID tenantId, UUID merchantAccountId, Map<String, 
     @Override
     public byte[] rawBody() {
         return rawBody.clone();
+    }
+
+    /** Erases the request-owned body copy after synchronous signature verification. */
+    @Override
+    public void close() {
+        Arrays.fill(rawBody, (byte) 0);
     }
 }

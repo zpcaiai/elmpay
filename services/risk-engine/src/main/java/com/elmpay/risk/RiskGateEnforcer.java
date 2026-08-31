@@ -21,7 +21,11 @@ public final class RiskGateEnforcer {
                     "risk decision is unavailable; manual review is required");
         }
         if (!request.tenantId().equals(decision.tenantId())
-                || !request.requestId().equals(decision.requestId())) {
+                || !request.projectId().equals(decision.projectId())
+                || !request.requestId().equals(decision.requestId())
+                || !request.requestDigest().equals(decision.requestDigest())
+                || request.operation() != decision.operation()
+                || !request.subjectDigest().equals(decision.subjectDigest())) {
             throw new RiskGateException(RiskAction.REVIEW, "binding-mismatch",
                     List.of("RISK_DECISION_BINDING_MISMATCH"),
                     "risk decision binding is invalid; manual review is required");

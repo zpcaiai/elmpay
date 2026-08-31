@@ -9,13 +9,15 @@ const deniedFields = new Set(['pan', 'card_number', 'cardnumber', 'cvv', 'cvc', 
 export class CheckoutController {
   constructor({ api = fetch, storage = sessionStorage, location = window.location,
     history = window.history, document = window.document, tokenizer = null,
-    nextActionHandler = null } = {}) {
+    providerPrepare = null, nextActionHandler = null } = {}) {
     this.api = api;
     this.storage = storage;
     this.location = location;
     this.history = history;
     this.document = document;
     this.tokenizer = tokenizer ?? globalThis.ElmPayPaymentMethodTokenizer?.tokenize?.bind(
+      globalThis.ElmPayPaymentMethodTokenizer) ?? null;
+    this.providerPrepare = providerPrepare ?? globalThis.ElmPayPaymentMethodTokenizer?.prepare?.bind(
       globalThis.ElmPayPaymentMethodTokenizer) ?? null;
     this.nextActionHandler = nextActionHandler ?? globalThis.ElmPayNextActionHandler?.handle?.bind(
       globalThis.ElmPayNextActionHandler) ?? null;
@@ -43,6 +45,14 @@ export class CheckoutController {
       const method = this.document.querySelector('input[name="method"]:checked')?.value;
       if (method) this.confirm(method);
       else this.fail(this.text('error.chooseMethod', 'Choose an available payment method.'));
+    });
+    this.document.querySelector('#methods').addEventListener?.('change', event => {
+      const method = event?.target?.value;
+      if (!/^[a-z0-9._-]{1,64}$/i.test(method ?? '') || typeof this.providerPrepare !== 'function') return;
+      void this.providerPrepare({ method, checkoutSessionId: this.sessionId }).catch(() => {
+        this.fail(this.text('error.providerUnavailable',
+          'The selected payment provider could not be loaded securely.'));
+      });
     });
     await this.refresh();
   }

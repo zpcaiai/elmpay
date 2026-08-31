@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "implementation_audit.py"
@@ -96,6 +97,29 @@ class ImplementationAuditTest(unittest.TestCase):
             decoded, problems = AUDIT.load_implementation_inventory(path)
             self.assertEqual({}, decoded)
             self.assertTrue(any("required_roles" in problem for problem in problems))
+
+    def test_semantic_verification_runs_the_complete_local_matrix_and_web_apps(self) -> None:
+        commands = {name: command for name, command in AUDIT.VERIFY_COMMANDS}
+        self.assertIn("b00-b117-local-semantic-matrix", commands)
+        matrix = commands["b00-b117-local-semantic-matrix"]
+        self.assertIn("scripts/run-test-matrix.py", matrix)
+        self.assertIn("--execution", matrix)
+        self.assertIn("local", matrix)
+        self.assertIn("governance-unit-tests", commands)
+        self.assertIn("checkout-web", commands)
+        self.assertIn("admin-web", commands)
+
+    def test_marker_complete_inventory_cannot_override_a_semantic_failure(self) -> None:
+        failed = [{
+            "name": "semantic-regression", "command": ["false"], "exit_code": 9,
+            "timed_out": False, "duration_seconds": 0.001, "output_tail": "failed",
+        }]
+        with mock.patch.object(AUDIT, "verify_commands", return_value=failed):
+            report = AUDIT.audit(run_checks=True)
+        self.assertEqual("PASS", report["inventory_status"])
+        self.assertEqual("FAIL", report["implementation_surface"])
+        self.assertTrue(report["verification_executed"])
+        self.assertEqual(9, report["verification_checks"][0]["exit_code"])
 
 
 if __name__ == "__main__":

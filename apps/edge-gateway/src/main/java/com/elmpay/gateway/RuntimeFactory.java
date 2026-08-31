@@ -1,13 +1,16 @@
 package com.elmpay.gateway;
 
 import com.elmpay.merchant.JdbcMerchantConfigurationRepository;
+import com.elmpay.merchant.JdbcMerchantControlPlane;
 import com.elmpay.merchant.MerchantConfigurationRepository;
+import com.elmpay.merchant.MerchantControlPlane;
 import com.elmpay.merchant.RoutingService;
 import com.elmpay.payment.InMemoryPaymentRepository;
 import com.elmpay.payment.JdbcPaymentRepository;
 import com.elmpay.payment.PaymentRepository;
 import com.elmpay.payment.PaymentService;
 import com.elmpay.payment.ProviderAdapterRegistry;
+import com.elmpay.payment.readmodel.JdbcPaymentTimeline;
 import com.elmpay.payment.provider.AccountAwareProviderAdapterFactory;
 import com.elmpay.payment.provider.JdbcProviderCallCircuitBreaker;
 import com.elmpay.payment.provider.ProviderAccountAdapterFactory;
@@ -24,8 +27,13 @@ import com.elmpay.payment.refund.SynchronousRiskRefundPolicy;
 import com.elmpay.provider.ProviderAdapter;
 import com.elmpay.risk.RiskAction;
 import com.elmpay.risk.SynchronousRiskGate;
+import com.elmpay.risk.runtime.RiskTlsContexts;
+import com.elmpay.webhook.ingress.DataSourceWebhookInbox;
+import com.elmpay.webhook.ingress.JdbcWebhookIngressEndpointRegistry;
+import com.elmpay.webhook.ingress.ProviderWebhookVerifiers;
+import com.elmpay.webhook.ingress.WebhookIngressRuntime;
+import com.elmpay.webhook.ingress.WebhookIngressService;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -41,18 +49,23 @@ public final class RuntimeFactory {
 
     public static RuntimeComponents create(Map<String, String> environment) {
         String mode = environment.getOrDefault("ELMPAY_RUNTIME_MODE", "disabled");
-        ApiKeyAuthenticator authenticator = ApiKeyAuthenticator.parse(
-                environment.get("ELMPAY_API_PRINCIPALS"), "local".equals(mode));
+        if ("postgres".equals(mode) && environment.get("ELMPAY_API_PRINCIPALS") != null
+                && !environment.get("ELMPAY_API_PRINCIPALS").isBlank()) {
+            throw new IllegalStateException(
+                    "production runtime forbids static bearer API principals");
+        }
         return switch (mode) {
-            case "local" -> local(environment, authenticator);
-            case "postgres" -> postgres(environment, authenticator);
+            case "local" -> local(environment, ApiKeyAuthenticator.parse(
+                    environment.get("ELMPAY_API_PRINCIPALS"), true));
+            case "postgres" -> postgres(environment,
+                    OidcJwtAuthenticator.fromEnvironment(environment, Clock.systemUTC()));
             default -> throw new IllegalStateException(
                     "ELMPAY_RUNTIME_MODE must be explicitly set to local or postgres");
         };
     }
 
     private static RuntimeComponents local(Map<String, String> environment,
-            ApiKeyAuthenticator authenticator) {
+            ApiAuthenticator authenticator) {
         if (!"true".equals(environment.get("ELMPAY_ENABLE_LOCAL_SANDBOX"))) {
             throw new IllegalStateException("local sandbox requires ELMPAY_ENABLE_LOCAL_SANDBOX=true");
         }
@@ -73,17 +86,27 @@ public final class RuntimeFactory {
                         context -> RefundRiskDecision.AUTO_APPROVE, riskGate),
                 new DefaultRefundChannelPolicy(configuration), clock, Duration.ZERO);
         return new RuntimeComponents(service, authenticator, refunds,
-                new InMemoryPaymentIntentMetadataRepository(), true, "local");
+                new InMemoryPaymentIntentMetadataRepository(), null,
+                PaymentTimelineRuntime.unavailable(), java.util.Optional.empty(), true, "local",
+                PaymentAdminCommandRuntime.disabled(clock));
     }
 
     private static RuntimeComponents postgres(Map<String, String> environment,
-            ApiKeyAuthenticator authenticator) {
+            ApiAuthenticator authenticator) {
         Clock clock = Clock.systemUTC();
-        SynchronousRiskGate riskGate = remoteRiskGate(environment, clock, false);
-        DataSource dataSource = new DriverManagerDataSource(required(environment, "ELMPAY_DATABASE_URL"),
-                required(environment, "ELMPAY_DATABASE_USER"),
-                required(environment, "ELMPAY_DATABASE_PASSWORD"));
-        new DatabaseMigrator(dataSource).migrate();
+        if (!"elmpay_edge_gateway".equals(required(environment,
+                "ELMPAY_DATABASE_USERNAME"))) {
+            throw new IllegalStateException(
+                    "PostgreSQL runtime requires the dedicated elmpay_edge_gateway role");
+        }
+        SynchronousRiskGate riskGate = remoteRiskGate(environment, clock);
+        DataSource dataSource = DriverManagerDataSource.fromEnvironment(environment,
+                "elmpay-edge-gateway");
+        var tenantEvidenceVerifier = TenantEvidenceRuntimeFactory.create(environment, dataSource,
+                clock);
+        new DatabaseMigrator(dataSource).verifyApplied();
+        MerchantControlPlane merchantControl = new MerchantControlPlane(
+                new JdbcMerchantControlPlane(dataSource), tenantEvidenceVerifier, clock);
         MerchantConfigurationRepository configuration =
                 new JdbcMerchantConfigurationRepository(dataSource);
         PaymentRepository payments = new JdbcPaymentRepository(dataSource);
@@ -92,15 +115,26 @@ public final class RuntimeFactory {
         ProviderAdapterRegistry adapters = new ProviderAdapterRegistry(providers);
         PaymentService service = new PaymentService(payments, configuration,
                 new RoutingService(configuration), adapters,
-                riskGate, clock);
+                riskGate, clock, Duration.ofSeconds(configuredLong(environment,
+                        "ELMPAY_PAYMENT_ATTEMPT_LEASE_SECONDS", 30L)));
         RefundApplicationService refunds = new RefundApplicationService(new JdbcRefundRepository(dataSource),
                 payments, configuration, adapters,
                 new SynchronousRiskRefundPolicy(productionRefundRiskPolicy(environment), riskGate),
                 new DefaultRefundChannelPolicy(configuration), clock,
                 Duration.ofSeconds(30));
+        WebhookIngressRuntime webhookIngress = new WebhookIngressRuntime(
+                new JdbcWebhookIngressEndpointRegistry(dataSource),
+                new WebhookIngressService(ProviderWebhookVerifiers.create(providers),
+                        new DataSourceWebhookInbox(dataSource)));
+        PaymentTimelineRuntime timeline = new JdbcPaymentTimelineRuntime(
+                new JdbcPaymentTimeline(dataSource), environment.getOrDefault(
+                        "ELMPAY_TIMELINE_PROJECTOR_NAME", "edge-gateway-payment-timeline-v1"),
+                configuredInt(environment, "ELMPAY_TIMELINE_BATCH_SIZE", 100),
+                configuredInt(environment, "ELMPAY_TIMELINE_MAXIMUM_BATCHES", 20), clock);
         return new RuntimeComponents(service, authenticator, refunds,
-                new JdbcPaymentIntentMetadataRepository(dataSource), providersReady(providers),
-                "postgres");
+                new JdbcPaymentIntentMetadataRepository(dataSource), webhookIngress, timeline,
+                java.util.Optional.of(merchantControl), providersReady(providers),
+                "postgres", PaymentAdminCommandRuntime.production(dataSource, environment, clock));
     }
 
     private static SynchronousRiskGate localRiskGate(Map<String, String> environment, Clock clock) {
@@ -108,21 +142,28 @@ public final class RuntimeFactory {
         return switch (policy) {
             case "approve-sandbox" -> new ExplicitSandboxRiskGate(RiskAction.APPROVE, clock);
             case "review-all" -> new ExplicitSandboxRiskGate(RiskAction.REVIEW, clock);
-            case "remote-durable" -> remoteRiskGate(environment, clock, true);
+            case "remote-durable" -> remoteRiskGate(environment, clock);
             default -> throw new IllegalStateException(
                     "ELMPAY_LOCAL_RISK_POLICY must be approve-sandbox, review-all, or remote-durable");
         };
     }
 
-    private static SynchronousRiskGate remoteRiskGate(Map<String, String> environment, Clock clock,
-            boolean allowLoopbackHttp) {
+    private static SynchronousRiskGate remoteRiskGate(Map<String, String> environment, Clock clock) {
+        if (environment.containsKey("ELMPAY_RISK_HMAC_SECRET")
+                || environment.containsKey("ELMPAY_RISK_HMAC_SECRET_FILE")) {
+            throw new IllegalStateException(
+                    "risk HMAC authentication is forbidden; configure the workload mTLS mount");
+        }
         String endpoint = required(environment, "ELMPAY_RISK_ENDPOINT");
-        String secret = required(environment, "ELMPAY_RISK_HMAC_SECRET");
         int timeoutMilliseconds = configuredInt(environment,
-                "ELMPAY_RISK_TIMEOUT_MILLISECONDS", 250);
+                "ELMPAY_RISK_TIMEOUT_MILLISECONDS", 300);
+        if (timeoutMilliseconds != 300) {
+            throw new IllegalStateException(
+                    "ELMPAY_RISK_TIMEOUT_MILLISECONDS must equal the 300ms topology budget");
+        }
         return new RemoteSynchronousRiskGate(URI.create(endpoint),
-                secret.getBytes(StandardCharsets.UTF_8), Duration.ofMillis(timeoutMilliseconds),
-                clock, allowLoopbackHttp);
+                RiskTlsContexts.client(environment, "ELMPAY_RISK_", clock),
+                Duration.ofMillis(timeoutMilliseconds), clock);
     }
 
     private static RulesRefundRiskPolicy productionRefundRiskPolicy(Map<String, String> environment) {

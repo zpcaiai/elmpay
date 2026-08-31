@@ -56,6 +56,19 @@ class IdentityHappyPath(FixtureTestCase):
         self.assertIs(oauth["pkce_required"], True)
         self.assertEqual(oauth["pkce_method"], "S256")
 
+    def test_machine_oauth_is_mtls_bound_client_credentials_without_static_secret(self):
+        model = self.fixture.read("governance/identity.json")
+        machine = model["machine_oauth"]
+        self.assertEqual(machine["allowed_flows"], ["client_credentials"])
+        self.assertIs(machine["static_client_secret_allowed"], False)
+        self.assertEqual(machine["client_authentication"], "mtls")
+        self.assertEqual(machine["access_token_binding"], "mtls")
+        self.assertLessEqual(machine["maximum_token_minutes"], 5)
+        binding = next(item for item in model["principal_bindings"]
+                       if item["principal"] == "merchant-api-client")
+        self.assertEqual(binding["provider"], "merchant-authorization-server")
+        self.assertEqual(binding["token"], "merchant-api-access")
+
     def test_redirect_uris_match_exactly(self):
         model = self.fixture.read("governance/identity.json")
         self.assertEqual(model["oauth"]["redirect_uri_matching"], "exact")
@@ -223,6 +236,26 @@ class IdentityGateRejects(FixtureTestCase):
         self.fixture.mutate(self.REL,
                             lambda d: d["session_binding"].__setitem__("methods", ["cookie"]))
         self.assertIn("ID_BINDING_METHOD", self.codes(self._validate()))
+
+    def test_rejects_machine_oauth_static_client_secret(self):
+        self.fixture.mutate(self.REL, lambda d: d["machine_oauth"].__setitem__(
+            "static_client_secret_allowed", True))
+        self.assertIn("ID_MACHINE_STATIC_SECRET", self.codes(self._validate()))
+
+    def test_rejects_a_machine_password_flow(self):
+        self.fixture.mutate(self.REL, lambda d: d["machine_oauth"].__setitem__(
+            "allowed_flows", ["password"]))
+        self.assertIn("ID_MACHINE_FLOW", self.codes(self._validate()))
+
+    def test_rejects_unbound_machine_oauth_tokens(self):
+        self.fixture.mutate(self.REL, lambda d: d["machine_oauth"].__setitem__(
+            "access_token_binding", "bearer"))
+        self.assertIn("ID_MACHINE_BINDING", self.codes(self._validate()))
+
+    def test_rejects_long_lived_machine_oauth_tokens(self):
+        self.fixture.mutate(self.REL, lambda d: d["machine_oauth"].__setitem__(
+            "maximum_token_minutes", 60))
+        self.assertIn("ID_MACHINE_LIFETIME", self.codes(self._validate()))
 
     def test_rejects_static_service_account_secrets(self):
         self.fixture.mutate(self.REL, lambda d: d["service_accounts"].__setitem__(
@@ -411,6 +444,15 @@ class IdentityGateRejects(FixtureTestCase):
         self.fixture.mutate(self.REL,
                             lambda d: d["principal_bindings"][0].__setitem__("token", "nope"))
         self.assertIn("ID_PRINCIPAL_TOKEN", self.codes(self._validate()))
+
+    def test_rejects_binding_merchant_api_to_the_internal_workload_ca(self):
+        def mutate(document):
+            binding = next(item for item in document["principal_bindings"]
+                           if item["principal"] == "merchant-api-client")
+            binding["provider"] = "workload-ca"
+            binding["token"] = "workload-cert"
+        self.fixture.mutate(self.REL, mutate)
+        self.assertIn("ID_MERCHANT_API_BINDING", self.codes(self._validate()))
 
     def test_rejects_binding_a_principal_nobody_declared(self):
         self.fixture.mutate(self.REL, lambda d: d["principal_bindings"].append(

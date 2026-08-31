@@ -1,6 +1,10 @@
 package com.elmpay.payment.commerce;
 
 import com.elmpay.payment.billing.ProrationCalculator;
+import com.elmpay.payment.events.SemanticOutboxAppender;
+import com.elmpay.provider.ProviderEvidenceReceipt;
+import com.elmpay.provider.ProviderEvidenceVerifier;
+import com.elmpay.provider.VerifiedProviderEvidence;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -15,6 +19,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -34,11 +39,18 @@ public final class JdbcCommerceService implements CommerceService {
 
     private final DataSource dataSource;
     private final Clock clock;
+    private final ProviderEvidenceVerifier evidenceVerifier;
     private final ProrationCalculator proration = new ProrationCalculator();
 
     public JdbcCommerceService(DataSource dataSource, Clock clock) {
+        this(dataSource, clock, null);
+    }
+
+    public JdbcCommerceService(DataSource dataSource, Clock clock,
+            ProviderEvidenceVerifier evidenceVerifier) {
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource");
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.evidenceVerifier = evidenceVerifier;
     }
 
     @Override
@@ -408,10 +420,6 @@ public final class JdbcCommerceService implements CommerceService {
     @Override
     public Dispute ingestDispute(Context context, DisputeEvent event, String correlationId) {
         Objects.requireNonNull(event, "event");
-        if (!event.signatureVerified()) {
-            throw new CommerceRuntimeException("UNVERIFIED_PROVIDER_EVENT",
-                    "provider dispute event must be verified before persistence");
-        }
         String normalizedProvider = provider(event.provider());
         String providerEventId = opaque(event.providerEventId(), "provider event id");
         String providerDisputeId = opaque(event.providerDisputeId(), "provider dispute id");
@@ -421,6 +429,16 @@ public final class JdbcCommerceService implements CommerceService {
         }
         String normalizedCurrency = currency(event.currency());
         String payloadDigest = sha256(event.payloadDigest(), "payload digest");
+        VerifiedProviderEvidence verification = verifyEvidence(event.evidence(),
+                "PROVIDER_DISPUTE_EVENT", evidenceFields(context, normalizedProvider,
+                        providerEventId,
+                        "providerEventId", providerEventId,
+                        "providerDisputeId", providerDisputeId,
+                        "paymentIntentId", event.paymentIntentId().toString(),
+                        "amountMinor", Long.toString(event.amountMinor()),
+                        "currency", normalizedCurrency,
+                        "responseDeadline", event.responseDeadline().toString(),
+                        "payloadDigest", payloadDigest));
         return transaction(context.tenantId(), connection -> {
             UUID disputeId = UUID.randomUUID();
             try (PreparedStatement statement = connection.prepareStatement("""
@@ -457,8 +475,8 @@ public final class JdbcCommerceService implements CommerceService {
             try (PreparedStatement statement = connection.prepareStatement("""
                     INSERT INTO dispute_event_inbox
                       (tenant_id,project_id,provider,provider_event_id,provider_dispute_id,
-                       payload_digest,dispute_id,received_at)
-                    VALUES (?,?,?,?,?,?,?,?)
+                       payload_digest,verification_receipt_digest,dispute_id,received_at)
+                    VALUES (?,?,?,?,?,?,?,?,?)
                     ON CONFLICT (tenant_id,provider,provider_event_id) DO NOTHING
                     """)) {
                 statement.setObject(1, context.tenantId());
@@ -467,12 +485,13 @@ public final class JdbcCommerceService implements CommerceService {
                 statement.setString(4, providerEventId);
                 statement.setString(5, providerDisputeId);
                 statement.setString(6, payloadDigest);
-                statement.setObject(7, dispute.id());
-                statement.setTimestamp(8, timestamp(clock.instant()));
+                statement.setString(7, verification.receiptDigest());
+                statement.setObject(8, dispute.id());
+                statement.setTimestamp(9, timestamp(clock.instant()));
                 inserted = statement.executeUpdate() == 1;
             }
             verifyDisputeInbox(connection, context.tenantId(), normalizedProvider,
-                    providerEventId, payloadDigest, dispute.id());
+                    providerEventId, payloadDigest, verification.receiptDigest(), dispute.id());
             if (inserted) {
                 outbox(connection, context, "provider_dispute", dispute.id(),
                         "dispute.opened.v1", correlationId,
@@ -555,22 +574,27 @@ public final class JdbcCommerceService implements CommerceService {
 
     @Override
     public Dispute resolveDispute(Context context, UUID disputeId, DisputeState result,
-            String providerResultDigest, boolean verifiedProviderResult,
+            String providerResultDigest, ProviderEvidenceReceipt evidence,
             String idempotencyKey, String correlationId) {
         Objects.requireNonNull(disputeId, "disputeId");
         Objects.requireNonNull(result, "result");
-        if (!verifiedProviderResult || !TERMINAL_DISPUTES.contains(wire(result))) {
+        if (!TERMINAL_DISPUTES.contains(wire(result))) {
             throw new CommerceRuntimeException("UNVERIFIED_PROVIDER_RESULT",
                     "a verified terminal provider result is required");
         }
         String resultDigest = sha256(providerResultDigest, "provider result digest");
-        String requestDigest = digest("dispute.resolve", disputeId.toString(), result.name(),
-                resultDigest);
         return transaction(context.tenantId(), connection -> {
+            Dispute current = dispute(connection, context, disputeId, true);
+            VerifiedProviderEvidence verification = verifyEvidence(evidence,
+                    "PROVIDER_DISPUTE_RESULT", evidenceFields(context, current.provider(),
+                            disputeId.toString(),
+                            "disputeId", disputeId.toString(),
+                            "result", wire(result), "providerResultDigest", resultDigest));
+            String requestDigest = digest("dispute.resolve", disputeId.toString(), result.name(),
+                    resultDigest, verification.receiptDigest());
             Reservation reservation = reserve(connection, context, "dispute.resolve",
                     idempotencyKey, requestDigest, disputeId, correlationId);
             if (!reservation.replay()) {
-                Dispute current = dispute(connection, context, disputeId, true);
                 if (TERMINAL_DISPUTES.contains(wire(current.state()))) {
                     throw new CommerceRuntimeException("DISPUTE_FINAL",
                             "terminal dispute cannot transition again");
@@ -592,7 +616,8 @@ public final class JdbcCommerceService implements CommerceService {
                         "dispute.resolved.v1", correlationId,
                         "{\"dispute_id\":\"" + disputeId + "\",\"result\":\""
                                 + wire(result) + "\",\"result_digest\":\""
-                                + resultDigest + "\"}");
+                                + resultDigest + "\",\"verification_receipt_digest\":\""
+                                + verification.receiptDigest() + "\"}");
             }
             return dispute(connection, context, disputeId, false);
         });
@@ -670,23 +695,33 @@ public final class JdbcCommerceService implements CommerceService {
 
     @Override
     public Subscription recordRenewalOutcome(Context context, UUID billingCycleId,
-            RenewalOutcome outcome, String providerResultDigest, boolean verifiedProviderResult,
+            RenewalOutcome outcome, String providerResultDigest, ProviderEvidenceReceipt evidence,
             String idempotencyKey, String correlationId) {
         Objects.requireNonNull(billingCycleId, "billingCycleId");
         Objects.requireNonNull(outcome, "outcome");
-        if (!verifiedProviderResult) {
+        // Reject an unverified provider result before opening a transaction or
+        // touching the database.  This keeps the fail-closed boundary useful
+        // even when the configured data source is unavailable.
+        if (evidenceVerifier == null || evidence == null) {
             throw new CommerceRuntimeException("UNVERIFIED_PROVIDER_RESULT",
-                    "verified renewal result is required");
+                    "cryptographically verified provider evidence is required");
         }
         String resultDigest = sha256(providerResultDigest, "provider result digest");
-        String requestDigest = digest("renewal.result", billingCycleId.toString(),
-                outcome.name(), resultDigest);
         return transaction(context.tenantId(), connection -> {
-            Reservation reservation = reserve(connection, context, "renewal.result",
-                    idempotencyKey, requestDigest, billingCycleId, correlationId);
             CycleRow cycle = cycle(connection, context, billingCycleId, true);
             Subscription subscription = subscription(connection, context,
                     cycle.subscriptionId(), true);
+            Mandate mandate = mandate(connection, context, subscription.mandateId());
+            VerifiedProviderEvidence verification = verifyEvidence(evidence,
+                    "PROVIDER_RENEWAL_RESULT", evidenceFields(context, mandate.provider(),
+                            billingCycleId.toString(),
+                            "billingCycleId", billingCycleId.toString(),
+                            "subscriptionId", subscription.id().toString(),
+                            "result", wire(outcome), "providerResultDigest", resultDigest));
+            String requestDigest = digest("renewal.result", billingCycleId.toString(),
+                    outcome.name(), resultDigest, verification.receiptDigest());
+            Reservation reservation = reserve(connection, context, "renewal.result",
+                    idempotencyKey, requestDigest, billingCycleId, correlationId);
             if (!reservation.replay()) {
                 String cycleState = wire(outcome);
                 try (PreparedStatement statement = connection.prepareStatement("""
@@ -714,7 +749,9 @@ public final class JdbcCommerceService implements CommerceService {
                 outbox(connection, context, "subscription_billing_cycle", billingCycleId,
                         "billing.subscription.renewal_result.v1", correlationId,
                         "{\"billing_cycle_id\":\"" + billingCycleId
-                                + "\",\"result\":\"" + cycleState + "\"}");
+                                + "\",\"result\":\"" + cycleState
+                                + "\",\"verification_receipt_digest\":\""
+                                + verification.receiptDigest() + "\"}");
             }
             return subscription(connection, context, subscription.id(), false);
         });
@@ -766,22 +803,28 @@ public final class JdbcCommerceService implements CommerceService {
 
     @Override
     public DunningCase recordDunningOutcome(Context context, UUID dunningCaseId,
-            RenewalOutcome outcome, String providerResultDigest, boolean verifiedProviderResult,
+            RenewalOutcome outcome, String providerResultDigest, ProviderEvidenceReceipt evidence,
             String idempotencyKey, String correlationId) {
         Objects.requireNonNull(dunningCaseId, "dunningCaseId");
         Objects.requireNonNull(outcome, "outcome");
-        if (!verifiedProviderResult) {
-            throw new CommerceRuntimeException("UNVERIFIED_PROVIDER_RESULT",
-                    "verified dunning result is required");
-        }
         String resultDigest = sha256(providerResultDigest, "provider result digest");
-        String requestDigest = digest("dunning.result", dunningCaseId.toString(),
-                outcome.name(), resultDigest);
         return transaction(context.tenantId(), connection -> {
+            DunningCase current = dunning(connection, context, dunningCaseId, true);
+            Subscription currentSubscription = subscription(connection, context,
+                    current.subscriptionId(), true);
+            Mandate mandate = mandate(connection, context, currentSubscription.mandateId());
+            VerifiedProviderEvidence verification = verifyEvidence(evidence,
+                    "PROVIDER_DUNNING_RESULT", evidenceFields(context, mandate.provider(),
+                            dunningCaseId.toString(),
+                            "dunningCaseId", dunningCaseId.toString(),
+                            "subscriptionId", current.subscriptionId().toString(),
+                            "attempt", Integer.toString(current.attempts()),
+                            "result", wire(outcome), "providerResultDigest", resultDigest));
+            String requestDigest = digest("dunning.result", dunningCaseId.toString(),
+                    outcome.name(), resultDigest, verification.receiptDigest());
             Reservation reservation = reserve(connection, context, "dunning.result",
                     idempotencyKey, requestDigest, dunningCaseId, correlationId);
             if (!reservation.replay()) {
-                DunningCase current = dunning(connection, context, dunningCaseId, true);
                 if (current.state() != DunningState.WAITING_PROVIDER_QUERY) {
                     throw new CommerceRuntimeException("DUNNING_STATE_CONFLICT",
                             "dunning case is not waiting for a provider result");
@@ -825,7 +868,9 @@ public final class JdbcCommerceService implements CommerceService {
                         "billing.dunning.result.v1", correlationId,
                         "{\"dunning_case_id\":\"" + dunningCaseId
                                 + "\",\"result\":\"" + wire(outcome)
-                                + "\",\"result_digest\":\"" + resultDigest + "\"}");
+                                + "\",\"result_digest\":\"" + resultDigest
+                                + "\",\"verification_receipt_digest\":\""
+                                + verification.receiptDigest() + "\"}");
             }
             return dunning(connection, context, dunningCaseId, false);
         });
@@ -1109,9 +1154,11 @@ public final class JdbcCommerceService implements CommerceService {
     }
 
     private void verifyDisputeInbox(Connection connection, UUID tenantId, String provider,
-            String eventId, String expectedDigest, UUID expectedDispute) throws SQLException {
+            String eventId, String expectedDigest, String expectedReceiptDigest,
+            UUID expectedDispute) throws SQLException {
         try (PreparedStatement query = connection.prepareStatement("""
-                SELECT payload_digest,dispute_id FROM dispute_event_inbox
+                SELECT payload_digest,verification_receipt_digest,dispute_id
+                  FROM dispute_event_inbox
                  WHERE tenant_id=? AND provider=? AND provider_event_id=?
                 """)) {
             query.setObject(1, tenantId);
@@ -1119,12 +1166,45 @@ public final class JdbcCommerceService implements CommerceService {
             query.setString(3, eventId);
             try (ResultSet result = query.executeQuery()) {
                 if (!result.next() || !constantEquals(expectedDigest, result.getString(1))
-                        || !expectedDispute.equals(result.getObject(2, UUID.class))) {
+                        || !constantEquals(expectedReceiptDigest, result.getString(2))
+                        || !expectedDispute.equals(result.getObject(3, UUID.class))) {
                     throw new CommerceRuntimeException("PROVIDER_EVENT_CONFLICT",
                             "provider event identity was reused with different input");
                 }
             }
         }
+    }
+
+    private VerifiedProviderEvidence verifyEvidence(ProviderEvidenceReceipt receipt,
+            String evidenceType, Map<String, String> fields) {
+        if (evidenceVerifier == null || receipt == null) {
+            throw new CommerceRuntimeException("UNVERIFIED_PROVIDER_RESULT",
+                    "cryptographically verified provider evidence is required");
+        }
+        try {
+            return evidenceVerifier.verify(receipt, evidenceType, fields, clock.instant());
+        } catch (IllegalArgumentException | SecurityException invalidEvidence) {
+            throw new CommerceRuntimeException("UNVERIFIED_PROVIDER_RESULT",
+                    "provider evidence failed verification");
+        }
+    }
+
+    private static Map<String, String> evidenceFields(Context context, String provider,
+            String entityId, String... additional) {
+        if (additional.length % 2 != 0) {
+            throw new IllegalArgumentException("provider evidence fields must be key/value pairs");
+        }
+        java.util.LinkedHashMap<String, String> fields = new java.util.LinkedHashMap<>();
+        fields.put("tenantId", context.tenantId().toString());
+        fields.put("projectId", context.projectId().toString());
+        fields.put("provider", provider);
+        fields.put("entityId", entityId);
+        for (int index = 0; index < additional.length; index += 2) {
+            if (fields.putIfAbsent(additional[index], additional[index + 1]) != null) {
+                throw new IllegalArgumentException("duplicate provider evidence field");
+            }
+        }
+        return Map.copyOf(fields);
     }
 
     private Reservation reserve(Connection connection, Context context, String operation,
@@ -1177,23 +1257,10 @@ public final class JdbcCommerceService implements CommerceService {
     private void outbox(Connection connection, Context context, String aggregateType,
             UUID aggregateId, String eventType, String correlationId, String payload)
             throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement("""
-                INSERT INTO outbox_event
-                  (id,tenant_id,project_id,aggregate_type,aggregate_id,event_type,event_version,
-                   payload,correlation_id,created_at)
-                VALUES (?,?,?,?,?,?,1,?::jsonb,?,?)
-                """)) {
-            statement.setObject(1, UUID.randomUUID());
-            statement.setObject(2, context.tenantId());
-            statement.setObject(3, context.projectId());
-            statement.setString(4, aggregateType);
-            statement.setObject(5, aggregateId);
-            statement.setString(6, eventType);
-            statement.setString(7, payload);
-            statement.setString(8, text(correlationId, "correlation id"));
-            statement.setTimestamp(9, timestamp(clock.instant()));
-            statement.executeUpdate();
-        }
+        SemanticOutboxAppender.append(connection, new SemanticOutboxAppender.EventDraft(
+                context.tenantId(), context.projectId(), aggregateType, aggregateId, eventType,
+                1, clock.instant(), text(correlationId, "correlation id"),
+                com.elmpay.events.StrictJson.object(payload)));
     }
 
     private <T> T transaction(UUID tenantId, SqlWork<T> work) {

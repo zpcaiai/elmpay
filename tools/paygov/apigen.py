@@ -36,9 +36,50 @@ def _money_schema(contract: dict) -> dict:
     }
 
 
+def _security_schemes(contract: dict) -> dict:
+    """Translate the governance auth catalogue into standard OpenAPI schemes."""
+    result: dict = {}
+    for scheme in contract["auth_schemes"]:
+        if scheme["type"] == "oauth2_mtls":
+            result["OAuth2"] = {
+                "type": "oauth2",
+                "description": scheme["description"],
+                "flows": {"clientCredentials": {
+                    "tokenUrl": scheme["token_url"],
+                    "scopes": scheme["scopes"],
+                }},
+                "x-token-type": scheme["token_type"],
+            }
+            result["MutualTLS"] = {
+                "type": "mutualTLS",
+                "description": "OAuth2 access token holder binding; certificate thumbprint "
+                               "must match cnf.x5t#S256.",
+                "x-holder-binding": scheme["holder_binding"],
+            }
+        elif scheme["type"] == "provider_signature":
+            result["ProviderSignature"] = {
+                "type": "apiKey", "in": "header", "name": scheme["header"],
+                "description": scheme["description"],
+            }
+        else:  # validation rejects this; rendering must fail closed too
+            raise ValueError(f"unsupported auth scheme type: {scheme.get('type')}")
+    return result
+
+
+def _operation_security(operation: dict, auth_schemes: dict[str, dict]) -> list[dict]:
+    scheme = auth_schemes[operation["auth"]]
+    if scheme["type"] == "oauth2_mtls":
+        # Keys in one Security Requirement Object are ANDed by OpenAPI.
+        return [{"OAuth2": operation["required_scopes"], "MutualTLS": []}]
+    if scheme["type"] == "provider_signature":
+        return [{"ProviderSignature": []}]
+    raise ValueError(f"unsupported auth scheme type: {scheme.get('type')}")
+
+
 def openapi_json(root: Path, budget: Budget | None = None) -> str:
     budget = budget or Budget(seconds=60).start()
     contract = _load(root)
+    auth_schemes = {scheme["id"]: scheme for scheme in contract["auth_schemes"]}
     paths: dict = {}
     for operation in contract["operations"]:
         budget.check(operation["id"])
@@ -83,7 +124,7 @@ def openapi_json(root: Path, budget: Budget | None = None) -> str:
             "summary": operation["summary"],
             "parameters": parameters,
             "responses": responses,
-            "security": [{operation["auth"]: []}],
+            "security": _operation_security(operation, auth_schemes),
             "x-actor": operation["actor"],
             "x-drives-transition": operation.get("drives_transition"),
             "x-deprecated-sunset": (operation.get("deprecated") or {}).get("sunset"),
@@ -100,11 +141,7 @@ def openapi_json(root: Path, budget: Budget | None = None) -> str:
                  "description": contract["versioning"]["policy"]},
         "servers": [{"url": "https://api.example.invalid"}],
         "components": {
-            "securitySchemes": {
-                "api_key": {"type": "apiKey", "in": "header", "name": "Authorization"},
-                "provider_signature": {"type": "apiKey", "in": "header",
-                                       "name": "X-Payment-Signature"},
-            },
+            "securitySchemes": _security_schemes(contract),
             "schemas": {
                 "Money": _money_schema(contract),
                 "Error": {
@@ -177,16 +214,19 @@ def contract_markdown(root: Path, budget: Budget | None = None) -> str:
     out.append("")
     out.append("## 操作")
     out.append("")
-    out.append("| 操作 | 方法 | 路径 | 调用方 | 认证 | 幂等键作用域 | 驱动的状态转移 |")
-    out.append("| --- | --- | --- | --- | --- | --- | --- |")
+    out.append("| 操作 | 方法 | 路径 | 调用方 | 认证 | 权限范围 | 幂等键作用域 | 驱动的状态转移 |")
+    out.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
     for operation in contract["operations"]:
         budget.check(operation["id"])
         idem = operation.get("idempotency")
         scope = f"`{idem['scope']}`" if idem else "—"
         transition = operation.get("drives_transition")
         drives = (f"`{transition['machine']}` / `{transition['event']}`" if transition else "—")
+        required_scopes = operation.get("required_scopes") or []
+        scopes = ", ".join(f"`{value}`" for value in required_scopes) or "—"
         out.append(f"| `{operation['id']}` | {operation['method']} | `{operation['path']}` | "
-                   f"`{operation['actor']}` | `{operation['auth']}` | {scope} | {drives} |")
+                   f"`{operation['actor']}` | `{operation['auth']}` | {scopes} | {scope} | "
+                   f"{drives} |")
     out.append("")
     writes = [o for o in contract["operations"] if o["method"] != "GET"]
     out.append(f"共 {len(contract['operations'])} 个操作（其中 {len(writes)} 个写操作，"
@@ -289,6 +329,8 @@ def baseline_json(root: Path) -> str:
         "operations": {
             op["id"]: {"method": op["method"], "path": op["path"],
                        "errors": sorted(op.get("errors") or []),
+                       "auth": op["auth"],
+                       "required_scopes": sorted(op.get("required_scopes") or []),
                        "idempotency": {"required": bool((op.get("idempotency") or {})
                                                         .get("required"))}}
             for op in contract["operations"]

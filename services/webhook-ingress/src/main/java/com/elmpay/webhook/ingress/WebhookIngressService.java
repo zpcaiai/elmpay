@@ -1,17 +1,17 @@
 package com.elmpay.webhook.ingress;
 
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.HexFormat;
-import java.util.Locale;
 import java.util.Map;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
 /** Verifies a provider callback before opening a database connection or acknowledging it. */
 public final class WebhookIngressService {
+    public static final String CANONICAL_SCHEMA_V1 = "provider-webhook-effect.v1";
     private static final int MAX_BODY_BYTES = 1_048_576;
     private static final Pattern CONTEXT_ID = Pattern.compile("[A-Za-z0-9_-]{3,64}");
     private static final Pattern PROVIDER = Pattern.compile("[a-z][a-z0-9-]{1,31}");
@@ -33,7 +33,14 @@ public final class WebhookIngressService {
 
     public record VerifiedEvent(String providerEventId, String eventType, String providerPaymentId,
             String businessOrderNo, Instant occurredAt, String signatureKeyId,
-            byte[] canonicalPayload) {
+            Long amountMinor, String currency, String canonicalSchema, byte[] canonicalPayload) {
+        public VerifiedEvent(String providerEventId, String eventType, String providerPaymentId,
+                String businessOrderNo, Instant occurredAt, String signatureKeyId,
+                byte[] canonicalPayload) {
+            this(providerEventId, eventType, providerPaymentId, businessOrderNo, occurredAt,
+                    signatureKeyId, null, null, CANONICAL_SCHEMA_V1, canonicalPayload);
+        }
+
         public VerifiedEvent {
             requireBounded(providerEventId, "providerEventId", 1, 160);
             requireBounded(eventType, "eventType", 1, 160);
@@ -41,8 +48,17 @@ public final class WebhookIngressService {
             requireBounded(businessOrderNo, "businessOrderNo", 1, 160);
             Objects.requireNonNull(occurredAt, "occurredAt");
             requireBounded(signatureKeyId, "signatureKeyId", 1, 160);
+            if ((amountMinor == null) != (currency == null)) {
+                throw new IllegalArgumentException("amountMinor and currency must be supplied together");
+            }
+            if (currency != null && !currency.matches("[A-Z]{3}")) {
+                throw new IllegalArgumentException("currency has an invalid format");
+            }
+            if (!CANONICAL_SCHEMA_V1.equals(canonicalSchema)) {
+                throw new IllegalArgumentException("canonicalSchema is unsupported");
+            }
             canonicalPayload = Objects.requireNonNull(canonicalPayload, "canonicalPayload").clone();
-            if (canonicalPayload.length == 0 || canonicalPayload.length > MAX_BODY_BYTES) {
+            if (canonicalPayload.length == 0 || canonicalPayload.length > 32_768) {
                 throw new IllegalArgumentException("canonicalPayload has an invalid size");
             }
         }
@@ -65,14 +81,14 @@ public final class WebhookIngressService {
 
     @FunctionalInterface
     public interface ProviderWebhookVerifier {
-        VerifiedEvent verify(String merchantAccountId, Map<String, String> headers,
+        VerifiedEvent verify(Context context, Map<String, String> headers,
                 byte[] rawBody, Instant receivedAt);
     }
 
     @FunctionalInterface
     public interface Inbox {
         /** @return true if inserted; false only when the provider event already exists. */
-        boolean store(Context context, VerifiedEvent event, byte[] rawBody, String rawBodySha256);
+        boolean store(Context context, VerifiedEvent event, String rawBodySha256);
     }
 
     private final Map<String, ProviderWebhookVerifier> verifiers;
@@ -99,23 +115,53 @@ public final class WebhookIngressService {
             throw new SecurityException("unsupported provider");
         }
 
-        // This call must complete successfully before any durable write occurs.
-        VerifiedEvent verified = verifier.verify(context.merchantAccountId(), Map.copyOf(headers),
-                rawBody.clone(), context.receivedAt());
+        // This call must complete successfully before any durable write occurs. The bounded clone
+        // is erased after verification and is never handed to the durable inbox.
+        byte[] verificationBody = rawBody.clone();
+        VerifiedEvent verified;
+        try {
+            verified = verifier.verify(context, Map.copyOf(headers), verificationBody,
+                    context.receivedAt());
+        } finally {
+            Arrays.fill(verificationBody, (byte) 0);
+        }
         String digest = sha256(rawBody);
-        boolean inserted = inbox.store(context, verified, rawBody.clone(), digest);
+        boolean inserted = inbox.store(context, verified, digest);
         return new Receipt(inserted ? Outcome.ACCEPTED : Outcome.DUPLICATE,
                 verified.providerEventId(), digest);
     }
 
     private static void rejectObviouslySensitiveCardFields(byte[] rawBody) {
-        String body = new String(rawBody, StandardCharsets.ISO_8859_1).toLowerCase(Locale.ROOT);
         for (String field : new String[] {"\"card_number\"", "\"cardnumber\"", "\"pan\"",
                 "\"cvv\"", "\"cvc\"", "\"track1\"", "\"track2\""}) {
-            if (body.contains(field)) {
+            if (containsAsciiIgnoreCase(rawBody, field)) {
                 throw new SecurityException("raw card data is forbidden");
             }
         }
+    }
+
+    private static boolean containsAsciiIgnoreCase(byte[] value, String needle) {
+        for (int start = 0; start <= value.length - needle.length(); start++) {
+            boolean match = true;
+            for (int offset = 0; offset < needle.length(); offset++) {
+                int actual = value[start + offset] & 0xff;
+                int expected = needle.charAt(offset);
+                if (actual >= 'A' && actual <= 'Z') {
+                    actual += 'a' - 'A';
+                }
+                if (expected >= 'A' && expected <= 'Z') {
+                    expected += 'a' - 'A';
+                }
+                if (actual != expected) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String sha256(byte[] value) {
@@ -134,7 +180,7 @@ public final class WebhookIngressService {
 
     private static void requireBounded(String value, String name, int minimum, int maximum) {
         if (value == null || value.length() < minimum || value.length() > maximum
-                || value.chars().anyMatch(character -> character < 0x20)) {
+                || value.chars().anyMatch(character -> character < 0x20 || character == 0x7f)) {
             throw new IllegalArgumentException(name + " has an invalid format");
         }
     }

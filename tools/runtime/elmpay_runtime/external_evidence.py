@@ -10,10 +10,11 @@ declared by ``platform/compliance/external-evidence-policy.json``.
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import math
 import re
 from typing import Any, Mapping
 
-from .attestation import NonceStore, nonce_store_from_trust
+from .attestation import ConnectionNonceStore, NonceStore, nonce_store_from_trust
 from .common import (
     GateReport,
     ValidationError,
@@ -38,6 +39,14 @@ def validate_external_evidence(
     now: datetime | None = None,
     environment: Mapping[str, str] | None = None,
     expected_binding: str | None = None,
+    expected_tenant_id: str | None = None,
+    expected_artifact_digest: str | None = None,
+    expected_target_digest: str | None = None,
+    expected_region: str | None = None,
+    expected_images: Mapping[str, str] | None = None,
+    expected_admission_policy_digest: str | None = None,
+    expected_commit_sha: str | None = None,
+    nonce_store: NonceStore | ConnectionNonceStore | None = None,
 ) -> GateReport:
     """Validate a signed, release-bound external evidence bundle.
 
@@ -46,7 +55,10 @@ def validate_external_evidence(
     a locally generated JSON file is never treated as certification evidence.
     """
 
-    current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        raise ValidationError("external evidence verification time must be timezone-aware")
+    current = current.astimezone(timezone.utc)
     del environment
     reasons: list[str] = []
     checks: list[str] = []
@@ -82,11 +94,12 @@ def validate_external_evidence(
         reasons.append("external_evidence_trust_material_missing")
         nonce_store = None
     else:
-        try:
-            nonce_store = nonce_store_from_trust(trust)
-        except ValidationError as exc:
-            reasons.append(f"external_evidence_replay_protection_missing:{exc}")
-            nonce_store = None
+        if nonce_store is None:
+            try:
+                nonce_store = nonce_store_from_trust(trust)
+            except ValidationError as exc:
+                reasons.append(f"external_evidence_replay_protection_missing:{exc}")
+                nonce_store = None
 
     required = policy.get("requiredCategories")
     if not isinstance(required, dict) or not required:
@@ -96,6 +109,10 @@ def validate_external_evidence(
         raw_evidence = require_list(bundle.get("evidence"), "bundle.evidence")
     except ValidationError as exc:
         return GateReport.from_reasons([*reasons, f"external_evidence_bundle_invalid:{exc}"], checks)
+    if len(raw_evidence) > 64:
+        return GateReport.from_reasons(
+            [*reasons, "external_evidence_bundle_record_limit_exceeded"], checks
+        )
 
     seen: set[str] = set()
     verified: set[str] = set()
@@ -130,6 +147,13 @@ def validate_external_evidence(
             trust if isinstance(trust, dict) else {},
             binding if isinstance(binding, str) else "",
             nonce_store,
+            expected_tenant_id,
+            expected_artifact_digest,
+            expected_target_digest,
+            expected_region,
+            expected_images,
+            expected_admission_policy_digest,
+            expected_commit_sha,
         )
         if record_reasons:
             reasons.extend(f"{category}:{reason}" for reason in record_reasons)
@@ -168,7 +192,7 @@ def validate_external_evidence(
                 for capability in sorted(required_capabilities - supplied):
                     reasons.append(f"provider_capability_not_certified:{provider}:{capability}")
     minimum = policy.get("minimumDistinctVerifiers", 1)
-    if not isinstance(minimum, int) or minimum < 1:
+    if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 1:
         reasons.append("external_evidence_policy_verifier_count_invalid")
     elif len(verifier_ids) < minimum:
         reasons.append("insufficient_distinct_external_verifiers")
@@ -182,7 +206,14 @@ def _validate_record(
     current: datetime,
     trust: Mapping[str, Any],
     binding: str,
-    nonce_store: NonceStore | None,
+    nonce_store: NonceStore | ConnectionNonceStore | None,
+    expected_tenant_id: str | None,
+    expected_artifact_digest: str | None,
+    expected_target_digest: str | None,
+    expected_region: str | None,
+    expected_images: Mapping[str, str] | None,
+    expected_admission_policy_digest: str | None,
+    expected_commit_sha: str | None,
 ) -> tuple[bool, str | None, tuple[str, ...]]:
     reasons: list[str] = []
     try:
@@ -214,7 +245,13 @@ def _validate_record(
         if expires <= current or expires <= observed:
             reasons.append("evidence_expired")
         maximum_age = category_policy.get("maximumAgeHours")
-        if isinstance(maximum_age, int) and current - observed > timedelta(hours=maximum_age):
+        if (
+            isinstance(maximum_age, bool)
+            or not isinstance(maximum_age, int)
+            or maximum_age <= 0
+        ):
+            reasons.append("maximum_age_policy_invalid")
+        elif current - observed > timedelta(hours=maximum_age):
             reasons.append("evidence_stale")
     except ValidationError as exc:
         reasons.append(str(exc))
@@ -246,6 +283,47 @@ def _validate_record(
     if not reasons:
         semantic_attestation = {**attestation, "verifierId": verifier}
         reasons.extend(_semantic_reasons(category_policy, semantic_attestation, prefix))
+        category = category_policy.get("category")
+        if expected_tenant_id is not None:
+            attested_tenant = attestation.get("tenantId")
+            if category == "uat_acceptance" and attested_tenant != expected_tenant_id:
+                reasons.append("uat_tenant_binding_mismatch")
+            elif attested_tenant is not None and attested_tenant != expected_tenant_id:
+                reasons.append("evidence_tenant_binding_mismatch")
+        if (
+            expected_artifact_digest is not None
+            and category == "production_kubernetes"
+            and attestation.get("artifactDigest") != expected_artifact_digest
+        ):
+            reasons.append("kubernetes_artifact_binding_mismatch")
+        if (
+            expected_target_digest is not None
+            and category in {
+                "uat_acceptance", "shadow_rollout", "canary_rollout",
+                "merchant_acceptance",
+            }
+            and attestation.get("targetDigest") != expected_target_digest
+        ):
+            reasons.append("evidence_target_binding_mismatch")
+        if expected_region is not None and category == "production_kubernetes":
+            regions = attestation.get("regions")
+            if not isinstance(regions, list) or expected_region not in regions:
+                reasons.append("kubernetes_target_region_missing")
+        if expected_images is not None and category == "production_kubernetes":
+            supplied_images = attestation.get("imageDigests")
+            expected_values = list(expected_images.values())
+            if not isinstance(supplied_images, list) \
+                    or len(supplied_images) != len(expected_values) \
+                    or set(supplied_images) != set(expected_values):
+                reasons.append("kubernetes_image_inventory_binding_mismatch")
+        if expected_admission_policy_digest is not None \
+                and category == "production_kubernetes" \
+                and attestation.get("admissionPolicyDigest") \
+                != expected_admission_policy_digest:
+            reasons.append("kubernetes_admission_policy_binding_mismatch")
+        if expected_commit_sha is not None and category == "production_kubernetes" \
+                and attestation.get("commitSha") != expected_commit_sha:
+            reasons.append("kubernetes_commit_binding_mismatch")
     return not reasons, verifier if not reasons and key_valid else None, tuple(sorted(set(reasons)))
 
 
@@ -270,7 +348,12 @@ def _semantic_reasons(
             reasons.append("human_review_not_independent")
         if attestation.get("reviewerId") != attestation.get("verifierId"):
             reasons.append("human_review_verifier_identity_mismatch")
-        if attestation.get("openFindings", 0) != 0:
+        open_findings = attestation.get("openFindings")
+        if (
+            isinstance(open_findings, bool)
+            or not isinstance(open_findings, int)
+            or open_findings != 0
+        ):
             reasons.append("human_review_open_findings")
         if attestation.get("phishingResistantAuth") is not True:
             reasons.append("human_review_authentication_not_phishing_resistant")
@@ -279,32 +362,81 @@ def _semantic_reasons(
             reasons.append("provider_certification_not_production")
         if attestation.get("official") is not True or attestation.get("sandboxValidated") is not True:
             reasons.append("provider_certification_not_official")
-        if not isinstance(attestation.get("capabilities"), list) or not attestation["capabilities"]:
+        capabilities = attestation.get("capabilities")
+        if (
+            not isinstance(capabilities, list)
+            or not capabilities
+            or any(not isinstance(item, str) or not item.strip() for item in capabilities)
+            or len(set(capabilities)) != len(capabilities)
+        ):
             reasons.append("provider_capability_matrix_missing")
     elif category == "production_kubernetes":
         if attestation.get("environment") != "PRODUCTION":
             reasons.append("kubernetes_evidence_not_production")
-        if attestation.get("gitopsDriftCount") != 0 or attestation.get("admissionPolicyPassed") is not True:
-            reasons.append("kubernetes_policy_or_drift_failed")
-        if not isinstance(attestation.get("imageDigests"), list) or any(
-            not isinstance(item, str) or not re.fullmatch(r"^.+@sha256:[0-9a-f]{64}$", item)
-            for item in attestation["imageDigests"]
+        drift = attestation.get("gitopsDriftCount")
+        if (
+            isinstance(drift, bool)
+            or not isinstance(drift, int)
+            or drift != 0
+            or attestation.get("admissionPolicyPassed") is not True
         ):
+            reasons.append("kubernetes_policy_or_drift_failed")
+        images = attestation.get("imageDigests")
+        if not isinstance(images, list) or not images or any(
+            not isinstance(item, str) or not re.fullmatch(r"^.+@sha256:[0-9a-f]{64}$", item)
+            for item in images
+        ) or len(set(images)) != len(images):
             reasons.append("kubernetes_image_digests_invalid")
         regions = attestation.get("regions")
-        if not isinstance(regions, list) or len(set(regions)) < 2:
+        if (
+            not isinstance(regions, list)
+            or any(not isinstance(item, str) or not item.strip() for item in regions)
+            or len(set(regions)) < 2
+        ):
             reasons.append("kubernetes_regions_insufficient")
         if not isinstance(attestation.get("commitSha"), str) or not COMMIT_PATTERN.fullmatch(attestation["commitSha"]):
             reasons.append("kubernetes_commit_sha_invalid")
         if not isinstance(attestation.get("artifactDigest"), str) or not DIGEST_PATTERN.fullmatch(attestation["artifactDigest"]):
             reasons.append("kubernetes_artifact_digest_invalid")
+        admission_digest = attestation.get("admissionPolicyDigest")
+        if not isinstance(admission_digest, str) \
+                or not DIGEST_PATTERN.fullmatch(admission_digest) \
+                or admission_digest == "0" * 64:
+            reasons.append("kubernetes_admission_policy_digest_invalid")
+        if attestation.get("artifactDigest") == "0" * 64 \
+                or attestation.get("rolloutStage") != "PRODUCTION":
+            reasons.append("kubernetes_release_subject_invalid")
     elif category == "dr_exercise":
         regions = attestation.get("regions")
-        if not isinstance(regions, list) or len(set(regions)) < 2:
+        if (
+            not isinstance(regions, list)
+            or any(not isinstance(item, str) or not item.strip() for item in regions)
+            or len(set(regions)) < 2
+        ):
             reasons.append("dr_requires_two_distinct_regions")
-        if attestation.get("measuredRpoSeconds", 10**9) > category_policy.get("maximumRpoSeconds", 60):
+        measured_rpo = attestation.get("measuredRpoSeconds")
+        maximum_rpo = category_policy.get("maximumRpoSeconds")
+        if (
+            isinstance(measured_rpo, bool)
+            or not isinstance(measured_rpo, int)
+            or measured_rpo < 0
+            or isinstance(maximum_rpo, bool)
+            or not isinstance(maximum_rpo, int)
+            or maximum_rpo < 0
+            or measured_rpo > maximum_rpo
+        ):
             reasons.append("dr_rpo_exceeded")
-        if attestation.get("measuredRtoSeconds", 10**9) > category_policy.get("maximumRtoSeconds", 900):
+        measured_rto = attestation.get("measuredRtoSeconds")
+        maximum_rto = category_policy.get("maximumRtoSeconds")
+        if (
+            isinstance(measured_rto, bool)
+            or not isinstance(measured_rto, int)
+            or measured_rto < 0
+            or isinstance(maximum_rto, bool)
+            or not isinstance(maximum_rto, int)
+            or maximum_rto < 0
+            or measured_rto > maximum_rto
+        ):
             reasons.append("dr_rto_exceeded")
         for field in ("failbackPassed", "writeFenceObserved", "providerRoutingVerified", "dataLossDetected"):
             expected = False if field == "dataLossDetected" else True
@@ -316,38 +448,103 @@ def _semantic_reasons(
     elif category == "uat_acceptance":
         if attestation.get("environment") != "UAT":
             reasons.append("uat_environment_invalid")
-        if attestation.get("scenariosTotal", 0) <= 0 or attestation.get("scenariosPassed") != attestation.get("scenariosTotal"):
+        total = attestation.get("scenariosTotal")
+        passed = attestation.get("scenariosPassed")
+        if (
+            isinstance(total, bool)
+            or not isinstance(total, int)
+            or total <= 0
+            or isinstance(passed, bool)
+            or not isinstance(passed, int)
+            or passed != total
+        ):
             reasons.append("uat_scenarios_incomplete")
         for field in ("financeSignoff", "operationsSignoff", "merchantSignoff"):
             if attestation.get(field) is not True:
                 reasons.append(f"uat_{field}_missing")
+        for field in ("targetDigest", "suiteDigest", "resultDigest"):
+            value = attestation.get(field)
+            if not isinstance(value, str) or not DIGEST_PATTERN.fullmatch(value):
+                reasons.append(f"uat_{field}_invalid")
     elif category == "penetration_test":
         if attestation.get("testerIndependent") is not True:
             reasons.append("penetration_tester_not_independent")
         findings = attestation.get("findings", {})
-        if not isinstance(findings, dict) or findings.get("critical", 1) != 0 or findings.get("high", 1) != 0:
+        if (
+            not isinstance(findings, dict)
+            or any(
+                isinstance(findings.get(level), bool)
+                or not isinstance(findings.get(level), int)
+                or findings.get(level) != 0
+                for level in ("critical", "high")
+            )
+        ):
             reasons.append("penetration_findings_exceeded")
     elif category == "shadow_rollout":
-        if attestation.get("stage") != "SHADOW" or attestation.get("candidateSideEffects", 1) != 0 or attestation.get("mismatchCount", 1) != 0:
+        side_effects = attestation.get("candidateSideEffects")
+        mismatches = attestation.get("mismatchCount")
+        if (
+            attestation.get("stage") != "SHADOW"
+            or isinstance(side_effects, bool)
+            or not isinstance(side_effects, int)
+            or side_effects != 0
+            or isinstance(mismatches, bool)
+            or not isinstance(mismatches, int)
+            or mismatches != 0
+        ):
             reasons.append("shadow_rollout_failed")
-        if not isinstance(attestation.get("sampleCount"), int) or attestation["sampleCount"] <= 0:
+        if (
+            isinstance(attestation.get("sampleCount"), bool)
+            or not isinstance(attestation.get("sampleCount"), int)
+            or attestation["sampleCount"] <= 0
+        ):
             reasons.append("shadow_sample_count_invalid")
+        for field in ("targetDigest", "datasetDigest", "resultDigest"):
+            value = attestation.get(field)
+            if not isinstance(value, str) or not DIGEST_PATTERN.fullmatch(value):
+                reasons.append(f"shadow_{field}_invalid")
     elif category == "canary_rollout":
         if attestation.get("stage") not in {"CANARY", "PRODUCTION"} or attestation.get("autoStopTriggered") is not False:
             reasons.append("canary_rollout_failed")
-        if attestation.get("duplicateSideEffectCount", 1) != 0 or attestation.get("securityCriticalCount", 1) != 0:
+        if any(
+            isinstance(attestation.get(field), bool)
+            or not isinstance(attestation.get(field), int)
+            or attestation.get(field) != 0
+            for field in ("duplicateSideEffectCount", "securityCriticalCount")
+        ):
             reasons.append("canary_safety_threshold_exceeded")
+        traffic = attestation.get("trafficPercent")
+        window = attestation.get("windowMinutes")
+        if (
+            isinstance(traffic, bool)
+            or not isinstance(traffic, int)
+            or not 0 < traffic <= 100
+            or isinstance(window, bool)
+            or not isinstance(window, int)
+            or window <= 0
+        ):
+            reasons.append("canary_window_or_traffic_invalid")
         for field, maximum in (
             ("errorRateDelta", 0.002),
             ("latencyP99DeltaMs", 100),
             ("authorizationRateDrop", 0.01),
         ):
             value = attestation.get(field)
-            if not isinstance(value, (int, float)) or isinstance(value, bool) or value < 0 or value > maximum:
+            if (
+                not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or not math.isfinite(value)
+                or value < 0
+                or value > maximum
+            ):
                 reasons.append(f"canary_{field}_exceeded")
     elif category == "merchant_acceptance":
         if attestation.get("accepted") is not True or attestation.get("merchantSignoff") is not True:
             reasons.append("merchant_acceptance_missing")
+        for field in ("targetDigest", "scenarioDigest"):
+            value = attestation.get(field)
+            if not isinstance(value, str) or not DIGEST_PATTERN.fullmatch(value):
+                reasons.append(f"merchant_{field}_invalid")
     elif category in {"legal_compliance", "regional_market_approval"}:
         if attestation.get("decision") != "APPROVE" or attestation.get("externalAuthority") is not True:
             reasons.append("external_legal_approval_missing")

@@ -5,9 +5,12 @@ Payment Intent / Attempt、渠道交互、复式账本、对账结果与风控�
 
 优先渠道：微信支付 APIv3、支付宝证书模式；其后 Stripe、PayPal、Apple Pay（托管字段 / 令牌化）。
 
-> **当前实现边界（2026-08-20）**：仓库已包含 B00–B33 的治理模型、契约、生成器、
-> 可执行参考语义与测试，但 `apps/`、`services/`、`connectors/` 尚无可部署服务代码。
-> 本仓库因此是支付平台的受验证设计/参考实现，**不是生产就绪或已认证的支付平台**。
+> **当前实现边界（2026-08-30）**：仓库已包含生产模式的 edge gateway、托管收银台、
+> Admin 控制面、独立风控服务、Webhook 处理器与调度/事件/账本/对账 worker 源码，
+> 并为微信、支付宝、Stripe、PayPal 和 Apple Pay-via-PSP 提供真实协议适配与严格凭证
+> 边界。仓库代码和本地测试仍不能替代渠道官方认证、独立人工评审、生产集群/多地域
+> 演练、PCI/UAT/渗透测试或商户 shadow/canary 验收；认证状态仍为
+> **`0/128 NOT_CERTIFIED`**。
 
 ## 交付方式
 
@@ -65,9 +68,9 @@ make test-matrix   # 执行 B00-B127 SOTA 矩阵（外部证据保持 BLOCKED）
 
 | 目录 | 内容 |
 | --- | --- |
-| `apps/` | 规划中的 edge-gateway、checkout-web、admin-web（当前无部署实现） |
-| `services/` | 规划中的 payment-core、webhook、ledger 等服务（当前无部署实现） |
-| `connectors/` | 规划中的微信、支付宝、Stripe、PayPal、Apple Pay 连接器（当前无部署实现） |
+| `apps/` | 可运行的 edge-gateway、checkout-web、admin-web 生产入口与测试 |
+| `services/` | payment-core、risk-engine、webhook、worker、ledger、reconciliation 等领域/运行时 |
+| `connectors/` | 微信、支付宝、Stripe、PayPal、Apple Pay-via-PSP 协议适配器与契约测试 |
 | `libs/` | money、domain-events、idempotency、audit、security、observability |
 | `contracts/` | openapi、asyncapi、protobuf |
 | `platform/` | terraform、kubernetes、policies、dev |

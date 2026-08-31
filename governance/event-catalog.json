@@ -12,6 +12,8 @@
       "event_name",
       "event_version",
       "tenant_id",
+      "project_id",
+      "aggregate_type",
       "aggregate_id",
       "revision",
       "occurred_at",
@@ -45,6 +47,7 @@
     "owner": "payment-core",
     "same_transaction_as_state_change": true,
     "unique_key": [
+      "tenant_id",
       "aggregate_type",
       "aggregate_id",
       "revision"
@@ -67,10 +70,10 @@
       "source",
       "source_event_id"
     ],
-    "payload_hash_field": "payload_sha256",
-    "conflict_error": "idempotency_key_reuse",
+    "payload_hash_field": "raw_body_sha256 + canonical_payload_sha256 + verification_digest",
+    "conflict_error": "provider_event_identity_conflict",
     "retention_hours": 720,
-    "policy": "同一 (source, source_event_id) 只处理一次；如果同一 ID 带来了不同的 payload 哈希，那不是重放而是矛盾，必须报错而不是覆盖。"
+    "policy": "同一租户、渠道、商户渠道账户与 provider_event_id 只处理一次；相同 ID 的原始摘要或 typed canonical 摘要不同即拒绝。原始 body 不持久化；业务 effect、effect commit marker 与 PROCESSED 标记在同一数据库事务提交。"
   },
   "ordering": {
     "key_field": "aggregate_id",
@@ -181,6 +184,11 @@
           "name": "currency",
           "type": "currency",
           "classification": "internal"
+        },
+        {
+          "name": "business_order_digest",
+          "type": "sha256",
+          "classification": "restricted"
         }
       ],
       "consumers": [
@@ -396,6 +404,21 @@
         {
           "name": "payment_intent_id",
           "type": "uuid",
+          "classification": "internal"
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "classification": "internal"
+        },
+        {
+          "name": "provider",
+          "type": "string",
+          "classification": "internal"
+        },
+        {
+          "name": "provider_refund_id",
+          "type": "string",
           "classification": "internal"
         },
         {

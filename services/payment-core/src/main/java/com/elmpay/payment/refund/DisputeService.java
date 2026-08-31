@@ -1,8 +1,10 @@
 package com.elmpay.payment.refund;
 
+import com.elmpay.provider.VerifiedProviderEvidence;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -11,34 +13,61 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Verified-provider-event driven dispute lifecycle with immutable evidence revisions. */
 public final class DisputeService {
     public enum Status { OPEN, EVIDENCE_SUBMITTED, WON, LOST, ACCEPTED, APPEALED }
-    public record ProviderEvent(String tenantId, String providerEventId, String providerDisputeId,
-                                String paymentId, long amountMinor, String currency,
-                                Instant responseDeadline, boolean signatureVerified) {}
+    public enum ProviderResult { WON, LOST, ACCEPTED, UNKNOWN }
+    public record ProviderEvent(String tenantId, String provider, String providerEventId,
+                                String providerDisputeId, String paymentId, long amountMinor,
+                                String currency, Instant responseDeadline,
+                                String providerResultDigest,
+                                VerifiedProviderEvidence providerEvidence) {}
     public record Evidence(int revision, String sha256, String mediaType, String submittedBy, Instant submittedAt) {}
-    public record Dispute(String tenantId, String providerDisputeId, String paymentId, long amountMinor,
-                          String currency, Instant deadline, Status status, List<Evidence> evidence) {}
+    public record Dispute(String tenantId, String provider, String providerDisputeId,
+                          String paymentId, long amountMinor, String currency, Instant deadline,
+                          Status status, List<Evidence> evidence) {}
+
+    private static final String EVENT_EVIDENCE_TYPE = "PROVIDER_DISPUTE_EVENT";
+    private static final String RESULT_EVIDENCE_TYPE = "PROVIDER_DISPUTE_RESULT";
 
     private final Clock clock;
     private final Map<String, Dispute> disputes = new ConcurrentHashMap<>();
-    private final Map<String, Boolean> inbox = new ConcurrentHashMap<>();
+    private final Map<String, String> inbox = new ConcurrentHashMap<>();
 
     public DisputeService(Clock clock) { this.clock = Objects.requireNonNull(clock, "clock"); }
 
     public synchronized Dispute ingest(ProviderEvent event) {
-        if (!event.signatureVerified()) throw new SecurityException("provider event must be verified before persistence");
-        require(event.tenantId()); require(event.providerEventId()); require(event.providerDisputeId()); require(event.paymentId());
+        Objects.requireNonNull(event, "event");
+        require(event.tenantId()); require(event.provider()); require(event.providerEventId());
+        require(event.providerDisputeId()); require(event.paymentId()); require(event.currency());
+        Objects.requireNonNull(event.responseDeadline(), "responseDeadline");
         if (event.amountMinor() <= 0) throw new IllegalArgumentException("dispute amount must be positive");
+        String providerDigest = providerDigest(event.providerResultDigest());
+        Map<String, String> expectedEvidence = evidenceFields(event.tenantId(), event.provider(),
+                event.providerEventId(), "received", providerDigest,
+                "providerDisputeId", event.providerDisputeId(),
+                "paymentId", event.paymentId(),
+                "amountMinor", Long.toString(event.amountMinor()),
+                "currency", event.currency(),
+                "responseDeadline", event.responseDeadline().toString());
+        requireEvidence(event.providerEvidence(), EVENT_EVIDENCE_TYPE, expectedEvidence);
         String eventKey = key(event.tenantId(), event.providerEventId());
-        if (inbox.containsKey(eventKey)) return get(event.tenantId(), event.providerDisputeId());
+        String priorDigest = inbox.get(eventKey);
+        if (priorDigest != null) {
+            if (!priorDigest.equals(providerDigest)) {
+                throw new IllegalStateException("provider event identity conflict");
+            }
+            return get(event.tenantId(), event.providerDisputeId());
+        }
         String disputeKey = key(event.tenantId(), event.providerDisputeId());
         Dispute result = disputes.compute(disputeKey, (ignored, existing) -> {
-            if (existing == null) return new Dispute(event.tenantId(), event.providerDisputeId(), event.paymentId(),
-                    event.amountMinor(), event.currency(), event.responseDeadline(), Status.OPEN, List.of());
+            if (existing == null) return new Dispute(event.tenantId(), event.provider(),
+                    event.providerDisputeId(), event.paymentId(), event.amountMinor(),
+                    event.currency(), event.responseDeadline(), Status.OPEN, List.of());
             if (!existing.paymentId().equals(event.paymentId()) || existing.amountMinor() != event.amountMinor()
-                    || !existing.currency().equals(event.currency())) throw new IllegalStateException("provider dispute identity conflict");
+                    || !existing.currency().equals(event.currency())
+                    || !existing.provider().equals(event.provider()))
+                throw new IllegalStateException("provider dispute identity conflict");
             return existing;
         });
-        inbox.put(eventKey, true);
+        inbox.put(eventKey, providerDigest);
         return result;
     }
 
@@ -52,10 +81,24 @@ public final class DisputeService {
         });
     }
 
-    public Dispute resolve(String tenantId, String disputeId, Status result, boolean verifiedProviderResult) {
-        if (!verifiedProviderResult) throw new SecurityException("unverified dispute result");
-        if (result != Status.WON && result != Status.LOST && result != Status.ACCEPTED) throw new IllegalArgumentException("invalid terminal result");
-        return update(tenantId, disputeId, current -> copy(current, result, current.evidence()));
+    public Dispute resolve(String tenantId, String disputeId, ProviderResult result,
+                           String providerResultDigest,
+                           VerifiedProviderEvidence providerEvidence) {
+        Objects.requireNonNull(result, "result");
+        String digest = providerDigest(providerResultDigest);
+        return update(tenantId, disputeId, current -> {
+            requireEvidence(providerEvidence, RESULT_EVIDENCE_TYPE,
+                    evidenceFields(tenantId, current.provider(), disputeId,
+                            wire(result), digest));
+            if (result == ProviderResult.UNKNOWN) return current;
+            Status terminal = switch (result) {
+                case WON -> Status.WON;
+                case LOST -> Status.LOST;
+                case ACCEPTED -> Status.ACCEPTED;
+                case UNKNOWN -> throw new IllegalStateException("unreachable provider result");
+            };
+            return copy(current, terminal, current.evidence());
+        });
     }
 
     public Dispute appeal(String tenantId, String disputeId, String actor) {
@@ -79,8 +122,42 @@ public final class DisputeService {
         return result;
     }
     private static Dispute copy(Dispute value, Status status, List<Evidence> evidence) {
-        return new Dispute(value.tenantId(), value.providerDisputeId(), value.paymentId(), value.amountMinor(),
-                value.currency(), value.deadline(), status, List.copyOf(evidence));
+        return new Dispute(value.tenantId(), value.provider(), value.providerDisputeId(),
+                value.paymentId(), value.amountMinor(), value.currency(), value.deadline(),
+                status, List.copyOf(evidence));
+    }
+    private static Map<String, String> evidenceFields(String tenantId, String provider,
+            String entityId, String result, String providerResultDigest, String... additional) {
+        LinkedHashMap<String, String> fields = new LinkedHashMap<>();
+        fields.put("tenantId", tenantId);
+        fields.put("provider", provider);
+        fields.put("entityId", entityId);
+        fields.put("result", result);
+        fields.put("providerResultDigest", providerResultDigest);
+        if (additional.length % 2 != 0) throw new IllegalArgumentException("invalid evidence fields");
+        for (int index = 0; index < additional.length; index += 2) {
+            if (fields.putIfAbsent(additional[index], additional[index + 1]) != null)
+                throw new IllegalArgumentException("duplicate evidence field");
+        }
+        return Map.copyOf(fields);
+    }
+    private static void requireEvidence(VerifiedProviderEvidence evidence, String evidenceType,
+            Map<String, String> expectedFields) {
+        if (evidence == null || !evidenceType.equals(evidence.evidenceType())
+                || evidence.fields().size() != expectedFields.size())
+            throw new SecurityException("verified provider evidence is required");
+        for (Map.Entry<String, String> expected : expectedFields.entrySet()) {
+            if (!expected.getValue().equals(evidence.fields().get(expected.getKey())))
+                throw new SecurityException("provider evidence binding mismatch");
+        }
+    }
+    private static String providerDigest(String value) {
+        if (value == null || !value.matches("[0-9a-f]{64}"))
+            throw new IllegalArgumentException("provider result digest must be lowercase SHA-256 hex");
+        return value;
+    }
+    private static String wire(ProviderResult value) {
+        return value.name().toLowerCase(java.util.Locale.ROOT);
     }
     private static String key(String tenant, String id) { require(tenant); require(id); return tenant + "\u0000" + id; }
     private static void require(String value) { if (value == null || value.isBlank()) throw new IllegalArgumentException("required value missing"); }

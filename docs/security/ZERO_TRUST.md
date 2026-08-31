@@ -26,7 +26,7 @@
 | 主体 | 类别 | 所在区域 | 身份来源 | 凭据 | 有效期(分) | 轮换(天) |
 | --- | --- | --- | --- | --- | --- | --- |
 | `payer` | human | Z01 用户浏览器/移动端 | `none` | `session_token` | 30 | 0 |
-| `merchant-api-client` | machine | Z02 业务项目 | `tenant_api_key` | `http_signature` | 15 | 90 |
+| `merchant-api-client` | machine | Z02 业务项目 | `oidc_authorization_server` | `mtls_bound_access_token` | 5 | 0 |
 | `platform-operator` | human | Z07 管理后台 | `corporate_idp` | `webauthn` | 60 | 0 |
 | `service-workload` | workload | Z04 支付核心 | `workload_identity` | `mtls_certificate` | 60 | 1 |
 | `connector-egress` | workload | Z05 连接器 | `workload_identity` | `mtls_certificate` | 60 | 1 |
@@ -34,7 +34,7 @@
 | `break-glass` | human | Z07 管理后台 | `corporate_idp` | `webauthn` | 60 | 0 |
 
 - **`payer`**：付款人不注册也能付款。它的身份是「这次会话」，不是「这个人」，所以它的权限只能是「推进自己这一笔支付」。
-- **`merchant-api-client`**：商户服务端。签名有效期 15 分钟，密钥 90 天轮换；密钥本身不落地，由 KMS 短期解密（NN-07）。
+- **`merchant-api-client`**：商户服务端只使用最长 5 分钟的 OIDC at+jwt；token 必须与入口验证的 mTLS 客户端证书绑定，静态 API key 仅允许本地沙箱。
 - **`platform-operator`**：平台运营人员。抗钓鱼 MFA 是硬要求（B18 落地），会话 60 分钟，高风险操作要求 step-up 并四眼复核（NN-11）。
 - **`service-workload`**：服务工作负载。证书 60 分钟有效、每天轮换；**不存在长期静态服务账号密码**。
 - **`connector-egress`**：出站到渠道的工作负载。它拿的是出站身份，拿不到支付核心的数据面权限。
@@ -46,8 +46,8 @@
 | 编号 | 主体 | 资源 | 动作 | 要求 | Step-up | 四眼 | 审计事件 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | ZTD-01 | `payer` | `own_payment` | advance | `authenticated_identity`、`authorisation_policy`、`audit_record` | 否 | 否 | `payer.payment_advanced` |
-| ZTD-02 | `merchant-api-client` | `tenant_payment` | write | `authenticated_identity`、`authorisation_policy`、`audit_record`、`request_signature`、`tenant_binding` | 否 | 否 | `merchant.payment_write` |
-| ZTD-03 | `merchant-api-client` | `tenant_payment` | read | `authenticated_identity`、`authorisation_policy`、`audit_record`、`request_signature`、`tenant_binding` | 否 | 否 | `merchant.payment_read` |
+| ZTD-02 | `merchant-api-client` | `tenant_payment` | write | `authenticated_identity`、`authorisation_policy`、`audit_record`、`token_audience`、`token_holder_binding`、`tenant_binding` | 否 | 否 | `merchant.payment_write` |
+| ZTD-03 | `merchant-api-client` | `tenant_payment` | read | `authenticated_identity`、`authorisation_policy`、`audit_record`、`token_audience`、`token_holder_binding`、`tenant_binding` | 否 | 否 | `merchant.payment_read` |
 | ZTD-04 | `platform-operator` | `tenant_payment` | read | `authenticated_identity`、`authorisation_policy`、`audit_record`、`device_posture`、`phishing_resistant_mfa`、`justification` | 否 | 否 | `operator.payment_read` |
 | ZTD-05 | `platform-operator` | `refund` | approve | `authenticated_identity`、`authorisation_policy`、`audit_record`、`device_posture`、`phishing_resistant_mfa`、`justification` | 是 | 是 | `operator.refund_approved` |
 | ZTD-06 | `platform-operator` | `risk_rule` | write | `authenticated_identity`、`authorisation_policy`、`audit_record`、`device_posture`、`phishing_resistant_mfa`、`justification` | 是 | 是 | `operator.risk_rule_changed` |
@@ -58,7 +58,7 @@
 | ZTD-11 | `ci-pipeline` | `artifact_registry` | write | `authenticated_identity`、`workload_attestation`、`authorisation_policy`、`audit_record`、`provenance_attestation` | 否 | 否 | `ci.artifact_published` |
 
 - **ZTD-01**：付款人只能推进自己那一笔，且推进结果不作为成功依据（NN-03）——真正的成功来自渠道事件。
-- **ZTD-02**：商户只能操作自己租户的支付。租户绑定来自密钥，不来自请求体——让请求体决定租户就是跨租户越权的入口。
+- **ZTD-02**：商户只能操作自己租户的支付。租户绑定来自已验签 token 声明，不来自请求体；token 还必须绑定已验证的 mTLS peer。
 - **ZTD-03**：读也要绑定租户。只在写路径上做隔离是最常见的疏漏。
 - **ZTD-04**：运营读租户数据必须给出理由，理由进审计。「我看一眼」也要留痕。
 - **ZTD-05**：退款审批是资金操作：需要 step-up 且审批人不得是发起人（NN-11）。
@@ -74,7 +74,7 @@
 | 边界 | 名称 | 连接区域 | 双向 mTLS | 要求 |
 | --- | --- | --- | --- | --- |
 | TB-01 | 付款人到公共边缘 | Z01(untrusted)、Z03(untrusted-ingress) | 否 | `authenticated_identity`、`audit_record` |
-| TB-02 | 业务项目到公共边缘 | Z02(semi-trusted)、Z03(untrusted-ingress) | 否 | `request_signature`、`tenant_binding`、`audit_record` |
+| TB-02 | 业务项目到公共边缘 | Z02(semi-trusted)、Z03(untrusted-ingress) | 是 | `authenticated_identity`、`token_audience`、`token_holder_binding`、`tenant_binding`、`audit_record` |
 | TB-03 | 公共边缘到支付核心 | Z03(untrusted-ingress)、Z04(trusted) | 是 | `authenticated_identity`、`authorisation_policy`、`audit_record` |
 | TB-05 | 连接器到渠道 | Z05(trusted-egress)、Z06(external) | 是 | `workload_attestation`、`egress_allowlist`、`audit_record` |
 | TB-07 | 管理员到后台 | Z07(high-privilege)、Z04(trusted) | 是 | `phishing_resistant_mfa`、`device_posture`、`justification`、`audit_record` |
@@ -87,7 +87,7 @@
 | TB-12 | 服务到第三方监控与通知 | Z04(trusted)、Z13(external) | 否 | `workload_attestation`、`egress_allowlist`、`audit_record` |
 
 - **TB-01**：付款人到公共边缘：不要求 mTLS，但边缘必须终止 TLS 并做机器人与限流。
-- **TB-02**：业务项目到平台：签名 + 租户绑定，租户来自密钥而不是请求体。
+- **TB-02**：业务项目到平台：短期 OIDC access token + mTLS 持有者绑定 + 租户绑定；租户来自已验签 token 声明而不是请求体。
 - **TB-03**：公共边缘到支付核心：即使都在「内网」，也要双向 mTLS。这条是零信任与传统边界安全的分水岭。
 - **TB-05**：连接器到渠道：出站白名单 + 工作负载证明。
 - **TB-07**：管理员到后台：抗钓鱼 MFA + 设备状态 + 操作理由。

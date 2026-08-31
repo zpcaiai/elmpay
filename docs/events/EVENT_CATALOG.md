@@ -14,14 +14,14 @@
 
 ## 信封
 
-必备字段：`event_id`、`event_name`、`event_version`、`tenant_id`、`aggregate_id`、`revision`、`occurred_at`、`recorded_at`、`trace_id`、`payload`
+必备字段：`event_id`、`event_name`、`event_version`、`tenant_id`、`project_id`、`aggregate_type`、`aggregate_id`、`revision`、`occurred_at`、`recorded_at`、`trace_id`、`payload`
 
 信封字段固定；payload 里的内容按事件目录逐条声明。revision 单调递增，是乱序容忍的唯一依据——occurred_at 会因时钟漂移倒退。
 
 ## Outbox
 
 - 表：`outbox_event`（属于 `payment-core`）
-- 唯一键：`aggregate_type`、`aggregate_id`、`revision`
+- 唯一键：`tenant_id`、`aggregate_type`、`aggregate_id`、`revision`
 - 与状态变更同事务：是
 - 投递：poll_then_publish，批量 200，exponential 退避 200–60000ms，最多 12 次，死信表 `outbox_dead_letter`
 
@@ -30,9 +30,9 @@
 ## Inbox
 
 - 表：`provider_webhook_inbox`，唯一键 `source`、`source_event_id`
-- 负载哈希字段：`payload_sha256`，冲突错误 `idempotency_key_reuse`，保留 720 小时
+- 负载哈希字段：`raw_body_sha256 + canonical_payload_sha256 + verification_digest`，冲突错误 `provider_event_identity_conflict`，保留 720 小时
 
-同一 (source, source_event_id) 只处理一次；如果同一 ID 带来了不同的 payload 哈希，那不是重放而是矛盾，必须报错而不是覆盖。
+同一租户、渠道、商户渠道账户与 provider_event_id 只处理一次；相同 ID 的原始摘要或 typed canonical 摘要不同即拒绝。原始 body 不持久化；业务 effect、effect commit marker 与 PROCESSED 标记在同一数据库事务提交。
 
 ## 乱序容忍
 

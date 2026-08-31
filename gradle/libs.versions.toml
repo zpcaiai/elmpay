@@ -47,6 +47,7 @@ grpc-java = { module = "io.grpc:grpc-stub", version.ref = "grpcJava" }
 jqwik = { module = "net.jqwik:jqwik", version.ref = "jqwik" }
 junit = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junitPlatformLauncher" }
+kafka = { module = "org.apache.kafka:kafka-clients", version.ref = "kafka" }
 opentelemetry-java = { module = "io.opentelemetry.javaagent:opentelemetry-javaagent", version.ref = "opentelemetryJava" }
 postgresql-jdbc = { module = "org.postgresql:postgresql", version.ref = "postgresqlJdbc" }
 protobuf = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }

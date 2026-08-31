@@ -16,6 +16,21 @@
   "oidc": {
     "allowedAlgorithms": ["RS256"],
     "requiredHolderBinding": true,
+    "gatewayAccessToken": {
+      "tokenType": "at+jwt",
+      "maximumSeconds": 300,
+      "requiredClaims": [
+        "iss", "aud", "sub", "client_id", "jti", "token_use", "iat", "nbf", "exp",
+        "tenant_id", "project_id", "merchant_id", "scope", "cnf"
+      ],
+      "binding": "mtls-x5t#S256",
+      "revocationSnapshotMaximumAgeSeconds": 60,
+      "revocationSnapshotSignatureAlgorithm": "RS256",
+      "jwksSource": "read-only-local-mount"
+    },
+    "nonceSeconds": 180,
+    "holderProofMethod": "POST",
+    "holderProofUri": "https://api.elmpay.example/v1/identity/sessions",
     "externalIssuerBinding": "BLOCKED"
   },
   "workloadIdentity": {

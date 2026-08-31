@@ -13,15 +13,32 @@
   ],
   "components": {
     "securitySchemes": {
-      "api_key": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "Authorization"
+      "OAuth2": {
+        "type": "oauth2",
+        "description": "短期 OAuth2 at+jwt access token，必须与入口校验的 mTLS 客户端证书绑定",
+        "flows": {
+          "clientCredentials": {
+            "tokenUrl": "https://identity.elmpay.example/oauth2/token",
+            "scopes": {
+              "payments.read": "读取当前租户、项目和商户范围内的支付事实",
+              "payments.write": "创建或推进当前租户、项目和商户范围内的支付操作",
+              "financial.read": "读取当前租户范围内的财务视图",
+              "financial.write": "执行受控的当前租户财务操作"
+            }
+          }
+        },
+        "x-token-type": "at+jwt"
       },
-      "provider_signature": {
+      "MutualTLS": {
+        "type": "mutualTLS",
+        "description": "OAuth2 access token holder binding; certificate thumbprint must match cnf.x5t#S256.",
+        "x-holder-binding": "mtls-x5t#S256"
+      },
+      "ProviderSignature": {
         "type": "apiKey",
         "in": "header",
-        "name": "X-Payment-Signature"
+        "name": "X-Payment-Signature",
+        "description": "渠道 HMAC 签名 + 时间戳 + 重放窗口"
       }
     },
     "schemas": {
@@ -187,7 +204,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.read"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -292,7 +312,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.read"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -417,7 +440,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.write"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -527,7 +553,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.write"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -631,7 +660,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.read"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -736,7 +768,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.read"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -861,7 +896,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.write"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -1009,7 +1047,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.write"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -1154,7 +1195,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.write"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -1289,7 +1333,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.write"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -1419,7 +1466,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.write"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -1523,7 +1573,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.read"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -1628,7 +1681,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.read"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -1753,7 +1809,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.write"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "merchant",
@@ -1881,7 +1940,10 @@
         },
         "security": [
           {
-            "api_key": []
+            "OAuth2": [
+              "payments.write"
+            ],
+            "MutualTLS": []
           }
         ],
         "x-actor": "customer",
@@ -1995,7 +2057,7 @@
         },
         "security": [
           {
-            "provider_signature": []
+            "ProviderSignature": []
           }
         ],
         "x-actor": "provider-event",

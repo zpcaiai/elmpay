@@ -5,6 +5,7 @@ import info.solidsoft.gradle.pitest.PitestPluginExtension
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.plugins.JavaApplication
+import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.testing.jacoco.plugins.JacocoPluginExtension
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
@@ -65,13 +66,13 @@ val moduleDependencies = mapOf(
     (":" + "connectors:apple-pay") to listOf(":libs:money", ":libs:security", ":libs:observability", ":libs:domain-events"),
     (":" + "services:merchant-config") to listOf(":libs:money", ":libs:security", ":libs:audit", ":libs:observability", ":libs:domain-events"),
     (":" + "services:payment-core") to listOf(":libs:money", ":libs:idempotency", ":libs:audit", ":libs:security", ":libs:observability", ":libs:domain-events", ":services:merchant-config", ":services:risk-engine", ":services:ledger-service", ":connectors:wechat-pay", ":connectors:alipay", ":connectors:stripe", ":connectors:paypal", ":connectors:apple-pay"),
-    (":" + "services:webhook-ingress") to listOf(":libs:security", ":libs:audit", ":libs:observability", ":libs:domain-events", ":libs:idempotency", ":connectors:wechat-pay", ":connectors:alipay", ":connectors:stripe", ":connectors:paypal", ":connectors:apple-pay"),
+    (":" + "services:webhook-ingress") to listOf(":libs:security", ":libs:audit", ":libs:observability", ":libs:domain-events", ":libs:idempotency", ":services:payment-core", ":connectors:wechat-pay", ":connectors:alipay", ":connectors:stripe", ":connectors:paypal", ":connectors:apple-pay"),
     (":" + "services:webhook-delivery") to listOf(":libs:security", ":libs:audit", ":libs:observability", ":libs:domain-events", ":services:merchant-config"),
     (":" + "services:risk-engine") to listOf(":libs:money", ":libs:audit", ":libs:security", ":libs:observability", ":libs:domain-events", ":services:merchant-config"),
     (":" + "services:ledger-service") to listOf(":libs:money", ":libs:audit", ":libs:security", ":libs:observability", ":libs:domain-events"),
     (":" + "services:reconciliation-service") to listOf(":libs:money", ":libs:audit", ":libs:security", ":libs:observability", ":libs:domain-events", ":services:ledger-service", ":services:merchant-config"),
-    (":" + "services:worker-scheduler") to listOf(":libs:security", ":libs:audit", ":libs:observability", ":libs:domain-events", ":services:payment-core", ":services:reconciliation-service", ":services:merchant-config"),
-    (":" + "apps:edge-gateway") to listOf(":libs:security", ":libs:observability", ":services:payment-core", ":services:merchant-config", ":services:reconciliation-service"),
+    (":" + "services:worker-scheduler") to listOf(":libs:security", ":libs:audit", ":libs:observability", ":libs:domain-events", ":services:payment-core", ":services:reconciliation-service", ":services:merchant-config", ":services:ledger-service", ":services:webhook-delivery"),
+    (":" + "apps:edge-gateway") to listOf(":libs:security", ":libs:observability", ":libs:domain-events", ":services:payment-core", ":services:merchant-config", ":services:risk-engine", ":services:reconciliation-service", ":services:webhook-ingress"),
     (":" + "sdks:mobile:android") to listOf(),
 )
 
@@ -155,6 +156,11 @@ project(":apps:edge-gateway") {
     extensions.configure<JavaApplication> {
         mainClass.set("com.elmpay.gateway.PaymentGatewayApplication")
     }
+    extensions.configure<SourceSetContainer> {
+        named("main") {
+            resources.srcDir(rootProject.file("apps/admin-web/migrations"))
+        }
+    }
     dependencies {
         add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())
         add("runtimeOnly", project(":services:webhook-ingress"))
@@ -163,6 +169,37 @@ project(":apps:edge-gateway") {
         add("runtimeOnly", project(":services:reconciliation-service"))
         add("runtimeOnly", project(":services:worker-scheduler"))
         add("runtimeOnly", project(":connectors:apple-pay"))
+    }
+}
+
+project(":services:worker-scheduler") {
+    apply(plugin = "application")
+    extensions.configure<JavaApplication> {
+        mainClass.set("com.elmpay.scheduler.WorkerSchedulerApplication")
+    }
+    dependencies {
+        add("implementation", governedLibraries.findLibrary("kafka").get())
+        add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())
+    }
+}
+
+project(":services:risk-engine") {
+    apply(plugin = "application")
+    extensions.configure<JavaApplication> {
+        mainClass.set("com.elmpay.risk.runtime.RiskEngineApplication")
+    }
+    dependencies {
+        add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())
+    }
+}
+
+project(":services:webhook-ingress") {
+    apply(plugin = "application")
+    extensions.configure<JavaApplication> {
+        mainClass.set("com.elmpay.webhook.ingress.WebhookProcessorApplication")
+    }
+    dependencies {
+        add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())
     }
 }
 

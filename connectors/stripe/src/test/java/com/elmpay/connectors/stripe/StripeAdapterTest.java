@@ -10,6 +10,7 @@ import com.elmpay.provider.CreatePaymentCommand;
 import com.elmpay.provider.ProviderException;
 import com.elmpay.provider.ProviderOutcome;
 import com.elmpay.provider.ProviderRequestContext;
+import com.elmpay.provider.WebhookRequest;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -89,6 +90,45 @@ final class StripeAdapterTest {
     }
 
     @Test
+    void closesAndWipesEachTransportResponseAcrossRetryAndSuccess() {
+        List<StripeAdapter.HttpResult> responses = new ArrayList<>();
+        AtomicInteger calls = new AtomicInteger();
+        StripeAdapter adapter = adapter(request -> {
+            StripeAdapter.HttpResult response = calls.getAndIncrement() == 0
+                    ? new StripeAdapter.HttpResult(503, "{}".getBytes(StandardCharsets.UTF_8))
+                    : new StripeAdapter.HttpResult(200,
+                            "{\"id\":\"pi_fixture123\",\"status\":\"succeeded\"}"
+                                    .getBytes(StandardCharsets.UTF_8));
+            responses.add(response);
+            return response;
+        });
+
+        StripeAdapter.OperationResult result = adapter.createPaymentIntent(new StripeAdapter.PaymentRequest(
+                1250, "USD", "pm_fixture123", false, "order-001", "idem-stripe-00000001"));
+
+        assertEquals(StripeAdapter.State.SUCCEEDED, result.state());
+        assertEquals(2, responses.size());
+        responses.forEach(response -> {
+            assertThrows(IllegalStateException.class, response::body);
+            assertThrows(IllegalStateException.class, response::bodyLength);
+        });
+    }
+
+    @Test
+    void duplicateProviderResponseKeysFailToUnknown() {
+        StripeAdapter adapter = adapter(request -> new StripeAdapter.HttpResult(200,
+                ("{\"id\":\"pi_fixture123\",\"status\":\"succeeded\","
+                        + "\"status\":\"failed\"}").getBytes(StandardCharsets.UTF_8)));
+
+        StripeAdapter.OperationResult result = adapter.createPaymentIntent(
+                new StripeAdapter.PaymentRequest(1250, "USD", "pm_fixture123", false,
+                        "order-001", "idem-stripe-00000001"));
+
+        assertEquals(StripeAdapter.State.UNKNOWN, result.state());
+        assertFalse(result.finalState());
+    }
+
+    @Test
     void commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed() {
         StripeProviderBridge bridge = new StripeProviderBridge(new StripeProviderBridge.Runtime(
                 adapter(request -> new StripeAdapter.HttpResult(200,
@@ -106,6 +146,21 @@ final class StripeAdapterTest {
             assertThrows(ProviderException.class, () -> missing.createPayment(command()));
         } finally {
             restore("elmpay.stripe.adapterFactory", previous);
+        }
+    }
+
+    @Test
+    void commonBridgeRejectsCaseVariantDuplicateSignatureHeaders() throws Exception {
+        StripeProviderBridge bridge = new StripeProviderBridge(new StripeProviderBridge.Runtime(
+                adapter(request -> new StripeAdapter.HttpResult(200,
+                        "{}".getBytes(StandardCharsets.UTF_8))), request -> expected(1250)));
+        byte[] body = event("evt_duplicate_header", 200);
+        try (WebhookRequest request = new WebhookRequest(
+                UUID.fromString("30000000-0000-0000-0000-000000000001"),
+                UUID.fromString("30000000-0000-0000-0000-000000000002"),
+                Map.of("Stripe-Signature", signature(body),
+                        "stripe-signature", signature(body)), body, NOW)) {
+            assertThrows(SecurityException.class, () -> bridge.verifyWebhook(request));
         }
     }
 
@@ -137,12 +192,13 @@ final class StripeAdapterTest {
     }
 
     private static StripeAdapter.ExpectedWebhook expected(long amount) {
-        return new StripeAdapter.ExpectedWebhook("pi_fixture123", amount, "USD");
+        return new StripeAdapter.ExpectedWebhook("pi_fixture123", amount, "USD", "order_123456");
     }
 
     private static byte[] event(String eventId, long created) {
         String body = "{\"id\":\"" + eventId + "\",\"type\":\"payment_intent.succeeded\","
-                + "\"created\":" + created + ",\"data\":{\"object\":{\"id\":\"pi_fixture123\","
+                + "\"created\":" + created + ",\"metadata\":{\"id\":\"pi_decoy123\"},"
+                + "\"data\":{\"object\":{\"id\":\"pi_fixture123\","
                 + "\"amount\":1250,\"currency\":\"usd\",\"status\":\"succeeded\"}}}";
         return body.getBytes(StandardCharsets.UTF_8);
     }

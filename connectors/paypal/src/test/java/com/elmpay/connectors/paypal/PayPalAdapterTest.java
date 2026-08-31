@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,7 +43,8 @@ final class PayPalAdapterTest {
         });
 
         PayPalAdapter.VerifiedWebhook event = adapter.verifyWebhook(headers(), event(),
-                new PayPalAdapter.ExpectedWebhook("CAPTURE-123456", "MERCHANT123", 1250, "USD", 2));
+                new PayPalAdapter.ExpectedWebhook("CAPTURE-123456", "MERCHANT123", 1250, "USD", 2,
+                        "order_123456"));
 
         assertEquals("WH-EVENT-123456", event.eventId());
         assertEquals(1250, event.amountMinor());
@@ -54,13 +56,44 @@ final class PayPalAdapterTest {
                 ? json(200, "{\"access_token\":\"access-fixture\",\"expires_in\":3600}")
                 : json(200, "{\"verification_status\":\"FAILURE\"}"));
         assertThrows(SecurityException.class, () -> rejected.verifyWebhook(headers(), event(),
-                new PayPalAdapter.ExpectedWebhook("CAPTURE-123456", "MERCHANT123", 1250, "USD", 2)));
+                new PayPalAdapter.ExpectedWebhook("CAPTURE-123456", "MERCHANT123", 1250, "USD", 2,
+                        "order_123456")));
 
         PayPalAdapter acceptedSignature = adapter(request -> request.uri().getPath().equals("/v1/oauth2/token")
                 ? json(200, "{\"access_token\":\"access-fixture\",\"expires_in\":3600}")
                 : json(200, "{\"verification_status\":\"SUCCESS\"}"));
         assertThrows(SecurityException.class, () -> acceptedSignature.verifyWebhook(headers(), event(),
-                new PayPalAdapter.ExpectedWebhook("CAPTURE-123456", "OTHER-MERCHANT", 1250, "USD", 2)));
+                new PayPalAdapter.ExpectedWebhook("CAPTURE-123456", "OTHER-MERCHANT", 1250, "USD", 2,
+                        "order_123456")));
+    }
+
+    @Test
+    void duplicateOfficialVerificationFieldsFailClosed() {
+        PayPalAdapter adapter = adapter(request -> request.uri().getPath()
+                .equals("/v1/oauth2/token")
+                ? json(200, "{\"access_token\":\"access-fixture\",\"expires_in\":3600}")
+                : json(200, "{\"verification_status\":\"SUCCESS\","
+                        + "\"verification_status\":\"FAILURE\"}"));
+
+        assertThrows(SecurityException.class, () -> adapter.verifyWebhook(headers(), event(),
+                new PayPalAdapter.ExpectedWebhook("CAPTURE-123456", "MERCHANT123", 1250,
+                        "USD", 2, "order_123456")));
+    }
+
+    @Test
+    void rejectsCaseVariantDuplicateWebhookHeadersBeforeRemoteVerification() {
+        AtomicInteger calls = new AtomicInteger();
+        PayPalAdapter adapter = adapter(request -> {
+            calls.incrementAndGet();
+            return json(200, "{\"verification_status\":\"SUCCESS\"}");
+        });
+        Map<String, String> ambiguous = new LinkedHashMap<>(headers());
+        ambiguous.put("paypal-transmission-id", "second-transmission");
+
+        assertThrows(SecurityException.class, () -> adapter.verifyWebhook(ambiguous, event(),
+                new PayPalAdapter.ExpectedWebhook("CAPTURE-123456", "MERCHANT123", 1250,
+                        "USD", 2, "order_123456")));
+        assertEquals(0, calls.get());
     }
 
     @Test
@@ -84,13 +117,42 @@ final class PayPalAdapterTest {
     }
 
     @Test
+    void closesAndWipesOauthAndOrderResponsesAcrossRetry() {
+        List<PayPalAdapter.HttpResult> responses = new ArrayList<>();
+        AtomicInteger orderCalls = new AtomicInteger();
+        PayPalAdapter adapter = adapter(request -> {
+            PayPalAdapter.HttpResult response;
+            if (request.uri().getPath().equals("/v1/oauth2/token")) {
+                response = json(200, "{\"access_token\":\"access-fixture\",\"expires_in\":3600}");
+            } else if (orderCalls.getAndIncrement() == 0) {
+                response = json(503, "{}");
+            } else {
+                response = json(201, "{\"id\":\"O-FIXTURE123\",\"status\":\"CREATED\"}");
+            }
+            responses.add(response);
+            return response;
+        });
+
+        PayPalAdapter.OperationResult result = adapter.createOrder(new PayPalAdapter.OrderRequest(
+                "order-001", 1250, "USD", 2, false, "returnroute000001", "cancelroute000001",
+                "idem-paypal-00000001"));
+
+        assertEquals(PayPalAdapter.State.CREATED, result.state());
+        assertEquals(3, responses.size());
+        responses.forEach(response -> {
+            assertThrows(IllegalStateException.class, response::body);
+            assertThrows(IllegalStateException.class, response::bodyLength);
+        });
+    }
+
+    @Test
     void commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed() {
         PayPalProviderBridge bridge = new PayPalProviderBridge(new PayPalProviderBridge.Runtime(
                 adapter(request -> request.uri().getPath().equals("/v1/oauth2/token")
                         ? json(200, "{\"access_token\":\"access-fixture\",\"expires_in\":3600}")
                         : json(201, "{\"id\":\"O-FIXTURE123\",\"status\":\"CREATED\"}")),
                 request -> new PayPalAdapter.ExpectedWebhook("CAPTURE-123456", "MERCHANT123",
-                        1250, "USD", 2)));
+                        1250, "USD", 2, "order_123456")));
         assertTrue(bridge.configured());
         assertEquals(ProviderOutcome.REQUIRES_ACTION, bridge.createPayment(command()).outcome());
 
@@ -139,6 +201,7 @@ final class PayPalAdapterTest {
 
     private static byte[] event() {
         return ("{\"id\":\"WH-EVENT-123456\",\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\","
+                + "\"metadata\":{\"id\":\"CAPTURE-DECOY123\"},"
                 + "\"resource\":{\"id\":\"CAPTURE-123456\",\"amount\":{\"value\":\"12.50\","
                 + "\"currency_code\":\"USD\"},\"payee\":{\"merchant_id\":\"MERCHANT123\"}}}")
                 .getBytes(StandardCharsets.UTF_8);

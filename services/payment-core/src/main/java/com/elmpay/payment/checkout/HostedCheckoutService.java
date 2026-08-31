@@ -7,6 +7,7 @@ import com.elmpay.payment.ConfirmationMode;
 import com.elmpay.payment.CreateIntentCommand;
 import com.elmpay.payment.PaymentIntent;
 import com.elmpay.payment.PaymentMethodReference;
+import com.elmpay.payment.PaymentCoreException;
 import com.elmpay.payment.PaymentService;
 import com.elmpay.security.CanonicalPayload;
 import java.net.URI;
@@ -92,6 +93,13 @@ public final class HostedCheckoutService {
         }
     }
 
+    /** Immutable, revalidated authorization returned before a browser provider SDK is exposed. */
+    public record ProviderSdkAuthorization(String checkoutSessionId, UUID tenantId, UUID projectId,
+            UUID merchantId, UUID paymentIntentId, String method, UUID providerAccountId,
+            String provider, String capabilityVersion, String businessOrderDigest,
+            String checkoutSnapshotDigest, Instant expiresAt) {
+    }
+
     private final PaymentService payments;
     private final CheckoutSessionRepository repository;
     private final CheckoutTokenSigner signer;
@@ -105,6 +113,7 @@ public final class HostedCheckoutService {
     private final Clock clock;
     private final CheckoutLocalization localization;
     private final CheckoutCapabilitySource capabilitySource;
+    private final CheckoutProviderSdkSource providerSdkSource;
 
     public HostedCheckoutService(PaymentService payments, CheckoutSessionRepository repository,
             CheckoutTokenSigner signer,
@@ -114,7 +123,7 @@ public final class HostedCheckoutService {
         this(payments, repository, signer, returnRoutes, defaultReturnRouteId, allowedMethods,
                 publicBaseUri, sessionTtl, region, allowSyntheticPaymentReference, clock,
                 new ConfiguredCheckoutCapabilitySource(allowedMethods),
-                CheckoutLocalization.defaultCatalog());
+                CheckoutLocalization.defaultCatalog(), CheckoutProviderSdkSource.disabled());
     }
 
     public HostedCheckoutService(PaymentService payments, CheckoutSessionRepository repository,
@@ -123,6 +132,17 @@ public final class HostedCheckoutService {
             Duration sessionTtl, String region, boolean allowSyntheticPaymentReference,
             Clock clock, CheckoutCapabilitySource capabilitySource,
             CheckoutLocalization localization) {
+        this(payments, repository, signer, returnRoutes, defaultReturnRouteId, allowedMethods,
+                publicBaseUri, sessionTtl, region, allowSyntheticPaymentReference, clock,
+                capabilitySource, localization, CheckoutProviderSdkSource.disabled());
+    }
+
+    public HostedCheckoutService(PaymentService payments, CheckoutSessionRepository repository,
+            CheckoutTokenSigner signer, Map<String, URI> returnRoutes,
+            String defaultReturnRouteId, Set<String> allowedMethods, URI publicBaseUri,
+            Duration sessionTtl, String region, boolean allowSyntheticPaymentReference,
+            Clock clock, CheckoutCapabilitySource capabilitySource,
+            CheckoutLocalization localization, CheckoutProviderSdkSource providerSdkSource) {
         this.payments = Objects.requireNonNull(payments, "payments");
         this.repository = Objects.requireNonNull(repository, "repository");
         this.signer = Objects.requireNonNull(signer, "signer");
@@ -159,6 +179,7 @@ public final class HostedCheckoutService {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.capabilitySource = Objects.requireNonNull(capabilitySource, "capabilitySource");
         this.localization = Objects.requireNonNull(localization, "localization");
+        this.providerSdkSource = Objects.requireNonNull(providerSdkSource, "providerSdkSource");
     }
 
     /** Creates one immutable payment intent and one signed session per request key. */
@@ -241,6 +262,50 @@ public final class HostedCheckoutService {
             Locale locale, String deviceClass) {
         return confirm(requireBrowserSession(sessionId, accessToken), command, locale,
                 deviceClass);
+    }
+
+    public ProviderSdkAuthorization authorizeProviderSdkForBrowser(String sessionId,
+            String accessToken, String method, String deviceClass) {
+        return authorizeProviderSdk(requireBrowserSession(sessionId, accessToken), method,
+                deviceClass);
+    }
+
+    public ProviderSdkAuthorization authorizeProviderSdkForPrincipal(UUID tenantId,
+            UUID projectId, String sessionId, String method, String deviceClass) {
+        return authorizeProviderSdk(requirePrincipalSession(tenantId, projectId, sessionId), method,
+                deviceClass);
+    }
+
+    private ProviderSdkAuthorization authorizeProviderSdk(CheckoutSessionRepository.Record session,
+            String requestedMethod, String deviceClass) {
+        String method = normalizeMethod(requestedMethod);
+        PaymentIntent intent = payments.get(session.tenantId(), session.paymentIntentId());
+        requireAuthoritativeSnapshot(session, intent);
+        if (!"OPEN".equals(status(session, intent)) || !session.allowedMethods().contains(method)
+                || !intent.permitsMethod(method)) {
+            throw new IllegalArgumentException("checkout session cannot authorize this payment method");
+        }
+        CapabilityResolver.Decision capability = methodDecisions(session, intent, deviceClass)
+                .stream().filter(value -> value.method().equals(method)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("payment method capability is unknown"));
+        if (!capability.eligible()) {
+            throw new IllegalArgumentException("payment method is currently unavailable");
+        }
+        CheckoutProviderSdkSource.Selection selection = providerSdkSource.select(
+                new CheckoutProviderSdkSource.Request(session.tenantId(), session.projectId(),
+                        session.merchantId(), method, session.allowedMethods(),
+                        session.amountMinor(), session.currency(), intent.region(),
+                        normalizeDeviceClass(deviceClass), clock.instant()))
+                .orElseThrow(() -> new PaymentCoreException("NO_ELIGIBLE_PROVIDER",
+                        "provider SDK capability is unavailable"));
+        if (!selection.method().equals(method)) {
+            throw new IllegalStateException("provider SDK source returned a mismatched method");
+        }
+        return new ProviderSdkAuthorization(session.sessionId(), session.tenantId(),
+                session.projectId(), session.merchantId(), session.paymentIntentId(), method,
+                selection.providerAccountId(), selection.provider(), selection.capabilityVersion(),
+                CanonicalPayload.sha256Hex(Map.of("business_order_no", session.businessOrderNo())),
+                authoritativeSnapshotDigest(session), session.expiresAt());
     }
 
     private View confirm(CheckoutSessionRepository.Record session, ConfirmCommand command,
@@ -377,6 +442,47 @@ public final class HostedCheckoutService {
             throw new IllegalArgumentException(
                     "idempotency key was already used with a different checkout request");
         }
+    }
+
+    private static void requireAuthoritativeSnapshot(CheckoutSessionRepository.Record session,
+            PaymentIntent intent) {
+        boolean identityMatches = session.tenantId().equals(intent.tenantId())
+                && session.projectId().equals(intent.projectId())
+                && session.merchantId().equals(intent.merchantId())
+                && session.businessOrderNo().equals(intent.externalReference())
+                && session.amountMinor() == intent.amount().amountMinor()
+                && session.currency().equals(intent.amount().currency().code())
+                && session.allowedMethods().equals(intent.allowedMethods());
+        String digest = checkoutRequestDigest(session);
+        if (!identityMatches || !MessageDigest.isEqual(
+                session.requestDigest().getBytes(StandardCharsets.US_ASCII),
+                digest.getBytes(StandardCharsets.US_ASCII))) {
+            throw new SecurityException("checkout immutable snapshot does not match its payment intent");
+        }
+    }
+
+    private static String checkoutRequestDigest(CheckoutSessionRepository.Record session) {
+        return CanonicalPayload.sha256Hex(Map.ofEntries(
+                Map.entry("tenant_id", session.tenantId().toString()),
+                Map.entry("project_id", session.projectId().toString()),
+                Map.entry("merchant_id", session.merchantId().toString()),
+                Map.entry("business_order_no", session.businessOrderNo()),
+                Map.entry("amount", session.amountMinor()),
+                Map.entry("currency", session.currency()),
+                Map.entry("return_route_id", session.returnRouteId()),
+                Map.entry("device_context_digest", session.deviceContextDigest())));
+    }
+
+    private static String authoritativeSnapshotDigest(CheckoutSessionRepository.Record session) {
+        return CanonicalPayload.sha256Hex(Map.ofEntries(
+                Map.entry("session_id", session.sessionId()),
+                Map.entry("tenant_id", session.tenantId().toString()),
+                Map.entry("project_id", session.projectId().toString()),
+                Map.entry("merchant_id", session.merchantId().toString()),
+                Map.entry("payment_intent_id", session.paymentIntentId().toString()),
+                Map.entry("request_digest", session.requestDigest()),
+                Map.entry("expires_at", session.expiresAt().toString()),
+                Map.entry("nonce", session.nonce())));
     }
 
     private String status(CheckoutSessionRepository.Record session, PaymentIntent intent) {

@@ -229,6 +229,7 @@ class PlatformRuntimeEntrypointTest(unittest.TestCase):
     def test_supply_chain_cli_verifies_ed25519_dsse_not_a_boolean_claim(self) -> None:
         private_key, public_key = generate_ed25519_keypair()
         digest = hashlib.sha256(b"artifact").hexdigest()
+        current = datetime.now(timezone.utc)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             statement = {
@@ -236,10 +237,11 @@ class PlatformRuntimeEntrypointTest(unittest.TestCase):
                 "provenanceDigest": "c" * 64, "dependenciesLocked": True,
                 "hermeticBuild": True, "sourceCommit": "d" * 40,
                 "provenanceSourceCommit": "d" * 40,
-                "builderId": "https://github.com/zpcaiai/elmpay/.github/workflows/release.yml",
+                "builderId": "https://github.com/zpcaiai/elmpay/.github/workflows/ci.yml",
                 "materials": ["source", "dependency-locks", "build-toolchain", "container-base"],
                 "bindingDigest": digest, "nonce": "supply-chain-nonce-0001",
-                "issuedAt": "2026-08-28T00:00:00Z", "expiresAt": "2026-08-29T00:00:00Z",
+                "issuedAt": (current - timedelta(minutes=1)).isoformat(),
+                "expiresAt": (current + timedelta(minutes=5)).isoformat(),
                 "actor": "release-builder", "role": "BUILD_ATTESTOR",
             }
             signed = attach_dsse(statement, "builder-key", private_key)
@@ -250,8 +252,8 @@ class PlatformRuntimeEntrypointTest(unittest.TestCase):
                     "algorithm": "Ed25519", "publicKeyPem": public_key,
                     "identity": "release-builder", "role": "BUILD_ATTESTOR",
                     "independent": True, "revoked": False,
-                    "notBefore": "2026-01-01T00:00:00Z",
-                    "notAfter": "2027-01-01T00:00:00Z",
+                    "notBefore": (current - timedelta(days=1)).isoformat(),
+                    "notAfter": (current + timedelta(days=1)).isoformat(),
                 }},
             })
             result = self.run_platform(
@@ -259,6 +261,19 @@ class PlatformRuntimeEntrypointTest(unittest.TestCase):
                 "--trust", str(trust_path), "--artifact-digest", digest,
             )
             self.assertEqual(0, result.returncode, result.stderr + result.stdout)
+            expired = attach_dsse({
+                **statement,
+                "nonce": "supply-chain-nonce-expired-0001",
+                "issuedAt": (current - timedelta(minutes=10)).isoformat(),
+                "expiresAt": (current - timedelta(minutes=5)).isoformat(),
+            }, "builder-key", private_key)
+            expired_path = self.write_json(root, "expired.json", expired)
+            expired_result = self.run_platform(
+                "supply-chain-gate", "--statement", str(expired_path),
+                "--trust", str(trust_path), "--artifact-digest", digest,
+            )
+            self.assertEqual(2, expired_result.returncode)
+            self.assertIn("artifact_signature_unverified", expired_result.stdout)
             tampered = {**signed, "artifactDigest": "e" * 64}
             statement_path = self.write_json(root, "tampered.json", tampered)
             rejected = self.run_platform(

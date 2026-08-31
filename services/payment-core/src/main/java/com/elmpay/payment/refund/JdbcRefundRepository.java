@@ -2,8 +2,7 @@ package com.elmpay.payment.refund;
 
 import com.elmpay.money.Money;
 import com.elmpay.payment.PaymentCoreException;
-import com.elmpay.security.CanonicalPayload;
-import java.nio.charset.StandardCharsets;
+import com.elmpay.payment.events.SemanticOutboxAppender;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -209,6 +208,9 @@ public final class JdbcRefundRepository implements RefundRepository {
                 }
                 updateRefund(connection, proposed, current.version());
                 appendOutbox(connection, proposed, eventType, null);
+                if (proposed.status() == RefundStatus.SUCCEEDED) {
+                    appendRefundSucceeded(connection, proposed);
+                }
                 connection.commit();
                 return proposed;
             } catch (SQLException | RuntimeException exception) {
@@ -523,24 +525,25 @@ public final class JdbcRefundRepository implements RefundRepository {
             payload.put("action_reason", receipt.reason());
             payload.put("ticket_id", receipt.ticketId());
         }
-        try (PreparedStatement statement = connection.prepareStatement("""
-                INSERT INTO outbox_event
-                  (id, tenant_id, project_id, aggregate_type, aggregate_id, event_type,
-                   event_version, payload, correlation_id, created_at)
-                VALUES (?::uuid, ?::uuid, ?::uuid, 'refund', ?::uuid, ?, 1,
-                        ?::jsonb, ?, ?)
-                """)) {
-            statement.setString(1, UUID.randomUUID().toString());
-            statement.setString(2, refund.tenantId().toString());
-            statement.setString(3, refund.projectId().toString());
-            statement.setString(4, refund.id().toString());
-            statement.setString(5, eventType);
-            statement.setString(6, new String(CanonicalPayload.encode(payload),
-                    StandardCharsets.UTF_8));
-            statement.setString(7, refund.correlationId());
-            statement.setTimestamp(8, Timestamp.from(refund.updatedAt()));
-            statement.executeUpdate();
-        }
+        SemanticOutboxAppender.append(connection, new SemanticOutboxAppender.EventDraft(
+                refund.tenantId(), refund.projectId(), "refund", refund.id(), eventType, 1,
+                refund.updatedAt(), refund.correlationId(), payload));
+    }
+
+    private static void appendRefundSucceeded(Connection connection, RefundRecord refund)
+            throws SQLException {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("refund_id", refund.id().toString());
+        payload.put("payment_intent_id", refund.paymentIntentId().toString());
+        payload.put("project_id", refund.projectId().toString());
+        payload.put("provider", refund.provider());
+        payload.put("provider_refund_id", refund.providerRefundId());
+        payload.put("refunded_at", refund.updatedAt().toString());
+        payload.put("amount_minor", refund.amount().amountMinor());
+        payload.put("currency", refund.amount().currency().code());
+        SemanticOutboxAppender.append(connection, new SemanticOutboxAppender.EventDraft(
+                refund.tenantId(), refund.projectId(), "refund", refund.id(),
+                "refund.succeeded", 1, refund.updatedAt(), refund.correlationId(), payload));
     }
 
     private static void requireActionKeyUnusedByRequest(Connection connection,

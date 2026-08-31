@@ -1,13 +1,8 @@
 {
-  "admin-web": ["edge-gateway"],
-  "checkout-web": ["edge-gateway"],
+  "admin-web": [],
+  "checkout-web": [],
   "edge-gateway": ["admin-web", "checkout-web"],
-  "ledger-service": ["payment-core", "reconciliation-service"],
-  "merchant-config": ["edge-gateway", "payment-core", "risk-engine", "webhook-delivery"],
-  "payment-core": ["edge-gateway", "webhook-ingress", "worker-scheduler"],
-  "reconciliation-service": ["worker-scheduler"],
-  "risk-engine": ["edge-gateway", "payment-core"],
-  "webhook-delivery": ["worker-scheduler"],
-  "webhook-ingress": ["edge-gateway"],
-  "worker-scheduler": ["payment-core"]
+  "risk-engine": ["edge-gateway"],
+  "worker-scheduler": [],
+  "webhook-processor": []
 }

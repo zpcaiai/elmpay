@@ -87,9 +87,14 @@ public actor ElmPayClient {
             extraHeaders.forEach { request.setValue($1, forHTTPHeaderField: $0) }
             do {
                 let (data, response) = try await transport.send(request)
-                if (200..<300).contains(response.statusCode) { let decoder = JSONDecoder(); return try decoder.decode(CheckoutSession.self, from: data) }
+                if (200..<300).contains(response.statusCode) {
+                    do { return try JSONDecoder().decode(CheckoutSession.self, from: data) }
+                    catch { throw ElmPayError.invalidResponse }
+                }
                 let retrySafe = idempotencyKey != nil || method == "GET"
                 if !retrySafe || attempt + 1 == attempts || !(response.statusCode == 408 || response.statusCode == 429 || response.statusCode >= 500) { throw ElmPayError.invalidResponse }
+            } catch let error as ElmPayError {
+                throw error
             } catch {
                 if idempotencyKey == nil && method != "GET" || attempt + 1 == attempts { throw error }
             }

@@ -56,10 +56,29 @@ public final class EnvelopeEncryptionService {
         this.random = Objects.requireNonNull(random, "random");
         this.maximumPlaintextKeyLifetime = Objects.requireNonNull(maximumPlaintextKeyLifetime,
                 "maximumPlaintextKeyLifetime");
-        if (maximumPlaintextKeyLifetime.isZero() || maximumPlaintextKeyLifetime.isNegative()
+        if (maximumPlaintextKeyLifetime.compareTo(Duration.ofSeconds(1)) < 0
                 || maximumPlaintextKeyLifetime.compareTo(Duration.ofSeconds(30)) > 0) {
             throw new IllegalArgumentException("plaintext data-key lifetime must be 1..30 seconds");
         }
+    }
+
+    /** Fully mounted production KMS composition; construction validates every TLS/token mount. */
+    public static EnvelopeEncryptionService fromEnvironment(Map<String, String> environment,
+            Clock clock) {
+        Objects.requireNonNull(environment, "environment");
+        Objects.requireNonNull(clock, "clock");
+        String configured = environment.get(
+                "ELMPAY_KMS_MAXIMUM_PLAINTEXT_KEY_LIFETIME_SECONDS");
+        long seconds = 5;
+        if (configured != null) {
+            if (!configured.matches("(?:[1-9]|[12][0-9]|30)")) {
+                throw new IllegalStateException(
+                        "ELMPAY_KMS_MAXIMUM_PLAINTEXT_KEY_LIFETIME_SECONDS must be 1..30");
+            }
+            seconds = Long.parseLong(configured);
+        }
+        return new EnvelopeEncryptionService(HttpsKmsClient.fromEnvironment(environment, clock),
+                clock, new SecureRandom(), Duration.ofSeconds(seconds));
     }
 
     public Envelope encrypt(String keyReference, byte[] plaintext, Map<String, String> aad) {
@@ -68,18 +87,33 @@ public final class EnvelopeEncryptionService {
             throw new IllegalArgumentException("plaintext size is outside 1..1048576 bytes");
         }
         byte[] encodedAad = canonicalAad(aad);
-        KmsClient.GeneratedDataKey generated = kms.generateDataKey(keyReference,
-                Map.copyOf(aad), maximumPlaintextKeyLifetime);
-        byte[] dataKey = generated.plaintextKey();
         try {
-            requireFresh(generated.plaintextExpiresAt());
-            byte[] nonce = new byte[NONCE_BYTES];
-            random.nextBytes(nonce);
-            byte[] encrypted = crypt(Cipher.ENCRYPT_MODE, dataKey, nonce, encodedAad, plaintext);
-            return new Envelope(generated.keyReference(), generated.keyVersion(),
-                    generated.wrappedDataKey(), nonce, encrypted, sha256(encodedAad), clock.instant());
+            try (KmsClient.GeneratedDataKey generated = kms.generateDataKey(keyReference,
+                        Map.copyOf(aad), maximumPlaintextKeyLifetime)) {
+                byte[] dataKey = generated.plaintextKey();
+                byte[] wrapped = null;
+                byte[] nonce = null;
+                byte[] encrypted = null;
+                byte[] aadDigest = null;
+                try {
+                    requireFresh(generated.plaintextExpiresAt());
+                    nonce = new byte[NONCE_BYTES];
+                    random.nextBytes(nonce);
+                    encrypted = crypt(Cipher.ENCRYPT_MODE, dataKey, nonce, encodedAad,
+                            plaintext);
+                    wrapped = generated.wrappedDataKey();
+                    aadDigest = sha256(encodedAad);
+                    return new Envelope(generated.keyReference(), generated.keyVersion(),
+                            wrapped, nonce, encrypted, aadDigest, clock.instant());
+                } finally {
+                    Arrays.fill(dataKey, (byte) 0);
+                    wipe(wrapped);
+                    wipe(nonce);
+                    wipe(encrypted);
+                    wipe(aadDigest);
+                }
+            }
         } finally {
-            Arrays.fill(dataKey, (byte) 0);
             Arrays.fill(encodedAad, (byte) 0);
         }
     }
@@ -87,23 +121,38 @@ public final class EnvelopeEncryptionService {
     public byte[] decrypt(Envelope envelope, Map<String, String> aad) {
         Objects.requireNonNull(envelope, "envelope");
         byte[] encodedAad = canonicalAad(aad);
-        if (!MessageDigest.isEqual(envelope.aadDigest(), sha256(encodedAad))) {
-            Arrays.fill(encodedAad, (byte) 0);
-            throw new SecurityException("envelope AAD does not match tenant/resource/purpose");
-        }
-        KmsClient.UnwrappedDataKey unwrapped = kms.unwrapDataKey(envelope.keyReference(),
-                envelope.keyVersion(), envelope.wrappedDataKey(), Map.copyOf(aad),
-                maximumPlaintextKeyLifetime);
-        byte[] dataKey = unwrapped.plaintextKey();
+        byte[] expectedAad = null;
+        byte[] actualAad = null;
+        byte[] wrapped = null;
+        byte[] nonce = null;
+        byte[] ciphertext = null;
         try {
-            requireFresh(unwrapped.plaintextExpiresAt());
-            return crypt(Cipher.DECRYPT_MODE, dataKey, envelope.nonce(), encodedAad,
-                    envelope.ciphertext());
-        } catch (SecurityException exception) {
-            throw exception;
+            expectedAad = envelope.aadDigest();
+            actualAad = sha256(encodedAad);
+            if (!MessageDigest.isEqual(expectedAad, actualAad)) {
+                throw new SecurityException("envelope AAD does not match tenant/resource/purpose");
+            }
+            wrapped = envelope.wrappedDataKey();
+            try (KmsClient.UnwrappedDataKey unwrapped = kms.unwrapDataKey(
+                        envelope.keyReference(), envelope.keyVersion(), wrapped, Map.copyOf(aad),
+                        maximumPlaintextKeyLifetime)) {
+                byte[] dataKey = unwrapped.plaintextKey();
+                try {
+                    requireFresh(unwrapped.plaintextExpiresAt());
+                    nonce = envelope.nonce();
+                    ciphertext = envelope.ciphertext();
+                    return crypt(Cipher.DECRYPT_MODE, dataKey, nonce, encodedAad, ciphertext);
+                } finally {
+                    Arrays.fill(dataKey, (byte) 0);
+                }
+            }
         } finally {
-            Arrays.fill(dataKey, (byte) 0);
             Arrays.fill(encodedAad, (byte) 0);
+            wipe(expectedAad);
+            wipe(actualAad);
+            wipe(wrapped);
+            wipe(nonce);
+            wipe(ciphertext);
         }
     }
 
@@ -120,6 +169,12 @@ public final class EnvelopeEncryptionService {
         Instant now = clock.instant();
         if (!expiry.isAfter(now) || expiry.isAfter(now.plus(maximumPlaintextKeyLifetime))) {
             throw new SecurityException("KMS returned a stale or overlong plaintext data key");
+        }
+    }
+
+    private static void wipe(byte[] value) {
+        if (value != null) {
+            Arrays.fill(value, (byte) 0);
         }
     }
 

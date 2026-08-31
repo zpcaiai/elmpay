@@ -1,5 +1,6 @@
 package com.elmpay.risk;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -10,26 +11,26 @@ import java.util.Objects;
 public final class RiskEngine {
     private final Clock clock;
     private final Duration maximumSignalAge;
-    private final double modelReviewThreshold;
-    private final double modelBlockThreshold;
+    private final BigDecimal modelReviewThreshold;
+    private final BigDecimal modelBlockThreshold;
 
     public RiskEngine(
             Clock clock,
             Duration maximumSignalAge,
-            double modelReviewThreshold,
-            double modelBlockThreshold) {
+            BigDecimal modelReviewThreshold,
+            BigDecimal modelBlockThreshold) {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.maximumSignalAge = Objects.requireNonNull(maximumSignalAge, "maximumSignalAge");
         if (maximumSignalAge.isNegative() || maximumSignalAge.isZero()) {
             throw new IllegalArgumentException("maximumSignalAge must be positive");
         }
-        if (!(0.0 <= modelReviewThreshold
-                && modelReviewThreshold < modelBlockThreshold
-                && modelBlockThreshold <= 1.0)) {
+        this.modelReviewThreshold = RiskRule.canonical(modelReviewThreshold);
+        this.modelBlockThreshold = RiskRule.canonical(modelBlockThreshold);
+        if (this.modelReviewThreshold.compareTo(BigDecimal.ZERO) < 0
+                || this.modelReviewThreshold.compareTo(this.modelBlockThreshold) >= 0
+                || this.modelBlockThreshold.compareTo(BigDecimal.ONE) > 0) {
             throw new IllegalArgumentException("model thresholds must satisfy 0 <= review < block <= 1");
         }
-        this.modelReviewThreshold = modelReviewThreshold;
-        this.modelBlockThreshold = modelBlockThreshold;
     }
 
     public RiskDecision decide(
@@ -42,8 +43,11 @@ public final class RiskEngine {
         Objects.requireNonNull(ruleSet, "ruleSet");
         Objects.requireNonNull(modelScorer, "modelScorer");
         if (!request.tenantId().equals(signals.tenantId())
-                || !request.tenantId().equals(ruleSet.tenantId())) {
-            throw new SecurityException("cross-tenant risk inputs are forbidden");
+                || !request.tenantId().equals(ruleSet.tenantId())
+                || !request.projectId().equals(signals.projectId())
+                || !request.projectId().equals(ruleSet.projectId())
+                || !request.requestId().equals(signals.requestId())) {
+            throw new SecurityException("risk inputs are not bound to one tenant/project/request");
         }
 
         Instant now = clock.instant();
@@ -51,6 +55,7 @@ public final class RiskEngine {
         RiskAction action = RiskAction.APPROVE;
         boolean degraded = false;
         String modelVersion = "not-evaluated";
+        String modelDigest = CanonicalDigest.sha256(java.util.List.of("not-evaluated"));
 
         if (ruleSet.activatedAt().isAfter(now)) {
             action = RiskAction.REVIEW;
@@ -82,16 +87,17 @@ public final class RiskEngine {
                 ModelScorer.ModelScore modelScore = Objects.requireNonNull(
                         modelScorer.score(request, signals), "model score");
                 modelVersion = modelScore.version();
+                modelDigest = modelScore.contentDigest();
                 if (!modelScore.available()) {
                     action = RiskAction.mostRestrictive(action, RiskAction.REVIEW);
                     degraded = true;
                     reasons.add("MODEL_DEGRADED");
                     reasons.add(modelScore.explanationCode());
-                } else if (modelScore.score() >= modelBlockThreshold) {
+                } else if (modelScore.score().compareTo(modelBlockThreshold) >= 0) {
                     action = RiskAction.BLOCK;
                     reasons.add("MODEL_BLOCK_THRESHOLD");
                     reasons.add(modelScore.explanationCode());
-                } else if (modelScore.score() >= modelReviewThreshold) {
+                } else if (modelScore.score().compareTo(modelReviewThreshold) >= 0) {
                     action = RiskAction.mostRestrictive(action, RiskAction.REVIEW);
                     reasons.add("MODEL_REVIEW_THRESHOLD");
                     reasons.add(modelScore.explanationCode());
@@ -100,6 +106,7 @@ public final class RiskEngine {
                 action = RiskAction.mostRestrictive(action, RiskAction.REVIEW);
                 degraded = true;
                 modelVersion = "error";
+                modelDigest = CanonicalDigest.sha256(java.util.List.of("model-execution-error"));
                 reasons.add("MODEL_DEGRADED");
                 reasons.add("MODEL_EXECUTION_ERROR");
             }
@@ -108,18 +115,25 @@ public final class RiskEngine {
         if (reasons.isEmpty()) {
             reasons.add("NO_RISK_INDICATOR_MATCHED");
         }
-        String decisionId = digest(request.requestId(), ruleSet.digest(), signals.version(),
-                modelVersion, action.name(), String.join(",", reasons));
+        String decisionId = digest(request.tenantId(), request.projectId(), request.requestId(),
+                request.requestDigest(), ruleSet.digest(), signals.contentDigest(), modelDigest,
+                action.name(), String.join(",", reasons));
         return new RiskDecision(
                 decisionId,
                 request.tenantId(),
+                request.projectId(),
                 request.requestId(),
+                request.requestDigest(),
+                request.operation(),
+                request.subjectDigest(),
                 action,
                 reasons.stream().toList(),
                 ruleSet.version(),
                 ruleSet.digest(),
                 signals.version(),
+                signals.contentDigest(),
                 modelVersion,
+                modelDigest,
                 degraded,
                 now);
     }

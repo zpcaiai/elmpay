@@ -28,6 +28,38 @@ def render_regional_data_plane(policy: Mapping[str, Any]) -> dict[str, Any]:
     if len(regions) < 2 or sum(item.get("primary") is True for item in regions) != 1:
         raise ValidationError("data plane requires exactly one primary and at least two regions")
     postgres = require_mapping(policy.get("postgres"), "postgres")
+    managed_runtime_roles = []
+    expected_role_names = [
+        "elmpay_partition_precreator",
+        "elmpay_archive_verifier",
+        "elmpay_partition_detacher",
+    ]
+    for raw_role in require_list(postgres.get("managedRuntimeRoles"),
+                                 "postgres.managedRuntimeRoles"):
+        role = require_mapping(raw_role, "managed runtime role")
+        if set(role) != {"name", "passwordSecretName"}:
+            raise ValidationError("managed runtime role fields are not exact")
+        role_name = require_text(role.get("name"), "managed runtime role name")
+        secret_name = require_text(
+            role.get("passwordSecretName"), "managed runtime role password secret"
+        )
+        if not DNS_LABEL.fullmatch(secret_name):
+            raise ValidationError("managed runtime role password secret is invalid")
+        managed_runtime_roles.append({
+            "name": role_name,
+            "ensure": "present",
+            "login": True,
+            "inherit": False,
+            "superuser": False,
+            "createdb": False,
+            "createrole": False,
+            "replication": False,
+            "bypassrls": False,
+            "connectionLimit": 4,
+            "passwordSecret": {"name": secret_name},
+        })
+    if [role["name"] for role in managed_runtime_roles] != expected_role_names:
+        raise ValidationError("archive maintenance roles must be exact and ordered")
     kafka = require_mapping(policy.get("kafka"), "kafka")
     redis = require_mapping(policy.get("redis"), "redis")
     items: list[dict[str, Any]] = []
@@ -83,6 +115,7 @@ def render_regional_data_plane(policy: Mapping[str, Any]) -> dict[str, Any]:
                         },
                     },
                     "monitoring": {"enablePodMonitor": True},
+                    "managed": {"roles": managed_runtime_roles},
                 },
             },
             {
@@ -141,13 +174,65 @@ def render_service_controls(
     """
 
     namespace = require_text(workload_policy.get("namespace"), "namespace")
+    dns_egress = require_mapping(workload_policy.get("dnsEgress"), "dnsEgress")
+    if set(dns_egress) != {"namespace", "podLabels"}:
+        raise ValidationError("dnsEgress must declare an exact namespace and podLabels")
+    dns_namespace = require_text(dns_egress.get("namespace"), "dnsEgress.namespace")
+    if not DNS_LABEL.fullmatch(dns_namespace):
+        raise ValidationError("dnsEgress.namespace must be a DNS label")
+    raw_dns_labels = require_mapping(dns_egress.get("podLabels"), "dnsEgress.podLabels")
+    if not 1 <= len(raw_dns_labels) <= 8:
+        raise ValidationError("dnsEgress.podLabels must contain 1..8 exact labels")
+    dns_labels: dict[str, str] = {}
+    for key, raw_value in raw_dns_labels.items():
+        if not isinstance(key, str) or not DNS_LABEL.fullmatch(key):
+            raise ValidationError("dnsEgress contains an invalid label key")
+        value = require_text(raw_value, f"dnsEgress.podLabels.{key}")
+        if not DNS_LABEL.fullmatch(value):
+            raise ValidationError("dnsEgress contains an invalid label value")
+        dns_labels[key] = value
     services = [require_mapping(item, "service") for item in require_list(
         workload_policy.get("services"), "services"
     )]
     names = {require_text(item.get("name"), "service.name") for item in services}
     if set(allowed_callers) != names:
         raise ValidationError("mesh caller map must exactly cover every service")
+    health_only_names: set[str] = set()
+    exposure: dict[str, bool] = {}
+    for service in services:
+        name = require_text(service.get("name"), "service.name")
+        health_only = service.get("healthOnly", False)
+        expose_service = service.get("exposeService", True)
+        if not isinstance(health_only, bool) or not isinstance(expose_service, bool):
+            raise ValidationError(f"{name} healthOnly and exposeService must be booleans")
+        if health_only != (not expose_service):
+            raise ValidationError(
+                f"{name} must expose a business Service or be an unexposed health-only workload"
+            )
+        exposure[name] = expose_service
+        if health_only:
+            health_only_names.add(name)
+    for destination, raw_callers in allowed_callers.items():
+        callers = require_list(raw_callers, f"{destination} callers")
+        if destination in callers:
+            raise ValidationError("a workload cannot authorize itself as a mesh caller")
+        if destination in health_only_names and callers:
+            raise ValidationError(f"{destination} health-only workload cannot accept callers")
+        if any(caller in health_only_names for caller in callers):
+            raise ValidationError("health-only workloads cannot be business service callers")
     items: list[dict[str, Any]] = [
+        {
+            "apiVersion": "v1",
+            "kind": "Namespace",
+            "metadata": {
+                "name": namespace,
+                "labels": {
+                    "pod-security.kubernetes.io/enforce": "restricted",
+                    "pod-security.kubernetes.io/enforce-version": "latest",
+                    "istio-injection": "enabled",
+                },
+            },
+        },
         {
             "apiVersion": "networking.k8s.io/v1",
             "kind": "NetworkPolicy",
@@ -160,10 +245,23 @@ def render_service_controls(
             "metadata": {"name": "strict-mtls", "namespace": namespace},
             "spec": {"mtls": {"mode": "STRICT"}},
         },
+        {
+            "apiVersion": "networking.istio.io/v1",
+            "kind": "DestinationRule",
+            "metadata": {"name": "elmpay-mtls", "namespace": namespace},
+            "spec": {
+                "host": f"*.{namespace}.svc.cluster.local",
+                "trafficPolicy": {"tls": {"mode": "ISTIO_MUTUAL"}},
+            },
+        },
     ]
     for service in services:
         name = str(service["name"])
-        callers = allowed_callers[name]
+        transport = require_text(service.get("transport"), f"{name}.transport")
+        if transport not in {"http", "https", "https-mtls"}:
+            raise ValidationError(f"{name} transport is invalid")
+        port_name = "https" if transport in {"https", "https-mtls"} else "http"
+        callers = require_list(allowed_callers[name], f"{name} callers")
         if len(callers) != len(set(callers)) or any(caller not in names for caller in callers):
             raise ValidationError(f"{name} caller list is invalid")
         labels = {"app.kubernetes.io/name": name, "app.kubernetes.io/part-of": "elmpay"}
@@ -172,6 +270,16 @@ def render_service_controls(
             destination for destination in services
             if name in allowed_callers[str(destination["name"])]
         ]
+        service_resources = ([{
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {"name": name, "namespace": namespace},
+            "spec": {
+                "selector": {"app.kubernetes.io/name": name},
+                "ports": [{"name": port_name, "port": int(service["port"]),
+                           "targetPort": port_name}],
+            },
+        }] if exposure[name] else [])
         items.extend(
             [
                 {
@@ -180,15 +288,7 @@ def render_service_controls(
                     "metadata": {"name": name, "namespace": namespace},
                     "automountServiceAccountToken": False,
                 },
-                {
-                    "apiVersion": "v1",
-                    "kind": "Service",
-                    "metadata": {"name": name, "namespace": namespace},
-                    "spec": {
-                        "selector": {"app.kubernetes.io/name": name},
-                        "ports": [{"name": "http", "port": int(service["port"]), "targetPort": "http"}],
-                    },
-                },
+                *service_resources,
                 {
                     "apiVersion": "policy/v1",
                     "kind": "PodDisruptionBudget",
@@ -227,7 +327,12 @@ def render_service_controls(
                         }] if callers else [],
                         "egress": [
                             {
-                                "to": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "kube-system"}}}],
+                                "to": [{
+                                    "namespaceSelector": {"matchLabels": {
+                                        "kubernetes.io/metadata.name": dns_namespace,
+                                    }},
+                                    "podSelector": {"matchLabels": dns_labels},
+                                }],
                                 "ports": [{"protocol": "UDP", "port": 53}, {"protocol": "TCP", "port": 53}],
                             },
                             *[
@@ -472,11 +577,38 @@ def evaluate_region_promotion(
     """
 
     promotion = require_mapping(plan.get("promotion"), "promotion")
+    inventory = require_mapping(plan.get("regionInventory"), "regionInventory")
+    allowed_regions_raw = require_list(inventory.get("allowedRegions"), "allowedRegions")
+    if (not allowed_regions_raw
+            or any(not isinstance(region, str) or not DNS_LABEL.fullmatch(region)
+                   for region in allowed_regions_raw)
+            or len(set(allowed_regions_raw)) != len(allowed_regions_raw)):
+        raise ValidationError("allowedRegions must contain unique DNS-label region names")
+    allowed_regions = frozenset(allowed_regions_raw)
+    if len(allowed_regions) < int(plan["minimumRegions"]):
+        raise ValidationError("region inventory does not meet minimumRegions")
+    initial_active_region = require_text(
+        inventory.get("initialActiveRegion"), "initialActiveRegion"
+    )
+    if initial_active_region not in allowed_regions:
+        raise ValidationError("initialActiveRegion is outside allowedRegions")
+    maximum_observation_age = promotion.get("maximumObservationAgeSeconds")
+    if (isinstance(maximum_observation_age, bool)
+            or not isinstance(maximum_observation_age, int)
+            or maximum_observation_age <= 0):
+        raise ValidationError("maximumObservationAgeSeconds must be positive")
     reasons: list[str] = []
     checks: list[str] = []
     if promotion.get("automatic") is not False:
         reasons.append("automatic_region_promotion_forbidden")
     target = require_text(request.get("targetRegion"), "targetRegion")
+    if target not in allowed_regions:
+        reasons.append("target_region_not_in_inventory")
+    current_region = store.current_region()
+    active_region = (require_text(current_region.get("activeRegion"), "activeRegion")
+                     if current_region is not None else initial_active_region)
+    if active_region not in allowed_regions:
+        reasons.append("active_region_not_in_inventory")
     token = request.get("fencingToken")
     if isinstance(token, bool) or not isinstance(token, int) or token <= 0:
         reasons.append("region_fencing_token_invalid")
@@ -485,6 +617,9 @@ def evaluate_region_promotion(
         changed_at = parse_instant(request.get("changedAt"), "changedAt")
         if changed_at > now.astimezone(timezone.utc) + timedelta(minutes=5):
             reasons.append("region_promotion_time_in_future")
+        elif now.astimezone(timezone.utc) - changed_at > timedelta(
+                seconds=maximum_observation_age):
+            reasons.append("region_promotion_observation_stale")
     except ValidationError:
         reasons.append("region_promotion_time_invalid")
     lag = request.get("replicationLagSeconds")
@@ -515,6 +650,14 @@ def evaluate_region_promotion(
     request_digest = sha256_json({"promotion": facts})
     if request.get("requestDigest") != request_digest:
         reasons.append("region_promotion_request_digest_mismatch")
+    exact_replay = bool(
+        current_region is not None
+        and current_region.get("activeRegion") == target
+        and current_region.get("fencingToken") == token
+        and current_region.get("requestDigest") == request_digest
+    )
+    if target == active_region and not exact_replay:
+        reasons.append("target_region_already_active")
 
     controller_identity: str | None = None
     try:

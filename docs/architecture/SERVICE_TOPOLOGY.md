@@ -38,7 +38,8 @@ graph LR
     payment_core -->|1500ms| paypal
     payment_core -->|1500ms| apple_pay
     payment_core -.->|事件| ledger_service
-    risk_engine -->|150ms| merchant_config
+    risk_engine -->|100ms| risk_signal
+    risk_engine -->|100ms| risk_model
     webhook_ingress -->|1200ms| wechat_pay
     webhook_ingress -->|1200ms| alipay
     webhook_ingress -->|1200ms| stripe
@@ -47,8 +48,8 @@ graph LR
     reconciliation_service -.->|事件| ledger_service
     worker_scheduler -->|2500ms| payment_core
     worker_scheduler -->|200ms| merchant_config
-    checkout_web -->|3000ms| payment_core
-    admin_web -->|4500ms| payment_core
+    checkout_web -->|3000ms| edge_gateway
+    admin_web -->|4500ms| edge_gateway
 ```
 
 实线是同步调用（标注超时），虚线是事件（异步）。
@@ -59,7 +60,7 @@ graph LR
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `edge-gateway` | gateway | tier1 | 3000ms | 99.99% | 3000ms | 2 | 0 |
 | `payment-core` | api | tier1 | 2500ms | 99.95% | 500ms | 7 | 1 |
-| `risk-engine` | api | tier1 | 300ms | 99.95% | 150ms | 1 | 0 |
+| `risk-engine` | api | tier1 | 300ms | 99.95% | 150ms | 2 | 0 |
 | `merchant-config` | api | tier1 | 150ms | 99.99% | 80ms | 0 | 0 |
 | `webhook-ingress` | api | tier1 | 2000ms | 99.99% | 300ms | 3 | 0 |
 | `webhook-delivery` | worker | tier2 | 30000ms | 99.9% | 5000ms | 1 | 0 |
@@ -83,7 +84,8 @@ graph LR
 | `payment-core` | `paypal` | sync | 1500ms | 0 | attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败** |
 | `payment-core` | `apple-pay` | sync | 1500ms | 0 | attempt 进入 unknown，交由对账与主动查询定责——**绝不判失败** |
 | `payment-core` | `ledger-service` | async | — | — | 账本落后不阻塞支付；差异由对账兜底 |
-| `risk-engine` | `merchant-config` | sync | 150ms | 1 | 使用缓存的风控规则，缓存过期则返回拒绝 |
+| `risk-engine` | `risk-signal` | sync | 100ms | 0 | 返回可解释 REVIEW，禁止静默批准 |
+| `risk-engine` | `risk-model` | sync | 100ms | 0 | 返回可解释 REVIEW，禁止静默批准 |
 | `webhook-ingress` | `wechat-pay` | sync | 1200ms | 1 | 回调先落盘再定责；查询失败不影响回执 |
 | `webhook-ingress` | `alipay` | sync | 1200ms | 1 | 回调先落盘再定责；查询失败不影响回执 |
 | `webhook-ingress` | `stripe` | sync | 1200ms | 1 | 回调先落盘再定责；查询失败不影响回执 |
@@ -92,8 +94,8 @@ graph LR
 | `reconciliation-service` | `ledger-service` | async | — | — | 账本数据缺失时产生对账例外，而不是静默跳过 |
 | `worker-scheduler` | `payment-core` | sync | 2500ms | 0 | 任务重排到下一个窗口，不重复发起支付 |
 | `worker-scheduler` | `merchant-config` | sync | 200ms | 1 | 缓存的调度配置；过期则暂停该租户的调度 |
-| `checkout-web` | `payment-core` | sync | 3000ms | 0 | 展示「支付处理中」并轮询状态，**不得**自行判定成功 |
-| `admin-web` | `payment-core` | sync | 4500ms | 0 | 只读降级：展示缓存数据并禁用所有写操作 |
+| `checkout-web` | `edge-gateway` | sync | 3000ms | 0 | 展示「支付处理中」并轮询状态，**不得**自行判定成功 |
+| `admin-web` | `edge-gateway` | sync | 4500ms | 0 | 只读降级；写操作保持 UNKNOWN/PENDING，禁止宣称领域效果已完成 |
 
 ## 预算核算
 
@@ -101,7 +103,7 @@ graph LR
 | --- | --- | --- | --- |
 | `edge-gateway` | 2650ms | 3000ms | 350ms |
 | `payment-core` | 7950ms | 2500ms | -5450ms |
-| `risk-engine` | 150ms | 300ms | 150ms |
+| `risk-engine` | 200ms | 300ms | 100ms |
 | `merchant-config` | 0ms | 150ms | 150ms |
 | `webhook-ingress` | 3600ms | 2000ms | -1600ms |
 | `webhook-delivery` | 150ms | 30000ms | 29850ms |
@@ -113,9 +115,9 @@ graph LR
 
 ## 边界说明
 
-- **`edge-gateway`**：网关不持有任何支付事实，也不写库；它只做鉴权、限流与路由。
+- **`edge-gateway`**：网关不拥有支付、风控或发布领域事实；它只写自身拥有的鉴权重放、幂等、审计和 admin_domain_command 信封/回执查询状态。领域命令效果必须由所属服务在本地事务中应用，网关不得跨所有者直写。
 - **`payment-core`**：支付核心是唯一能写支付事实的服务。它同步依赖的只有风控、商户配置与渠道；账本、对账、对外投递全部异步。
-- **`risk-engine`**：风控在支付关键路径上，所以它的预算只有 300ms，且自身依赖必须更快。
+- **`risk-engine`**：风控在支付关键路径上，规则与决策持久化由自身表拥有；edge 对 nonce 与 decision 共用单个 300ms 单调时钟截止时间，禁止每跳重启预算；signal/model 仅通过 TLS 1.3 mTLS 精确服务出口访问且各限 100ms，任一依赖不确定时返回可解释 REVIEW。
 - **`merchant-config`**：配置服务是叶子节点：它不同步依赖任何其他服务，否则整棵调用树的可用性会被它的依赖拖垮。
 - **`webhook-ingress`**：入站回调必须先验签再落盘，落盘之后才回执。先回执后落盘会让渠道以为送达了。
 - **`webhook-delivery`**：对外投递是异步工作进程，它的慢不会传导回支付关键路径。
@@ -123,6 +125,6 @@ graph LR
 - **`reconciliation-service`**：对账是批处理，预算以分钟计；它兜住所有 unknown 与差异。
 - **`worker-scheduler`**：调度器的重试必须是幂等的：它调用的每个支付核心接口都要求幂等键。
 - **`checkout-web`**：收银台是浏览器里的东西，它的任何状态都不是支付依据（NN-03）。（流量物理上经过 edge-gateway，但依赖的是 payment-core 的 API 契约。）
-- **`admin-web`**：后台不得绕过公开领域服务直接改支付状态（FF-02）。（流量物理上经过 edge-gateway，但依赖的是 payment-core 的 API 契约。）
+- **`admin-web`**：后台不得绕过领域所有者直接改支付、退款、风控或发布状态（FF-02）。Admin Action API 只创建摘要绑定的命令信封；领域消费者必须在效果、回执和 APPLIED 状态同一事务中提交。
 
-共 11 个部署单元、19 条同步边、2 条异步边。
+共 11 个部署单元、20 条同步边、2 条异步边。

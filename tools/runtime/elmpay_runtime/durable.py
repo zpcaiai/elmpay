@@ -31,6 +31,51 @@ class DurableStore:
             raise ValidationError("release-control database migration is missing")
         with self.connect() as connection:
             connection.executescript(MIGRATION.read_text(encoding="utf-8"))
+            self._upgrade_legacy_schema(connection)
+
+    @staticmethod
+    def _upgrade_legacy_schema(connection: sqlite3.Connection) -> None:
+        """Apply the one safe additive upgrade needed by existing control DBs.
+
+        Historical usage rows cannot be assigned a pricing version without
+        inventing billing provenance, so the upgrade intentionally leaves the
+        new column NULL. Invoice issuance fails closed on those rows while all
+        newly metered usage is required to persist an exact version binding.
+        """
+
+        columns = {
+            str(row["name"])
+            for row in connection.execute("PRAGMA table_info(usage_event)").fetchall()
+        }
+        if "pricing_version_id" not in columns:
+            connection.execute(
+                "ALTER TABLE usage_event ADD COLUMN pricing_version_id TEXT "
+                "REFERENCES pricing_version(pricing_version_id)"
+            )
+        export_columns = {
+            str(row["name"])
+            for row in connection.execute(
+                "PRAGMA table_info(commercial_audit_export)"
+            ).fetchall()
+        }
+        if "manifest_json" not in export_columns:
+            connection.execute(
+                "ALTER TABLE commercial_audit_export ADD COLUMN manifest_json TEXT"
+            )
+        if "receipt_json" not in export_columns:
+            connection.execute(
+                "ALTER TABLE commercial_audit_export ADD COLUMN receipt_json TEXT"
+            )
+        reconciliation_columns = {
+            str(row["name"])
+            for row in connection.execute(
+                "PRAGMA table_info(reconciliation_source_receipt)"
+            ).fetchall()
+        }
+        if "receipt_json" not in reconciliation_columns:
+            connection.execute(
+                "ALTER TABLE reconciliation_source_receipt ADD COLUMN receipt_json TEXT"
+            )
 
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(

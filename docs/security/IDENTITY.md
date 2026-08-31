@@ -31,11 +31,13 @@
 | 发行方 | 用途 | issuer | 受众 | 算法 | 密钥轮换(天) | 令牌上限(分) | 时钟容差(秒) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `customer-idp` | 付款人与商户后台用户 | `https://idp.example.invalid/customer` | `checkout-web`、`merchant-portal` | RS256、ES256 | 30 | 30 | 60 |
+| `merchant-authorization-server` | 商户服务端 OAuth2 client credentials | `https://identity.elmpay.example/merchant` | `elmpay-api` | RS256 | 30 | 5 | 60 |
 | `corporate-idp` | 平台运营与紧急通道 | `https://idp.example.invalid/corp` | `admin-web` | ES256 | 30 | 60 | 60 |
 | `workload-ca` | 服务与连接器工作负载 | `spiffe://elmpay.invalid` | `internal-api`、`provider-egress` | ES256 | 1 | 60 | 60 |
 | `ci-oidc` | CI 流水线 | `https://ci.example.invalid` | `artifact-registry`、`cloud-control-plane` | RS256 | 30 | 15 | 60 |
 
 - **`customer-idp`**：面向外部用户的 IdP。只允许非对称签名——共享密钥意味着任何一个验证方都能伪造发行方签发的令牌。
+- **`merchant-authorization-server`**：商户机器身份使用 mTLS 客户端认证；签发的 at+jwt 同时绑定 tenant/project/merchant 与客户端证书，不与内部 workload CA 共用受众。
 - **`corporate-idp`**：企业 IdP，绑定抗钓鱼 MFA（B18）。运营会话最长 60 分钟，与 B16 的上限一致。
 - **`workload-ca`**：工作负载证书由平台 CA 签发，每天轮换、60 分钟有效。它不是 IdP 而是 CA，令牌就是那张证书。
 - **`ci-oidc`**：CI 用 OIDC 联合换取 15 分钟云凭据，仓库里不存任何长期密钥（NN-07）。
@@ -46,6 +48,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | `payer-session` | access | `customer-idp` | `checkout-web` | 30 | `dpop` | 是 |
 | `merchant-portal-session` | access | `customer-idp` | `merchant-portal` | 30 | `dpop` | 是 |
+| `merchant-api-access` | access | `merchant-authorization-server` | `elmpay-api` | 5 | `mtls` | 是 |
 | `operator-session` | access | `corporate-idp` | `admin-web` | 60 | `dpop` | 是 |
 | `workload-cert` | workload_certificate | `workload-ca` | `internal-api` | 60 | `mtls` | 是 |
 | `egress-cert` | workload_certificate | `workload-ca` | `provider-egress` | 60 | `mtls` | 是 |
@@ -57,7 +60,7 @@
 | 零信任主体 | 发行方 | 令牌 |
 | --- | --- | --- |
 | `payer` | `customer-idp` | `payer-session` |
-| `merchant-api-client` | `workload-ca` | `workload-cert` |
+| `merchant-api-client` | `merchant-authorization-server` | `merchant-api-access` |
 | `platform-operator` | `corporate-idp` | `operator-session` |
 | `service-workload` | `workload-ca` | `workload-cert` |
 | `connector-egress` | `workload-ca` | `egress-cert` |
@@ -86,4 +89,4 @@
 
 允许静态密钥：**False**；签发方式 `workload_identity_only`。不存在带静态密码的服务账号。工作负载凭据由 CA 按身份签发、短期、自动轮换。
 
-共 4 个发行方、7 种令牌、6 条恢复路径。
+共 5 个发行方、8 种令牌、6 条恢复路径。

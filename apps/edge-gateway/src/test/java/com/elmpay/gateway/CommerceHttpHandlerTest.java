@@ -55,6 +55,7 @@ final class CommerceHttpHandlerTest {
                     .header("X-Request-Id", UUID.randomUUID().toString())
                     .header("traceparent", "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01")
                     .header("Idempotency-Key", "idem-1")
+                    .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString("""
                             {"code":"pro","amount_minor":1000,"currency":"USD",
                              "billing_period_seconds":2592000,"trial_period_seconds":0,

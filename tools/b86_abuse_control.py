@@ -20,6 +20,7 @@ from elmpay_runtime.abuse_protection import (  # noqa: E402
     load_abuse_policy,
 )
 from elmpay_runtime.common import ValidationError, parse_instant, read_json, require_mapping, require_text  # noqa: E402
+from elmpay_runtime.mounted_secrets import read_mounted_secret, secret_path_from_environment  # noqa: E402
 from elmpay_runtime.security_store import SecurityStore  # noqa: E402
 
 
@@ -36,10 +37,15 @@ def parser() -> argparse.ArgumentParser:
 
 
 def _subjects() -> SubjectDigester:
-    encoded = os.environ.get("ELMPAY_SUBJECT_HMAC_KEY_HEX", "")
+    if "ELMPAY_SUBJECT_HMAC_KEY_HEX" in os.environ:
+        raise ValidationError(
+            "ELMPAY_SUBJECT_HMAC_KEY_HEX is forbidden; use the read-only key mount"
+        )
+    encoded = read_mounted_secret(secret_path_from_environment(
+        "ELMPAY_SUBJECT_HMAC_KEY_FILE"), "subject HMAC key").decode("ascii")
     try:
         secret = bytes.fromhex(encoded)
-    except ValueError as exc:
+    except (UnicodeDecodeError, ValueError) as exc:
         raise ValidationError("subject digest key is unavailable") from exc
     return SubjectDigester(secret)
 

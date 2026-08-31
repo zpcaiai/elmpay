@@ -266,7 +266,7 @@
     {
       "id": "unit-test",
       "name": "单元与属性测试",
-      "purpose": "运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试",
+      "purpose": "运行 tools/tests、testing 产品面、128 批次本地矩阵、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试",
       "needs": [
         "governance"
       ],
@@ -277,7 +277,8 @@
         "node --test apps/checkout-web/test/*.test.mjs > build/test-surfaces/checkout-web.log 2>&1",
         "node --test apps/admin-web/test/*.test.mjs > build/test-surfaces/admin-web.log 2>&1",
         "python3 scripts/sdk-contract-smoke.py > build/test-surfaces/server-sdk.log 2>&1",
-        "./gradlew --no-daemon test > build/test-surfaces/gradle.log 2>&1"
+        "./gradlew --no-daemon test > build/test-surfaces/gradle.log 2>&1",
+        "python3 scripts/run-test-matrix.py --execution local --json-out build/test-matrix/local-report.json --junit-out build/test-matrix/local-junit.xml > build/test-surfaces/test-matrix-local.log 2>&1"
       ],
       "required": true,
       "fail_closed": true,
@@ -285,7 +286,8 @@
       "artifacts": [
         "build/test-summary.json",
         "build/unittest.log",
-        "build/test-surfaces/"
+        "build/test-surfaces/",
+        "build/test-matrix/"
       ],
       "if_no_files_found": "error",
       "timeout_minutes": 60
@@ -435,12 +437,13 @@
     },
     {
       "id": "container-scan",
-      "name": "容器工具链与本地平台治理",
-      "purpose": "验证镜像摘要声明和本地平台配置；当前没有 OCI 产品镜像，因而不宣称镜像漏洞扫描",
+      "name": "产品 OCI 源契约与外部扫描门禁",
+      "purpose": "验证六个产品 OCI 构建、运行布局和准入源契约；真实镜像构建、逐镜像 SBOM、扫描、注册表签名必须以 exact release index 进入终态门禁，未执行不宣称通过",
       "needs": [
         "build"
       ],
       "commands": [
+        "python3 scripts/product-image-pipeline.py source-gate",
         "python3 -m tools.paygov.cli verify toolchain dev-platform --repo . --out container-scan.json"
       ],
       "required": true,

@@ -18,8 +18,12 @@ import org.junit.jupiter.api.Test;
 
 final class RiskProtectedIdentityServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-28T00:00:00Z");
+    private static final String TENANT = "10000000-0000-0000-0000-000000000001";
+    private static final String OTHER_TENANT = "10000000-0000-0000-0000-000000000002";
+    private static final String PROJECT = "20000000-0000-0000-0000-000000000001";
     private static final IdentityMutationCommand COMMAND = new IdentityMutationCommand(
-            "tenant-a", "identity-request-1", "account-1", Map.of("deviceDigest", "a".repeat(64)));
+            TENANT, PROJECT, "identity-request-1", "account-1",
+            Map.of("deviceDigest", "a".repeat(64)));
 
     @Test
     void allIdentityMutationsAreSynchronouslyGatedAndCredentialChangeRevokesSessions() {
@@ -27,7 +31,7 @@ final class RiskProtectedIdentityServiceTest {
         java.util.ArrayList<RiskOperation> operations = new java.util.ArrayList<>();
         RiskProtectedIdentityService service = service(port, request -> {
             operations.add(request.operation());
-            return decision(request.tenantId(), request.requestId(), RiskAction.APPROVE);
+            return decision(request, request.tenantId(), RiskAction.APPROVE);
         });
 
         service.changeCredential(COMMAND);
@@ -44,10 +48,10 @@ final class RiskProtectedIdentityServiceTest {
     @Test
     void reviewBlockTimeoutAndBindingMismatchNeverReachIdentityMutationPort() {
         for (SynchronousRiskGate gate : List.<SynchronousRiskGate>of(
-                request -> decision(request.tenantId(), request.requestId(), RiskAction.REVIEW),
-                request -> decision(request.tenantId(), request.requestId(), RiskAction.BLOCK),
+                request -> decision(request, request.tenantId(), RiskAction.REVIEW),
+                request -> decision(request, request.tenantId(), RiskAction.BLOCK),
                 request -> { throw new IllegalStateException("timeout"); },
-                request -> decision("other-tenant", request.requestId(), RiskAction.APPROVE))) {
+                request -> decision(request, OTHER_TENANT, RiskAction.APPROVE))) {
             RecordingPort port = new RecordingPort();
             RiskProtectedIdentityService service = service(port, gate);
 
@@ -64,9 +68,12 @@ final class RiskProtectedIdentityServiceTest {
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
-    private static RiskDecision decision(String tenantId, String requestId, RiskAction action) {
-        return new RiskDecision("decision-1", tenantId, requestId, action,
-                List.of("TEST_DECISION"), "rules-1", "a".repeat(64), "signals-1", "model-1",
+    private static RiskDecision decision(com.elmpay.risk.RiskEvaluationRequest request,
+            String tenantId, RiskAction action) {
+        return new RiskDecision("d".repeat(64), tenantId, request.projectId(), request.requestId(),
+                request.requestDigest(), request.operation(), request.subjectDigest(), action,
+                List.of("TEST_DECISION"), "rules-1", "a".repeat(64), "signals-1",
+                "b".repeat(64), "model-1", "c".repeat(64),
                 action != RiskAction.APPROVE, NOW);
     }
 

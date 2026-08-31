@@ -67,6 +67,20 @@ class ZeroTrustHappyPath(FixtureTestCase):
         for principal in policy["principals"]:
             self.assertGreater(principal["credential_lifetime_minutes"], 0, principal["id"])
 
+    def test_merchant_api_uses_short_lived_mtls_bound_oidc_tokens(self):
+        policy = self.fixture.read("governance/zero-trust.json")
+        principal = next(p for p in policy["principals"]
+                         if p["id"] == "merchant-api-client")
+        self.assertEqual(principal["identity_source"], "oidc_authorization_server")
+        self.assertEqual(principal["credential"], "mtls_bound_access_token")
+        self.assertLessEqual(principal["credential_lifetime_minutes"], 5)
+        decisions = [d for d in policy["decisions"]
+                     if d["principal"] == "merchant-api-client"]
+        self.assertTrue(decisions)
+        for entry in decisions:
+            self.assertIn("token_audience", entry["requirements"])
+            self.assertIn("token_holder_binding", entry["requirements"])
+
     def test_human_credentials_do_not_outlast_the_session_limit(self):
         policy = self.fixture.read("governance/zero-trust.json")
         limit = policy["session"]["max_human_session_minutes"]
@@ -265,6 +279,15 @@ class ZeroTrustGateRejects(FixtureTestCase):
             d, "service-workload").__setitem__("credential", "service_account_password"))
         self.assertIn("ZT_WORKLOAD_CREDENTIAL", self.codes(self._validate()))
 
+    def test_rejects_a_static_merchant_api_credential(self):
+        self.fixture.mutate(self.REL, lambda d: self._principal(
+            d, "merchant-api-client").update({
+                "identity_source": "tenant_api_key",
+                "credential": "http_signature",
+                "credential_lifetime_minutes": 90,
+            }))
+        self.assertIn("ZT_MERCHANT_CREDENTIAL", self.codes(self._validate()))
+
     def test_rejects_a_principal_that_can_access_nothing(self):
         self.fixture.mutate(self.REL, lambda d: d["principals"].append(
             {"id": "ghost-principal", "kind": "human", "home_zone": "Z07",
@@ -363,6 +386,11 @@ class ZeroTrustGateRejects(FixtureTestCase):
         problems = self._validate()
         self.assertIn("ZT_TENANT_BINDING", self.codes(problems))
         self.assertIn("NN-09", self.rules(problems))
+
+    def test_rejects_merchant_access_without_token_holder_binding(self):
+        self.fixture.mutate(self.REL, lambda d: self._decision(
+            d, "ZTD-02")["requirements"].remove("token_holder_binding"))
+        self.assertIn("ZT_MERCHANT_CREDENTIAL", self.codes(self._validate()))
 
     def test_rejects_an_empty_zone_rule_list(self):
         self.fixture.mutate(self.REL, lambda d: d.__setitem__("zone_rules", []))

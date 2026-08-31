@@ -1,7 +1,13 @@
 package com.elmpay.merchant;
 
+import com.elmpay.tenant.AuthorityEvidenceReceipt;
+import com.elmpay.tenant.TenantEvidenceType;
+import com.elmpay.tenant.TenantEvidenceVerifier;
+import com.elmpay.tenant.VerifiedTenantEvidence;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -100,18 +106,29 @@ public final class MerchantControlPlane {
         }
     }
 
-    /** Evidence required by the irreversible or privilege-restoring tenant transitions. */
-    public record TenantTransitionEvidence(boolean kybVerified, boolean contractSigned,
-            boolean settlementComplete, boolean retentionPeriodStarted, boolean kekDestroyed,
+    /** Signed authority receipts and an independent human approver for governed transitions. */
+    public record TenantTransitionEvidence(List<AuthorityEvidenceReceipt> authorityReceipts,
             String secondApproverId) {
         public TenantTransitionEvidence {
+            authorityReceipts = List.copyOf(Objects.requireNonNull(authorityReceipts,
+                    "authorityReceipts"));
+            if (authorityReceipts.size() > 5
+                    || authorityReceipts.stream().anyMatch(Objects::isNull)
+                    || authorityReceipts.size() != authorityReceipts.stream()
+                            .map(AuthorityEvidenceReceipt::evidenceType).distinct().count()
+                    || authorityReceipts.size() != authorityReceipts.stream()
+                            .map(receipt -> receipt.keyId() + "\u0000" + receipt.nonce())
+                            .distinct().count()) {
+                throw new IllegalArgumentException(
+                        "tenant transition receipts must be bounded and type-unique");
+            }
             if (secondApproverId != null) {
                 requireIdentifier(secondApproverId, "secondApproverId");
             }
         }
 
         public static TenantTransitionEvidence none() {
-            return new TenantTransitionEvidence(false, false, false, false, false, null);
+            return new TenantTransitionEvidence(List.of(), null);
         }
     }
 
@@ -311,8 +328,9 @@ public final class MerchantControlPlane {
         Tenant createTenant(Tenant tenant);
 
         Tenant transitionTenant(UUID tenantId, long expectedVersion, TenantState current,
-                TenantState next, TenantTransitionEvidence evidence, String actorId,
-                String reason, String ticketId, Instant now);
+                TenantState next, List<VerifiedTenantEvidence> verifiedEvidence,
+                String secondApproverId, String actorId, String reason, String ticketId,
+                Instant now);
 
         Project createProject(Project project);
 
@@ -346,9 +364,15 @@ public final class MerchantControlPlane {
     }
 
     private final Store store;
+    private final TenantEvidenceVerifier tenantEvidenceVerifier;
+    private final Clock clock;
 
-    public MerchantControlPlane(Store store) {
+    public MerchantControlPlane(Store store, TenantEvidenceVerifier tenantEvidenceVerifier,
+            Clock clock) {
         this.store = Objects.requireNonNull(store, "store");
+        this.tenantEvidenceVerifier = Objects.requireNonNull(tenantEvidenceVerifier,
+                "tenantEvidenceVerifier");
+        this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     public Tenant registerTenant(UUID tenantId, String externalReference, String code,
@@ -361,11 +385,15 @@ public final class MerchantControlPlane {
     public Tenant transitionTenant(UUID tenantId, long expectedVersion, TenantState current,
             TenantState next, TenantTransitionEvidence evidence, String actorId, String reason,
             String ticketId, Instant now) {
+        Objects.requireNonNull(tenantId, "tenantId");
+        Objects.requireNonNull(now, "now");
         requireTenantTransition(current, next);
         requireApprovalMetadata(actorId, reason, ticketId);
-        requireTransitionEvidence(current, next, evidence, actorId);
-        return store.transitionTenant(tenantId, expectedVersion, current, next, evidence, actorId,
-                reason, ticketId, now);
+        Instant transitionAt = clock.instant();
+        List<VerifiedTenantEvidence> verified = verifyTransitionEvidence(tenantId, current, next,
+                evidence, actorId, transitionAt);
+        return store.transitionTenant(tenantId, expectedVersion, current, next, verified,
+                evidence.secondApproverId(), actorId, reason, ticketId, transitionAt);
     }
 
     public Project registerProject(UUID projectId, UUID tenantId, String code,
@@ -509,25 +537,39 @@ public final class MerchantControlPlane {
         return ONBOARDING_STEPS;
     }
 
-    private static void requireTransitionEvidence(TenantState current, TenantState next,
-            TenantTransitionEvidence evidence, String actorId) {
+    private List<VerifiedTenantEvidence> verifyTransitionEvidence(UUID tenantId,
+            TenantState current, TenantState next, TenantTransitionEvidence evidence,
+            String actorId, Instant verifiedAt) {
         Objects.requireNonNull(evidence, "evidence");
-        if (current == TenantState.DRAFT && next == TenantState.ACTIVE
-                && (!evidence.kybVerified() || !evidence.contractSigned())) {
-            throw new IllegalArgumentException("activation requires KYB and signed contract");
-        }
         boolean fourEyes = (current == TenantState.SUSPENDED && next == TenantState.ACTIVE)
                 || next == TenantState.OFFBOARDING;
         if (fourEyes && (evidence.secondApproverId() == null
                 || evidence.secondApproverId().equals(actorId))) {
             throw new IllegalArgumentException("transition requires a distinct second approver");
         }
-        if (current == TenantState.OFFBOARDING && next == TenantState.CLOSED
-                && (!evidence.settlementComplete() || !evidence.retentionPeriodStarted()
-                || !evidence.kekDestroyed())) {
-            throw new IllegalArgumentException(
-                    "closure requires settlement, retention and KEK destruction evidence");
+        Set<TenantEvidenceType> required;
+        if (current == TenantState.DRAFT && next == TenantState.ACTIVE) {
+            required = Set.of(TenantEvidenceType.KYB_VERIFIED,
+                    TenantEvidenceType.CONTRACT_SIGNED);
+        } else if (current == TenantState.OFFBOARDING && next == TenantState.CLOSED) {
+            required = Set.of(TenantEvidenceType.SETTLEMENT_COMPLETE,
+                    TenantEvidenceType.RETENTION_PERIOD_STARTED,
+                    TenantEvidenceType.KEK_DESTROYED);
+        } else {
+            required = Set.of();
         }
+        Set<TenantEvidenceType> submitted = evidence.authorityReceipts().stream()
+                .map(AuthorityEvidenceReceipt::evidenceType)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (!required.equals(submitted)) {
+            throw new IllegalArgumentException(
+                    "tenant transition requires the exact governed authority evidence set");
+        }
+        return evidence.authorityReceipts().stream()
+                .map(receipt -> tenantEvidenceVerifier.verify(receipt, tenantId,
+                        receipt.evidenceType(), verifiedAt))
+                .sorted(Comparator.comparing(item -> item.evidenceType().name()))
+                .toList();
     }
 
     private static void requireApprovalMetadata(String actorId, String reason, String ticketId) {

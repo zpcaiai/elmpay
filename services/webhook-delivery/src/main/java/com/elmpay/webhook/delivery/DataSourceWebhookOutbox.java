@@ -157,7 +157,7 @@ public final class DataSourceWebhookOutbox implements WebhookDeliveryService.Out
                 + "ON e.tenant_id=o.tenant_id AND e.endpoint_id=o.endpoint_id "
                 + "WHERE o.tenant_id=? AND e.status='ACTIVE' AND "
                 + "((o.state IN ('PENDING','RETRY') AND o.next_attempt_at<=?) "
-                + "OR (o.state='IN_FLIGHT' AND o.lease_until<?)) "
+                + "OR (o.state='IN_FLIGHT' AND o.lease_until<=?)) "
                 + "ORDER BY o.next_attempt_at, o.delivery_id FOR UPDATE OF o SKIP LOCKED LIMIT 1";
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
@@ -178,32 +178,39 @@ public final class DataSourceWebhookOutbox implements WebhookDeliveryService.Out
                     String eventId = rows.getString(5);
                     String eventType = rows.getString(6);
                     byte[] payload = rows.getBytes(7);
-                    int attemptCount = rows.getInt(8);
-                    int maxAttempts = rows.getInt(9);
-                    String leaseOwner = UUID.randomUUID().toString();
-                    long fencingToken;
-                    try (PreparedStatement lease = connection.prepareStatement(
-                            "UPDATE webhook_delivery_outbox SET state='IN_FLIGHT', lease_until=?, "
-                                    + "lease_owner=?, fencing_token=fencing_token+1, updated_at=? "
-                                    + "WHERE tenant_id=? AND delivery_id=? RETURNING fencing_token")) {
-                        lease.setTimestamp(1, Timestamp.from(leaseUntil));
-                        lease.setString(2, leaseOwner);
-                        lease.setTimestamp(3, Timestamp.from(now));
-                        lease.setString(4, tenantId);
-                        lease.setLong(5, deliveryId);
-                        try (ResultSet leased = lease.executeQuery()) {
-                            if (!leased.next()) {
-                                throw new SQLException("unable to lease webhook delivery");
+                    try {
+                        int attemptCount = rows.getInt(8);
+                        int maxAttempts = rows.getInt(9);
+                        String leaseOwner = UUID.randomUUID().toString();
+                        long fencingToken;
+                        try (PreparedStatement lease = connection.prepareStatement(
+                                "UPDATE webhook_delivery_outbox SET state='IN_FLIGHT', lease_until=?, "
+                                        + "lease_owner=?, fencing_token=fencing_token+1, updated_at=? "
+                                        + "WHERE tenant_id=? AND delivery_id=? RETURNING fencing_token")) {
+                            lease.setTimestamp(1, Timestamp.from(leaseUntil));
+                            lease.setString(2, leaseOwner);
+                            lease.setTimestamp(3, Timestamp.from(now));
+                            lease.setString(4, tenantId);
+                            lease.setLong(5, deliveryId);
+                            try (ResultSet leased = lease.executeQuery()) {
+                                if (!leased.next()) {
+                                    throw new SQLException("unable to lease webhook delivery");
+                                }
+                                fencingToken = leased.getLong(1);
                             }
-                            fencingToken = leased.getLong(1);
+                        }
+                        WebhookDeliveryService.Delivery delivery =
+                                new WebhookDeliveryService.Delivery(
+                                        deliveryId, tenantId, projectId, endpointId, endpoint,
+                                        eventId, eventType, payload, attemptCount, maxAttempts,
+                                        leaseOwner, fencingToken);
+                        connection.commit();
+                        return Optional.of(delivery);
+                    } finally {
+                        if (payload != null) {
+                            java.util.Arrays.fill(payload, (byte) 0);
                         }
                     }
-                    WebhookDeliveryService.Delivery delivery = new WebhookDeliveryService.Delivery(
-                            deliveryId, tenantId, projectId, endpointId, endpoint, eventId,
-                            eventType, payload, attemptCount, maxAttempts, leaseOwner,
-                            fencingToken);
-                    connection.commit();
-                    return Optional.of(delivery);
                 }
             } catch (SQLException | RuntimeException exception) {
                 rollback(connection, exception);

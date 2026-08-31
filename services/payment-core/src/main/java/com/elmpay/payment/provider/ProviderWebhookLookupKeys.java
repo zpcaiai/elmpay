@@ -1,12 +1,12 @@
 package com.elmpay.payment.provider;
 
-import java.net.URLDecoder;
+import com.elmpay.events.StrictJson;
+import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Map;
 
 /** Extracts lookup keys only; these untrusted values never become expected money facts. */
 final class ProviderWebhookLookupKeys {
@@ -15,87 +15,75 @@ final class ProviderWebhookLookupKeys {
 
     static String alipayBusinessReference(byte[] rawBody) {
         String form = utf8(rawBody);
+        String result = null;
         for (String field : form.split("&", -1)) {
             int separator = field.indexOf('=');
-            if (separator <= 0 || !"out_trade_no".equals(field.substring(0, separator))) {
+            if (separator <= 0
+                    || !"out_trade_no".equals(decodeForm(field.substring(0, separator)))) {
                 continue;
             }
-            String decoded = URLDecoder.decode(field.substring(separator + 1), StandardCharsets.UTF_8);
-            return requireReference(decoded);
+            if (result != null) {
+                throw new SecurityException(
+                        "Alipay callback has an ambiguous business reference lookup key");
+            }
+            result = requireReference(decodeForm(field.substring(separator + 1)));
         }
-        throw new SecurityException("Alipay callback has no business reference lookup key");
+        if (result == null) {
+            throw new SecurityException("Alipay callback has no business reference lookup key");
+        }
+        return result;
     }
 
     static String stripeProviderObject(byte[] rawBody) {
-        return jsonIds(rawBody).stream()
-                .filter(value -> value.matches("(pi|re)_[A-Za-z0-9_]{4,128}"))
-                .findFirst().map(ProviderWebhookLookupKeys::requireReference)
-                .orElseThrow(() -> new SecurityException(
-                        "Stripe callback has no durable payment-object lookup key"));
+        Map<String, Object> root = jsonObject(rawBody, "Stripe");
+        Map<String, Object> data = requiredObject(root, "data", "Stripe");
+        Map<String, Object> object = requiredObject(data, "object", "Stripe");
+        String value = requiredString(object, "id", "Stripe");
+        if (!value.matches("(?:pi|re)_[A-Za-z0-9_]{4,128}")) {
+            throw new SecurityException(
+                    "Stripe callback has no durable payment-object lookup key");
+        }
+        return requireReference(value);
     }
 
     static String payPalProviderObject(byte[] rawBody) {
-        return jsonIds(rawBody).stream()
-                .filter(value -> !value.startsWith("WH-"))
-                .filter(value -> value.matches("[A-Za-z0-9_-]{6,128}"))
-                .findFirst().map(ProviderWebhookLookupKeys::requireReference)
-                .orElseThrow(() -> new SecurityException(
-                        "PayPal callback has no durable provider-object lookup key"));
+        Map<String, Object> root = jsonObject(rawBody, "PayPal");
+        Map<String, Object> resource = requiredObject(root, "resource", "PayPal");
+        String value = requiredString(resource, "id", "PayPal");
+        if (value.startsWith("WH-") || !value.matches("[A-Za-z0-9_-]{6,128}")) {
+            throw new SecurityException(
+                    "PayPal callback has no durable provider-object lookup key");
+        }
+        return requireReference(value);
     }
 
-    private static List<String> jsonIds(byte[] rawBody) {
-        String source = utf8(rawBody);
-        List<String> result = new ArrayList<>();
-        int cursor = 0;
-        while ((cursor = source.indexOf("\"id\"", cursor)) >= 0) {
-            int colon = skipWhitespace(source, cursor + 4);
-            if (colon >= source.length() || source.charAt(colon) != ':') {
-                cursor += 4;
-                continue;
-            }
-            int start = skipWhitespace(source, colon + 1);
-            if (start >= source.length() || source.charAt(start) != '\"') {
-                cursor = start;
-                continue;
-            }
-            StringBuilder value = new StringBuilder();
-            boolean escaped = false;
-            int index = start + 1;
-            for (; index < source.length(); index++) {
-                char character = source.charAt(index);
-                if (escaped) {
-                    if (character != '\"' && character != '\\' && character != '/') {
-                        throw new SecurityException("provider callback id contains unsafe escaping");
-                    }
-                    value.append(character);
-                    escaped = false;
-                } else if (character == '\\') {
-                    escaped = true;
-                } else if (character == '\"') {
-                    result.add(value.toString());
-                    break;
-                } else if (character < 0x20) {
-                    throw new SecurityException("provider callback id contains control data");
-                } else {
-                    value.append(character);
-                }
-                if (value.length() > 256) {
-                    throw new SecurityException("provider callback id is too long");
-                }
-            }
-            if (index >= source.length()) {
-                throw new SecurityException("provider callback JSON is truncated");
-            }
-            cursor = index + 1;
+    private static Map<String, Object> jsonObject(byte[] rawBody, String provider) {
+        try {
+            return StrictJson.object(utf8(rawBody));
+        } catch (IllegalArgumentException exception) {
+            throw new SecurityException(provider + " callback JSON is invalid", exception);
         }
-        return List.copyOf(result);
     }
 
-    private static int skipWhitespace(String value, int cursor) {
-        while (cursor < value.length() && Character.isWhitespace(value.charAt(cursor))) {
-            cursor++;
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> requiredObject(Map<String, Object> source, String name,
+            String provider) {
+        Object value = source.get(name);
+        if (!(value instanceof Map<?, ?> map)) {
+            throw new SecurityException(provider + " callback field " + name
+                    + " must be an object");
         }
-        return cursor;
+        return (Map<String, Object>) map;
+    }
+
+    private static String requiredString(Map<String, Object> source, String name,
+            String provider) {
+        Object value = source.get(name);
+        if (!(value instanceof String text) || text.isBlank()) {
+            throw new SecurityException(provider + " callback field " + name
+                    + " must be a non-empty string");
+        }
+        return text;
     }
 
     private static String utf8(byte[] value) {
@@ -110,6 +98,39 @@ final class ProviderWebhookLookupKeys {
         } catch (CharacterCodingException exception) {
             throw new SecurityException("provider callback body is not UTF-8", exception);
         }
+    }
+
+    private static String decodeForm(String value) {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream(value.length());
+        for (int index = 0; index < value.length(); index++) {
+            char current = value.charAt(index);
+            if (current == '+') {
+                bytes.write(' ');
+            } else if (current == '%') {
+                if (index + 2 >= value.length()) {
+                    throw new SecurityException("provider callback has invalid percent encoding");
+                }
+                int high = Character.digit(value.charAt(++index), 16);
+                int low = Character.digit(value.charAt(++index), 16);
+                if (high < 0 || low < 0) {
+                    throw new SecurityException("provider callback has invalid percent encoding");
+                }
+                bytes.write((high << 4) | low);
+            } else if (current <= 0x7f) {
+                bytes.write(current);
+            } else {
+                // Preserve supplementary Unicode code points as one scalar.  Encoding each
+                // UTF-16 half separately would silently replace it with two '?' bytes and
+                // could make an otherwise valid business reference fail to round-trip.
+                int codePoint = value.codePointAt(index);
+                bytes.writeBytes(new String(Character.toChars(codePoint))
+                        .getBytes(StandardCharsets.UTF_8));
+                if (Character.charCount(codePoint) == 2) {
+                    index++;
+                }
+            }
+        }
+        return utf8(bytes.toByteArray());
     }
 
     private static String requireReference(String value) {

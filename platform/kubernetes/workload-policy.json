@@ -1,116 +1,877 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "namespace": "elmpay",
+  "dnsEgress": {
+    "namespace": "kube-system",
+    "podLabels": {
+      "k8s-app": "kube-dns"
+    }
+  },
+  "jobs": [
+    {
+      "name": "database-migrator",
+      "serviceAccount": "database-migrator",
+      "imageFrom": "edge-gateway",
+      "cpuRequest": "100m",
+      "cpuLimit": "500m",
+      "memoryRequest": "128Mi",
+      "memoryLimit": "384Mi",
+      "activeDeadlineSeconds": 900,
+      "gitOps": {
+        "phase": "PreSync",
+        "dependencyWave": -20,
+        "executionWave": -10,
+        "requiresDrainedDatabaseRoles": [
+          "elmpay_edge_gateway",
+          "elmpay_risk_engine",
+          "elmpay_worker"
+        ]
+      },
+      "runtime": {
+        "kind": "java-job",
+        "entrypoint": "apps/edge-gateway/src/main/java/com/elmpay/gateway/DatabaseMigrationApplication.java",
+        "launcher": "/opt/elmpay/bin/java-main",
+        "mainClass": "com.elmpay.gateway.DatabaseMigrationApplication",
+        "modeEnvironment": "ELMPAY_MIGRATION_MODE",
+        "modeValue": "apply"
+      },
+      "fixedEnvironment": {
+        "ELMPAY_MIGRATION_MODE": "apply",
+        "ELMPAY_MIGRATION_DATABASE_USERNAME": "elmpay_migrator",
+        "ELMPAY_MIGRATION_DATABASE_PASSWORD_FILE": "/var/run/secrets/elmpay/migration-database-credentials/password",
+        "ELMPAY_MIGRATION_DATABASE_CA_FILE": "/var/run/secrets/elmpay/migration-database-mtls/ca.crt",
+        "ELMPAY_MIGRATION_DATABASE_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/migration-database-mtls/tls.crt",
+        "ELMPAY_MIGRATION_DATABASE_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/migration-database-mtls/tls.key"
+      },
+      "configuration": {
+        "configMap": "database-migrator-runtime",
+        "configMapData": {
+          "ELMPAY_MIGRATION_DATABASE_URL": "jdbc:postgresql://payments-postgres-rw.elmpay-cn-east-1.svc.cluster.local:5432/elmpay"
+        },
+        "secretMounts": [
+          {
+            "name": "migration-database-credentials",
+            "secretName": "database-migrator-credentials",
+            "mountPath": "/var/run/secrets/elmpay/migration-database-credentials"
+          },
+          {
+            "name": "migration-database-mtls",
+            "secretName": "database-migrator-mtls",
+            "mountPath": "/var/run/secrets/elmpay/migration-database-mtls"
+          }
+        ]
+      },
+      "databaseEgress": {
+        "namespace": "elmpay-cn-east-1",
+        "podLabels": {
+          "cnpg.io/cluster": "payments-postgres"
+        },
+        "port": 5432
+      }
+    },
+    {
+      "name": "tenant-partition-initializer",
+      "serviceAccount": "tenant-partition-initializer",
+      "imageFrom": "worker-scheduler",
+      "cpuRequest": "100m",
+      "cpuLimit": "500m",
+      "memoryRequest": "128Mi",
+      "memoryLimit": "384Mi",
+      "activeDeadlineSeconds": 600,
+      "gitOps": {
+        "phase": "PreSync",
+        "dependencyWave": -20,
+        "executionWave": -5,
+        "requiresDrainedDatabaseRoles": [
+          "elmpay_edge_gateway",
+          "elmpay_risk_engine",
+          "elmpay_worker"
+        ]
+      },
+      "runtime": {
+        "kind": "java-job",
+        "entrypoint": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/data/PartitionMaintenanceApplication.java",
+        "launcher": "/opt/elmpay/bin/java-main",
+        "mainClass": "com.elmpay.scheduler.data.PartitionMaintenanceApplication",
+        "modeEnvironment": "ELMPAY_PARTITION_MODE",
+        "modeValue": "precreate"
+      },
+      "fixedEnvironment": {
+        "ELMPAY_PARTITION_MODE": "precreate",
+        "ELMPAY_PARTITION_DATABASE_USERNAME": "elmpay_partition_precreator",
+        "ELMPAY_PARTITION_DATABASE_PASSWORD_FILE": "/var/run/secrets/elmpay/partition-database-credentials/password",
+        "ELMPAY_PARTITION_DATABASE_CA_FILE": "/var/run/secrets/elmpay/partition-database-mtls/ca.crt",
+        "ELMPAY_PARTITION_DATABASE_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/partition-database-mtls/tls.crt",
+        "ELMPAY_PARTITION_DATABASE_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/partition-database-mtls/tls.key",
+        "ELMPAY_PARTITION_ACTOR_ID": "gitops-partition-precreator",
+        "ELMPAY_PARTITION_TICKET_ID": "governed-partition-horizon"
+      },
+      "configuration": {
+        "configMap": "tenant-partition-initializer-runtime",
+        "configMapData": {
+          "ELMPAY_PARTITION_DATABASE_URL": "jdbc:postgresql://payments-postgres-rw.elmpay-cn-east-1.svc.cluster.local:5432/elmpay",
+          "ELMPAY_PARTITION_MONTHS_AHEAD": "12"
+        },
+        "secretMounts": [
+          {
+            "name": "partition-database-credentials",
+            "secretName": "partition-database-credentials",
+            "mountPath": "/var/run/secrets/elmpay/partition-database-credentials"
+          },
+          {
+            "name": "partition-database-mtls",
+            "secretName": "partition-database-mtls",
+            "mountPath": "/var/run/secrets/elmpay/partition-database-mtls"
+          }
+        ]
+      },
+      "databaseEgress": {
+        "namespace": "elmpay-cn-east-1",
+        "podLabels": {
+          "cnpg.io/cluster": "payments-postgres"
+        },
+        "port": 5432
+      }
+    },
+    {
+      "name": "archive-receipt-verifier",
+      "serviceAccount": "archive-receipt-verifier",
+      "imageFrom": "worker-scheduler",
+      "cpuRequest": "100m",
+      "cpuLimit": "500m",
+      "memoryRequest": "128Mi",
+      "memoryLimit": "384Mi",
+      "activeDeadlineSeconds": 900,
+      "manualExecution": {
+        "suspend": true,
+        "evidenceState": "EVIDENCE_PENDING"
+      },
+      "runtime": {
+        "kind": "java-job",
+        "entrypoint": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/data/ArchiveReceiptVerifierApplication.java",
+        "launcher": "/opt/elmpay/bin/java-main",
+        "mainClass": "com.elmpay.scheduler.data.ArchiveReceiptVerifierApplication",
+        "modeEnvironment": "ELMPAY_ARCHIVE_RECEIPT_MODE",
+        "modeValue": "verify-and-ingest"
+      },
+      "fixedEnvironment": {
+        "ELMPAY_ARCHIVE_RECEIPT_MODE": "verify-and-ingest",
+        "ELMPAY_ARCHIVE_DATABASE_USERNAME": "elmpay_archive_verifier",
+        "ELMPAY_ARCHIVE_DATABASE_PASSWORD_FILE": "/var/run/secrets/elmpay/archive-verifier-database-credentials/password",
+        "ELMPAY_ARCHIVE_DATABASE_CA_FILE": "/var/run/secrets/elmpay/archive-verifier-database-mtls/ca.crt",
+        "ELMPAY_ARCHIVE_DATABASE_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/archive-verifier-database-mtls/tls.crt",
+        "ELMPAY_ARCHIVE_DATABASE_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/archive-verifier-database-mtls/tls.key",
+        "ELMPAY_ARCHIVE_TRUST_FILE": "/var/run/secrets/elmpay/archive-verifier-trust/trust.json",
+        "ELMPAY_ARCHIVE_RECEIPT_BUNDLE_FILE": "/var/run/secrets/elmpay/archive-receipt-bundle/bundle.json"
+      },
+      "configuration": {
+        "configMap": "archive-receipt-verifier-runtime",
+        "configMapData": {
+          "ELMPAY_ARCHIVE_DATABASE_URL": "jdbc:postgresql://payments-postgres-rw.elmpay-cn-east-1.svc.cluster.local:5432/elmpay"
+        },
+        "secretMounts": [
+          {"name": "archive-verifier-database-credentials", "secretName": "archive-verifier-database-credentials", "mountPath": "/var/run/secrets/elmpay/archive-verifier-database-credentials"},
+          {"name": "archive-verifier-database-mtls", "secretName": "archive-verifier-database-mtls", "mountPath": "/var/run/secrets/elmpay/archive-verifier-database-mtls"},
+          {"name": "archive-verifier-trust", "secretName": "archive-verifier-trust", "mountPath": "/var/run/secrets/elmpay/archive-verifier-trust"},
+          {"name": "archive-receipt-bundle", "secretName": "archive-receipt-bundle", "mountPath": "/var/run/secrets/elmpay/archive-receipt-bundle"}
+        ]
+      },
+      "databaseEgress": {"namespace": "elmpay-cn-east-1", "podLabels": {"cnpg.io/cluster": "payments-postgres"}, "port": 5432}
+    },
+    {
+      "name": "archive-detach-authorization-verifier",
+      "serviceAccount": "archive-detach-authorization-verifier",
+      "imageFrom": "worker-scheduler",
+      "cpuRequest": "100m",
+      "cpuLimit": "500m",
+      "memoryRequest": "128Mi",
+      "memoryLimit": "384Mi",
+      "activeDeadlineSeconds": 600,
+      "manualExecution": {"suspend": true, "evidenceState": "EVIDENCE_PENDING"},
+      "runtime": {
+        "kind": "java-job",
+        "entrypoint": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/data/ArchiveDetachAuthorizationVerifierApplication.java",
+        "launcher": "/opt/elmpay/bin/java-main",
+        "mainClass": "com.elmpay.scheduler.data.ArchiveDetachAuthorizationVerifierApplication",
+        "modeEnvironment": "ELMPAY_ARCHIVE_DETACH_VERIFIER_MODE",
+        "modeValue": "verify-detach-authorization"
+      },
+      "fixedEnvironment": {
+        "ELMPAY_ARCHIVE_DETACH_VERIFIER_MODE": "verify-detach-authorization",
+        "ELMPAY_ARCHIVE_DATABASE_USERNAME": "elmpay_archive_verifier",
+        "ELMPAY_ARCHIVE_DATABASE_PASSWORD_FILE": "/var/run/secrets/elmpay/archive-verifier-database-credentials/password",
+        "ELMPAY_ARCHIVE_DATABASE_CA_FILE": "/var/run/secrets/elmpay/archive-verifier-database-mtls/ca.crt",
+        "ELMPAY_ARCHIVE_DATABASE_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/archive-verifier-database-mtls/tls.crt",
+        "ELMPAY_ARCHIVE_DATABASE_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/archive-verifier-database-mtls/tls.key",
+        "ELMPAY_ARCHIVE_TRUST_FILE": "/var/run/secrets/elmpay/archive-verifier-trust/trust.json",
+        "ELMPAY_ARCHIVE_DETACH_POLICY_FILE": "/var/run/secrets/elmpay/archive-detach-policy/policy.json",
+        "ELMPAY_ARCHIVE_DETACH_AUTHORIZATION_FILE": "/var/run/secrets/elmpay/archive-detach-authorization/authorization.json"
+      },
+      "configuration": {
+        "configMap": "archive-detach-authorization-verifier-runtime",
+        "configMapData": {"ELMPAY_ARCHIVE_DATABASE_URL": "jdbc:postgresql://payments-postgres-rw.elmpay-cn-east-1.svc.cluster.local:5432/elmpay"},
+        "secretMounts": [
+          {"name": "archive-verifier-database-credentials", "secretName": "archive-verifier-database-credentials", "mountPath": "/var/run/secrets/elmpay/archive-verifier-database-credentials"},
+          {"name": "archive-verifier-database-mtls", "secretName": "archive-verifier-database-mtls", "mountPath": "/var/run/secrets/elmpay/archive-verifier-database-mtls"},
+          {"name": "archive-verifier-trust", "secretName": "archive-verifier-trust", "mountPath": "/var/run/secrets/elmpay/archive-verifier-trust"},
+          {"name": "archive-detach-policy", "secretName": "archive-detach-policy", "mountPath": "/var/run/secrets/elmpay/archive-detach-policy"},
+          {"name": "archive-detach-authorization", "secretName": "archive-detach-authorization", "mountPath": "/var/run/secrets/elmpay/archive-detach-authorization"}
+        ]
+      },
+      "databaseEgress": {"namespace": "elmpay-cn-east-1", "podLabels": {"cnpg.io/cluster": "payments-postgres"}, "port": 5432}
+    },
+    {
+      "name": "tenant-partition-detacher",
+      "serviceAccount": "tenant-partition-detacher",
+      "imageFrom": "worker-scheduler",
+      "cpuRequest": "100m",
+      "cpuLimit": "500m",
+      "memoryRequest": "128Mi",
+      "memoryLimit": "384Mi",
+      "activeDeadlineSeconds": 600,
+      "manualExecution": {"suspend": true, "evidenceState": "EVIDENCE_PENDING"},
+      "runtime": {
+        "kind": "java-job",
+        "entrypoint": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/data/ArchivePartitionDetacherApplication.java",
+        "launcher": "/opt/elmpay/bin/java-main",
+        "mainClass": "com.elmpay.scheduler.data.ArchivePartitionDetacherApplication",
+        "modeEnvironment": "ELMPAY_ARCHIVE_DETACH_MODE",
+        "modeValue": "detach-authorized"
+      },
+      "fixedEnvironment": {
+        "ELMPAY_ARCHIVE_DETACH_MODE": "detach-authorized",
+        "ELMPAY_ARCHIVE_DETACH_DATABASE_USERNAME": "elmpay_partition_detacher",
+        "ELMPAY_ARCHIVE_DETACH_DATABASE_PASSWORD_FILE": "/var/run/secrets/elmpay/archive-detacher-database-credentials/password",
+        "ELMPAY_ARCHIVE_DETACH_DATABASE_CA_FILE": "/var/run/secrets/elmpay/archive-detacher-database-mtls/ca.crt",
+        "ELMPAY_ARCHIVE_DETACH_DATABASE_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/archive-detacher-database-mtls/tls.crt",
+        "ELMPAY_ARCHIVE_DETACH_DATABASE_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/archive-detacher-database-mtls/tls.key",
+        "ELMPAY_ARCHIVE_DETACH_EXECUTION_REQUEST_FILE": "/var/run/secrets/elmpay/archive-detach-execution-request/request.json"
+      },
+      "configuration": {
+        "configMap": "tenant-partition-detacher-runtime",
+        "configMapData": {"ELMPAY_ARCHIVE_DETACH_DATABASE_URL": "jdbc:postgresql://payments-postgres-rw.elmpay-cn-east-1.svc.cluster.local:5432/elmpay"},
+        "secretMounts": [
+          {"name": "archive-detacher-database-credentials", "secretName": "archive-detacher-database-credentials", "mountPath": "/var/run/secrets/elmpay/archive-detacher-database-credentials"},
+          {"name": "archive-detacher-database-mtls", "secretName": "archive-detacher-database-mtls", "mountPath": "/var/run/secrets/elmpay/archive-detacher-database-mtls"},
+          {"name": "archive-detach-execution-request", "secretName": "archive-detach-execution-request", "mountPath": "/var/run/secrets/elmpay/archive-detach-execution-request"}
+        ]
+      },
+      "databaseEgress": {"namespace": "elmpay-cn-east-1", "podLabels": {"cnpg.io/cluster": "payments-postgres"}, "port": 5432}
+    }
+  ],
+  "cronJobs": [
+    {
+      "name": "tenant-partition-maintenance",
+      "serviceAccount": "tenant-partition-maintenance",
+      "imageFrom": "worker-scheduler",
+      "schedule": "17 2 * * *",
+      "concurrencyPolicy": "Forbid",
+      "startingDeadlineSeconds": 900,
+      "successfulJobsHistoryLimit": 3,
+      "failedJobsHistoryLimit": 3,
+      "cpuRequest": "100m",
+      "cpuLimit": "500m",
+      "memoryRequest": "128Mi",
+      "memoryLimit": "384Mi",
+      "activeDeadlineSeconds": 600,
+      "runtime": {
+        "kind": "java-job",
+        "entrypoint": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/data/PartitionMaintenanceApplication.java",
+        "launcher": "/opt/elmpay/bin/java-main",
+        "mainClass": "com.elmpay.scheduler.data.PartitionMaintenanceApplication",
+        "modeEnvironment": "ELMPAY_PARTITION_MODE",
+        "modeValue": "precreate"
+      },
+      "fixedEnvironment": {
+        "ELMPAY_PARTITION_MODE": "precreate",
+        "ELMPAY_PARTITION_DATABASE_USERNAME": "elmpay_partition_precreator",
+        "ELMPAY_PARTITION_DATABASE_PASSWORD_FILE": "/var/run/secrets/elmpay/partition-database-credentials/password",
+        "ELMPAY_PARTITION_DATABASE_CA_FILE": "/var/run/secrets/elmpay/partition-database-mtls/ca.crt",
+        "ELMPAY_PARTITION_DATABASE_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/partition-database-mtls/tls.crt",
+        "ELMPAY_PARTITION_DATABASE_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/partition-database-mtls/tls.key",
+        "ELMPAY_PARTITION_ACTOR_ID": "cron-partition-precreator",
+        "ELMPAY_PARTITION_TICKET_ID": "governed-partition-horizon"
+      },
+      "configuration": {
+        "configMap": "tenant-partition-maintenance-runtime",
+        "configMapData": {
+          "ELMPAY_PARTITION_DATABASE_URL": "jdbc:postgresql://payments-postgres-rw.elmpay-cn-east-1.svc.cluster.local:5432/elmpay",
+          "ELMPAY_PARTITION_MONTHS_AHEAD": "12"
+        },
+        "secretMounts": [
+          {
+            "name": "partition-database-credentials",
+            "secretName": "partition-database-credentials",
+            "mountPath": "/var/run/secrets/elmpay/partition-database-credentials"
+          },
+          {
+            "name": "partition-database-mtls",
+            "secretName": "partition-database-mtls",
+            "mountPath": "/var/run/secrets/elmpay/partition-database-mtls"
+          }
+        ]
+      },
+      "databaseEgress": {
+        "namespace": "elmpay-cn-east-1",
+        "podLabels": {
+          "cnpg.io/cluster": "payments-postgres"
+        },
+        "port": 5432
+      }
+    }
+  ],
   "services": [
     {
       "name": "edge-gateway",
-      "port": 8080,
+      "port": 8443,
+      "healthPort": 8081,
+      "transport": "https-mtls",
       "replicas": 3,
       "serviceAccount": "edge-gateway",
       "cpuRequest": "250m",
       "cpuLimit": "1",
       "memoryRequest": "256Mi",
-      "memoryLimit": "512Mi"
-    },
-    {
-      "name": "payment-core",
-      "port": 8080,
-      "replicas": 3,
-      "serviceAccount": "payment-core",
-      "cpuRequest": "500m",
-      "cpuLimit": "2",
-      "memoryRequest": "512Mi",
-      "memoryLimit": "1Gi"
-    },
-    {
-      "name": "risk-engine",
-      "port": 8080,
-      "replicas": 3,
-      "serviceAccount": "risk-engine",
-      "cpuRequest": "250m",
-      "cpuLimit": "1",
-      "memoryRequest": "256Mi",
-      "memoryLimit": "512Mi"
-    },
-    {
-      "name": "merchant-config",
-      "port": 8080,
-      "replicas": 3,
-      "serviceAccount": "merchant-config",
-      "cpuRequest": "200m",
-      "cpuLimit": "750m",
-      "memoryRequest": "256Mi",
-      "memoryLimit": "512Mi"
-    },
-    {
-      "name": "webhook-ingress",
-      "port": 8080,
-      "replicas": 3,
-      "serviceAccount": "webhook-ingress",
-      "cpuRequest": "250m",
-      "cpuLimit": "1",
-      "memoryRequest": "256Mi",
-      "memoryLimit": "512Mi"
-    },
-    {
-      "name": "webhook-delivery",
-      "port": 8080,
-      "replicas": 3,
-      "serviceAccount": "webhook-delivery",
-      "cpuRequest": "250m",
-      "cpuLimit": "1",
-      "memoryRequest": "256Mi",
-      "memoryLimit": "512Mi"
-    },
-    {
-      "name": "ledger-service",
-      "port": 8080,
-      "replicas": 3,
-      "serviceAccount": "ledger-service",
-      "cpuRequest": "500m",
-      "cpuLimit": "2",
-      "memoryRequest": "512Mi",
-      "memoryLimit": "1Gi"
-    },
-    {
-      "name": "reconciliation-service",
-      "port": 8080,
-      "replicas": 3,
-      "serviceAccount": "reconciliation-service",
-      "cpuRequest": "300m",
-      "cpuLimit": "1",
-      "memoryRequest": "384Mi",
-      "memoryLimit": "768Mi"
-    },
-    {
-      "name": "worker-scheduler",
-      "port": 8080,
-      "replicas": 3,
-      "serviceAccount": "worker-scheduler",
-      "cpuRequest": "200m",
-      "cpuLimit": "750m",
-      "memoryRequest": "256Mi",
-      "memoryLimit": "512Mi"
+      "memoryLimit": "512Mi",
+      "runtime": {
+        "kind": "java-main",
+        "entrypoint": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentGatewayApplication.java",
+        "healthSource": "apps/edge-gateway/src/main/java/com/elmpay/gateway/GatewayHealthHandler.java"
+      },
+      "healthProbes": {
+        "startup": "/health/startup",
+        "liveness": "/health/live",
+        "readiness": "/health/ready"
+      },
+      "fieldEnvironment": {
+        "ELMPAY_PAYMENT_ADMIN_WORKER_ID": "metadata.name"
+      },
+      "replicaIdentityEnvironment": "ELMPAY_PAYMENT_ADMIN_WORKER_ID",
+      "fixedEnvironment": {
+        "ELMPAY_RUNTIME_MODE": "postgres",
+        "ELMPAY_ADMIN_ACTIONS_ENABLED": "true",
+        "ELMPAY_ADMIN_ACTION_EXPECTED_SPIFFE_ID": "spiffe://elmpay.example/admin-web",
+        "PORT": "8443",
+        "ELMPAY_HEALTH_PORT": "8081",
+        "ELMPAY_TLS_SERVER_CERTIFICATE_FILE": "/var/run/secrets/elmpay/gateway-mtls/tls.crt",
+        "ELMPAY_TLS_SERVER_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/gateway-mtls/tls.key",
+        "ELMPAY_TLS_CLIENT_CA_BUNDLE_FILE": "/var/run/secrets/elmpay/gateway-mtls/client-ca.crt",
+        "ELMPAY_TLS_SERVER_NAME": "edge-gateway.elmpay.svc.cluster.local",
+        "ELMPAY_DATABASE_PASSWORD_FILE": "/var/run/secrets/elmpay/edge-database-credentials/password",
+        "ELMPAY_DATABASE_CA_FILE": "/var/run/secrets/elmpay/edge-database-mtls/ca.crt",
+        "ELMPAY_DATABASE_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/edge-database-mtls/tls.crt",
+        "ELMPAY_DATABASE_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/edge-database-mtls/tls.key",
+        "ELMPAY_DATABASE_USERNAME": "elmpay_edge_gateway",
+        "ELMPAY_ADMIN_ACTION_POLICY_BINDING_FILE": "/var/run/secrets/elmpay/edge-admin-governance/policy-binding.json",
+        "ELMPAY_OIDC_JWKS_FILE": "/var/run/secrets/elmpay/oidc/jwks.json",
+        "ELMPAY_OIDC_REVOCATION_FILE": "/var/run/secrets/elmpay/oidc/revocation.json",
+        "ELMPAY_CHECKOUT_SIGNING_KEY_FILE": "/var/run/secrets/elmpay/edge-checkout-signing/key",
+        "ELMPAY_PROVIDER_CREDENTIAL_TOKEN_FILE": "/var/run/secrets/elmpay/provider-credential-token/token",
+        "ELMPAY_PROVIDER_CREDENTIAL_MTLS_CLIENT_CERT_FILE": "/var/run/secrets/elmpay/provider-tls/tls.crt",
+        "ELMPAY_PROVIDER_CREDENTIAL_MTLS_CLIENT_KEY_FILE": "/var/run/secrets/elmpay/provider-tls/tls.key",
+        "ELMPAY_PROVIDER_CREDENTIAL_MTLS_TRUST_BUNDLE_FILE": "/var/run/secrets/elmpay/provider-tls/ca.crt",
+        "ELMPAY_APPLE_PAY_PSP_MTLS_CLIENT_CERT_FILE": "/var/run/secrets/elmpay/provider-tls/tls.crt",
+        "ELMPAY_APPLE_PAY_PSP_MTLS_CLIENT_KEY_FILE": "/var/run/secrets/elmpay/provider-tls/tls.key",
+        "ELMPAY_APPLE_PAY_PSP_MTLS_TRUST_BUNDLE_FILE": "/var/run/secrets/elmpay/provider-tls/ca.crt",
+        "ELMPAY_PROVIDER_EVIDENCE_TRUST_FILE": "/var/run/secrets/elmpay/evidence-trust/provider-trust.json",
+        "ELMPAY_TENANT_EVIDENCE_TRUST_FILE": "/var/run/secrets/elmpay/evidence-trust/tenant-trust.json",
+        "ELMPAY_RISK_ENDPOINT": "https://risk-engine.elmpay.svc.cluster.local:8443/v1/risk/decisions",
+        "ELMPAY_RISK_TIMEOUT_MILLISECONDS": "300",
+        "ELMPAY_RISK_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/risk-client-mtls/tls.crt",
+        "ELMPAY_RISK_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/risk-client-mtls/tls.key",
+        "ELMPAY_RISK_CA_BUNDLE_FILE": "/var/run/secrets/elmpay/risk-client-mtls/ca.crt"
+      },
+      "configuration": {
+        "configMap": "edge-gateway-runtime",
+        "configMapKeys": [
+          "ELMPAY_DATABASE_URL",
+          "ELMPAY_OIDC_ISSUER",
+          "ELMPAY_OIDC_AUDIENCE",
+          "ELMPAY_OIDC_MAX_TOKEN_SECONDS",
+          "ELMPAY_OIDC_CLOCK_SKEW_SECONDS",
+          "ELMPAY_OIDC_MAX_REVOCATION_AGE_SECONDS",
+          "ELMPAY_PAYMENT_REGION",
+          "ELMPAY_PAYMENT_INTENT_TTL_MINUTES",
+          "ELMPAY_PAYMENT_DEFAULT_METHODS",
+          "ELMPAY_PAYMENT_RETURN_ROUTE_IDS",
+          "ELMPAY_CHECKOUT_PUBLIC_BASE_URL",
+          "ELMPAY_CHECKOUT_REGION",
+          "ELMPAY_CHECKOUT_SESSION_TTL_SECONDS",
+          "ELMPAY_CHECKOUT_SIGNING_KEY_ID",
+          "ELMPAY_CHECKOUT_DEFAULT_RETURN_ROUTE_ID",
+          "ELMPAY_CHECKOUT_ALLOWED_METHODS",
+          "ELMPAY_CHECKOUT_RETURN_ROUTES",
+          "ELMPAY_WECHAT_NOTIFY_URI",
+          "ELMPAY_ALIPAY_NOTIFY_URI",
+          "ELMPAY_STRIPE_RETURN_BASE",
+          "ELMPAY_PAYPAL_CHECKOUT_BASE",
+          "ELMPAY_PAYPAL_CERTIFICATE_HOSTS",
+          "ELMPAY_APPLE_PAY_PSP_FORWARD_ENDPOINT",
+          "ELMPAY_PROVIDER_CREDENTIAL_ENDPOINT",
+          "ELMPAY_PROVIDER_CREDENTIAL_TIMEOUT_MS",
+          "ELMPAY_PROVIDER_CREDENTIAL_MAX_LEASE_SECONDS",
+          "ELMPAY_PROVIDER_TIMEOUT_MILLISECONDS",
+          "ELMPAY_PROVIDER_WEBHOOK_TOLERANCE_SECONDS",
+          "ELMPAY_PROVIDER_MAX_ATTEMPTS",
+          "ELMPAY_PROVIDER_READINESS_ACCOUNTS",
+          "ELMPAY_PAYMENT_ADMIN_COMMAND_LEASE_TTL",
+          "ELMPAY_PAYMENT_ADMIN_COMMAND_POLL_INTERVAL",
+          "ELMPAY_PAYMENT_ADMIN_READINESS_MAX_STALENESS",
+          "ELMPAY_PAYMENT_ADMIN_COMMAND_MAX_PER_CYCLE"
+        ],
+        "secretMounts": [
+          {
+            "name": "gateway-mtls",
+            "secretName": "edge-gateway-mtls",
+            "mountPath": "/var/run/secrets/elmpay/gateway-mtls"
+          },
+          {
+            "name": "provider-tls",
+            "secretName": "edge-gateway-provider-tls",
+            "mountPath": "/var/run/secrets/elmpay/provider-tls"
+          },
+          {
+            "name": "oidc-state",
+            "secretName": "edge-gateway-oidc-state",
+            "mountPath": "/var/run/secrets/elmpay/oidc"
+          },
+          {
+            "name": "edge-database-credentials",
+            "secretName": "edge-gateway-database-credentials",
+            "mountPath": "/var/run/secrets/elmpay/edge-database-credentials"
+          },
+          {
+            "name": "edge-database-mtls",
+            "secretName": "edge-gateway-database-mtls",
+            "mountPath": "/var/run/secrets/elmpay/edge-database-mtls"
+          },
+          {
+            "name": "edge-checkout-signing",
+            "secretName": "edge-gateway-checkout-signing",
+            "mountPath": "/var/run/secrets/elmpay/edge-checkout-signing"
+          },
+          {
+            "name": "provider-credential-token",
+            "secretName": "edge-gateway-provider-credential-token",
+            "mountPath": "/var/run/secrets/elmpay/provider-credential-token"
+          },
+          {
+            "name": "evidence-trust",
+            "secretName": "edge-gateway-evidence-trust",
+            "mountPath": "/var/run/secrets/elmpay/evidence-trust"
+          },
+          {
+            "name": "risk-client-mtls",
+            "secretName": "edge-gateway-risk-mtls",
+            "mountPath": "/var/run/secrets/elmpay/risk-client-mtls"
+          },
+          {
+            "name": "edge-admin-governance",
+            "secretName": "admin-action-policy-binding",
+            "mountPath": "/var/run/secrets/elmpay/edge-admin-governance"
+          }
+        ]
+      }
     },
     {
       "name": "checkout-web",
       "port": 8080,
+      "healthPort": 8080,
+      "transport": "http",
       "replicas": 3,
       "serviceAccount": "checkout-web",
       "cpuRequest": "150m",
       "cpuLimit": "500m",
       "memoryRequest": "128Mi",
-      "memoryLimit": "256Mi"
+      "memoryLimit": "256Mi",
+      "runtime": {
+        "kind": "node-start",
+        "entrypoint": "apps/checkout-web/src/server.mjs",
+        "manifest": "apps/checkout-web/package.json",
+        "healthSource": "apps/checkout-web/src/server.mjs"
+      },
+      "healthProbes": {
+        "startup": "/health/startup",
+        "liveness": "/health/live",
+        "readiness": "/health/ready"
+      },
+      "fixedEnvironment": {
+        "ELMPAY_CHECKOUT_WEB_MODE": "production",
+        "ELMPAY_API_BASE_URL": "https://edge-gateway.elmpay.svc.cluster.local:8443/",
+        "ELMPAY_EDGE_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/edge-client-mtls/tls.crt",
+        "ELMPAY_EDGE_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/edge-client-mtls/tls.key",
+        "ELMPAY_EDGE_TRUST_BUNDLE_FILE": "/var/run/secrets/elmpay/edge-client-mtls/ca.crt",
+        "ELMPAY_EDGE_TLS_SERVER_NAME": "edge-gateway.elmpay.svc.cluster.local",
+        "ELMPAY_PROVIDER_FRAME_TICKET_KEY_FILE": "/var/run/secrets/elmpay/checkout-frame-ticket/key"
+      },
+      "configuration": {
+        "configMap": "checkout-web-runtime",
+        "configMapKeys": [],
+        "secretMounts": [
+          {
+            "name": "edge-client-mtls",
+            "secretName": "checkout-web-edge-mtls",
+            "mountPath": "/var/run/secrets/elmpay/edge-client-mtls"
+          },
+          {
+            "name": "checkout-frame-ticket",
+            "secretName": "checkout-web-frame-ticket",
+            "mountPath": "/var/run/secrets/elmpay/checkout-frame-ticket"
+          }
+        ]
+      }
     },
     {
       "name": "admin-web",
-      "port": 8080,
+      "port": 8443,
+      "healthPort": 8443,
+      "transport": "https",
       "replicas": 3,
       "serviceAccount": "admin-web",
-      "cpuRequest": "150m",
-      "cpuLimit": "500m",
-      "memoryRequest": "128Mi",
-      "memoryLimit": "256Mi"
+      "cpuRequest": "200m",
+      "cpuLimit": "750m",
+      "memoryRequest": "192Mi",
+      "memoryLimit": "384Mi",
+      "runtime": {
+        "kind": "node-start",
+        "entrypoint": "apps/admin-web/src/main.mjs",
+        "manifest": "apps/admin-web/package.json",
+        "healthSource": "apps/admin-web/src/server.mjs",
+        "modeEnvironment": "ADMIN_RUNTIME_MODE",
+        "modeValue": "production"
+      },
+      "healthProbes": {
+        "startup": "/health/startup",
+        "liveness": "/health/live",
+        "readiness": "/health/ready"
+      },
+      "fixedEnvironment": {
+        "ADMIN_RUNTIME_MODE": "production",
+        "ADMIN_LISTEN_HOST": "0.0.0.0",
+        "ADMIN_PORT": "8443",
+        "ADMIN_IDP_AUDIENCE": "admin-web",
+        "ADMIN_IDP_JWKS_FILE": "/var/run/secrets/elmpay/admin-idp/jwks.json",
+        "ADMIN_IDP_REVOCATION_FILE": "/var/run/secrets/elmpay/admin-idp/revocation.json",
+        "ADMIN_AUTHORIZATION_FILE": "/var/run/secrets/elmpay/admin-governance/authorization.json",
+        "ADMIN_ACTION_POLICY_FILE": "/var/run/secrets/elmpay/admin-governance/action-policy.json",
+        "ADMIN_TLS_CERT_FILE": "/var/run/secrets/elmpay/admin-server-tls/tls.crt",
+        "ADMIN_TLS_KEY_FILE": "/var/run/secrets/elmpay/admin-server-tls/tls.key",
+        "ADMIN_PSQL_PATH": "/usr/bin/psql",
+        "ADMIN_PG_SERVICE": "elmpay-admin-web",
+        "ADMIN_PG_SERVICE_FILE": "/var/run/secrets/elmpay/admin-postgres/pg_service.conf",
+        "ADMIN_PG_ROOT_CA_FILE": "/var/run/secrets/elmpay/admin-postgres/ca.crt",
+        "ADMIN_UPSTREAM_ORIGIN": "https://edge-gateway.elmpay.svc.cluster.local:8443/",
+        "ADMIN_UPSTREAM_CA_FILE": "/var/run/secrets/elmpay/admin-upstream-mtls/ca.crt",
+        "ADMIN_UPSTREAM_CERT_FILE": "/var/run/secrets/elmpay/admin-upstream-mtls/tls.crt",
+        "ADMIN_UPSTREAM_KEY_FILE": "/var/run/secrets/elmpay/admin-upstream-mtls/tls.key"
+      },
+      "configuration": {
+        "configMap": "admin-web-runtime",
+        "configMapKeys": [
+          "ADMIN_PUBLIC_ORIGIN",
+          "ADMIN_IDP_ISSUER",
+          "ADMIN_DATABASE_TIMEOUT_MS",
+          "ADMIN_UPSTREAM_TIMEOUT_MS"
+        ],
+        "secretMounts": [
+          {
+            "name": "admin-idp",
+            "secretName": "admin-web-idp-state",
+            "mountPath": "/var/run/secrets/elmpay/admin-idp"
+          },
+          {
+            "name": "admin-governance",
+            "secretName": "admin-web-governance",
+            "mountPath": "/var/run/secrets/elmpay/admin-governance"
+          },
+          {
+            "name": "admin-server-tls",
+            "secretName": "admin-web-server-tls",
+            "mountPath": "/var/run/secrets/elmpay/admin-server-tls"
+          },
+          {
+            "name": "admin-postgres",
+            "secretName": "admin-web-postgres",
+            "mountPath": "/var/run/secrets/elmpay/admin-postgres"
+          },
+          {
+            "name": "admin-upstream-mtls",
+            "secretName": "admin-web-upstream-mtls",
+            "mountPath": "/var/run/secrets/elmpay/admin-upstream-mtls"
+          }
+        ]
+      }
+    },
+    {
+      "name": "risk-engine",
+      "port": 8443,
+      "healthPort": 9081,
+      "transport": "https-mtls",
+      "replicas": 3,
+      "serviceAccount": "risk-engine",
+      "cpuRequest": "250m",
+      "cpuLimit": "1",
+      "memoryRequest": "256Mi",
+      "memoryLimit": "512Mi",
+      "runtime": {
+        "kind": "java-main",
+        "entrypoint": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+        "healthSource": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+        "modeEnvironment": "ELMPAY_RISK_MODE",
+        "modeValue": "production"
+      },
+      "healthProbes": {
+        "startup": "/health/startup",
+        "liveness": "/health/live",
+        "readiness": "/health/ready"
+      },
+      "fieldEnvironment": {
+        "ELMPAY_RISK_ADMIN_WORKER_ID": "metadata.name"
+      },
+      "replicaIdentityEnvironment": "ELMPAY_RISK_ADMIN_WORKER_ID",
+      "fixedEnvironment": {
+        "ELMPAY_RISK_MODE": "production",
+        "ELMPAY_RISK_BIND_HOST": "0.0.0.0",
+        "ELMPAY_RISK_PORT": "8443",
+        "ELMPAY_RISK_HEALTH_BIND_HOST": "0.0.0.0",
+        "ELMPAY_RISK_HEALTH_PORT": "9081",
+        "ELMPAY_RISK_TLS_SERVER_NAME": "risk-engine.elmpay.svc.cluster.local",
+        "ELMPAY_RISK_TLS_SERVER_CERTIFICATE_FILE": "/var/run/secrets/elmpay/risk-server-mtls/tls.crt",
+        "ELMPAY_RISK_TLS_SERVER_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/risk-server-mtls/tls.key",
+        "ELMPAY_RISK_TLS_CLIENT_CA_BUNDLE_FILE": "/var/run/secrets/elmpay/risk-server-mtls/client-ca.crt",
+        "ELMPAY_RISK_DATABASE_PASSWORD_FILE": "/var/run/secrets/elmpay/risk-database-credentials/password",
+        "ELMPAY_RISK_DATABASE_CA_FILE": "/var/run/secrets/elmpay/risk-database-mtls/ca.crt",
+        "ELMPAY_RISK_DATABASE_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/risk-database-mtls/tls.crt",
+        "ELMPAY_RISK_DATABASE_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/risk-database-mtls/tls.key",
+        "ELMPAY_RISK_SIGNAL_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/risk-signal-mtls/tls.crt",
+        "ELMPAY_RISK_SIGNAL_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/risk-signal-mtls/tls.key",
+        "ELMPAY_RISK_SIGNAL_CA_BUNDLE_FILE": "/var/run/secrets/elmpay/risk-signal-mtls/ca.crt",
+        "ELMPAY_RISK_MODEL_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/risk-model-mtls/tls.crt",
+        "ELMPAY_RISK_MODEL_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/risk-model-mtls/tls.key",
+        "ELMPAY_RISK_MODEL_CA_BUNDLE_FILE": "/var/run/secrets/elmpay/risk-model-mtls/ca.crt",
+        "ELMPAY_RISK_GOVERNANCE_POLICY_FILE": "/var/run/secrets/elmpay/risk-governance/policy.json",
+        "ELMPAY_RISK_CALLER_POLICY_FILE": "/var/run/secrets/elmpay/risk-governance/callers.json"
+      },
+      "configuration": {
+        "configMap": "risk-engine-runtime",
+        "configMapData": {
+          "ELMPAY_RISK_DATABASE_URL": "jdbc:postgresql://payments-postgres-rw.elmpay-cn-east-1.svc.cluster.local:5432/elmpay",
+          "ELMPAY_RISK_DATABASE_USERNAME": "elmpay_risk_engine",
+          "ELMPAY_RISK_SIGNAL_ENDPOINT": "https://risk-signal.risk-platform.svc.cluster.local:8443/v1/risk/signals",
+          "ELMPAY_RISK_SIGNAL_READINESS_ENDPOINT": "https://risk-signal.risk-platform.svc.cluster.local:8443/health/ready",
+          "ELMPAY_RISK_MODEL_ENDPOINT": "https://risk-model.risk-platform.svc.cluster.local:8443/v1/risk/model-score",
+          "ELMPAY_RISK_MODEL_READINESS_ENDPOINT": "https://risk-model.risk-platform.svc.cluster.local:8443/health/ready",
+          "ELMPAY_RISK_DEPENDENCY_TIMEOUT_MILLISECONDS": "100",
+          "ELMPAY_RISK_NONCE_TTL_SECONDS": "30",
+          "ELMPAY_RISK_MAXIMUM_SIGNAL_AGE_SECONDS": "30",
+          "ELMPAY_RISK_MODEL_REVIEW_THRESHOLD": "0.60",
+          "ELMPAY_RISK_MODEL_BLOCK_THRESHOLD": "0.90",
+          "ELMPAY_RISK_ADMIN_COMMAND_LEASE_SECONDS": "30",
+          "ELMPAY_RISK_ADMIN_COMMAND_POLL_MILLISECONDS": "250"
+        },
+        "secretMounts": [
+          {
+            "name": "risk-server-mtls",
+            "secretName": "risk-engine-server-mtls",
+            "mountPath": "/var/run/secrets/elmpay/risk-server-mtls"
+          },
+          {
+            "name": "risk-database-credentials",
+            "secretName": "risk-engine-database-credentials",
+            "mountPath": "/var/run/secrets/elmpay/risk-database-credentials"
+          },
+          {
+            "name": "risk-database-mtls",
+            "secretName": "risk-engine-database-mtls",
+            "mountPath": "/var/run/secrets/elmpay/risk-database-mtls"
+          },
+          {
+            "name": "risk-signal-mtls",
+            "secretName": "risk-engine-signal-mtls",
+            "mountPath": "/var/run/secrets/elmpay/risk-signal-mtls"
+          },
+          {
+            "name": "risk-model-mtls",
+            "secretName": "risk-engine-model-mtls",
+            "mountPath": "/var/run/secrets/elmpay/risk-model-mtls"
+          },
+          {
+            "name": "risk-governance",
+            "secretName": "risk-engine-governance",
+            "mountPath": "/var/run/secrets/elmpay/risk-governance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "worker-scheduler",
+      "port": 8081,
+      "healthPort": 8081,
+      "transport": "http",
+      "healthOnly": true,
+      "exposeService": false,
+      "allowedEgressCategories": ["DATABASE", "KAFKA"],
+      "replicas": 3,
+      "serviceAccount": "worker-scheduler",
+      "cpuRequest": "250m",
+      "cpuLimit": "1",
+      "memoryRequest": "256Mi",
+      "memoryLimit": "512Mi",
+      "runtime": {
+        "kind": "java-main",
+        "entrypoint": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/WorkerSchedulerApplication.java",
+        "healthSource": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/WorkerHealthServer.java"
+      },
+      "healthProbes": {
+        "startup": "/health/startup",
+        "liveness": "/health/live",
+        "readiness": "/health/ready"
+      },
+      "fieldEnvironment": {
+        "ELMPAY_KAFKA_CLIENT_ID": "metadata.name",
+        "ELMPAY_WORKER_ID": "metadata.name"
+      },
+      "replicaIdentityEnvironment": "ELMPAY_WORKER_ID",
+      "fixedEnvironment": {
+        "ELMPAY_RUNTIME_MODE": "postgres",
+        "ELMPAY_WORKER_HEALTH_HOST": "0.0.0.0",
+        "ELMPAY_WORKER_HEALTH_PORT": "8081",
+        "ELMPAY_DATABASE_PASSWORD_FILE": "/var/run/secrets/elmpay/worker-database-credentials/password",
+        "ELMPAY_DATABASE_CA_FILE": "/var/run/secrets/elmpay/worker-database-mtls/ca.crt",
+        "ELMPAY_DATABASE_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/worker-database-mtls/tls.crt",
+        "ELMPAY_DATABASE_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/worker-database-mtls/tls.key",
+        "ELMPAY_ADMIN_ACTION_POLICY_BINDING_FILE": "/var/run/secrets/elmpay/worker-admin-governance/policy-binding.json",
+        "ELMPAY_KAFKA_TRUSTSTORE_FILE": "/var/run/secrets/elmpay/worker-kafka-trust/truststore.p12",
+        "ELMPAY_KAFKA_TRUSTSTORE_PASSWORD_FILE": "/var/run/secrets/elmpay/worker-kafka-trust/truststore-password",
+        "ELMPAY_KAFKA_KEYSTORE_FILE": "/var/run/secrets/elmpay/worker-kafka-identity/keystore.p12",
+        "ELMPAY_KAFKA_KEYSTORE_PASSWORD_FILE": "/var/run/secrets/elmpay/worker-kafka-identity/keystore-password"
+      },
+      "configuration": {
+        "configMap": "worker-scheduler-runtime",
+        "configMapData": {
+          "ELMPAY_DATABASE_URL": "jdbc:postgresql://payments-postgres-rw.elmpay-cn-east-1.svc.cluster.local:5432/elmpay",
+          "ELMPAY_DATABASE_USERNAME": "elmpay_worker",
+          "ELMPAY_WORKER_POLL_INTERVAL": "PT1S",
+          "ELMPAY_WORKER_READINESS_MAX_STALENESS": "PT30S",
+          "ELMPAY_WORKER_MAX_SCOPES": "1000",
+          "ELMPAY_ADMIN_COMMAND_MAX_PER_CYCLE": "10",
+          "ELMPAY_ADMIN_COMMAND_LEASE_TTL": "PT30S",
+          "ELMPAY_WORKER_MAX_OUTBOX_PER_TENANT": "100",
+          "ELMPAY_WORKER_MAX_TIMELINE_BATCHES": "100",
+          "ELMPAY_WORKER_MAX_BILLING_ITEMS": "100",
+          "ELMPAY_RECONCILIATION_PROVIDERS": "wechat,alipay,stripe,paypal,apple_pay",
+          "ELMPAY_RECONCILIATION_NOT_BEFORE_DELAY": "PT6H",
+          "ELMPAY_RECONCILIATION_MAX_JOBS_PER_TENANT": "2",
+          "ELMPAY_RECONCILIATION_MAX_FACTS": "100000",
+          "ELMPAY_RECONCILIATION_JOB_LEASE_TTL": "PT15M",
+          "ELMPAY_WORKER_PARTITION_MONTHS_AHEAD": "3",
+          "ELMPAY_WORKER_PARTITION_ACTOR_ID": "worker-scheduler",
+          "ELMPAY_WORKER_PARTITION_TICKET_ID": "B93-PARTITION-RUNTIME",
+          "ELMPAY_KAFKA_BOOTSTRAP_SERVERS": "payments-events-kafka-0.payments-events-kafka-brokers.elmpay-cn-east-1.svc.cluster.local:9093,payments-events-kafka-1.payments-events-kafka-brokers.elmpay-cn-east-1.svc.cluster.local:9093",
+          "ELMPAY_KAFKA_TOPIC": "payment-events-v1",
+          "ELMPAY_KAFKA_ACK_TIMEOUT": "PT10S",
+          "ELMPAY_KAFKA_LEDGER_CONSUMER_GROUP_ID": "elmpay-immutable-ledger-v2",
+          "ELMPAY_KAFKA_CONSUMER_MAX_POLL_RECORDS": "50",
+          "ELMPAY_KAFKA_CONSUMER_POLL_TIMEOUT": "PT1S",
+          "ELMPAY_EVENT_OUTBOX_LEASE_TTL": "PT30S",
+          "ELMPAY_EVENT_PUBLISHER_BASE_BACKOFF": "PT1S",
+          "ELMPAY_EVENT_INBOX_LEASE_TTL": "PT30S",
+          "ELMPAY_EVENT_INBOX_RETRY_DELAY": "PT5S",
+          "ELMPAY_PAYMENT_TIMELINE_PROJECTOR": "payment-timeline-v1",
+          "ELMPAY_PAYMENT_TIMELINE_BATCH_SIZE": "100",
+          "ELMPAY_PAYMENT_TIMELINE_MAXIMUM_BATCHES": "100"
+        },
+        "secretMounts": [
+          {
+            "name": "worker-database-credentials",
+            "secretName": "worker-scheduler-database-credentials",
+            "mountPath": "/var/run/secrets/elmpay/worker-database-credentials"
+          },
+          {
+            "name": "worker-database-mtls",
+            "secretName": "worker-scheduler-database-mtls",
+            "mountPath": "/var/run/secrets/elmpay/worker-database-mtls"
+          },
+          {
+            "name": "worker-kafka-trust",
+            "secretName": "worker-scheduler-kafka-trust",
+            "mountPath": "/var/run/secrets/elmpay/worker-kafka-trust"
+          },
+          {
+            "name": "worker-kafka-identity",
+            "secretName": "worker-scheduler-kafka-identity",
+            "mountPath": "/var/run/secrets/elmpay/worker-kafka-identity"
+          },
+          {
+            "name": "worker-admin-governance",
+            "secretName": "admin-action-policy-binding",
+            "mountPath": "/var/run/secrets/elmpay/worker-admin-governance"
+          }
+        ]
+      }
+    },
+    {
+      "name": "webhook-processor",
+      "port": 8081,
+      "healthPort": 8081,
+      "transport": "http",
+      "healthOnly": true,
+      "exposeService": false,
+      "allowedEgressCategories": ["DATABASE"],
+      "replicas": 3,
+      "serviceAccount": "webhook-processor",
+      "cpuRequest": "250m",
+      "cpuLimit": "1",
+      "memoryRequest": "256Mi",
+      "memoryLimit": "512Mi",
+      "runtime": {
+        "kind": "java-main",
+        "entrypoint": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookProcessorApplication.java",
+        "healthSource": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookProcessorHealthServer.java"
+      },
+      "healthProbes": {
+        "startup": "/health/startup",
+        "liveness": "/health/live",
+        "readiness": "/health/ready"
+      },
+      "fieldEnvironment": {
+        "ELMPAY_WEBHOOK_PROCESSOR_ID": "metadata.name"
+      },
+      "replicaIdentityEnvironment": "ELMPAY_WEBHOOK_PROCESSOR_ID",
+      "fixedEnvironment": {
+        "ELMPAY_RUNTIME_MODE": "postgres",
+        "ELMPAY_WEBHOOK_PROCESSOR_HEALTH_HOST": "0.0.0.0",
+        "ELMPAY_WEBHOOK_PROCESSOR_HEALTH_PORT": "8081",
+        "ELMPAY_DATABASE_PASSWORD_FILE": "/var/run/secrets/elmpay/webhook-processor-database-credentials/password",
+        "ELMPAY_DATABASE_CA_FILE": "/var/run/secrets/elmpay/webhook-processor-database-mtls/ca.crt",
+        "ELMPAY_DATABASE_CLIENT_CERTIFICATE_FILE": "/var/run/secrets/elmpay/webhook-processor-database-mtls/tls.crt",
+        "ELMPAY_DATABASE_CLIENT_PRIVATE_KEY_FILE": "/var/run/secrets/elmpay/webhook-processor-database-mtls/tls.key"
+      },
+      "configuration": {
+        "configMap": "webhook-processor-runtime",
+        "configMapData": {
+          "ELMPAY_DATABASE_URL": "jdbc:postgresql://payments-postgres-rw.elmpay-cn-east-1.svc.cluster.local:5432/elmpay",
+          "ELMPAY_DATABASE_USERNAME": "elmpay_webhook_processor",
+          "ELMPAY_WEBHOOK_PROCESSOR_POLL_INTERVAL": "PT1S",
+          "ELMPAY_WEBHOOK_PROCESSOR_READINESS_MAX_STALENESS": "PT30S",
+          "ELMPAY_WEBHOOK_PROCESSOR_MAX_TENANTS": "100",
+          "ELMPAY_WEBHOOK_PROCESSOR_LEASE_TTL": "PT30S",
+          "ELMPAY_WEBHOOK_PROCESSOR_BASE_BACKOFF": "PT2S",
+          "ELMPAY_WEBHOOK_PROCESSOR_MAX_BACKOFF": "PT15M",
+          "ELMPAY_WEBHOOK_PROCESSOR_MAX_ATTEMPTS": "8"
+        },
+        "secretMounts": [
+          {
+            "name": "webhook-processor-database-credentials",
+            "secretName": "webhook-processor-database-credentials",
+            "mountPath": "/var/run/secrets/elmpay/webhook-processor-database-credentials"
+          },
+          {
+            "name": "webhook-processor-database-mtls",
+            "secretName": "webhook-processor-database-mtls",
+            "mountPath": "/var/run/secrets/elmpay/webhook-processor-database-mtls"
+          }
+        ]
+      }
     }
   ],
   "requiredImageFormat": "^.+@sha256:[0-9a-f]{64}$",

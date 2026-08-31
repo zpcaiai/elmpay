@@ -1,6 +1,7 @@
 package com.elmpay.audit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,6 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.Signature;
@@ -19,9 +22,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
@@ -96,6 +101,44 @@ final class AuditAnchorWorkerTest {
         assertThrows(IllegalArgumentException.class, () -> new HttpsAuditTimestampAuthority(
                 redirecting, URI.create("https://timestamp.example.test/v1/anchor"),
                 Duration.ofSeconds(5), "t".repeat(32)));
+    }
+
+    @Test
+    void timestampAuthorityContentTypeIsUniqueAndExact() {
+        try (var exact = response(Map.of("Content-Type", List.of("application/json")))) {
+            assertDoesNotThrow(() -> HttpsAuditTimestampAuthority.requireContentType(
+                    exact, "application/json"));
+        }
+        try (var parameterized = response(Map.of(
+                "Content-Type", List.of("application/json; charset=utf-8")))) {
+            assertThrows(SecurityException.class,
+                    () -> HttpsAuditTimestampAuthority.requireContentType(
+                            parameterized, "application/json"));
+        }
+        assertThrows(IllegalStateException.class,
+                () -> HttpsAuditTimestampAuthority.fromEnvironment(Map.of(
+                        "ELMPAY_AUDIT_TIMESTAMP_AUTHORITY_ACCESS_TOKEN", "inline-is-forbidden"),
+                        Clock.systemUTC()));
+    }
+
+    @Test
+    void mountedReceiptTrustKeyRequiresOneExactEd25519PublicKey() throws Exception {
+        KeyPair keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+        byte[] pem = ("-----BEGIN PUBLIC KEY-----\n"
+                + Base64.getMimeEncoder(64, new byte[] {'\n'})
+                        .encodeToString(keyPair.getPublic().getEncoded())
+                + "\n-----END PUBLIC KEY-----\n").getBytes(StandardCharsets.US_ASCII);
+        assertTrue(Set.of("Ed25519", "EdDSA").contains(
+                AuditAnchorWorker.ed25519PublicKey(pem).getAlgorithm()));
+        assertThrows(SecurityException.class, () -> AuditAnchorWorker.ed25519PublicKey(
+                java.util.Arrays.copyOf(pem, pem.length - 8)));
+        java.util.Arrays.fill(pem, (byte) 0);
+    }
+
+    private static com.elmpay.security.BoundedHttpTransport.Response response(
+            Map<String, List<String>> headers) {
+        return new com.elmpay.security.BoundedHttpTransport.Response(200,
+                HttpHeaders.of(headers, (name, value) -> true), new byte[] {1});
     }
 
     private static AuditAnchorWorker worker(RecordingStore store, KeyPair keyPair,

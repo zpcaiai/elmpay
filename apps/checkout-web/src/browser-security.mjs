@@ -102,7 +102,7 @@ export class BrowserSecurityRuntime {
       const token = `__SRI_${entry.source.slice(1).replaceAll('.', '_').toUpperCase()}__`;
       html = html.replaceAll(token, entry.sri);
     }
-    if (html.includes('__CSP_NONCE__') || /__SRI_[A-Z0-9_]+__/.test(html)) {
+    if (html.includes('__CSP_NONCE__') || /__SRI_[A-Z0-9_-]+__/.test(html)) {
       throw new Error('checkout template contains unresolved integrity tokens');
     }
     return Buffer.from(html, 'utf8');
@@ -111,7 +111,7 @@ export class BrowserSecurityRuntime {
   csp(nonce) {
     return [
       "default-src 'none'", "base-uri 'none'", "frame-ancestors 'none'", "form-action 'self'",
-      "connect-src 'self'", "img-src 'self' data:", "style-src 'self'",
+      "connect-src 'self'", "frame-src 'self'", "img-src 'self' data:", "style-src 'self'",
       `script-src 'nonce-${nonce}' 'strict-dynamic'`, "require-trusted-types-for 'script'",
       "trusted-types elmpay-checkout", 'report-uri /security/csp-report', 'report-to elmpay-csp',
     ].join('; ');

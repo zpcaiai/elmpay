@@ -43,9 +43,10 @@ def main(argv: list[str] | None = None) -> int:
         if anchor.tzinfo is None:
             raise ValidationError("anchor must include a UTC offset")
         anchor = anchor.astimezone(timezone.utc)
+        execution_now = datetime.now(timezone.utc)
         control = PostLaunchControl(str(args.database))
-        job_key = f"reconciliation:{args.tenant}:{args.kind}"
-        token = control.acquire(job_key, args.owner, now=anchor)
+        job_key = f"reconcile:{args.tenant}:{args.kind}"
+        token = control.acquire(job_key, args.owner, now=execution_now)
         start, end = control.window(args.kind, anchor)
         window_id = f"{args.kind.lower()}:{start.isoformat()}"
         result = control.reconcile(
@@ -60,7 +61,7 @@ def main(argv: list[str] | None = None) -> int:
             job_key=job_key,
             owner_id=args.owner,
             fence_token=token,
-            now=anchor,
+            now=execution_now,
         )
         print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
         return 0 if result["allowedToClose"] else 2

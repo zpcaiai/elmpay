@@ -11,7 +11,21 @@
     "encryptedStorageClass": "encrypted-retain",
     "backupDestination": "s3://elmpay-production-backups/postgres",
     "primaryBackupServerName": "payments-cn-east-1",
-    "retentionPolicy": "90d"
+    "retentionPolicy": "90d",
+    "managedRuntimeRoles": [
+      {
+        "name": "elmpay_partition_precreator",
+        "passwordSecretName": "partition-database-credentials"
+      },
+      {
+        "name": "elmpay_archive_verifier",
+        "passwordSecretName": "archive-verifier-database-credentials"
+      },
+      {
+        "name": "elmpay_partition_detacher",
+        "passwordSecretName": "archive-detacher-database-credentials"
+      }
+    ]
   },
   "kafka": {
     "version": "4.0.0",

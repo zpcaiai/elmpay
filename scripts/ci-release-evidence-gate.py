@@ -20,8 +20,14 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools/runtime"))
 
-from elmpay_runtime.common import GateReport, ValidationError, read_json  # noqa: E402
+from elmpay_runtime.common import (  # noqa: E402
+    GateReport,
+    ValidationError,
+    read_json,
+    require_mapping,
+)
 from elmpay_runtime.external_evidence import validate_external_evidence  # noqa: E402
+from elmpay_runtime.oci import validate_product_release_index  # noqa: E402
 from elmpay_runtime.release import release_binding, verify_release  # noqa: E402
 
 
@@ -30,6 +36,7 @@ INPUTS = {
     "ELMPAY_RELEASE_TRUST_B64": "release trust",
     "ELMPAY_EXTERNAL_EVIDENCE_B64": "external evidence bundle",
     "ELMPAY_EXTERNAL_TRUST_B64": "external evidence trust",
+    "ELMPAY_PRODUCT_IMAGE_INDEX_B64": "product image release index",
 }
 MAX_ENCODED_BYTES = 1_000_000
 COMMIT = re.compile(r"^[0-9a-f]{40}$|^[0-9a-f]{64}$")
@@ -94,6 +101,12 @@ def main() -> int:
         manifest = documents["ELMPAY_RELEASE_MANIFEST_B64"]
         if manifest.get("commitSha") != expected_commit:
             raise ValidationError("signed release manifest is not bound to the workflow commit")
+        validate_product_release_index(
+            read_json(ROOT / "platform/oci/product-images.json"),
+            read_json(ROOT / "platform/kubernetes/image-admission-policy.json"),
+            documents["ELMPAY_PRODUCT_IMAGE_INDEX_B64"],
+            manifest,
+        )
         release_report = verify_release(
             manifest,
             read_json(ROOT / "platform/compliance/required-release-gates.json"),
@@ -104,6 +117,12 @@ def main() -> int:
             documents["ELMPAY_EXTERNAL_EVIDENCE_B64"],
             documents["ELMPAY_EXTERNAL_TRUST_B64"],
             expected_binding=release_binding(manifest),
+            expected_artifact_digest=str(manifest.get("artifactDigest", "")),
+            expected_images=require_mapping(manifest.get("images"), "manifest.images"),
+            expected_admission_policy_digest=str(
+                manifest.get("imageAdmissionPolicyDigest", "")
+            ),
+            expected_commit_sha=str(manifest.get("commitSha", "")),
         )
         reasons = [
             *(f"release:{reason}" for reason in release_report.reasons),

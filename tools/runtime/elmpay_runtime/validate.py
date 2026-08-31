@@ -5,8 +5,21 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .common import GateReport, ValidationError, read_json, require_list, require_mapping
+from .egress_policy import (
+    render_egress_controls,
+    validate_data_plane_destinations,
+    validate_internal_service_egress,
+    validate_job_database_egress,
+    validate_risk_service_egress,
+)
 from .infrastructure import render_regional_data_plane, render_service_controls
-from .kubernetes import render_workloads
+from .kubernetes import render_workloads, validate_workload_sources
+from .oci import (
+    admission_policy_digest,
+    product_image_manifest_digest,
+    validate_admission_policy,
+    validate_product_image_manifest,
+)
 
 
 JSON_DIRECTORIES = (
@@ -18,6 +31,7 @@ JSON_DIRECTORIES = (
     "platform/rollout",
     "platform/compliance",
     "platform/risk",
+    "platform/oci",
 )
 
 
@@ -43,6 +57,9 @@ def validate_repository(root: Path) -> GateReport:
         "platform/kubernetes/workload-policy.json",
         "platform/kubernetes/service-callers.json",
         "platform/kubernetes/data-plane-policy.json",
+        "platform/kubernetes/egress-policy.json",
+        "platform/kubernetes/image-admission-policy.json",
+        "platform/oci/product-images.json",
         "platform/policies/workload-security.json",
         "platform/policies/gitops.json",
         "platform/policies/service-mesh.json",
@@ -78,6 +95,7 @@ def validate_repository(root: Path) -> GateReport:
     semantic_checks = (
         _validate_static_kubernetes,
         _validate_workload_policy,
+        _validate_product_images,
         _validate_security_policies,
         _validate_observability,
         _validate_alerts,
@@ -124,6 +142,7 @@ def _validate_static_kubernetes(root: Path, documents: Mapping[str, Any]) -> Non
         "ServiceAccount",
         "Service",
         "PodDisruptionBudget",
+        "HorizontalPodAutoscaler",
         "NetworkPolicy",
         "PeerAuthentication",
         "AuthorizationPolicy",
@@ -132,7 +151,56 @@ def _validate_static_kubernetes(root: Path, documents: Mapping[str, Any]) -> Non
     missing = required_kinds - set(by_kind)
     if missing:
         raise ValidationError(f"static Kubernetes controls missing: {sorted(missing)}")
+    policy = require_mapping(
+        documents["platform/kubernetes/workload-policy.json"], "workload policy"
+    )
+    services = [require_mapping(item, "workload service") for item in require_list(
+        policy.get("services"), "workload services"
+    )]
+    expected = {str(item["name"]): item for item in services}
+    if len(expected) != len(services):
+        raise ValidationError("workload names must be unique")
+    rendered_controls = render_service_controls(
+        policy,
+        require_mapping(
+            documents["platform/kubernetes/service-callers.json"], "service callers"
+        ),
+    )
+    controlled_kinds = {
+        "ServiceAccount", "Service", "PodDisruptionBudget", "HorizontalPodAutoscaler",
+        "NetworkPolicy", "PeerAuthentication", "AuthorizationPolicy",
+    }
+    expected_controls = {
+        (str(item["kind"]), str(item["metadata"]["name"])): item
+        for item in rendered_controls["items"] if item["kind"] in controlled_kinds
+    }
+    actual_controls = {
+        (str(item["kind"]), str(item["metadata"]["name"])): item
+        for item in items if item.get("kind") in controlled_kinds
+    }
+    actual_control_count = sum(item.get("kind") in controlled_kinds for item in items)
+    if len(actual_controls) != actual_control_count or actual_controls != expected_controls:
+        raise ValidationError("static Kubernetes controls differ from the service renderer")
+    for kind in (
+        "ServiceAccount", "PodDisruptionBudget",
+        "HorizontalPodAutoscaler", "AuthorizationPolicy",
+    ):
+        actual = {str(item["metadata"]["name"]) for item in by_kind.get(kind, [])}
+        if actual != set(expected) or len(actual) != len(by_kind.get(kind, [])):
+            raise ValidationError(f"static {kind} inventory must exactly match workloads")
+    exposed = {
+        name for name, service in expected.items()
+        if service.get("exposeService", True) is True
+    }
+    actual_services = {
+        str(item["metadata"]["name"]) for item in by_kind.get("Service", [])
+    }
+    if actual_services != exposed or len(actual_services) != len(by_kind.get("Service", [])):
+        raise ValidationError("static Service inventory must exactly match exposed workloads")
     namespace = by_kind["Namespace"][0]
+    if len(by_kind["Namespace"]) != 1 or len(by_kind["PeerAuthentication"]) != 1 \
+            or len(by_kind["DestinationRule"]) != 1:
+        raise ValidationError("static singleton Kubernetes controls must not be duplicated")
     labels = namespace["metadata"]["labels"]
     if labels.get("pod-security.kubernetes.io/enforce") != "restricted":
         raise ValidationError("namespace must enforce restricted pod security")
@@ -150,13 +218,47 @@ def _validate_static_kubernetes(root: Path, documents: Mapping[str, Any]) -> Non
         raise ValidationError("service mesh mTLS must be STRICT")
     if any(item["spec"].get("minAvailable", 0) < 2 for item in by_kind["PodDisruptionBudget"]):
         raise ValidationError("PDB minAvailable must be at least two")
+    for item in by_kind["Service"]:
+        name = str(item["metadata"]["name"])
+        if item["spec"].get("selector") != {"app.kubernetes.io/name": name}:
+            raise ValidationError(f"{name} Service selector does not match its workload")
+        ports = item["spec"].get("ports", [])
+        target_port = (
+            "https" if expected[name].get("transport") in {"https", "https-mtls"}
+            else "http"
+        )
+        if len(ports) != 1 or ports[0].get("port") != expected[name].get("port") \
+                or ports[0].get("targetPort") != target_port:
+            raise ValidationError(f"{name} Service port does not match its workload")
+    for kind in ("PodDisruptionBudget", "AuthorizationPolicy"):
+        for item in by_kind[kind]:
+            name = str(item["metadata"]["name"])
+            selector = item["spec"].get("selector", {}).get("matchLabels", {})
+            if selector.get("app.kubernetes.io/name") != name:
+                raise ValidationError(f"{name} {kind} selector does not match its workload")
+    for item in by_kind["HorizontalPodAutoscaler"]:
+        name = str(item["metadata"]["name"])
+        target = item["spec"].get("scaleTargetRef", {})
+        if target != {"apiVersion": "apps/v1", "kind": "Deployment", "name": name}:
+            raise ValidationError(f"{name} HPA target does not match its workload")
+    allow_policies = {
+        str(item["metadata"]["name"]): item for item in by_kind["NetworkPolicy"]
+        if str(item["metadata"]["name"]).startswith("allow-")
+    }
+    if set(allow_policies) != {f"allow-{name}" for name in expected}:
+        raise ValidationError("static workload NetworkPolicy inventory must match workloads")
+    for policy_name, item in allow_policies.items():
+        name = policy_name.removeprefix("allow-")
+        selector = item["spec"].get("podSelector", {}).get("matchLabels", {})
+        if selector.get("app.kubernetes.io/name") != name:
+            raise ValidationError(f"{policy_name} selector does not match its workload")
 
 
 def _validate_workload_policy(root: Path, documents: Mapping[str, Any]) -> None:
-    del root
     policy = require_mapping(
         documents["platform/kubernetes/workload-policy.json"], "workload policy"
     )
+    validate_workload_sources(root, policy)
     images = {
         service["name"]: (
             f"registry.invalid/elmpay/{service['name']}@sha256:"
@@ -175,6 +277,43 @@ def _validate_workload_policy(root: Path, documents: Mapping[str, Any]) -> None:
         require_mapping(
             documents["platform/kubernetes/data-plane-policy.json"], "data plane policy"
         )
+    )
+    egress = require_mapping(
+        documents["platform/kubernetes/egress-policy.json"], "egress policy"
+    )
+    render_egress_controls(policy, egress)
+    validate_internal_service_egress(
+        policy,
+        egress,
+        require_mapping(
+            documents["platform/kubernetes/service-callers.json"], "service callers"
+        ),
+    )
+    validate_risk_service_egress(policy, egress)
+    validate_data_plane_destinations(
+        egress,
+        require_mapping(
+            documents["platform/kubernetes/data-plane-policy.json"], "data plane policy"
+        ),
+    )
+    validate_job_database_egress(policy, egress)
+
+
+def _validate_product_images(root: Path, documents: Mapping[str, Any]) -> None:
+    manifest = require_mapping(
+        documents["platform/oci/product-images.json"], "product image manifest"
+    )
+    admission = require_mapping(
+        documents["platform/kubernetes/image-admission-policy.json"],
+        "image admission policy",
+    )
+    validate_admission_policy(admission)
+    validate_product_image_manifest(
+        root,
+        manifest,
+        require_mapping(
+            documents["platform/kubernetes/workload-policy.json"], "workload policy"
+        ),
     )
 
 
@@ -342,7 +481,9 @@ def _validate_compliance(root: Path, documents: Mapping[str, Any]) -> None:
         supply_chain.get("signatureAlgorithm") != "Ed25519"
         or supply_chain.get("signatureEnvelope") != "DSSE"
         or supply_chain.get("unknownOrMissingAction") != "BLOCK_RELEASE"
-        or not supply_chain.get("allowedBuilders")
+        or supply_chain.get("allowedBuilders") != [
+            "https://github.com/zpcaiai/elmpay/.github/workflows/ci.yml"
+        ]
         or not supply_chain.get("requiredMaterials")
     ):
         raise ValidationError("supply-chain provenance must be Ed25519 DSSE and fail closed")
@@ -356,6 +497,19 @@ def _validate_compliance(root: Path, documents: Mapping[str, Any]) -> None:
         raise ValidationError("release gate requires external evidence categories")
     if gates.get("externalEvidenceRequired") is not True:
         raise ValidationError("release gate must require the external evidence bundle")
+    if gates.get("productImageIndexRequired") is not True:
+        raise ValidationError("release gate must require the exact product image index")
+    if gates.get("productImageManifestDigest") != product_image_manifest_digest(
+        require_mapping(documents["platform/oci/product-images.json"], "product image manifest")
+    ):
+        raise ValidationError("release gate product image manifest digest is stale")
+    if gates.get("imageAdmissionPolicyDigest") != admission_policy_digest(
+        require_mapping(
+            documents["platform/kubernetes/image-admission-policy.json"],
+            "image admission policy",
+        )
+    ):
+        raise ValidationError("release gate image admission policy digest is stale")
     external = documents["platform/compliance/external-evidence-policy.json"]
     if external.get("schemaVersion") != 1 or external.get("status") != "NOT_CERTIFIED":
         raise ValidationError("external evidence policy must remain schema v1 and NOT_CERTIFIED")

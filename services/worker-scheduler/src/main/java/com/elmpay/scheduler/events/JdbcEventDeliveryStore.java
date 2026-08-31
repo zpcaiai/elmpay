@@ -1,5 +1,7 @@
 package com.elmpay.scheduler.events;
 
+import com.elmpay.events.EventEnvelope;
+import com.elmpay.events.StrictJson;
 import java.io.Serial;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -21,13 +23,21 @@ import javax.sql.DataSource;
 public final class JdbcEventDeliveryStore implements OutboxRelay.Store {
     static final String CLAIM_OUTBOX_SQL = """
             SELECT sequence_no, id, tenant_id, project_id, aggregate_type, aggregate_id,
-                   event_type, event_version, payload::text AS payload_json, correlation_id,
-                   created_at, delivery_attempts, fencing_token
-              FROM outbox_event
-             WHERE tenant_id = ?::uuid AND published_at IS NULL
-               AND next_attempt_at <= ?::timestamptz
-               AND (lease_until IS NULL OR lease_until <= ?::timestamptz)
-             ORDER BY sequence_no
+                   aggregate_revision, event_type, event_version, payload::text AS payload_json,
+                   occurred_at, recorded_at, trace_id, delivery_attempts, fencing_token
+              FROM outbox_event AS candidate
+             WHERE candidate.tenant_id = ?::uuid AND candidate.published_at IS NULL
+               AND candidate.next_attempt_at <= ?::timestamptz
+               AND (candidate.lease_until IS NULL OR candidate.lease_until <= ?::timestamptz)
+               AND NOT EXISTS (
+                   SELECT 1 FROM outbox_event AS prior
+                    WHERE prior.tenant_id = candidate.tenant_id
+                      AND prior.aggregate_type = candidate.aggregate_type
+                      AND prior.aggregate_id = candidate.aggregate_id
+                      AND prior.aggregate_revision < candidate.aggregate_revision
+                      AND prior.published_at IS NULL
+               )
+             ORDER BY candidate.sequence_no
              FOR UPDATE SKIP LOCKED
              LIMIT 1
             """;
@@ -71,33 +81,46 @@ public final class JdbcEventDeliveryStore implements OutboxRelay.Store {
         BUSY
     }
 
-    public record InboxMessage(UUID eventId, UUID tenantId, UUID projectId, String eventType,
-            int eventVersion, String payloadJson, String correlationId, Instant occurredAt) {
+    public record InboxMessage(UUID eventId, UUID tenantId, UUID projectId, String aggregateType,
+            UUID aggregateId, long aggregateRevision, String eventName, int eventVersion,
+            String payloadJson, Instant occurredAt, Instant recordedAt, String traceId) {
         public InboxMessage {
             Objects.requireNonNull(eventId, "eventId");
             Objects.requireNonNull(tenantId, "tenantId");
             Objects.requireNonNull(projectId, "projectId");
-            OutboxRelay.requireText(eventType, "eventType");
+            OutboxRelay.requireText(aggregateType, "aggregateType");
+            Objects.requireNonNull(aggregateId, "aggregateId");
+            OutboxRelay.requireText(eventName, "eventName");
             OutboxRelay.requireText(payloadJson, "payloadJson");
-            OutboxRelay.requireText(correlationId, "correlationId");
             Objects.requireNonNull(occurredAt, "occurredAt");
-            if (eventVersion <= 0) {
-                throw new IllegalArgumentException("eventVersion must be positive");
+            Objects.requireNonNull(recordedAt, "recordedAt");
+            OutboxRelay.requireText(traceId, "traceId");
+            if (aggregateRevision <= 0 || eventVersion <= 0) {
+                throw new IllegalArgumentException("event version and revision must be positive");
             }
+            // Parse now, before a durable inbox identity can be claimed for malformed payload.
+            StrictJson.object(payloadJson);
         }
 
         public static InboxMessage from(OutboxRelay.Message message) {
             Objects.requireNonNull(message, "message");
             return new InboxMessage(message.eventId(), message.tenantId(), message.projectId(),
-                    message.eventType(), message.eventVersion(), message.payloadJson(),
-                    message.correlationId(), message.createdAt());
+                    message.aggregateType(), message.aggregateId(), message.aggregateRevision(),
+                    message.eventName(), message.eventVersion(), message.payloadJson(),
+                    message.occurredAt(), message.recordedAt(), message.traceId());
+        }
+
+        public EventEnvelope envelope() {
+            return new EventEnvelope(eventId, eventName, eventVersion, tenantId, projectId,
+                    aggregateType, aggregateId, aggregateRevision, occurredAt, recordedAt,
+                    traceId, StrictJson.object(payloadJson));
         }
     }
 
     /** Business writes use this same transaction as the durable processed marker. */
     @FunctionalInterface
     public interface TransactionalConsumer {
-        void handle(Connection connection, InboxMessage message) throws Exception;
+        InboxOutcome handle(Connection connection, InboxMessage message) throws Exception;
     }
 
     private record InboxLease(InboxOutcome outcome, String consumerName, String workerId,
@@ -146,10 +169,12 @@ public final class JdbcEventDeliveryStore implements OutboxRelay.Store {
                                     result.getObject("project_id", UUID.class),
                                     result.getString("aggregate_type"),
                                     result.getObject("aggregate_id", UUID.class),
+                                    result.getLong("aggregate_revision"),
                                     result.getString("event_type"), result.getInt("event_version"),
                                     result.getString("payload_json"),
-                                    result.getString("correlation_id"),
-                                    result.getTimestamp("created_at").toInstant(),
+                                    result.getTimestamp("occurred_at").toInstant(),
+                                    result.getTimestamp("recorded_at").toInstant(),
+                                    result.getString("trace_id"),
                                     claimed.getInt("delivery_attempts"), workerId,
                                     claimed.getLong("fencing_token")));
                         }
@@ -217,14 +242,13 @@ public final class JdbcEventDeliveryStore implements OutboxRelay.Store {
         requirePositive(leaseTtl, "leaseTtl");
         requirePositive(retryDelay, "retryDelay");
         Objects.requireNonNull(consumer, "consumer");
-        String digest = sha256(message.payloadJson());
+        String digest = sha256(message.envelope().canonicalJson());
         InboxLease lease = claimInbox(consumerName, message, workerId, now, leaseTtl, digest);
         if (lease.outcome() != InboxOutcome.APPLIED) {
             return lease.outcome();
         }
         try {
-            applyInbox(lease, message, now, consumer);
-            return InboxOutcome.APPLIED;
+            return applyInbox(lease, message, now, consumer);
         } catch (RuntimeException failure) {
             try {
                 recordInboxFailure(lease, message, now, retryDelay,
@@ -243,10 +267,13 @@ public final class JdbcEventDeliveryStore implements OutboxRelay.Store {
             try (PreparedStatement insert = connection.prepareStatement("""
                     INSERT INTO consumer_event_inbox
                       (tenant_id, consumer_name, source_event_id, project_id, payload_sha256,
-                       state, lease_owner, lease_until, fencing_token, delivery_attempts,
+                       event_name, event_version, aggregate_type, aggregate_id,
+                       aggregate_revision, occurred_at, recorded_at, trace_id, state,
+                       lease_owner, lease_until, fencing_token, delivery_attempts,
                        next_attempt_at, received_at)
-                    VALUES (?::uuid, ?, ?::uuid, ?::uuid, ?, 'processing', ?, ?::timestamptz,
-                            1, 1, ?::timestamptz, ?::timestamptz)
+                    VALUES (?::uuid, ?, ?::uuid, ?::uuid, ?, ?, ?, ?, ?::uuid, ?,
+                            ?::timestamptz, ?::timestamptz, ?, 'processing', ?,
+                            ?::timestamptz, 1, 1, ?::timestamptz, ?::timestamptz)
                     ON CONFLICT (tenant_id, consumer_name, source_event_id) DO NOTHING
                     """)) {
                 insert.setString(1, message.tenantId().toString());
@@ -254,10 +281,18 @@ public final class JdbcEventDeliveryStore implements OutboxRelay.Store {
                 insert.setString(3, message.eventId().toString());
                 insert.setString(4, message.projectId().toString());
                 insert.setString(5, digest);
-                insert.setString(6, workerId);
-                insert.setString(7, now.plus(leaseTtl).toString());
-                insert.setString(8, now.toString());
-                insert.setString(9, now.toString());
+                insert.setString(6, message.eventName());
+                insert.setInt(7, message.eventVersion());
+                insert.setString(8, message.aggregateType());
+                insert.setString(9, message.aggregateId().toString());
+                insert.setLong(10, message.aggregateRevision());
+                insert.setString(11, message.occurredAt().toString());
+                insert.setString(12, message.recordedAt().toString());
+                insert.setString(13, message.traceId());
+                insert.setString(14, workerId);
+                insert.setString(15, now.plus(leaseTtl).toString());
+                insert.setString(16, now.toString());
+                insert.setString(17, now.toString());
                 inserted = insert.executeUpdate() == 1;
             }
             try (PreparedStatement select = connection.prepareStatement(INBOX_SELECT_SQL)) {
@@ -317,9 +352,9 @@ public final class JdbcEventDeliveryStore implements OutboxRelay.Store {
         });
     }
 
-    private void applyInbox(InboxLease lease, InboxMessage message, Instant now,
+    private InboxOutcome applyInbox(InboxLease lease, InboxMessage message, Instant now,
             TransactionalConsumer consumer) {
-        transaction(message.tenantId(), "cannot apply consumer inbox event", connection -> {
+        return transaction(message.tenantId(), "cannot apply consumer inbox event", connection -> {
             try (PreparedStatement select = connection.prepareStatement(INBOX_PROCESS_SELECT_SQL)) {
                 bindInboxKey(select, message, lease.consumerName());
                 try (ResultSet row = select.executeQuery()) {
@@ -334,7 +369,12 @@ public final class JdbcEventDeliveryStore implements OutboxRelay.Store {
                     }
                 }
             }
-            consumer.handle(connection, message);
+            InboxOutcome effect = Objects.requireNonNull(consumer.handle(connection, message),
+                    "transactional consumer outcome");
+            if (effect == InboxOutcome.BUSY) {
+                throw new IllegalArgumentException(
+                        "transactional consumer cannot return BUSY after claiming a lease");
+            }
             try (PreparedStatement update = connection.prepareStatement("""
                     UPDATE consumer_event_inbox
                        SET state = 'processed', processed_at = ?::timestamptz,
@@ -354,7 +394,7 @@ public final class JdbcEventDeliveryStore implements OutboxRelay.Store {
                 requireUpdated(update.executeUpdate(),
                         "stale fencing token cannot mark inbox processed");
             }
-            return null;
+            return effect;
         });
     }
 
@@ -424,7 +464,7 @@ public final class JdbcEventDeliveryStore implements OutboxRelay.Store {
         }
     }
 
-    static String sha256(String payload) {
+    public static String sha256(String payload) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(payload.getBytes(StandardCharsets.UTF_8)));

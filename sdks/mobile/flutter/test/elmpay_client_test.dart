@@ -25,6 +25,16 @@ final class Attestation implements DeviceAttestationProvider {
   }
 }
 
+final class TerminalTransport implements Transport {
+  var attempts = 0;
+
+  @override
+  Future<Response> send(Request request) async {
+    attempts += 1;
+    return const Response(400, <int>[]);
+  }
+}
+
 final class Launcher implements PaymentMethodLauncher {
   final calls = <(String, Uri)>[];
 
@@ -68,5 +78,13 @@ void main() {
     expect(launcher.calls.single.$1, 'wechat_app');
     expect(() => client.launchPaymentMethod('card',
       Uri.parse('http://evil.example/pay'), launcher), throwsStateError);
+  });
+
+  test('terminal client error is never retried', () async {
+    final transport = TerminalTransport();
+    final client = ElmPayClient(Uri.parse('https://api.example/'), 'placeholder-token',
+      project, transport, maximumAttempts: 5);
+    await expectLater(client.retrieveSession('session-1'), throwsStateError);
+    expect(transport.attempts, 1);
   });
 }

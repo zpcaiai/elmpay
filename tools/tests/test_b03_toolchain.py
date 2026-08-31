@@ -112,6 +112,18 @@ class ToolchainHappyPath(FixtureTestCase):
         self.assertIn('jsonOutput.set(layout.buildDirectory.file("reports/bom.json"))', text)
         self.assertIn("xmlOutput.unsetConvention()", text)
 
+    def test_worker_runtime_uses_governed_kafka_and_postgres_dependencies(self):
+        catalog = (REAL_ROOT / "gradle" / "libs.versions.toml").read_text(encoding="utf-8")
+        build = (REAL_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+        self.assertIn('kafka = { module = "org.apache.kafka:kafka-clients", '
+                      'version.ref = "kafka" }', catalog)
+        self.assertIn('project(":services:worker-scheduler")', build)
+        self.assertIn('mainClass.set("com.elmpay.scheduler.WorkerSchedulerApplication")', build)
+        self.assertIn('add("implementation", governedLibraries.findLibrary("kafka").get())',
+                      build)
+        self.assertIn('add("runtimeOnly", governedLibraries.findLibrary("postgresql-jdbc").get())',
+                      build)
+
     def test_only_declared_gradle_leaf_modules_can_emit_jars(self):
         text = (REAL_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
         catalog = self.fixture.read("governance/version-catalog.json")

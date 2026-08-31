@@ -9,10 +9,10 @@ import java.util.List;
 import java.util.Objects;
 
 /** Length-prefixed canonical hashing prevents delimiter ambiguity in audit data. */
-final class CanonicalDigest {
+public final class CanonicalDigest {
     private CanonicalDigest() { }
 
-    static String sha256(List<String> fields) {
+    public static String sha256(List<String> fields) {
         Objects.requireNonNull(fields, "fields");
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

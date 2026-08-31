@@ -81,6 +81,7 @@ def _validate(root: Path, budget: Budget) -> list[Problem]:
     events = _events(root)
     tables_by_owner = _tables(root)
     call_kinds = set(topology.get("call_kinds") or [])
+    external_dependencies = set(topology.get("external_dependencies") or [])
     tiers = set(topology.get("criticality_tiers") or [])
     runtimes = set(topology.get("runtime_kinds") or [])
 
@@ -88,7 +89,8 @@ def _validate(root: Path, budget: Budget) -> list[Problem]:
     seen: set = set()
     for index, service in enumerate(services):
         problems += _service(service, f"{where}#{index}", topology, modules, events,
-                             call_kinds, tiers, runtimes, seen, by_name, budget)
+                             call_kinds, external_dependencies, tiers, runtimes, seen,
+                             by_name, budget)
 
     for module, entry in sorted(modules.items()):
         if entry.get("layer") in ("service", "app"):
@@ -157,8 +159,8 @@ def _tables(root: Path) -> dict:
 
 
 def _service(service: Any, scope: str, topology: dict, modules: dict, events: dict,
-             call_kinds: set, tiers: set, runtimes: set, seen: set, by_name: dict,
-             budget: Budget) -> list[Problem]:
+             call_kinds: set, external_dependencies: set, tiers: set, runtimes: set,
+             seen: set, by_name: dict, budget: Budget) -> list[Problem]:
     problems: list[Problem] = []
     if not isinstance(service, dict):
         return [Problem("TOPO_SHAPE", scope, "each service must be an object", "NN-12")]
@@ -207,7 +209,7 @@ def _service(service: Any, scope: str, topology: dict, modules: dict, events: di
     tier = service.get("criticality")
     for index, dependency in enumerate(dependencies):
         problems += _dependency(dependency, f"{scope}[{index}]", service, tier, modules,
-                                call_kinds, request_budget)
+                                call_kinds, external_dependencies, request_budget)
 
     # Events: what a service says it publishes must be what the catalogue says.
     producers = events.get("producers") or {}
@@ -230,19 +232,21 @@ def _service(service: Any, scope: str, topology: dict, modules: dict, events: di
 
 
 def _dependency(dependency: Any, scope: str, service: dict, tier: str, modules: dict,
-                call_kinds: set, request_budget: int) -> list[Problem]:
+                call_kinds: set, external_dependencies: set, request_budget: int) -> list[Problem]:
     problems: list[Problem] = []
     if not isinstance(dependency, dict):
         return [Problem("TOPO_SHAPE", scope, "each dependency must be an object", "NN-12")]
 
     target = dependency.get("target")
-    problems += expect(target in modules, "TOPO_DEP_UNKNOWN", scope,
+    is_external = target in external_dependencies
+    problems += expect(target in modules or is_external, "TOPO_DEP_UNKNOWN", scope,
                        f"depends on '{target}', which is not a registered module", "NN-01")
-    declared = set((modules.get(service.get("module")) or {}).get("depends_on") or [])
-    problems += expect(target in declared, "TOPO_DEP_UNDECLARED", scope,
-                       f"'{service.get('module')}' calls '{target}' at runtime but the module "
-                       f"registry does not list it as a dependency; a runtime edge the build "
-                       f"does not know about cannot be enforced", "NN-01")
+    if not is_external:
+        declared = set((modules.get(service.get("module")) or {}).get("depends_on") or [])
+        problems += expect(target in declared, "TOPO_DEP_UNDECLARED", scope,
+                           f"'{service.get('module')}' calls '{target}' at runtime but the module "
+                           f"registry does not list it as a dependency; a runtime edge the build "
+                           f"does not know about cannot be enforced", "NN-01")
 
     kind = dependency.get("kind")
     problems += expect(kind in call_kinds, "TOPO_CALL_KIND", scope,

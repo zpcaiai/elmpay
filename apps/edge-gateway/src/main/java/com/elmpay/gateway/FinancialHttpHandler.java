@@ -9,6 +9,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,10 +21,10 @@ import java.util.UUID;
 /** Authenticated B75-B79 statement, settlement, exception and signed-report endpoint. */
 public final class FinancialHttpHandler implements HttpHandler {
     private static final int MAX_BODY_BYTES = 14_000_000;
-    private final ApiKeyAuthenticator authenticator;
+    private final ApiAuthenticator authenticator;
     private final Optional<FinancialOperationsService> financial;
 
-    public FinancialHttpHandler(ApiKeyAuthenticator authenticator,
+    public FinancialHttpHandler(ApiAuthenticator authenticator,
             Optional<FinancialOperationsService> financial) {
         this.authenticator = java.util.Objects.requireNonNull(authenticator, "authenticator");
         this.financial = java.util.Objects.requireNonNull(financial, "financial");
@@ -31,15 +32,17 @@ public final class FinancialHttpHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        String requestId = exchange.getRequestHeaders().getFirst("X-Request-Id");
+        String requestId = null;
         try {
+            StrictJsonHttpRequest.validateEnvelope(exchange);
+            requestId = StrictJsonHttpRequest.optionalHeader(exchange, "X-Request-Id", 128);
             if (!validRequestId(requestId) || !validTraceparent(
-                    exchange.getRequestHeaders().getFirst("traceparent"))) {
+                    StrictJsonHttpRequest.optionalHeader(exchange, "traceparent", 128))) {
                 error(exchange, 400, "invalid_request",
                         "X-Request-Id and a valid traceparent are required", safe(requestId));
                 return;
             }
-            ApiPrincipal principal = authenticator.authenticate(exchange.getRequestHeaders())
+            ApiPrincipal principal = authenticator.authenticate(exchange)
                     .orElse(null);
             if (principal == null) {
                 error(exchange, 401, "unauthenticated", "valid bearer credentials are required",
@@ -74,6 +77,7 @@ public final class FinancialHttpHandler implements HttpHandler {
         Map<String, String> query = query(exchange.getRequestURI().getRawQuery());
         if ("POST".equals(exchange.getRequestMethod())
                 && "/v1/finance/statements".equals(path)) {
+            requireOnlyQueryFields(query, Set.of());
             requireScope(principal, ApiPrincipal.FINANCIAL_WRITE);
             Map<String, Object> body = body(exchange, Set.of("kind", "source", "parser_version",
                     "content_base64"));
@@ -83,17 +87,22 @@ public final class FinancialHttpHandler implements HttpHandler {
             } catch (IllegalArgumentException invalid) {
                 throw new IllegalArgumentException("statement body is not base64", invalid);
             }
-            StatementIngestionService.Ingested value = service.ingestStatement(
-                    principal.tenantId().toString(), StatementIngestionService.Kind.valueOf(
-                            string(body, "kind").toUpperCase(java.util.Locale.ROOT)),
-                    string(body, "source"), string(body, "parser_version"), raw);
-            response(exchange, value.duplicate() ? 200 : 201, Map.of("id", value.id(),
-                    "kind", value.kind(), "source", value.source(), "sha256", value.digest(),
-                    "parser_version", value.parserVersion(), "row_count", value.rows().size(),
-                    "duplicate", value.duplicate()), requestId);
+            try {
+                StatementIngestionService.Ingested value = service.ingestStatement(
+                        principal.tenantId().toString(), StatementIngestionService.Kind.valueOf(
+                                string(body, "kind").toUpperCase(java.util.Locale.ROOT)),
+                        string(body, "source"), string(body, "parser_version"), raw);
+                response(exchange, value.duplicate() ? 200 : 201, Map.of("id", value.id(),
+                        "kind", value.kind(), "source", value.source(), "sha256", value.digest(),
+                        "parser_version", value.parserVersion(), "row_count", value.rows().size(),
+                        "duplicate", value.duplicate()), requestId);
+            } finally {
+                Arrays.fill(raw, (byte) 0);
+            }
             return;
         }
         if ("GET".equals(exchange.getRequestMethod()) && "/v1/finance/reports".equals(path)) {
+            requireOnlyQueryFields(query, Set.of("from", "to"));
             requireScope(principal, ApiPrincipal.FINANCIAL_READ);
             FinancialOperationsService.SignedReport value = service.generateReport(
                     principal.tenantId().toString(), Instant.parse(required(query, "from")),
@@ -115,6 +124,7 @@ public final class FinancialHttpHandler implements HttpHandler {
         }
         if ("GET".equals(exchange.getRequestMethod())
                 && "/v1/finance/settlements".equals(path)) {
+            requireOnlyQueryFields(query, Set.of("from", "to", "limit"));
             requireScope(principal, ApiPrincipal.FINANCIAL_READ);
             List<Map<String, Object>> values = new ArrayList<>();
             service.settlements(principal.tenantId().toString(),
@@ -129,6 +139,7 @@ public final class FinancialHttpHandler implements HttpHandler {
         }
         if ("GET".equals(exchange.getRequestMethod())
                 && "/v1/finance/exceptions".equals(path)) {
+            requireOnlyQueryFields(query, Set.of("limit"));
             requireScope(principal, ApiPrincipal.FINANCIAL_READ);
             List<Map<String, Object>> values = new ArrayList<>();
             service.exceptions(principal.tenantId().toString(), limit(query)).forEach(item -> {
@@ -148,6 +159,7 @@ public final class FinancialHttpHandler implements HttpHandler {
         }
         if ("POST".equals(exchange.getRequestMethod())
                 && path.startsWith("/v1/finance/exceptions/")) {
+            requireOnlyQueryFields(query, Set.of());
             requireScope(principal, ApiPrincipal.FINANCIAL_WRITE);
             String[] parts = path.substring("/v1/finance/exceptions/".length()).split("/", -1);
             if (parts.length != 2) {
@@ -187,34 +199,44 @@ public final class FinancialHttpHandler implements HttpHandler {
 
     private static Map<String, Object> body(HttpExchange exchange, Set<String> allowed)
             throws IOException {
-        byte[] bytes = exchange.getRequestBody().readNBytes(MAX_BODY_BYTES + 1);
-        if (bytes.length > MAX_BODY_BYTES) {
-            throw new IllegalArgumentException("request body is too large");
-        }
-        Map<String, Object> value = Json.object(new String(bytes, StandardCharsets.UTF_8));
-        if (!allowed.containsAll(value.keySet())) {
-            throw new IllegalArgumentException("unknown request field");
-        }
-        return value;
+        return StrictJsonHttpRequest.body(exchange, MAX_BODY_BYTES, allowed);
     }
 
-    private static Map<String, String> query(String raw) {
+    static Map<String, String> query(String raw) {
         Map<String, String> values = new LinkedHashMap<>();
-        if (raw == null || raw.isBlank()) {
+        if (raw == null) {
             return values;
         }
-        for (String pair : raw.split("&")) {
-            String[] parts = pair.split("=", 2);
-            if (parts.length != 2) {
+        if (raw.isEmpty() || raw.indexOf('+') >= 0
+                || raw.chars().anyMatch(character -> character < 0x20
+                        || character == 0x7f)) {
+            throw new IllegalArgumentException("invalid query string");
+        }
+        for (String pair : raw.split("&", -1)) {
+            String[] parts = pair.split("=", -1);
+            if (parts.length != 2 || parts[0].isEmpty()
+                    || !parts[0].matches("[a-z][a-z0-9_]{0,31}")) {
                 throw new IllegalArgumentException("invalid query string");
             }
             String name = URLDecoder.decode(parts[0], StandardCharsets.UTF_8);
             String value = URLDecoder.decode(parts[1], StandardCharsets.UTF_8);
+            if (value.length() > 256 || value.indexOf('\ufffd') >= 0
+                    || value.chars().anyMatch(character -> character < 0x20
+                            || character == 0x7f || Character.isWhitespace(character))) {
+                throw new IllegalArgumentException("invalid query value");
+            }
             if (values.putIfAbsent(name, value) != null) {
                 throw new IllegalArgumentException("duplicate query field");
             }
         }
         return values;
+    }
+
+    static void requireOnlyQueryFields(Map<String, String> query,
+            Set<String> allowed) {
+        if (!allowed.containsAll(query.keySet())) {
+            throw new IllegalArgumentException("unknown query field");
+        }
     }
 
     private static String string(Map<String, Object> value, String name) {
@@ -271,7 +293,7 @@ public final class FinancialHttpHandler implements HttpHandler {
     }
 
     private static void requireProject(HttpExchange exchange, ApiPrincipal principal) {
-        String value = exchange.getRequestHeaders().getFirst("X-Project-Id");
+        String value = StrictJsonHttpRequest.requiredHeader(exchange, "X-Project-Id", 64);
         if (value == null || !principal.projectId().equals(UUID.fromString(value))) {
             throw new AccessDeniedException("request project does not match the authenticated principal");
         }

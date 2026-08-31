@@ -16,6 +16,10 @@
     "worker",
     "app"
   ],
+  "external_dependencies": [
+    "risk-signal",
+    "risk-model"
+  ],
   "policy": {
     "max_sync_depth": 3,
     "sync_budget_rule": "调用方的预算必须覆盖它所有同步依赖的超时之和；否则超时设置只是装饰，真正生效的是调用方自己先被上游掐断。",
@@ -80,7 +84,7 @@
       ],
       "publishes": [],
       "consumes": [],
-      "notes": "网关不持有任何支付事实，也不写库；它只做鉴权、限流与路由。"
+      "notes": "网关不拥有支付、风控或发布领域事实；它只写自身拥有的鉴权重放、幂等、审计和 admin_domain_command 信封/回执查询状态。领域命令效果必须由所属服务在本地事务中应用，网关不得跨所有者直写。"
     },
     {
       "name": "payment-core",
@@ -279,11 +283,11 @@
       ],
       "dependencies": [
         {
-          "target": "merchant-config",
+          "target": "risk-signal",
           "kind": "sync",
-          "reason": "需要租户级风控规则",
-          "timeout_ms": 150,
-          "retries": 1,
+          "reason": "读取与租户、项目、请求摘要绑定且带版本/有效期的实时信号快照",
+          "timeout_ms": 100,
+          "retries": 0,
           "circuit_breaker": {
             "error_rate_threshold_pct": 50,
             "min_requests": 20,
@@ -294,11 +298,34 @@
             "max_concurrent": 100,
             "queue": 0
           },
-          "degradation": "使用缓存的风控规则，缓存过期则返回拒绝",
+          "degradation": "返回可解释 REVIEW，禁止静默批准",
+          "failure_mode": "fail_closed"
+        },
+        {
+          "target": "risk-model",
+          "kind": "sync",
+          "reason": "对已绑定信号快照执行有签名版本和内容摘要的在线模型评分",
+          "timeout_ms": 100,
+          "retries": 0,
+          "circuit_breaker": {
+            "error_rate_threshold_pct": 50,
+            "min_requests": 20,
+            "open_seconds": 30,
+            "half_open_probes": 3
+          },
+          "bulkhead": {
+            "max_concurrent": 100,
+            "queue": 0
+          },
+          "degradation": "返回可解释 REVIEW，禁止静默批准",
           "failure_mode": "fail_closed"
         }
       ],
-      "publishes": [],
+      "publishes": [
+      ],
+      "internal_publishes": [
+        "risk.decision.v1"
+      ],
       "consumes": [
         "payment_intent.authorized",
         "payment_intent.failed",
@@ -307,7 +334,7 @@
         "reconciliation.exception_opened",
         "payment_attempt.resolved"
       ],
-      "notes": "风控在支付关键路径上，所以它的预算只有 300ms，且自身依赖必须更快。"
+      "notes": "风控在支付关键路径上，规则与决策持久化由自身表拥有；edge 对 nonce 与 decision 共用单个 300ms 单调时钟截止时间，禁止每跳重启预算；signal/model 仅通过 TLS 1.3 mTLS 精确服务出口访问且各限 100ms，任一依赖不确定时返回可解释 REVIEW。"
     },
     {
       "name": "merchant-config",
@@ -610,9 +637,9 @@
       ],
       "dependencies": [
         {
-          "target": "payment-core",
+          "target": "edge-gateway",
           "kind": "sync",
-          "reason": "调用支付 API；网络上经由 edge-gateway 转发，但依赖的是支付核心的契约",
+          "reason": "通过 edge-gateway 调用支付核心 API；浏览器状态始终不是支付事实",
           "timeout_ms": 3000,
           "retries": 0,
           "circuit_breaker": {
@@ -648,9 +675,9 @@
       ],
       "dependencies": [
         {
-          "target": "payment-core",
+          "target": "edge-gateway",
           "kind": "sync",
-          "reason": "调用支付 API；网络上经由 edge-gateway 转发，但依赖的是支付核心的契约",
+          "reason": "通过 mTLS Admin Action API 提交已审批命令信封并查询领域效果回执",
           "timeout_ms": 4500,
           "retries": 0,
           "circuit_breaker": {
@@ -663,13 +690,13 @@
             "max_concurrent": 50,
             "queue": 0
           },
-          "degradation": "只读降级：展示缓存数据并禁用所有写操作",
+          "degradation": "只读降级；写操作保持 UNKNOWN/PENDING，禁止宣称领域效果已完成",
           "failure_mode": "fail_closed"
         }
       ],
       "publishes": [],
       "consumes": [],
-      "notes": "后台不得绕过公开领域服务直接改支付状态（FF-02）。（流量物理上经过 edge-gateway，但依赖的是 payment-core 的 API 契约。）"
+      "notes": "后台不得绕过领域所有者直接改支付、退款、风控或发布状态（FF-02）。Admin Action API 只创建摘要绑定的命令信封；领域消费者必须在效果、回执和 APPLIED 状态同一事务中提交。"
     }
   ]
 }

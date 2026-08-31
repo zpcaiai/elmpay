@@ -1,45 +1,31 @@
 package com.elmpay.risk;
 
-import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeMap;
 
-/** Immutable, tenant-scoped input to a risk decision. */
-public record RiskRequest(
-        String tenantId,
-        String requestId,
-        BigDecimal amount,
-        String currency,
-        Instant occurredAt,
-        Map<String, String> attributes) {
-
+/** Internal request with raw subjects removed before durable evaluation. */
+public record RiskRequest(String tenantId, String projectId, String requestId,
+        String requestDigest, RiskOperation operation, String subjectDigest, long amountMinor,
+        String currency, Instant occurredAt, Map<String, String> attributes) {
     public RiskRequest {
-        requireText(tenantId, "tenantId");
-        requireText(requestId, "requestId");
-        Objects.requireNonNull(amount, "amount");
-        if (amount.signum() < 0) {
-            throw new IllegalArgumentException("amount must be non-negative");
-        }
-        if (currency == null || !currency.matches("[A-Z]{3}")) {
-            throw new IllegalArgumentException("currency must be ISO-4217 uppercase alpha-3");
-        }
+        Objects.requireNonNull(tenantId, "tenantId");
+        Objects.requireNonNull(projectId, "projectId");
+        Objects.requireNonNull(requestId, "requestId");
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(currency, "currency");
         Objects.requireNonNull(occurredAt, "occurredAt");
-        Objects.requireNonNull(attributes, "attributes");
-        var copy = new TreeMap<String, String>();
-        attributes.forEach((key, value) -> {
-            requireText(key, "attribute key");
-            requireText(value, "attribute value");
-            copy.put(key, value);
-        });
-        attributes = Collections.unmodifiableMap(copy);
+        attributes = Map.copyOf(attributes);
+        if (!requestDigest.matches("[0-9a-f]{64}") || !subjectDigest.matches("[0-9a-f]{64}")
+                || amountMinor < 0) {
+            throw new IllegalArgumentException("risk request digest or amount is invalid");
+        }
     }
 
-    private static void requireText(String value, String field) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(field + " must not be blank");
-        }
+    public static RiskRequest from(RiskEvaluationRequest request) {
+        Objects.requireNonNull(request, "request");
+        return new RiskRequest(request.tenantId(), request.projectId(), request.requestId(),
+                request.requestDigest(), request.operation(), request.subjectDigest(),
+                request.amountMinor(), request.currency(), request.occurredAt(), request.attributes());
     }
 }

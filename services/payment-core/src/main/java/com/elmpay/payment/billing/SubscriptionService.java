@@ -1,15 +1,19 @@
 package com.elmpay.payment.billing;
 
+import com.elmpay.provider.VerifiedProviderEvidence;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Plans, subscriptions, idempotent usage and renewal state transitions. */
 public final class SubscriptionService {
     public enum Status { TRIALING, ACTIVE, PAST_DUE, PAUSED, CANCELED }
+    public enum ProviderResult { SUCCEEDED, FAILED, UNKNOWN }
     public record Plan(String id, String tenantId, long unitAmountMinor, String currency,
                        Duration billingPeriod, Duration trialPeriod, boolean metered) {}
     public record Subscription(String id, String tenantId, String customerId, String planId, String mandateId,
@@ -20,7 +24,9 @@ public final class SubscriptionService {
     private final Map<String, Subscription> subscriptions = new ConcurrentHashMap<>();
     private final Map<String, Long> usageInbox = new ConcurrentHashMap<>();
 
-    public SubscriptionService(Clock clock) { this.clock = java.util.Objects.requireNonNull(clock); }
+    private static final String RENEWAL_EVIDENCE_TYPE = "PROVIDER_RENEWAL_RESULT";
+
+    public SubscriptionService(Clock clock) { this.clock = Objects.requireNonNull(clock); }
 
     public Plan addPlan(Plan plan) {
         if (plan.unitAmountMinor() < 0 || plan.billingPeriod().isZero() || plan.billingPeriod().isNegative())
@@ -53,16 +59,24 @@ public final class SubscriptionService {
         return updated;
     }
 
-    public Subscription renewalResult(String tenantId, String subscriptionId, boolean verifiedSuccess, boolean definitiveFailure) {
+    public Subscription renewalResult(String tenantId, String subscriptionId,
+            ProviderResult result, String provider, String providerResultDigest,
+            VerifiedProviderEvidence providerEvidence) {
+        Objects.requireNonNull(result, "result");
+        require(provider, "provider");
+        String digest = providerDigest(providerResultDigest);
         return update(tenantId, subscriptionId, value -> {
-            if (verifiedSuccess) {
+            requireEvidence(providerEvidence, RENEWAL_EVIDENCE_TYPE,
+                    evidenceFields(tenantId, provider, subscriptionId, result, digest));
+            if (result == ProviderResult.SUCCEEDED) {
                 Plan plan = requirePlan(tenantId, value.planId());
                 Instant start = value.periodEnd();
                 return new Subscription(value.id(), value.tenantId(), value.customerId(), value.planId(), value.mandateId(),
                         Status.ACTIVE, start, start.plus(plan.billingPeriod()), 0L, value.cancelAt(), value.version() + 1);
             }
-            if (definitiveFailure) return copy(value, Status.PAST_DUE, value.usage(), value.cancelAt());
-            return value; // unknown outcomes never infer failure or retry a charge here
+            if (result == ProviderResult.FAILED)
+                return copy(value, Status.PAST_DUE, value.usage(), value.cancelAt());
+            return value; // UNKNOWN never advances a period or infers a definitive failure.
         });
     }
 
@@ -97,6 +111,34 @@ public final class SubscriptionService {
     private static Subscription copy(Subscription value, Status status, long usage, Instant cancelAt) {
         return new Subscription(value.id(), value.tenantId(), value.customerId(), value.planId(), value.mandateId(),
                 status, value.periodStart(), value.periodEnd(), usage, cancelAt, value.version() + 1);
+    }
+    private static Map<String, String> evidenceFields(String tenantId, String provider,
+            String entityId, ProviderResult result, String providerResultDigest) {
+        LinkedHashMap<String, String> fields = new LinkedHashMap<>();
+        fields.put("tenantId", tenantId);
+        fields.put("provider", provider);
+        fields.put("entityId", entityId);
+        fields.put("result", result.name().toLowerCase(java.util.Locale.ROOT));
+        fields.put("providerResultDigest", providerResultDigest);
+        return Map.copyOf(fields);
+    }
+    private static void requireEvidence(VerifiedProviderEvidence evidence, String evidenceType,
+            Map<String, String> expectedFields) {
+        if (evidence == null || !evidenceType.equals(evidence.evidenceType())
+                || evidence.fields().size() != expectedFields.size())
+            throw new SecurityException("verified provider evidence is required");
+        for (Map.Entry<String, String> expected : expectedFields.entrySet()) {
+            if (!expected.getValue().equals(evidence.fields().get(expected.getKey())))
+                throw new SecurityException("provider evidence binding mismatch");
+        }
+    }
+    private static String providerDigest(String value) {
+        if (value == null || !value.matches("[0-9a-f]{64}"))
+            throw new IllegalArgumentException("provider result digest must be lowercase SHA-256 hex");
+        return value;
+    }
+    private static void require(String value, String field) {
+        if (value == null || value.isBlank()) throw new IllegalArgumentException(field + " is required");
     }
     private static String key(String tenant, String id) { return tenant + "\u0000" + id; }
 }

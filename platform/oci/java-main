@@ -1,0 +1,40 @@
+#!/bin/sh
+set -eu
+
+JAVA_EXECUTABLE='/opt/java/openjdk/bin/java'
+APPLICATION_CLASSPATH='/opt/elmpay/app/lib/*'
+DEFAULT_MAIN_CLASS_FILE='/opt/elmpay/etc/default-main-class'
+ALLOWED_MAIN_CLASSES_FILE='/opt/elmpay/etc/allowed-main-classes'
+
+if [ ! -x "${JAVA_EXECUTABLE}" ]; then
+  echo 'required Java runtime is unavailable' >&2
+  exit 126
+fi
+if [ ! -d /opt/elmpay/app/lib ]; then
+  echo 'immutable application classpath is unavailable' >&2
+  exit 126
+fi
+if [ ! -f "${DEFAULT_MAIN_CLASS_FILE}" ] || [ -L "${DEFAULT_MAIN_CLASS_FILE}" ] \
+    || [ ! -f "${ALLOWED_MAIN_CLASSES_FILE}" ] || [ -L "${ALLOWED_MAIN_CLASSES_FILE}" ]; then
+  echo 'immutable Java main-class policy is unavailable' >&2
+  exit 126
+fi
+
+IFS= read -r main_class < "${DEFAULT_MAIN_CLASS_FILE}" || true
+if [ "$#" -gt 0 ]; then
+  main_class="$1"
+  shift
+fi
+allowed=false
+while IFS= read -r allowed_main_class || [ -n "${allowed_main_class}" ]; do
+  if [ "${main_class}" = "${allowed_main_class}" ]; then
+    allowed=true
+    break
+  fi
+done < "${ALLOWED_MAIN_CLASSES_FILE}"
+if [ "${allowed}" != true ]; then
+  echo 'Java main class is not in the immutable image allowlist' >&2
+  exit 64
+fi
+
+exec "${JAVA_EXECUTABLE}" -cp "${APPLICATION_CLASSPATH}" "${main_class}" "$@"

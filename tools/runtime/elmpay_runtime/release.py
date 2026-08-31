@@ -30,6 +30,15 @@ def release_binding(manifest: Mapping[str, Any]) -> str:
             "artifactDigest": require_text(
                 manifest.get("artifactDigest"), "artifactDigest"
             ),
+            "productImageManifestDigest": require_text(
+                manifest.get("productImageManifestDigest"), "productImageManifestDigest"
+            ),
+            "imageAdmissionPolicyDigest": require_text(
+                manifest.get("imageAdmissionPolicyDigest"), "imageAdmissionPolicyDigest"
+            ),
+            "productImageIndexDigest": require_text(
+                manifest.get("productImageIndexDigest"), "productImageIndexDigest"
+            ),
             "images": dict(sorted(images.items())),
         }
     )
@@ -71,9 +80,34 @@ def verify_release(
         reasons.append("commit_sha_invalid")
     if not isinstance(artifact, str) or not DIGEST_PATTERN.fullmatch(artifact):
         reasons.append("artifact_digest_invalid")
-    for name, image in require_mapping(manifest.get("images"), "images").items():
+    images = require_mapping(manifest.get("images"), "images")
+    for name, image in images.items():
         if not isinstance(name, str) or not IMAGE_PATTERN.fullmatch(str(image)):
             reasons.append(f"image_digest_invalid:{name}")
+    required_images = gate_policy.get("requiredProductImages")
+    if not isinstance(required_images, list) or not required_images \
+            or any(not isinstance(name, str) or not name for name in required_images) \
+            or len(set(required_images)) != len(required_images):
+        reasons.append("gate_policy_invalid:requiredProductImages")
+    elif set(images) != set(required_images):
+        reasons.append("product_image_inventory_mismatch")
+    for manifest_field, policy_field in (
+        ("productImageManifestDigest", "productImageManifestDigest"),
+        ("imageAdmissionPolicyDigest", "imageAdmissionPolicyDigest"),
+    ):
+        value = manifest.get(manifest_field)
+        expected = gate_policy.get(policy_field)
+        if not isinstance(value, str) or DIGEST_PATTERN.fullmatch(value) is None:
+            reasons.append(f"{manifest_field}_invalid")
+        elif not isinstance(expected, str) or DIGEST_PATTERN.fullmatch(expected) is None:
+            reasons.append(f"gate_policy_invalid:{policy_field}")
+        elif value != expected:
+            reasons.append(f"{manifest_field}_mismatch")
+    product_index = manifest.get("productImageIndexDigest")
+    if gate_policy.get("productImageIndexRequired") is not True:
+        reasons.append("gate_policy_invalid:productImageIndexRequired")
+    if not isinstance(product_index, str) or DIGEST_PATTERN.fullmatch(product_index) is None:
+        reasons.append("productImageIndexDigest_invalid")
     try:
         expires_at = parse_instant(manifest.get("expiresAt"), "expiresAt")
         generated_at = parse_instant(manifest.get("generatedAt"), "generatedAt")

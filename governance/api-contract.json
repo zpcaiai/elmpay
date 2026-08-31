@@ -51,11 +51,23 @@
   },
   "auth_schemes": [
     {
-      "id": "api_key",
-      "description": "租户 API 密钥，经 HTTP 签名后使用"
+      "id": "oauth2_mtls",
+      "type": "oauth2_mtls",
+      "description": "短期 OAuth2 at+jwt access token，必须与入口校验的 mTLS 客户端证书绑定",
+      "token_url": "https://identity.elmpay.example/oauth2/token",
+      "token_type": "at+jwt",
+      "holder_binding": "mtls-x5t#S256",
+      "scopes": {
+        "payments.read": "读取当前租户、项目和商户范围内的支付事实",
+        "payments.write": "创建或推进当前租户、项目和商户范围内的支付操作",
+        "financial.read": "读取当前租户范围内的财务视图",
+        "financial.write": "执行受控的当前租户财务操作"
+      }
     },
     {
       "id": "provider_signature",
+      "type": "provider_signature",
+      "header": "X-Payment-Signature",
       "description": "渠道 HMAC 签名 + 时间戳 + 重放窗口"
     }
   ],
@@ -74,7 +86,7 @@
       "retryable": false,
       "category": "auth",
       "safe_message": "凭据缺失或无效。",
-      "remedy": "使用有效的 API 密钥重新签名请求"
+      "remedy": "使用有效的短期 OAuth2 access token，并完成 mTLS 持有者绑定"
     },
     {
       "code": "permission_denied",
@@ -90,7 +102,7 @@
       "retryable": false,
       "category": "auth",
       "safe_message": "该对象不属于当前租户。",
-      "remedy": "确认使用了正确租户的密钥；不要跨租户引用对象 ID"
+      "remedy": "确认 access token 的租户、项目与商户声明；不要跨租户引用对象 ID"
     },
     {
       "code": "resource_not_found",
@@ -187,7 +199,8 @@
       "method": "POST",
       "path": "/v1/payment_intents",
       "summary": "创建一次付款意图",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.write"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -229,7 +242,8 @@
       "method": "GET",
       "path": "/v1/payment_intents/{payment_intent_id}",
       "summary": "读取付款意图",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.read"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -254,7 +268,8 @@
       "method": "GET",
       "path": "/v1/payment_intents",
       "summary": "分页列出付款意图",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.read"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -278,7 +293,8 @@
       "method": "POST",
       "path": "/v1/payment_intents/{payment_intent_id}/capture",
       "summary": "对已授权的付款意图发起捕获",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.write"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -304,7 +320,8 @@
       "method": "POST",
       "path": "/v1/payment_intents/{payment_intent_id}/cancel",
       "summary": "取消尚未授权的付款意图",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.write"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -332,7 +349,8 @@
       "method": "POST",
       "path": "/v1/payment_intents/{payment_intent_id}/void",
       "summary": "撤销已授权但未捕获的额度",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.write"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -361,7 +379,8 @@
       "method": "POST",
       "path": "/v1/payment_intents/{payment_intent_id}/close",
       "summary": "关闭部分捕获并释放剩余授权额度",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.write"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -387,7 +406,8 @@
       "method": "POST",
       "path": "/v1/refunds",
       "summary": "发起退款",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.write"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -421,7 +441,8 @@
       "method": "POST",
       "path": "/v1/refunds/{refund_id}/cancel",
       "summary": "撤回尚未提交渠道的退款",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.write"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -449,7 +470,8 @@
       "method": "GET",
       "path": "/v1/refunds/{refund_id}",
       "summary": "读取退款",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.read"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -466,7 +488,8 @@
       "method": "GET",
       "path": "/v1/refunds",
       "summary": "分页列出退款",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.read"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -490,7 +513,8 @@
       "method": "GET",
       "path": "/v1/disputes/{dispute_id}",
       "summary": "读取争议",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.read"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -507,7 +531,8 @@
       "method": "GET",
       "path": "/v1/disputes",
       "summary": "分页列出争议",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.read"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -531,7 +556,8 @@
       "method": "POST",
       "path": "/v1/disputes/{dispute_id}/evidence",
       "summary": "提交争议举证材料",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.write"],
       "actor": "merchant",
       "errors": [
         "invalid_request",
@@ -559,7 +585,8 @@
       "method": "POST",
       "path": "/v1/subscriptions/{subscription_id}/cancel",
       "summary": "取消订阅",
-      "auth": "api_key",
+      "auth": "oauth2_mtls",
+      "required_scopes": ["payments.write"],
       "actor": "customer",
       "errors": [
         "invalid_request",

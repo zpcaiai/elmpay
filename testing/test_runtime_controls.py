@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -20,7 +21,10 @@ from elmpay_runtime.compliance import (  # noqa: E402
     evaluate_vendor,
     evaluate_vulnerability_report,
 )
-from elmpay_runtime.kubernetes import render_workloads  # noqa: E402
+from elmpay_runtime.kubernetes import (  # noqa: E402
+    render_workloads,
+    validate_workload_sources,
+)
 from elmpay_runtime.release import (  # noqa: E402
     release_binding,
     verify_release,
@@ -73,17 +77,76 @@ class KubernetesControlTest(unittest.TestCase):
             item["name"]: f"registry.example/{item['name']}@sha256:" + "a" * 64
             for item in self.policy["services"]
         }
-        images["risk-engine"] = "registry.example/risk-engine:latest"
+        images["edge-gateway"] = "registry.example/edge-gateway:latest"
         with self.assertRaises(ValidationError):
             render_workloads(self.policy, images)
+
+    def test_inventory_contains_only_real_entrypoints_with_declared_probe_handlers(self) -> None:
+        self.assertEqual(
+            {"edge-gateway", "checkout-web", "admin-web", "worker-scheduler",
+             "webhook-processor", "risk-engine"},
+            {item["name"] for item in self.policy["services"]},
+        )
+        validate_workload_sources(ROOT, self.policy)
+
+        missing_main = deepcopy(self.policy)
+        missing_main["services"][0]["runtime"]["entrypoint"] = (
+            "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentHttpHandler.java"
+        )
+        with self.assertRaises(ValidationError):
+            validate_workload_sources(ROOT, missing_main)
+
+        missing_probe = deepcopy(self.policy)
+        missing_probe["services"][1]["healthProbes"]["readiness"] = "/health/configured"
+        with self.assertRaises(ValidationError):
+            validate_workload_sources(ROOT, missing_probe)
+
+        no_production_mode = deepcopy(self.policy)
+        no_production_mode["services"][0]["fixedEnvironment"] = {}
+        images = {
+            item["name"]: f"registry.example/{item['name']}@sha256:" + "a" * 64
+            for item in no_production_mode["services"]
+        }
+        with self.assertRaises(ValidationError):
+            render_workloads(no_production_mode, images)
+
+        unsupported_mode = deepcopy(self.policy)
+        checkout = next(item for item in unsupported_mode["services"]
+                        if item["name"] == "checkout-web")
+        checkout["runtime"]["modeEnvironment"] = "LD_PRELOAD"
+        checkout["runtime"]["modeValue"] = "/tmp/attacker.so"
+        checkout["fixedEnvironment"]["LD_PRELOAD"] = "/tmp/attacker.so"
+        with self.assertRaises(ValidationError):
+            render_workloads(unsupported_mode, images)
+
+        incomplete_mode = deepcopy(self.policy)
+        checkout = next(item for item in incomplete_mode["services"]
+                        if item["name"] == "checkout-web")
+        checkout["runtime"]["modeEnvironment"] = "ADMIN_RUNTIME_MODE"
+        with self.assertRaises(ValidationError):
+            render_workloads(incomplete_mode, images)
 
     def test_renderer_applies_hardened_ha_workloads(self) -> None:
         rendered = render_workloads(self.policy, {
             item["name"]: f"registry.example/{item['name']}@sha256:" + "a" * 64
             for item in self.policy["services"]
         })
-        self.assertEqual(len(self.policy["services"]), len(rendered["items"]))
-        for deployment in rendered["items"]:
+        deployments = [item for item in rendered["items"] if item["kind"] == "Deployment"]
+        config_maps = [item for item in rendered["items"] if item["kind"] == "ConfigMap"]
+        self.assertEqual(len(self.policy["services"]), len(deployments))
+        self.assertEqual(
+            {
+                service["configuration"]["configMap"]
+                for service in [*self.policy["services"], *self.policy.get("jobs", []),
+                                *self.policy.get("cronJobs", [])]
+                if service["configuration"].get("configMapData")
+            },
+            {item["metadata"]["name"] for item in config_maps},
+        )
+        self.assertTrue(all(item["immutable"] for item in config_maps))
+        self.assertTrue(all("ELMPAY_DATABASE_PASSWORD_FILE" not in item["data"]
+                            for item in config_maps))
+        for deployment in deployments:
             self.assertGreaterEqual(deployment["spec"]["replicas"], 3)
             pod = deployment["spec"]["template"]["spec"]
             container = pod["containers"][0]
@@ -91,6 +154,321 @@ class KubernetesControlTest(unittest.TestCase):
             self.assertTrue(container["securityContext"]["readOnlyRootFilesystem"])
             self.assertEqual(["ALL"], container["securityContext"]["capabilities"]["drop"])
             self.assertEqual(2, len(pod["topologySpreadConstraints"]))
+            self.assertEqual(
+                {"/health/startup", "/health/live", "/health/ready"},
+                {
+                    container["startupProbe"]["httpGet"]["path"],
+                    container["livenessProbe"]["httpGet"]["path"],
+                    container["readinessProbe"]["httpGet"]["path"],
+                },
+            )
+            self.assertNotIn("envFrom", container)
+            fixed = {item["name"]: item.get("value") for item in container["env"]}
+            service_policy = next(
+                item for item in self.policy["services"]
+                if item["name"] == deployment["metadata"]["name"]
+            )
+            configuration = service_policy["configuration"]
+            expected_config_keys = set(
+                configuration.get("configMapData", {})
+                or configuration.get("configMapKeys", [])
+            )
+            actual_config_refs = {
+                item["name"]: item.get("valueFrom", {}).get("configMapKeyRef")
+                for item in container["env"]
+                if "configMapKeyRef" in item.get("valueFrom", {})
+            }
+            self.assertEqual(expected_config_keys, set(actual_config_refs))
+            for key in expected_config_keys:
+                self.assertEqual(
+                    {
+                        "name": configuration["configMap"],
+                        "key": key,
+                        "optional": False,
+                    },
+                    actual_config_refs[key],
+                )
+            if deployment["metadata"]["name"] == "edge-gateway":
+                self.assertEqual("postgres", fixed["ELMPAY_RUNTIME_MODE"])
+                self.assertEqual(
+                    "https://risk-engine.elmpay.svc.cluster.local:8443/v1/risk/decisions",
+                    fixed["ELMPAY_RISK_ENDPOINT"],
+                )
+                self.assertEqual("300", fixed["ELMPAY_RISK_TIMEOUT_MILLISECONDS"])
+                self.assertEqual(
+                    [{"name": "https", "containerPort": 8443},
+                     {"name": "health", "containerPort": 8081}],
+                    container["ports"],
+                )
+                self.assertEqual(
+                    {
+                        "sidecar.istio.io/rewriteAppHTTPProbers": "false",
+                        "traffic.sidecar.istio.io/excludeInboundPorts": "8081",
+                    },
+                    deployment["spec"]["template"]["metadata"]["annotations"],
+                )
+                self.assertEqual(
+                    {"health"},
+                    {container[name]["httpGet"]["port"] for name in
+                     ("startupProbe", "livenessProbe", "readinessProbe")},
+                )
+                self.assertTrue(any(
+                    mount.get("mountPath") == "/var/run/secrets/elmpay/provider-tls"
+                    and mount.get("readOnly") is True
+                    for mount in container["volumeMounts"]
+                ))
+                self.assertTrue(any(
+                    mount.get("mountPath") == "/var/run/secrets/elmpay/gateway-mtls"
+                    and mount.get("readOnly") is True
+                    for mount in container["volumeMounts"]
+                ))
+            elif deployment["metadata"]["name"] == "checkout-web":
+                self.assertEqual("production", fixed["ELMPAY_CHECKOUT_WEB_MODE"])
+                self.assertEqual([{"name": "http", "containerPort": 8080}],
+                                 container["ports"])
+                self.assertEqual({}, actual_config_refs)
+                self.assertTrue(any(
+                    mount.get("mountPath") == "/var/run/secrets/elmpay/edge-client-mtls"
+                    and mount.get("readOnly") is True
+                    for mount in container["volumeMounts"]
+                ))
+            elif deployment["metadata"]["name"] == "admin-web":
+                self.assertEqual("production", fixed["ADMIN_RUNTIME_MODE"])
+                self.assertEqual([{"name": "https", "containerPort": 8443}],
+                                 container["ports"])
+                self.assertEqual(
+                    {"HTTPS"},
+                    {container[name]["httpGet"].get("scheme") for name in
+                     ("startupProbe", "livenessProbe", "readinessProbe")},
+                )
+                self.assertEqual(
+                    {
+                        "/var/run/secrets/elmpay/admin-idp",
+                        "/var/run/secrets/elmpay/admin-governance",
+                        "/var/run/secrets/elmpay/admin-server-tls",
+                        "/var/run/secrets/elmpay/admin-postgres",
+                        "/var/run/secrets/elmpay/admin-upstream-mtls",
+                    },
+                    {
+                        mount["mountPath"] for mount in container["volumeMounts"]
+                        if mount["name"] != "tmp"
+                    },
+                )
+            elif deployment["metadata"]["name"] == "risk-engine":
+                self.assertEqual("production", fixed["ELMPAY_RISK_MODE"])
+                self.assertEqual(
+                    [{"name": "https", "containerPort": 8443},
+                     {"name": "health", "containerPort": 9081}],
+                    container["ports"],
+                )
+                self.assertEqual(
+                    {"health"},
+                    {container[name]["httpGet"]["port"] for name in
+                     ("startupProbe", "livenessProbe", "readinessProbe")},
+                )
+                self.assertEqual(
+                    {
+                        "sidecar.istio.io/rewriteAppHTTPProbers": "false",
+                        "traffic.sidecar.istio.io/excludeInboundPorts": "9081",
+                    },
+                    deployment["spec"]["template"]["metadata"]["annotations"],
+                )
+                self.assertEqual(
+                    {
+                        "/var/run/secrets/elmpay/risk-server-mtls",
+                        "/var/run/secrets/elmpay/risk-database-credentials",
+                        "/var/run/secrets/elmpay/risk-database-mtls",
+                        "/var/run/secrets/elmpay/risk-signal-mtls",
+                        "/var/run/secrets/elmpay/risk-model-mtls",
+                        "/var/run/secrets/elmpay/risk-governance",
+                    },
+                    {
+                        mount["mountPath"] for mount in container["volumeMounts"]
+                        if mount["name"] != "tmp"
+                    },
+                )
+            elif deployment["metadata"]["name"] == "worker-scheduler":
+                self.assertEqual([{"name": "health", "containerPort": 8081}],
+                                 container["ports"])
+                self.assertEqual(
+                    {
+                        "sidecar.istio.io/rewriteAppHTTPProbers": "false",
+                        "traffic.sidecar.istio.io/excludeInboundPorts": "8081",
+                    },
+                    deployment["spec"]["template"]["metadata"]["annotations"],
+                )
+                fields = {
+                    item["name"]: item.get("valueFrom", {}).get("fieldRef", {}).get("fieldPath")
+                    for item in container["env"]
+                    if "fieldRef" in item.get("valueFrom", {})
+                }
+                self.assertEqual("metadata.name", fields["ELMPAY_WORKER_ID"])
+                self.assertEqual("metadata.name", fields["ELMPAY_KAFKA_CLIENT_ID"])
+                self.assertEqual(
+                    {
+                        "/var/run/secrets/elmpay/worker-database-credentials",
+                        "/var/run/secrets/elmpay/worker-database-mtls",
+                        "/var/run/secrets/elmpay/worker-kafka-trust",
+                        "/var/run/secrets/elmpay/worker-kafka-identity",
+                        "/var/run/secrets/elmpay/worker-admin-governance",
+                    },
+                    {
+                        mount["mountPath"] for mount in container["volumeMounts"]
+                        if mount["name"] != "tmp"
+                    },
+                )
+            elif deployment["metadata"]["name"] == "webhook-processor":
+                self.assertEqual([{"name": "health", "containerPort": 8081}],
+                                 container["ports"])
+                fields = {
+                    item["name"]: item.get("valueFrom", {}).get("fieldRef", {}).get("fieldPath")
+                    for item in container["env"]
+                    if "fieldRef" in item.get("valueFrom", {})
+                }
+                self.assertEqual("metadata.name", fields["ELMPAY_WEBHOOK_PROCESSOR_ID"])
+                self.assertEqual(
+                    {
+                        "/var/run/secrets/elmpay/webhook-processor-database-credentials",
+                        "/var/run/secrets/elmpay/webhook-processor-database-mtls",
+                    },
+                    {
+                        mount["mountPath"] for mount in container["volumeMounts"]
+                        if mount["name"] != "tmp"
+                    },
+                )
+            else:
+                self.fail(f"untested production workload: {deployment['metadata']['name']}")
+            for volume in pod["volumes"]:
+                if "secret" in volume:
+                    self.assertEqual(0o440, volume["secret"]["defaultMode"])
+
+    def test_migration_job_dependencies_are_earlier_persistent_presync_hooks(self) -> None:
+        rendered = render_workloads(self.policy, {
+            item["name"]: f"registry.example/{item['name']}@sha256:" + "a" * 64
+            for item in self.policy["services"]
+        })
+        items = rendered["items"]
+        job = next(item for item in items
+                   if item["kind"] == "Job" and item["metadata"]["name"] ==
+                   "database-migrator")
+        job_annotations = job["metadata"]["annotations"]
+        self.assertEqual("PreSync", job_annotations["argocd.argoproj.io/hook"])
+        self.assertEqual("-10", job_annotations["argocd.argoproj.io/sync-wave"])
+        self.assertEqual(
+            "BeforeHookCreation,HookSucceeded",
+            job_annotations["argocd.argoproj.io/hook-delete-policy"],
+        )
+        self.assertEqual(
+            "elmpay_edge_gateway,elmpay_risk_engine,elmpay_worker",
+            job_annotations["elmpay.io/requires-drained-database-roles"],
+        )
+        dependencies = [item for item in items
+                        if item["metadata"].get("labels", {}).get(
+                            "app.kubernetes.io/name") == "database-migrator"
+                        and item["kind"] in {"ConfigMap", "ServiceAccount", "NetworkPolicy"}]
+        self.assertEqual(3, len(dependencies))
+        for dependency in dependencies:
+            annotations = dependency["metadata"]["annotations"]
+            self.assertEqual("PreSync", annotations["argocd.argoproj.io/hook"])
+            self.assertEqual("-20", annotations["argocd.argoproj.io/sync-wave"])
+            self.assertEqual(
+                "BeforeHookCreation",
+                annotations["argocd.argoproj.io/hook-delete-policy"],
+            )
+
+        early_delete = deepcopy(self.policy)
+        early_delete["jobs"][0]["gitOps"]["dependencyWave"] = -5
+        with self.assertRaises(ValidationError):
+            render_workloads(early_delete, {
+                item["name"]: f"registry.example/{item['name']}@sha256:" + "a" * 64
+                for item in early_delete["services"]
+            })
+
+        initializer = next(item for item in items if item["kind"] == "Job"
+                           and item["metadata"]["name"] ==
+                           "tenant-partition-initializer")
+        self.assertEqual("-5", initializer["metadata"]["annotations"]
+                         ["argocd.argoproj.io/sync-wave"])
+
+        cron = next(item for item in items if item["kind"] == "CronJob"
+                    and item["metadata"]["name"] == "tenant-partition-maintenance")
+        self.assertEqual("17 2 * * *", cron["spec"]["schedule"])
+        self.assertEqual("Etc/UTC", cron["spec"]["timeZone"])
+        self.assertEqual("Forbid", cron["spec"]["concurrencyPolicy"])
+        self.assertFalse(cron["spec"]["suspend"])
+        self.assertNotIn("argocd.argoproj.io/hook", cron["metadata"]["annotations"])
+
+    def test_health_only_replica_identity_and_config_map_secrets_fail_closed(self) -> None:
+        images = {
+            item["name"]: f"registry.example/{item['name']}@sha256:" + "a" * 64
+            for item in self.policy["services"]
+        }
+        shared_identity = deepcopy(self.policy)
+        worker = next(item for item in shared_identity["services"]
+                      if item["name"] == "worker-scheduler")
+        worker["fieldEnvironment"].pop("ELMPAY_WORKER_ID")
+        worker["fixedEnvironment"]["ELMPAY_WORKER_ID"] = "shared-worker"
+        with self.assertRaises(ValidationError):
+            render_workloads(shared_identity, images)
+
+        exposed = deepcopy(self.policy)
+        worker = next(item for item in exposed["services"]
+                      if item["name"] == "worker-scheduler")
+        worker["exposeService"] = True
+        with self.assertRaises(ValidationError):
+            render_workloads(exposed, images)
+
+        leaked = deepcopy(self.policy)
+        worker = next(item for item in leaked["services"]
+                      if item["name"] == "worker-scheduler")
+        worker["configuration"]["configMapData"]["ELMPAY_DATABASE_PASSWORD"] = "unsafe"
+        with self.assertRaises(ValidationError):
+            render_workloads(leaked, images)
+
+        webhook_shared_identity = deepcopy(self.policy)
+        webhook = next(item for item in webhook_shared_identity["services"]
+                       if item["name"] == "webhook-processor")
+        webhook["fieldEnvironment"].pop("ELMPAY_WEBHOOK_PROCESSOR_ID")
+        webhook["fixedEnvironment"]["ELMPAY_WEBHOOK_PROCESSOR_ID"] = "shared-processor"
+        with self.assertRaises(ValidationError):
+            render_workloads(webhook_shared_identity, images)
+
+        webhook_leaked = deepcopy(self.policy)
+        webhook = next(item for item in webhook_leaked["services"]
+                       if item["name"] == "webhook-processor")
+        webhook["configuration"]["configMapData"]["ELMPAY_DATABASE_PASSWORD"] = "unsafe"
+        with self.assertRaises(ValidationError):
+            render_workloads(webhook_leaked, images)
+
+        arbitrary_runtime_injection = deepcopy(self.policy)
+        edge = next(item for item in arbitrary_runtime_injection["services"]
+                    if item["name"] == "edge-gateway")
+        edge["configuration"]["configMapKeys"].append("JAVA_TOOL_OPTIONS")
+        with self.assertRaises(ValidationError):
+            render_workloads(arbitrary_runtime_injection, images)
+
+        fixed_secret_injection = deepcopy(self.policy)
+        risk = next(item for item in fixed_secret_injection["services"]
+                    if item["name"] == "risk-engine")
+        risk["fixedEnvironment"]["ELMPAY_RISK_HMAC_SECRET"] = "unsafe"
+        with self.assertRaises(ValidationError):
+            render_workloads(fixed_secret_injection, images)
+
+        restarted_edge_budget = deepcopy(self.policy)
+        edge = next(item for item in restarted_edge_budget["services"]
+                    if item["name"] == "edge-gateway")
+        edge["fixedEnvironment"]["ELMPAY_RISK_TIMEOUT_MILLISECONDS"] = "100"
+        with self.assertRaises(ValidationError):
+            render_workloads(restarted_edge_budget, images)
+
+        restarted_dependency_budget = deepcopy(self.policy)
+        risk = next(item for item in restarted_dependency_budget["services"]
+                    if item["name"] == "risk-engine")
+        risk["configuration"]["configMapData"][
+            "ELMPAY_RISK_DEPENDENCY_TIMEOUT_MILLISECONDS"
+        ] = "300"
+        with self.assertRaises(ValidationError):
+            render_workloads(restarted_dependency_budget, images)
 
 
 class RolloutControlTest(unittest.TestCase):
@@ -361,13 +739,17 @@ class FinalReleaseGateTest(unittest.TestCase):
 
     @staticmethod
     def _base_manifest() -> dict[str, object]:
+        policy = read_json(ROOT / "platform/compliance/required-release-gates.json")
         return {
             "releaseId": "release-2026-08-26-1",
             "commitSha": "c" * 40,
             "artifactDigest": "a" * 64,
+            "productImageManifestDigest": policy["productImageManifestDigest"],
+            "imageAdmissionPolicyDigest": policy["imageAdmissionPolicyDigest"],
+            "productImageIndexDigest": "f" * 64,
             "images": {
-                "risk-engine": "registry.example/risk@sha256:" + "b" * 64,
-                "worker-scheduler": "registry.example/worker@sha256:" + "c" * 64,
+                name: f"registry.example/{name}@sha256:" + f"{index + 1:064x}"
+                for index, name in enumerate(policy["requiredProductImages"])
             },
             "generatedAt": "2026-08-25T23:00:00Z",
             "expiresAt": "2026-08-26T12:00:00Z",

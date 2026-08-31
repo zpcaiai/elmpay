@@ -85,6 +85,17 @@ public final class Json {
         output.append('"');
         for (int index = 0; index < value.length(); index++) {
             char character = value.charAt(index);
+            if (Character.isHighSurrogate(character)) {
+                if (index + 1 >= value.length()
+                        || !Character.isLowSurrogate(value.charAt(index + 1))) {
+                    throw new IllegalArgumentException("JSON string contains an unpaired surrogate");
+                }
+                output.append(character).append(value.charAt(++index));
+                continue;
+            }
+            if (Character.isLowSurrogate(character)) {
+                throw new IllegalArgumentException("JSON string contains an unpaired surrogate");
+            }
             switch (character) {
                 case '"' -> output.append("\\\"");
                 case '\\' -> output.append("\\\\");
@@ -193,11 +204,19 @@ public final class Json {
                         case 'n' -> result.append('\n');
                         case 'r' -> result.append('\r');
                         case 't' -> result.append('\t');
-                        case 'u' -> result.append(unicode());
+                        case 'u' -> unicode(result);
                         default -> throw new IllegalArgumentException("invalid JSON escape");
                     }
                 } else if (character < 0x20) {
                     throw new IllegalArgumentException("control character in JSON string");
+                } else if (Character.isHighSurrogate(character)) {
+                    if (done() || !Character.isLowSurrogate(input.charAt(index))) {
+                        throw new IllegalArgumentException(
+                                "JSON string contains an unpaired surrogate");
+                    }
+                    result.append(character).append(input.charAt(index++));
+                } else if (Character.isLowSurrogate(character)) {
+                    throw new IllegalArgumentException("JSON string contains an unpaired surrogate");
                 } else {
                     result.append(character);
                 }
@@ -205,7 +224,28 @@ public final class Json {
             throw new IllegalArgumentException("unterminated JSON string");
         }
 
-        private char unicode() {
+        private void unicode(StringBuilder result) {
+            char first = unicodeCodeUnit();
+            if (Character.isLowSurrogate(first)) {
+                throw new IllegalArgumentException("JSON string contains an unpaired surrogate");
+            }
+            if (!Character.isHighSurrogate(first)) {
+                result.append(first);
+                return;
+            }
+            if (index + 6 > input.length() || input.charAt(index) != '\\'
+                    || input.charAt(index + 1) != 'u') {
+                throw new IllegalArgumentException("JSON string contains an unpaired surrogate");
+            }
+            index += 2;
+            char second = unicodeCodeUnit();
+            if (!Character.isLowSurrogate(second)) {
+                throw new IllegalArgumentException("JSON string contains an unpaired surrogate");
+            }
+            result.append(first).append(second);
+        }
+
+        private char unicodeCodeUnit() {
             if (index + 4 > input.length()) {
                 throw new IllegalArgumentException("invalid JSON unicode escape");
             }
@@ -252,7 +292,12 @@ public final class Json {
         }
 
         private void whitespace() {
-            while (!done() && Character.isWhitespace(input.charAt(index))) {
+            while (!done()) {
+                char character = input.charAt(index);
+                if (character != ' ' && character != '\t'
+                        && character != '\r' && character != '\n') {
+                    return;
+                }
                 index++;
             }
         }

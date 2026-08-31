@@ -151,6 +151,20 @@ CREATE TABLE IF NOT EXISTS onboarding_audit (
   digest TEXT NOT NULL CHECK(length(digest)=64),
   occurred_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS external_control_operation (
+  tenant_id TEXT NOT NULL,
+  operation_type TEXT NOT NULL,
+  operation_id TEXT NOT NULL,
+  binding_digest TEXT NOT NULL CHECK(length(binding_digest)=64),
+  request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  status TEXT NOT NULL CHECK(status IN ('IN_FLIGHT','UNKNOWN','SUCCEEDED')),
+  fence_token INTEGER NOT NULL CHECK(fence_token > 0),
+  lease_owner TEXT NOT NULL,
+  lease_until TEXT NOT NULL,
+  result_digest TEXT CHECK(result_digest IS NULL OR length(result_digest)=64),
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, operation_type, operation_id)
+);
 
 CREATE TABLE IF NOT EXISTS release_decision (
   decision_id TEXT PRIMARY KEY,
@@ -160,6 +174,17 @@ CREATE TABLE IF NOT EXISTS release_decision (
   gate_digest TEXT NOT NULL CHECK(length(gate_digest)=64),
   signed_record_json TEXT NOT NULL,
   decided_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS release_decision_material (
+  decision_id TEXT PRIMARY KEY REFERENCES release_decision(decision_id),
+  artifact_digest TEXT NOT NULL CHECK(length(artifact_digest)=64),
+  release_manifest_json TEXT NOT NULL,
+  external_evidence_json TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS release_decision_gate_input (
+  decision_id TEXT PRIMARY KEY REFERENCES release_decision(decision_id),
+  gate_inputs_digest TEXT NOT NULL CHECK(length(gate_inputs_digest)=64),
+  gate_inputs_json TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS rollout_execution (
   rollout_id TEXT PRIMARY KEY,
@@ -173,8 +198,15 @@ CREATE TABLE IF NOT EXISTS rollout_execution (
   previous_artifact_digest TEXT NOT NULL CHECK(length(previous_artifact_digest)=64),
   stage_index INTEGER NOT NULL DEFAULT 0,
   stage_started_at TEXT NOT NULL,
-  status TEXT NOT NULL CHECK(status IN ('RUNNING','STOPPED','ROLLED_BACK','COMPLETE')),
+  status TEXT NOT NULL CHECK(status IN ('RUNNING','STOPPED','ROLLBACK_IN_FLIGHT','ROLLED_BACK','COMPLETE','UNKNOWN')),
   fence_token INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS rollout_policy_binding (
+  rollout_id TEXT PRIMARY KEY REFERENCES rollout_execution(rollout_id),
+  decision_id TEXT NOT NULL REFERENCES release_decision(decision_id),
+  control_policy_digest TEXT NOT NULL CHECK(length(control_policy_digest)=64),
+  rollout_policy_digest TEXT NOT NULL CHECK(length(rollout_policy_digest)=64),
+  control_policy_json TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS rollout_observation (
   rollout_id TEXT NOT NULL REFERENCES rollout_execution(rollout_id),
@@ -183,8 +215,31 @@ CREATE TABLE IF NOT EXISTS rollout_observation (
   observed_at TEXT NOT NULL,
   metrics_digest TEXT NOT NULL CHECK(length(metrics_digest)=64),
   signed_record_json TEXT NOT NULL,
-  decision TEXT NOT NULL CHECK(decision IN ('PASS','STOP','ROLLBACK')),
+  decision TEXT NOT NULL CHECK(decision IN ('PASS','STOP','ROLLBACK','UNKNOWN')),
   PRIMARY KEY (rollout_id, observation_id)
+);
+CREATE TABLE IF NOT EXISTS rollout_rollback_operation (
+  operation_id TEXT PRIMARY KEY CHECK(length(operation_id)=64),
+  rollout_id TEXT NOT NULL UNIQUE REFERENCES rollout_execution(rollout_id),
+  tenant_id TEXT NOT NULL,
+  release_binding_digest TEXT NOT NULL CHECK(length(release_binding_digest)=64),
+  target_digest TEXT NOT NULL CHECK(length(target_digest)=64),
+  artifact_digest TEXT NOT NULL CHECK(length(artifact_digest)=64),
+  previous_artifact_digest TEXT NOT NULL CHECK(length(previous_artifact_digest)=64),
+  observation_id TEXT NOT NULL,
+  stage_name TEXT NOT NULL,
+  observed_at TEXT NOT NULL,
+  metrics_digest TEXT NOT NULL CHECK(length(metrics_digest)=64),
+  request_digest TEXT NOT NULL CHECK(length(request_digest)=64),
+  idempotency_key TEXT NOT NULL CHECK(length(idempotency_key)=64),
+  fence_token INTEGER NOT NULL CHECK(fence_token > 0),
+  status TEXT NOT NULL CHECK(status IN ('IN_FLIGHT','UNKNOWN','SUCCEEDED')),
+  lease_owner TEXT NOT NULL,
+  lease_until TEXT NOT NULL,
+  signed_record_json TEXT NOT NULL,
+  receipt_digest TEXT CHECK(receipt_digest IS NULL OR length(receipt_digest)=64),
+  receipt_json TEXT,
+  updated_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS job_lease (
@@ -219,6 +274,7 @@ CREATE TABLE IF NOT EXISTS reconciliation_source_receipt (
   record_count INTEGER NOT NULL CHECK(record_count >= 0),
   source_snapshot_digest TEXT NOT NULL CHECK(length(source_snapshot_digest)=64),
   receipt_digest TEXT NOT NULL CHECK(length(receipt_digest)=64),
+  receipt_json TEXT NOT NULL,
   PRIMARY KEY (tenant_id, window_id, source),
   FOREIGN KEY (tenant_id, window_id) REFERENCES reconciliation_window(tenant_id, window_id)
 );
@@ -237,6 +293,7 @@ CREATE TABLE IF NOT EXISTS usage_event (
   tenant_id TEXT NOT NULL,
   meter TEXT NOT NULL,
   dedupe_key TEXT NOT NULL,
+  pricing_version_id TEXT NOT NULL REFERENCES pricing_version(pricing_version_id),
   occurred_at TEXT NOT NULL,
   payload_digest TEXT NOT NULL CHECK(length(payload_digest)=64),
   PRIMARY KEY (tenant_id, meter, dedupe_key)
@@ -261,6 +318,15 @@ CREATE TABLE IF NOT EXISTS commercial_invoice_line (
   unit_price_minor INTEGER NOT NULL CHECK(unit_price_minor >= 0),
   total_minor INTEGER NOT NULL CHECK(total_minor >= 0),
   PRIMARY KEY (invoice_id, meter)
+);
+CREATE TABLE IF NOT EXISTS commercial_invoice_priced_line (
+  invoice_id TEXT NOT NULL REFERENCES commercial_invoice(invoice_id),
+  pricing_version_id TEXT NOT NULL REFERENCES pricing_version(pricing_version_id),
+  meter TEXT NOT NULL,
+  quantity INTEGER NOT NULL CHECK(quantity >= 0),
+  unit_price_minor INTEGER NOT NULL CHECK(unit_price_minor >= 0),
+  total_minor INTEGER NOT NULL CHECK(total_minor >= 0),
+  PRIMARY KEY (invoice_id, pricing_version_id, meter)
 );
 CREATE TABLE IF NOT EXISTS credit_request (
   request_id TEXT PRIMARY KEY,
@@ -331,6 +397,8 @@ CREATE TABLE IF NOT EXISTS commercial_audit_export (
   manifest_digest TEXT NOT NULL CHECK(length(manifest_digest)=64),
   signer_identity TEXT NOT NULL,
   receipt_digest TEXT NOT NULL CHECK(length(receipt_digest)=64),
+  manifest_json TEXT NOT NULL,
+  receipt_json TEXT NOT NULL,
   created_at TEXT NOT NULL,
   UNIQUE(tenant_id, period_start, period_end, manifest_digest)
 );

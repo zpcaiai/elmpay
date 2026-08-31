@@ -190,7 +190,7 @@ public final class JdbcAuditAnchorStore implements AuditAnchorWorker.Store {
                   FROM audit_anchor_request
                  WHERE tenant_id=?::uuid AND state IN ('PENDING','LEASED')
                    AND next_attempt_at<=?
-                   AND (state='PENDING' OR lease_until<?)
+                   AND (state='PENDING' OR lease_until<=?)
                  ORDER BY through_sequence
                  FOR UPDATE SKIP LOCKED
                  LIMIT 1

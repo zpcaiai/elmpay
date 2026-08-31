@@ -22,5 +22,26 @@
     "requireCleanGitopsDrift": true,
     "requireOpenCriticalIncidents": 0,
     "requireExternalEvidence": true
+  },
+  "rollbackExecution": {
+    "preDispatchDurableJournalRequired": true,
+    "idempotencyRequired": true,
+    "leaseSeconds": 120,
+    "fencingRequired": true,
+    "unknownOutcomePolicy": "BLOCK_AND_RECONCILE",
+    "receiptType": "ROLLOUT_ROLLBACK",
+    "receiptOutcome": "ROLLED_BACK",
+    "receiptRole": "rollout_rollback_executor",
+    "receiptMustBind": [
+      "operationId",
+      "rolloutId",
+      "tenantId",
+      "releaseBindingDigest",
+      "targetDigest",
+      "artifactDigest",
+      "previousArtifactDigest",
+      "fenceToken",
+      "idempotencyKey"
+    ]
   }
 }

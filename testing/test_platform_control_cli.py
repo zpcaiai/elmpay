@@ -112,7 +112,7 @@ class PlatformControlCliTest(unittest.TestCase):
             self.assertEqual(0, restored.returncode, restored.stderr + restored.stdout)
 
             facts: dict[str, object] = {
-                "targetRegion": "region-b", "fencingToken": 11,
+                "targetRegion": "cn-north-1", "fencingToken": 11,
                 "replicationLagSeconds": 5, "writeFenceAcquired": True,
                 "providerRoutingChecked": True, "rollbackPlanVerified": True,
                 "targetRegionHealthy": True, "sourceRegionWritesStopped": True,
@@ -120,7 +120,7 @@ class PlatformControlCliTest(unittest.TestCase):
             }
             request_digest = sha256_json({"promotion": facts})
             approval_fields = {
-                "requestDigest": request_digest, "targetRegion": "region-b",
+                "requestDigest": request_digest, "targetRegion": "cn-north-1",
                 "fencingToken": 11,
             }
             promotion_path = root / "promotion.json"
@@ -148,7 +148,7 @@ class PlatformControlCliTest(unittest.TestCase):
             )
             self.assertEqual(0, promoted.returncode, promoted.stderr + promoted.stdout)
             with closing(sqlite3.connect(state)) as connection:
-                self.assertEqual(("region-b", 11), connection.execute(
+                self.assertEqual(("cn-north-1", 11), connection.execute(
                     "SELECT active_region,fencing_token FROM region_epoch"
                 ).fetchone())
 

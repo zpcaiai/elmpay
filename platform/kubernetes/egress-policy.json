@@ -26,6 +26,14 @@
       "type": "service",
       "namespace": "elmpay-cn-east-1",
       "serviceName": "payments-events-kafka-bootstrap",
+      "additionalServiceNames": [
+        "payments-events-kafka-brokers"
+      ],
+      "dnsNames": [
+        "payments-events-kafka-0.payments-events-kafka-brokers.elmpay-cn-east-1.svc.cluster.local",
+        "payments-events-kafka-1.payments-events-kafka-brokers.elmpay-cn-east-1.svc.cluster.local",
+        "payments-events-kafka-2.payments-events-kafka-brokers.elmpay-cn-east-1.svc.cluster.local"
+      ],
       "podLabels": {
         "strimzi.io/cluster": "payments-events"
       },
@@ -69,6 +77,56 @@
       "protocol": "TLS"
     },
     {
+      "id": "edge-gateway-internal",
+      "category": "INTERNAL_API",
+      "type": "service",
+      "namespace": "elmpay",
+      "serviceName": "edge-gateway",
+      "targetWorkload": "edge-gateway",
+      "podLabels": {
+        "app.kubernetes.io/name": "edge-gateway"
+      },
+      "port": 8443,
+      "protocol": "TLS"
+    },
+    {
+      "id": "risk-engine-internal",
+      "category": "INTERNAL_API",
+      "type": "service",
+      "namespace": "elmpay",
+      "serviceName": "risk-engine",
+      "targetWorkload": "risk-engine",
+      "podLabels": {
+        "app.kubernetes.io/name": "risk-engine"
+      },
+      "port": 8443,
+      "protocol": "TLS"
+    },
+    {
+      "id": "risk-signal-service",
+      "category": "RISK_SIGNAL",
+      "type": "service",
+      "namespace": "risk-platform",
+      "serviceName": "risk-signal",
+      "podLabels": {
+        "app.kubernetes.io/name": "risk-signal"
+      },
+      "port": 8443,
+      "protocol": "TLS"
+    },
+    {
+      "id": "risk-model-service",
+      "category": "RISK_MODEL",
+      "type": "service",
+      "namespace": "risk-platform",
+      "serviceName": "risk-model",
+      "podLabels": {
+        "app.kubernetes.io/name": "risk-model"
+      },
+      "port": 8443,
+      "protocol": "TLS"
+    },
+    {
       "id": "wechat-api",
       "category": "PSP",
       "type": "fqdn",
@@ -103,30 +161,15 @@
   ],
   "workloads": {
     "admin-web": [
-      "otel-collector"
+      "postgres-primary",
+      "edge-gateway-internal"
     ],
     "checkout-web": [
-      "otel-collector"
+      "otel-collector",
+      "edge-gateway-internal"
     ],
     "edge-gateway": [
       "postgres-primary",
-      "redis-cache",
-      "kms-broker",
-      "otel-collector"
-    ],
-    "ledger-service": [
-      "postgres-primary",
-      "kafka-events",
-      "kms-broker",
-      "otel-collector"
-    ],
-    "merchant-config": [
-      "postgres-primary",
-      "kms-broker",
-      "otel-collector"
-    ],
-    "payment-core": [
-      "postgres-primary",
       "kafka-events",
       "redis-cache",
       "kms-broker",
@@ -134,50 +177,20 @@
       "wechat-api",
       "alipay-api",
       "stripe-api",
-      "paypal-api"
-    ],
-    "reconciliation-service": [
-      "postgres-primary",
-      "kafka-events",
-      "kms-broker",
-      "otel-collector",
-      "wechat-api",
-      "alipay-api",
-      "stripe-api",
-      "paypal-api"
+      "paypal-api",
+      "risk-engine-internal"
     ],
     "risk-engine": [
       "postgres-primary",
-      "redis-cache",
-      "kms-broker",
-      "otel-collector"
-    ],
-    "webhook-delivery": [
-      "postgres-primary",
-      "kafka-events",
-      "kms-broker",
-      "otel-collector"
-    ],
-    "webhook-ingress": [
-      "postgres-primary",
-      "kafka-events",
-      "kms-broker",
-      "otel-collector",
-      "wechat-api",
-      "alipay-api",
-      "stripe-api",
-      "paypal-api"
+      "risk-signal-service",
+      "risk-model-service"
     ],
     "worker-scheduler": [
       "postgres-primary",
-      "kafka-events",
-      "redis-cache",
-      "kms-broker",
-      "otel-collector",
-      "wechat-api",
-      "alipay-api",
-      "stripe-api",
-      "paypal-api"
+      "kafka-events"
+    ],
+    "webhook-processor": [
+      "postgres-primary"
     ]
   }
 }

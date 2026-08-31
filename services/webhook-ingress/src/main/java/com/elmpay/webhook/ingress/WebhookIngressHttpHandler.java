@@ -3,12 +3,14 @@ package com.elmpay.webhook.ingress;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import java.io.IOException;
+import java.net.URI;
 import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Arrays;
 
 /** Reachable provider callback route: POST /v1/provider-webhooks/{opaque-token}. */
 public final class WebhookIngressHttpHandler implements HttpHandler {
@@ -30,48 +32,91 @@ public final class WebhookIngressHttpHandler implements HttpHandler {
                 respond(exchange, 405);
                 return;
             }
-            String path = exchange.getRequestURI().getRawPath();
-            if (path == null || !path.startsWith(PATH_PREFIX)
+            URI request = exchange.getRequestURI();
+            String path = request.getRawPath();
+            if (request.isAbsolute() || request.getRawAuthority() != null
+                    || request.getRawQuery() != null || request.getRawFragment() != null
+                    || path == null || path.length() > 512 || path.indexOf('%') >= 0
+                    || !path.equals(request.getPath())
+                    || !path.equals(request.normalize().getRawPath()) || path.contains("//")
+                    || !path.startsWith(PATH_PREFIX)
                     || path.length() == PATH_PREFIX.length()) {
                 respond(exchange, 404);
                 return;
             }
             String endpointToken = path.substring(PATH_PREFIX.length());
-            if (endpointToken.indexOf('/') >= 0) {
+            if (!endpointToken.matches("[A-Za-z0-9_-]{32,256}")) {
                 respond(exchange, 404);
                 return;
             }
-            byte[] body = exchange.getRequestBody().readNBytes(MAX_BODY_BYTES + 1);
-            if (body.length > MAX_BODY_BYTES) {
-                respond(exchange, 413);
+            Map<String, String> headers;
+            try {
+                headers = canonicalHeaders(exchange);
+            } catch (SecurityException | IllegalArgumentException exception) {
+                respond(exchange, 400);
                 return;
             }
+            long declaredLength = -1;
+            String contentLength = headers.get("content-length");
+            if (contentLength != null) {
+                if (!contentLength.matches("(?:0|[1-9][0-9]{0,8})")) {
+                    respond(exchange, 400);
+                    return;
+                }
+                declaredLength = Long.parseLong(contentLength);
+                if (declaredLength > MAX_BODY_BYTES) {
+                    respond(exchange, 413);
+                    return;
+                }
+            }
+            byte[] body = exchange.getRequestBody().readNBytes(MAX_BODY_BYTES + 1);
             try {
-                WebhookIngressService.Receipt receipt = runtime.ingest(endpointToken,
-                        canonicalHeaders(exchange), body, clock.instant());
-                respond(exchange, receipt.outcome() == WebhookIngressService.Outcome.ACCEPTED
-                        ? 202 : 200);
-            } catch (SecurityException | IllegalArgumentException exception) {
-                respond(exchange, 401);
-            } catch (RuntimeException exception) {
-                respond(exchange, 503);
+                if (body.length > MAX_BODY_BYTES
+                        || (declaredLength >= 0 && body.length != declaredLength)) {
+                    respond(exchange, 413);
+                    return;
+                }
+                try {
+                    WebhookIngressService.Receipt receipt = runtime.ingest(endpointToken,
+                            headers, body, clock.instant());
+                    respond(exchange, receipt.outcome() == WebhookIngressService.Outcome.ACCEPTED
+                            ? 202 : 200);
+                } catch (SecurityException | IllegalArgumentException exception) {
+                    respond(exchange, 401);
+                } catch (RuntimeException exception) {
+                    respond(exchange, 503);
+                }
+            } finally {
+                Arrays.fill(body, (byte) 0);
             }
         }
     }
 
     private static Map<String, String> canonicalHeaders(HttpExchange exchange) {
         Map<String, String> result = new LinkedHashMap<>();
+        int[] aggregateBytes = {0};
         exchange.getRequestHeaders().forEach((name, values) -> {
             List<String> safe = List.copyOf(values);
-            if (safe.size() != 1 || safe.getFirst().length() > 8_192
-                    || safe.getFirst().indexOf('\r') >= 0 || safe.getFirst().indexOf('\n') >= 0) {
+            if (name == null || !name.matches("[A-Za-z0-9-]{1,64}")
+                    || safe.size() != 1 || safe.getFirst().isBlank()
+                    || safe.getFirst().length() > 8_192
+                    || safe.getFirst().chars().anyMatch(character -> character < 0x20
+                            || character == 0x7f)) {
                 throw new SecurityException("provider webhook header is ambiguous");
+            }
+            aggregateBytes[0] = Math.addExact(aggregateBytes[0],
+                    Math.addExact(name.length(), safe.getFirst().length()));
+            if (result.size() >= 128 || aggregateBytes[0] > 65_536) {
+                throw new SecurityException("provider webhook headers exceed their bound");
             }
             String normalized = name.toLowerCase(Locale.ROOT);
             if (result.putIfAbsent(normalized, safe.getFirst()) != null) {
                 throw new SecurityException("provider webhook header is duplicated");
             }
         });
+        if (result.containsKey("content-length") && result.containsKey("transfer-encoding")) {
+            throw new SecurityException("provider webhook framing is ambiguous");
+        }
         return Map.copyOf(result);
     }
 

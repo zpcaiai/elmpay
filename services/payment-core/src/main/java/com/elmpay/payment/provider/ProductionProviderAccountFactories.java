@@ -1,7 +1,7 @@
 package com.elmpay.payment.provider;
 
+import com.elmpay.security.MountedHttpsClient;
 import java.net.URI;
-import java.security.GeneralSecurityException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Arrays;
@@ -20,6 +20,13 @@ public final class ProductionProviderAccountFactories {
 
     public static List<ProviderAccountAdapterFactory> create(DataSource dataSource,
             Map<String, String> environment, Clock clock) {
+        SSLContext mutualTls = MountedHttpsClient.mutualTlsContextFromEnvironment(environment,
+                "ELMPAY_APPLE_PAY_PSP", "apple-pay-psp-client", clock);
+        return create(dataSource, environment, clock, mutualTls);
+    }
+
+    static List<ProviderAccountAdapterFactory> create(DataSource dataSource,
+            Map<String, String> environment, Clock clock, SSLContext applePspMutualTls) {
         ProviderRuntimeLookup lookup = new JdbcProviderRuntimeLookup(dataSource);
         Duration timeout = Duration.ofMillis(number(environment,
                 "ELMPAY_PROVIDER_TIMEOUT_MILLISECONDS", 2_000, 1, 10_000));
@@ -29,15 +36,6 @@ public final class ProductionProviderAccountFactories {
                 "ELMPAY_PROVIDER_MAX_ATTEMPTS", 2, 1, 3));
         ApprovedReturnRouteRegistry routes = new ApprovedReturnRouteRegistry(
                 routes(required(environment, "ELMPAY_CHECKOUT_RETURN_ROUTES")));
-        if (!"true".equalsIgnoreCase(environment.get("ELMPAY_APPLE_PAY_PSP_MTLS"))) {
-            throw new IllegalStateException("ELMPAY_APPLE_PAY_PSP_MTLS=true is required");
-        }
-        SSLContext mutualTls;
-        try {
-            mutualTls = SSLContext.getDefault();
-        } catch (GeneralSecurityException exception) {
-            throw new IllegalStateException("default mutual TLS context is unavailable", exception);
-        }
         return List.of(
                 new WechatAccountAdapterFactory(lookup,
                         uri(environment, "ELMPAY_WECHAT_NOTIFY_URI"), timeout, tolerance,
@@ -52,7 +50,9 @@ public final class ProductionProviderAccountFactories {
                         csv(environment, "ELMPAY_PAYPAL_CERTIFICATE_HOSTS"), timeout, attempts,
                         clock),
                 new ApplePayAccountAdapterFactory(dataSource,
-                        uri(environment, "ELMPAY_APPLE_PAY_PSP_FORWARD_ENDPOINT"), mutualTls,
+                        uri(environment, "ELMPAY_APPLE_PAY_PSP_FORWARD_ENDPOINT"),
+                        java.util.Objects.requireNonNull(applePspMutualTls,
+                                "applePspMutualTls"),
                         timeout, clock));
     }
 

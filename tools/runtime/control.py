@@ -13,7 +13,7 @@ from elmpay_runtime.capacity import evaluate_capacity
 from elmpay_runtime.common import GateReport, ValidationError, read_json
 from elmpay_runtime.compliance import evaluate_vendor, evaluate_vulnerability_report
 from elmpay_runtime.external_evidence import validate_external_evidence
-from elmpay_runtime.kubernetes import render_workloads
+from elmpay_runtime.kubernetes import render_workloads, validate_workload_sources
 from elmpay_runtime.release import verify_release
 from elmpay_runtime.release import release_binding
 from elmpay_runtime.rollout import compare_shadow, evaluate_canary, evaluate_go_no_go
@@ -156,7 +156,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "render-kubernetes":
             images_document = read_json(args.images)
             images = images_document.get("images", images_document) if isinstance(images_document, dict) else images_document
-            rendered = render_workloads(read_json(args.policy), images)
+            workload_policy = read_json(args.policy)
+            validate_workload_sources(REPOSITORY_ROOT, workload_policy)
+            rendered = render_workloads(workload_policy, images)
             _emit(rendered)
             return 0
         if args.command == "shadow-diff":

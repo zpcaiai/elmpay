@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "actions": {
+    "CASE_CLOSE": {
+      "permission": "risk_decision.override",
+      "resource": "risk_decision",
+      "dualControl": true,
+      "stepUp": true,
+      "elevationRequired": false
+    },
+    "LIST_CHANGE": {
+      "permission": "risk_rule.write",
+      "resource": "risk_rule",
+      "dualControl": true,
+      "stepUp": true,
+      "elevationRequired": false
+    },
+    "REFUND_OVERRIDE": {
+      "permission": "refund.approve",
+      "resource": "refund",
+      "dualControl": true,
+      "stepUp": true,
+      "elevationRequired": false
+    },
+    "ROLLOUT_APPROVAL": {
+      "permission": "config.write",
+      "resource": "config",
+      "dualControl": true,
+      "stepUp": true,
+      "elevationRequired": true
+    }
+  }
+}

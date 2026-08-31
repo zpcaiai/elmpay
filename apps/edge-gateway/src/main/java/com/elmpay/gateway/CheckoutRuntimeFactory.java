@@ -6,6 +6,7 @@ import com.elmpay.payment.checkout.CheckoutLocalization;
 import com.elmpay.payment.checkout.CheckoutSessionRepository;
 import com.elmpay.payment.checkout.CheckoutTokenSigner;
 import com.elmpay.payment.checkout.ConfiguredCheckoutCapabilitySource;
+import com.elmpay.payment.checkout.CheckoutProviderSdkSource;
 import com.elmpay.payment.checkout.HostedCheckoutService;
 import com.elmpay.payment.checkout.InMemoryCheckoutSessionRepository;
 import java.net.URI;
@@ -19,14 +20,23 @@ import java.util.stream.Collectors;
 
 /** Builds checkout signing configuration without allowing production defaults. */
 public final class CheckoutRuntimeFactory {
+    public record Runtime(HostedCheckoutService checkout,
+            CheckoutProviderSdkRuntime providerSdk) {
+    }
+
     private CheckoutRuntimeFactory() {
     }
 
     public static HostedCheckoutService create(PaymentService payments, String runtimeMode,
             Map<String, String> environment) {
+        return createRuntime(payments, runtimeMode, environment).checkout();
+    }
+
+    public static Runtime createRuntime(PaymentService payments, String runtimeMode,
+            Map<String, String> environment) {
         return switch (runtimeMode) {
-            case "local" -> local(payments, environment);
-            case "postgres" -> production(payments, environment);
+            case "local" -> localRuntime(payments, environment);
+            case "postgres" -> productionRuntime(payments, environment);
             default -> throw new IllegalStateException("checkout runtime mode is unsupported");
         };
     }
@@ -37,25 +47,39 @@ public final class CheckoutRuntimeFactory {
 
     private static HostedCheckoutService local(PaymentService payments,
             Map<String, String> environment) {
+        return localRuntime(payments, environment).checkout();
+    }
+
+    private static Runtime localRuntime(PaymentService payments,
+            Map<String, String> environment) {
         Map<String, URI> routes = Map.of("checkout-complete",
                 URI.create("https://merchant.example/checkout/complete"));
         byte[] key = new byte[32];
         java.util.Arrays.fill(key, (byte) 0x4c);
         URI publicBase = URI.create(environment.getOrDefault("ELMPAY_CHECKOUT_PUBLIC_BASE_URL",
                 "http://127.0.0.1:8081/"));
-        return service(payments, Map.of("local-v1", key), "local-v1", routes,
+        HostedCheckoutService checkout = service(payments, Map.of("local-v1", key), "local-v1", routes,
                 "checkout-complete", Set.of("card"), publicBase, Duration.ofMinutes(10), "US",
-                new InMemoryCheckoutSessionRepository(),
-                new ConfiguredCheckoutCapabilitySource(Set.of("card")));
+                true, new InMemoryCheckoutSessionRepository(),
+                new ConfiguredCheckoutCapabilitySource(Set.of("card")),
+                CheckoutProviderSdkSource.disabled());
+        return new Runtime(checkout, new CheckoutProviderSdkRuntime(checkout,
+                CheckoutProviderSdkRegistry.fromClasspath(environment), ignored -> {
+                }, Clock.systemUTC()));
     }
 
-    private static HostedCheckoutService production(PaymentService payments,
+    private static Runtime productionRuntime(PaymentService payments,
             Map<String, String> environment) {
+        if (environment.containsKey("ELMPAY_CHECKOUT_SIGNING_KEY_B64")) {
+            throw new IllegalStateException(
+                    "ELMPAY_CHECKOUT_SIGNING_KEY_B64 is forbidden; use the read-only key mount");
+        }
         String keyId = required(environment, "ELMPAY_CHECKOUT_SIGNING_KEY_ID");
         if (!keyId.matches("[A-Za-z0-9._-]{1,64}")) {
             throw new IllegalStateException("ELMPAY_CHECKOUT_SIGNING_KEY_ID is invalid");
         }
-        byte[] key = decodeKey(required(environment, "ELMPAY_CHECKOUT_SIGNING_KEY_B64"));
+        byte[] key = decodeKey(MountedSecretFiles.readUtf8(required(environment,
+                "ELMPAY_CHECKOUT_SIGNING_KEY_FILE"), "checkout signing key", 8_192));
         Map<String, URI> routes = parseRoutes(required(environment,
                 "ELMPAY_CHECKOUT_RETURN_ROUTES"));
         String defaultRoute = required(environment, "ELMPAY_CHECKOUT_DEFAULT_RETURN_ROUTE_ID");
@@ -75,14 +99,23 @@ public final class CheckoutRuntimeFactory {
             throw new IllegalStateException("ELMPAY_CHECKOUT_SESSION_TTL_SECONDS is invalid",
                     invalid);
         }
-        var dataSource = new DriverManagerDataSource(required(environment, "ELMPAY_DATABASE_URL"),
-                required(environment, "ELMPAY_DATABASE_USER"),
-                required(environment, "ELMPAY_DATABASE_PASSWORD"));
-        return service(payments, Map.of(keyId, key), keyId, routes, defaultRoute, methods,
-                publicBase, Duration.ofSeconds(ttlSeconds),
-                required(environment, "ELMPAY_CHECKOUT_REGION"), false,
-                new JdbcCheckoutSessionRepository(dataSource),
-                new JdbcCheckoutCapabilitySource(dataSource));
+        var dataSource = DriverManagerDataSource.fromEnvironment(environment,
+                "elmpay-edge-checkout");
+        HostedCheckoutService checkout;
+        try {
+            checkout = service(payments, Map.of(keyId, key), keyId, routes,
+                    defaultRoute, methods,
+                    publicBase, Duration.ofSeconds(ttlSeconds),
+                    required(environment, "ELMPAY_CHECKOUT_REGION"), false,
+                    new JdbcCheckoutSessionRepository(dataSource),
+                    new JdbcCheckoutCapabilitySource(dataSource),
+                    new JdbcCheckoutProviderSdkSource(dataSource));
+        } finally {
+            java.util.Arrays.fill(key, (byte) 0);
+        }
+        return new Runtime(checkout, new CheckoutProviderSdkRuntime(checkout,
+                CheckoutProviderSdkRegistry.fromClasspath(environment),
+                new JdbcCheckoutProviderSdkAudit(dataSource), Clock.systemUTC()));
     }
 
     private static HostedCheckoutService service(PaymentService payments, Map<String, byte[]> keys,
@@ -90,18 +123,19 @@ public final class CheckoutRuntimeFactory {
             URI publicBase, Duration ttl, String region, CheckoutSessionRepository repository,
             CheckoutCapabilitySource capabilitySource) {
         return service(payments, keys, activeKeyId, routes, defaultRoute, methods, publicBase, ttl,
-                region, true, repository, capabilitySource);
+                region, true, repository, capabilitySource, CheckoutProviderSdkSource.disabled());
     }
 
     private static HostedCheckoutService service(PaymentService payments, Map<String, byte[]> keys,
             String activeKeyId, Map<String, URI> routes, String defaultRoute, Set<String> methods,
             URI publicBase, Duration ttl, String region, boolean allowSyntheticPaymentReference,
-            CheckoutSessionRepository repository, CheckoutCapabilitySource capabilitySource) {
+            CheckoutSessionRepository repository, CheckoutCapabilitySource capabilitySource,
+            CheckoutProviderSdkSource providerSdkSource) {
         Clock clock = Clock.systemUTC();
         return new HostedCheckoutService(payments, repository,
                 new CheckoutTokenSigner(keys, activeKeyId), routes, defaultRoute, methods,
                 publicBase, ttl, region, allowSyntheticPaymentReference, clock,
-                capabilitySource, CheckoutLocalization.defaultCatalog());
+                capabilitySource, CheckoutLocalization.defaultCatalog(), providerSdkSource);
     }
 
     private static Map<String, URI> parseRoutes(String configuration) {
@@ -125,17 +159,16 @@ public final class CheckoutRuntimeFactory {
     private static byte[] decodeKey(String encoded) {
         byte[] key;
         try {
-            key = Base64.getDecoder().decode(encoded);
-        } catch (IllegalArgumentException standardFailure) {
-            try {
-                key = Base64.getUrlDecoder().decode(encoded);
-            } catch (IllegalArgumentException urlFailure) {
-                throw new IllegalStateException("ELMPAY_CHECKOUT_SIGNING_KEY_B64 is invalid",
-                        urlFailure);
-            }
+            key = Base64.getUrlDecoder().decode(encoded);
+        } catch (IllegalArgumentException failure) {
+            throw new IllegalStateException("ELMPAY_CHECKOUT_SIGNING_KEY_FILE is invalid",
+                    failure);
         }
-        if (key.length < 32) {
-            throw new IllegalStateException("checkout signing key must be at least 256 bits");
+        if (key.length < 32 || !Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(key).equals(encoded)) {
+            java.util.Arrays.fill(key, (byte) 0);
+            throw new IllegalStateException(
+                    "checkout signing key must be canonical base64url with at least 256 bits");
         }
         return key;
     }

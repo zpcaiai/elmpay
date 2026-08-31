@@ -49,7 +49,7 @@ class CiReleaseEvidenceGateTest(unittest.TestCase):
         environment = self.environment()
         for name in (
             "ELMPAY_RELEASE_TRUST_B64", "ELMPAY_EXTERNAL_EVIDENCE_B64",
-            "ELMPAY_EXTERNAL_TRUST_B64",
+            "ELMPAY_EXTERNAL_TRUST_B64", "ELMPAY_PRODUCT_IMAGE_INDEX_B64",
         ):
             environment[name] = encoded({})
         environment["ELMPAY_RELEASE_MANIFEST_B64"] = encoded({"commitSha": "b" * 40})
@@ -63,6 +63,7 @@ class CiReleaseEvidenceGateTest(unittest.TestCase):
         for name in (
             "ELMPAY_RELEASE_MANIFEST_B64", "ELMPAY_RELEASE_TRUST_B64",
             "ELMPAY_EXTERNAL_EVIDENCE_B64", "ELMPAY_EXTERNAL_TRUST_B64",
+            "ELMPAY_PRODUCT_IMAGE_INDEX_B64",
         ):
             environment[name] = encoded({})
         result = self.run_gate(environment)

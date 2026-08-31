@@ -45,10 +45,13 @@ public final class PaymentTimelineProjectionJob {
             throw new IllegalArgumentException("maximumBatches is outside the safe bound");
         }
         JdbcPaymentTimeline.ProjectionResult result = runOnce();
+        int totalApplied = result.appliedEvents();
         for (int batch = 1; batch < maximumBatches && !result.caughtUp(); batch++) {
             result = runOnce();
+            totalApplied = Math.addExact(totalApplied, result.appliedEvents());
         }
-        return result;
+        return new JdbcPaymentTimeline.ProjectionResult(totalApplied, result.checkpoint(),
+                result.generation(), result.caughtUp());
     }
 
     public JdbcPaymentTimeline.ProjectionResult rebuild() {

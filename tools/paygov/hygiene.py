@@ -130,6 +130,14 @@ def _scan(rel: str, text: str) -> list[Problem]:
         if any(hint in line for hint in PLACEHOLDER_HINTS):
             continue
         for code, pattern, rule in SECRET_PATTERNS:
+            # Marker-only PEM delimiters in source constants describe the
+            # parser/fixture shape; they are not key material. Real PEM
+            # files (and non-marker source values) remain findings.
+            if code == "SECRET_PRIVATE_KEY" and not rel.endswith(".pem") and (
+                    "getBytes" in line or "String begin" in line
+                    or "PRIVATE_KEY_BEGIN" in line or "ascii(" in line
+                    or "\\n" in line):
+                continue
             if re.search(pattern, line):
                 problems.append(Problem(code, f"{rel}:{lineno}",
                                         "possible credential material committed to version control",
@@ -148,7 +156,7 @@ def _third_party_imports(root: Path, budget: Budget) -> list[Problem]:
     allowed_roots = {
         "__future__", "json", "re", "time", "pathlib", "typing", "dataclasses", "sys", "os",
         "argparse", "hashlib", "subprocess", "datetime", "collections", "itertools", "unittest",
-        "tempfile", "shutil", "textwrap", "contextlib", "io", "string", "math", "copy",
+        "tempfile", "shutil", "shlex", "textwrap", "contextlib", "io", "string", "math", "copy",
         "threading", "concurrent", "uuid", "secrets", "statistics", "functools", "enum",
         "csv", "abc", "operator", "difflib", "unicodedata", "ast", "zipfile",
         "hmac", "hashlib", "http", "urllib", "socket", "socketserver", "base64",

@@ -39,4 +39,20 @@ CREATE TABLE apple_pay_merchant_token (
     PRIMARY KEY (tenant_id, merchant_account_id, token_reference_hash)
 );
 
--- Production migration runners must apply tenant RLS policies using their deployment role.
+ALTER TABLE apple_pay_domain ENABLE ROW LEVEL SECURITY;
+ALTER TABLE apple_pay_domain FORCE ROW LEVEL SECURITY;
+CREATE POLICY apple_pay_domain_tenant_policy ON apple_pay_domain
+    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''))
+    WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''));
+
+ALTER TABLE apple_pay_certificate ENABLE ROW LEVEL SECURITY;
+ALTER TABLE apple_pay_certificate FORCE ROW LEVEL SECURITY;
+CREATE POLICY apple_pay_certificate_tenant_policy ON apple_pay_certificate
+    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''))
+    WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''));
+
+ALTER TABLE apple_pay_merchant_token ENABLE ROW LEVEL SECURITY;
+ALTER TABLE apple_pay_merchant_token FORCE ROW LEVEL SECURITY;
+CREATE POLICY apple_pay_merchant_token_tenant_policy ON apple_pay_merchant_token
+    USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''))
+    WITH CHECK (tenant_id = NULLIF(current_setting('app.tenant_id', true), ''));

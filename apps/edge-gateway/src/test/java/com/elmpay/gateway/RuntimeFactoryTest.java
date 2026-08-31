@@ -59,6 +59,46 @@ final class RuntimeFactoryTest {
                 "ELMPAY_API_PRINCIPALS", principals)).mode().equals("local"));
     }
 
+    @Test
+    void postgresRejectsTheLocalStaticApiKeyAuthenticator() {
+        String principals = ApiKeyAuthenticator.digestForProvisioning("test-key")
+                + "|test|10000000-0000-0000-0000-000000000001"
+                + "|10000000-0000-0000-0000-000000000002"
+                + "|10000000-0000-0000-0000-000000000003|payments.read";
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> RuntimeFactory.create(Map.of(
+                        "ELMPAY_RUNTIME_MODE", "postgres",
+                        "ELMPAY_API_PRINCIPALS", principals)));
+    }
+
+    @Test
+    void remoteRiskAuthenticationRejectsHmacAndRequiresMountedMutualTls() {
+        String principals = ApiKeyAuthenticator.digestForProvisioning("test-key")
+                + "|test|10000000-0000-0000-0000-000000000001"
+                + "|10000000-0000-0000-0000-000000000002"
+                + "|10000000-0000-0000-0000-000000000003";
+        Map<String, String> mounted = Map.of(
+                "ELMPAY_RUNTIME_MODE", "local",
+                "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "remote-durable",
+                "ELMPAY_API_PRINCIPALS", principals,
+                "ELMPAY_RISK_ENDPOINT", "https://risk.svc.example/v1/risk/decisions",
+                "ELMPAY_RISK_HMAC_SECRET_FILE", "/forbidden/hmac");
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> RuntimeFactory.create(mounted));
+
+        var inline = new java.util.HashMap<>(mounted);
+        inline.remove("ELMPAY_RISK_HMAC_SECRET_FILE");
+        inline.put("ELMPAY_RISK_HMAC_SECRET", "s".repeat(40));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> RuntimeFactory.create(inline));
+
+        var missingTls = new java.util.HashMap<>(mounted);
+        missingTls.remove("ELMPAY_RISK_HMAC_SECRET_FILE");
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> RuntimeFactory.create(missingTls));
+    }
+
     private record StubAdapter(String provider, boolean configured) implements ProviderAdapter {
         @Override public ProviderPayment createPayment(CreatePaymentCommand command) { return null; }
         @Override public ProviderPayment queryPayment(ProviderRequestContext context, String id, String order) {

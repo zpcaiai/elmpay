@@ -1,24 +1,24 @@
 package com.elmpay.risk;
 
+import com.elmpay.security.CanonicalPayload;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.UUID;
 
-/**
- * Canonical product-side request for the durable B80-B83/B87 decision service.
- * Subject identifiers are transported only over the authenticated internal channel; the
- * decision service persists their digest rather than the raw identifier.
- */
-public record RiskEvaluationRequest(String tenantId, String requestId,
+/** Exact tenant/project/request-bound input to the synchronous risk service. */
+public record RiskEvaluationRequest(String tenantId, String projectId, String requestId,
         RiskOperation operation, String subjectId, long amountMinor, String currency,
         Instant occurredAt, Map<String, String> attributes) {
     public RiskEvaluationRequest {
-        requireText(tenantId, "tenantId");
-        requireText(requestId, "requestId");
+        tenantId = canonicalUuid(tenantId, "tenantId");
+        projectId = canonicalUuid(projectId, "projectId");
+        require(requestId, "requestId", 8, 128, "[A-Za-z0-9][A-Za-z0-9._:-]{7,127}");
         Objects.requireNonNull(operation, "operation");
-        requireText(subjectId, "subjectId");
+        require(subjectId, "subjectId", 1, 160, "[A-Za-z0-9][A-Za-z0-9._:@/-]{0,159}");
         if (amountMinor < 0) {
             throw new IllegalArgumentException("amountMinor must be non-negative");
         }
@@ -29,11 +29,8 @@ public record RiskEvaluationRequest(String tenantId, String requestId,
         Objects.requireNonNull(attributes, "attributes");
         TreeMap<String, String> copy = new TreeMap<>();
         attributes.forEach((key, value) -> {
-            requireText(key, "attribute key");
-            requireText(value, "attribute value");
-            if (key.length() > 128 || value.length() > 512) {
-                throw new IllegalArgumentException("risk attributes must be bounded");
-            }
+            require(key, "attribute key", 1, 64, "[A-Za-z][A-Za-z0-9_.-]{0,63}");
+            require(value, "attribute value", 1, 256, "[^\\p{Cntrl}]{1,256}");
             copy.put(key, value);
         });
         if (copy.size() > 32) {
@@ -42,9 +39,45 @@ public record RiskEvaluationRequest(String tenantId, String requestId,
         attributes = Collections.unmodifiableMap(copy);
     }
 
-    private static void requireText(String value, String field) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(field + " must not be blank");
+    public Map<String, Object> canonicalDocument() {
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("tenantId", tenantId);
+        value.put("projectId", projectId);
+        value.put("requestId", requestId);
+        value.put("operation", operation.name());
+        value.put("subjectId", subjectId);
+        value.put("amountMinor", amountMinor);
+        value.put("currency", currency);
+        value.put("occurredAt", occurredAt);
+        value.put("attributes", attributes);
+        return Map.copyOf(value);
+    }
+
+    public String requestDigest() {
+        return CanonicalPayload.sha256Hex(canonicalDocument());
+    }
+
+    public String subjectDigest() {
+        return CanonicalPayload.sha256Hex(Map.of("tenantId", tenantId, "subjectId", subjectId));
+    }
+
+    private static String canonicalUuid(String value, String field) {
+        try {
+            UUID parsed = UUID.fromString(Objects.requireNonNull(value, field));
+            if (!parsed.toString().equals(value)) {
+                throw new IllegalArgumentException("non-canonical UUID");
+            }
+            return value;
+        } catch (IllegalArgumentException failure) {
+            throw new IllegalArgumentException(field + " must be a canonical UUID", failure);
+        }
+    }
+
+    private static void require(String value, String field, int minimum, int maximum,
+            String expression) {
+        if (value == null || value.length() < minimum || value.length() > maximum
+                || !value.matches(expression)) {
+            throw new IllegalArgumentException(field + " is invalid");
         }
     }
 }

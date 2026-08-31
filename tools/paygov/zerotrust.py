@@ -90,7 +90,8 @@ def _validate(root: Path, budget: Budget) -> list[Problem]:
 
     factors = set(policy.get("required_factors") or [])
     for needed in ("authenticated_identity", "authorisation_policy", "audit_record",
-                   "device_posture", "workload_attestation", "phishing_resistant_mfa"):
+                   "device_posture", "workload_attestation", "phishing_resistant_mfa",
+                   "token_audience", "token_holder_binding", "tenant_binding"):
         problems += expect(needed in factors, "ZT_FACTORS", where,
                            f"'{needed}' must be an available access factor", "NN-12")
 
@@ -210,6 +211,17 @@ def _principals(policy: dict, where: str, budget: Budget) -> tuple[set, list[Pro
                                "ZT_WORKLOAD_CREDENTIAL", scope,
                                "a workload must authenticate with a short-lived certificate or "
                                "federated token, never with a stored password", "NN-07")
+        if pid == "merchant-api-client":
+            problems += expect(principal.get("identity_source") == "oidc_authorization_server",
+                               "ZT_MERCHANT_CREDENTIAL", scope,
+                               "merchant API identity must come from the OIDC authorization "
+                               "server, not a static tenant secret", "NN-07")
+            problems += expect(principal.get("credential") == "mtls_bound_access_token",
+                               "ZT_MERCHANT_CREDENTIAL", scope,
+                               "merchant API credentials must be mTLS-bound access tokens",
+                               "NN-07")
+            problems += expect(0 < lifetime <= 5, "ZT_MERCHANT_CREDENTIAL", scope,
+                               "merchant access tokens must expire within five minutes", "NN-07")
     return ids, problems
 
 
@@ -286,6 +298,11 @@ def _decisions(policy: dict, where: str, principal_ids: set, factors: set,
                                "tenant-scoped access must bind the tenant to the credential, not "
                                "to the request body; otherwise cross-tenant access is one edited "
                                "field away", "NN-09")
+
+        if entry.get("principal") == "merchant-api-client":
+            for required in ("token_audience", "token_holder_binding", "tenant_binding"):
+                problems += expect(required in requirements, "ZT_MERCHANT_CREDENTIAL", scope,
+                                   f"merchant API decisions must require '{required}'", "NN-07")
 
     for pair in sorted(HIGH_RISK):
         if pair == ("ledger_entry", "write"):

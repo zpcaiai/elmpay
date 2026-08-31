@@ -24,6 +24,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from .errors import BudgetExceeded, Problem
 from .repo import Budget, load_json
@@ -36,6 +37,7 @@ BASELINE = Path("contracts/api/openapi.baseline.json")
 OPERATION_ID = re.compile(r"^[a-z][a-z0-9_]*$")
 PATH = re.compile(r"^/v\d+(/[a-z0-9_]+|/\{[a-z0-9_]+\})*$")
 ERROR_CODE = re.compile(r"^[a-z][a-z0-9_]*$")
+AUTH_SCHEME_ID = re.compile(r"^[a-z][a-z0-9_]*$")
 WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 ALLOWED_STATUS = {200, 201, 202, 204, 400, 401, 403, 404, 409, 422, 429, 500, 502, 503, 504}
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
@@ -85,8 +87,8 @@ def _validate(root: Path, budget: Budget) -> list[Problem]:
     problems += problems_
 
     transitions = _transitions(root)
-    schemes = {s.get("id") for s in contract.get("auth_schemes") or []}
-    problems += expect(schemes, "API_SHAPE", where, "'auth_schemes' must not be empty", "NN-12")
+    schemes, scheme_problems = _auth_schemes(contract.get("auth_schemes"), where)
+    problems += scheme_problems
 
     seen_ids: set = set()
     seen_routes: set = set()
@@ -103,6 +105,80 @@ def _validate(root: Path, budget: Budget) -> list[Problem]:
     problems += _compatibility(root, contract, where, budget)
     problems += _generated(root, budget)
     return problems
+
+
+def _auth_schemes(value: Any, where: str) -> tuple[dict[str, dict], list[Problem]]:
+    """Validate the production authentication catalogue.
+
+    A bearer value in an ``Authorization`` header is not automatically OAuth2,
+    and OAuth2 alone does not prove possession of the caller's private key.  The
+    public API therefore declares both short-lived access-token validation and
+    mutual-TLS holder binding as one indivisible contract scheme.  Static tenant
+    API keys remain a local-sandbox implementation detail and may not reappear
+    in the production API contract.
+    """
+    if not isinstance(value, list) or not value:
+        return {}, [Problem("API_SHAPE", where, "'auth_schemes' must be a non-empty list",
+                            "NN-12")]
+    schemes: dict[str, dict] = {}
+    problems: list[Problem] = []
+    for index, entry in enumerate(value):
+        scope = f"{where}#auth:{index}"
+        if not isinstance(entry, dict):
+            problems.append(Problem("API_AUTH_SCHEME", scope,
+                                    "each auth scheme must be an object", "NN-12"))
+            continue
+        scheme_id = entry.get("id")
+        valid_scheme_id = (isinstance(scheme_id, str)
+                           and bool(AUTH_SCHEME_ID.match(scheme_id)))
+        problems += expect(valid_scheme_id,
+                           "API_AUTH_SCHEME", scope,
+                           f"auth scheme id '{scheme_id}' must be snake_case", "NN-12")
+        duplicate = isinstance(scheme_id, str) and scheme_id in schemes
+        problems += expect(not duplicate, "API_AUTH_SCHEME", scope,
+                           f"duplicate auth scheme '{scheme_id}'", "NN-12")
+        if valid_scheme_id and not duplicate:
+            schemes[scheme_id] = entry
+        kind = entry.get("type")
+        if kind == "oauth2_mtls":
+            parsed = urlparse(str(entry.get("token_url") or ""))
+            declared_scopes = entry.get("scopes")
+            valid_declared_scopes = (isinstance(declared_scopes, dict)
+                                     and bool(declared_scopes)
+                                     and all(isinstance(k, str) and isinstance(v, str)
+                                             and bool(v.strip())
+                                             for k, v in declared_scopes.items()))
+            problems += expect(entry.get("token_type") == "at+jwt", "API_AUTH_SCHEME", scope,
+                               "OAuth2 access tokens must use the at+jwt profile", "NN-12")
+            problems += expect(entry.get("holder_binding") == "mtls-x5t#S256",
+                               "API_AUTH_SCHEME", scope,
+                               "OAuth2 access tokens must be bound to the verified mTLS peer",
+                               "NN-07")
+            problems += expect(parsed.scheme == "https" and bool(parsed.netloc)
+                               and not parsed.username and not parsed.fragment,
+                               "API_AUTH_SCHEME", scope,
+                               "OAuth2 token_url must be an HTTPS endpoint", "NN-07")
+            problems += expect(valid_declared_scopes,
+                               "API_AUTH_SCHEME", scope,
+                               "OAuth2 scopes must be a non-empty description map", "NN-12")
+        elif kind == "provider_signature":
+            problems += expect(entry.get("header") == "X-Payment-Signature",
+                               "API_AUTH_SCHEME", scope,
+                               "provider signature scheme must use X-Payment-Signature", "NN-08")
+        else:
+            problems.append(Problem("API_AUTH_SCHEME", scope,
+                                    f"auth scheme type '{kind}' is not production-safe",
+                                    "NN-07"))
+    problems += expect("oauth2_mtls" in schemes, "API_AUTH_SCHEME", where,
+                       "production merchant APIs must declare OAuth2 plus mTLS holder binding",
+                       "NN-07")
+    problems += expect("provider_signature" in schemes, "API_AUTH_SCHEME", where,
+                       "provider callbacks must declare their independent signature scheme",
+                       "NN-08")
+    problems += expect("api_key" not in schemes, "API_STATIC_KEY_FORBIDDEN", where,
+                       "static API keys are local-sandbox credentials, not production API auth",
+                       "NN-07")
+    return schemes, problems
 
 
 def _versioning(contract: dict, where: str) -> list[Problem]:
@@ -221,7 +297,7 @@ def _transitions(root: Path) -> dict:
 
 
 def _operation(operation: Any, scope: str, contract: dict, error_codes: set, transitions: dict,
-               schemes: set, seen_ids: set, seen_routes: set, used_errors: set,
+               schemes: dict[str, dict], seen_ids: set, seen_routes: set, used_errors: set,
                budget: Budget) -> list[Problem]:
     problems: list[Problem] = []
     if not isinstance(operation, dict):
@@ -245,9 +321,43 @@ def _operation(operation: Any, scope: str, contract: dict, error_codes: set, tra
                        f"duplicate route {method} {path}", "NN-12")
     seen_routes.add(route)
 
-    problems += expect(operation.get("auth") in schemes, "API_AUTH", scope,
-                       f"auth scheme '{operation.get('auth')}' is not declared; an operation "
+    auth_id = operation.get("auth")
+    declared_auth = isinstance(auth_id, str) and auth_id in schemes
+    problems += expect(declared_auth, "API_AUTH", scope,
+                       f"auth scheme '{auth_id}' is not declared; an operation "
                        f"without an auth scheme is an anonymous payment API", "NN-12")
+    auth_scheme = schemes.get(auth_id) if declared_auth else {}
+    required_scopes = operation.get("required_scopes")
+    if auth_scheme.get("type") == "oauth2_mtls":
+        raw_declared_scopes = auth_scheme.get("scopes")
+        declared_scopes = set(raw_declared_scopes) if isinstance(raw_declared_scopes, dict) else set()
+        valid_scope_list = (isinstance(required_scopes, list) and bool(required_scopes)
+                            and all(isinstance(item, str) and item
+                                    for item in required_scopes))
+        scope_values = required_scopes if valid_scope_list else []
+        problems += expect(valid_scope_list and len(scope_values) == len(set(scope_values)),
+                           "API_AUTH_SCOPE", scope,
+                           "OAuth2 operations must declare a non-empty unique required_scopes list",
+                           "NN-12")
+        problems += expect(set(scope_values) <= declared_scopes,
+                           "API_AUTH_SCOPE", scope,
+                           f"required scopes {required_scopes!r} are not all declared by "
+                           f"auth scheme '{auth_id}'", "NN-12")
+        problems += expect(operation.get("actor") != "provider-event", "API_AUTH_ACTOR", scope,
+                           "provider callbacks must use their independent signature scheme",
+                           "NN-08")
+        expected_scope = "payments.read" if method == "GET" else "payments.write"
+        problems += expect(scope_values == [expected_scope], "API_AUTH_SCOPE", scope,
+                           f"{method} payment operation must require only '{expected_scope}'",
+                           "NN-12")
+    else:
+        problems += expect(required_scopes is None, "API_AUTH_SCOPE", scope,
+                           "only OAuth2 operations may declare required_scopes", "NN-12")
+        if auth_scheme.get("type") == "provider_signature":
+            problems += expect(operation.get("actor") == "provider-event", "API_AUTH_ACTOR",
+                               scope,
+                               "provider signature authentication is reserved for provider "
+                               "callback actors", "NN-08")
     problems += expect(len(str(operation.get("summary") or "")) >= 4, "API_SUMMARY", scope,
                        "every operation needs a summary", "NN-12")
 
@@ -321,7 +431,7 @@ def _operation(operation: Any, scope: str, contract: dict, error_codes: set, tra
                            "or skip rows as new payments arrive", "NN-12")
 
     signature = operation.get("signature")
-    if operation.get("auth") == "provider_signature":
+    if auth_scheme.get("type") == "provider_signature":
         problems += expect(isinstance(signature, dict) and signature.get("required") is True,
                            "API_SIGNATURE", scope,
                            "an inbound provider callback must verify a signature before anything "
@@ -391,6 +501,19 @@ def _compatibility(root: Path, contract: dict, where: str, budget: Budget) -> li
                 f"operation '{oid}' moved from {recorded.get('method')} {recorded.get('path')} "
                 f"to {operation.get('method')} {operation.get('path')} inside major {major}",
                 "NN-12"))
+        if recorded.get("auth") is not None and operation.get("auth") != recorded.get("auth"):
+            problems.append(Problem(
+                "API_BREAKING_AUTH", str(BASELINE),
+                f"operation '{oid}' changed authentication from {recorded.get('auth')} to "
+                f"{operation.get('auth')} inside major {major}", "NN-12"))
+        recorded_scopes = set(recorded.get("required_scopes") or [])
+        current_scopes = set(operation.get("required_scopes") or [])
+        added_scopes = current_scopes - recorded_scopes
+        if recorded.get("required_scopes") is not None and added_scopes:
+            problems.append(Problem(
+                "API_BREAKING_AUTH_SCOPE", str(BASELINE),
+                f"operation '{oid}' newly requires scopes {sorted(added_scopes)} inside major "
+                f"{major}", "NN-12"))
         was_required = bool((recorded.get("idempotency") or {}).get("required"))
         now_required = bool((operation.get("idempotency") or {}).get("required"))
         if was_required and not now_required:

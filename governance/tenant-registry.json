@@ -126,6 +126,26 @@
     ],
     "notes": "状态机本身很小，难的是每个状态下**什么还能做**——见 capability_matrix。"
   },
+  "transition_evidence": {
+    "caller_supplied_boolean_allowed": false,
+    "receipt_algorithm": "Ed25519",
+    "signed_fields": [
+      "tenant_id",
+      "evidence_type",
+      "authority",
+      "decision_reference",
+      "payload_digest",
+      "issued_at",
+      "expires_at",
+      "nonce",
+      "key_id"
+    ],
+    "maximum_lifetime_seconds": 600,
+    "durable_global_key_nonce_replay_guard": true,
+    "tenant_rls_required": true,
+    "new_transitions_accept_historical_evidence_flags": false,
+    "four_eyes_is_independent_of_authority_receipts": true
+  },
   "capability_matrix": [
     {
       "state": "draft",

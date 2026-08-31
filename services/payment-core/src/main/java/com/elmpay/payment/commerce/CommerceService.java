@@ -1,5 +1,6 @@
 package com.elmpay.payment.commerce;
 
+import com.elmpay.provider.ProviderEvidenceReceipt;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,7 +49,7 @@ public interface CommerceService {
 
     record DisputeEvent(String provider, String providerEventId, String providerDisputeId,
             UUID paymentIntentId, long amountMinor, String currency, Instant responseDeadline,
-            String payloadDigest, boolean signatureVerified) {}
+            String payloadDigest, ProviderEvidenceReceipt evidence) {}
 
     record Dispute(UUID id, UUID tenantId, UUID projectId, String provider,
             String providerDisputeId, UUID paymentIntentId, long amountMinor, String currency,
@@ -93,7 +94,7 @@ public interface CommerceService {
             String correlationId);
 
     Dispute resolveDispute(Context context, UUID disputeId, DisputeState result,
-            String providerResultDigest, boolean verifiedProviderResult,
+            String providerResultDigest, ProviderEvidenceReceipt evidence,
             String idempotencyKey, String correlationId);
 
     Dispute getDispute(Context context, UUID disputeId);
@@ -102,13 +103,13 @@ public interface CommerceService {
             String workerId);
 
     Subscription recordRenewalOutcome(Context context, UUID billingCycleId,
-            RenewalOutcome outcome, String providerResultDigest, boolean verifiedProviderResult,
+            RenewalOutcome outcome, String providerResultDigest, ProviderEvidenceReceipt evidence,
             String idempotencyKey, String correlationId);
 
     Optional<DunningCase> enqueueDueDunning(UUID tenantId, Instant now,
             String workerId);
 
     DunningCase recordDunningOutcome(Context context, UUID dunningCaseId,
-            RenewalOutcome outcome, String providerResultDigest, boolean verifiedProviderResult,
+            RenewalOutcome outcome, String providerResultDigest, ProviderEvidenceReceipt evidence,
             String idempotencyKey, String correlationId);
 }

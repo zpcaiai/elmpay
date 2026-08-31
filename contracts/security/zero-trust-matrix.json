@@ -25,8 +25,9 @@
         "audit_record",
         "authenticated_identity",
         "authorisation_policy",
-        "request_signature",
-        "tenant_binding"
+        "tenant_binding",
+        "token_audience",
+        "token_holder_binding"
       ],
       "resource_class": "tenant_payment",
       "step_up": false
@@ -41,8 +42,9 @@
         "audit_record",
         "authenticated_identity",
         "authorisation_policy",
-        "request_signature",
-        "tenant_binding"
+        "tenant_binding",
+        "token_audience",
+        "token_holder_binding"
       ],
       "resource_class": "tenant_payment",
       "step_up": false

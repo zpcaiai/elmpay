@@ -33,6 +33,7 @@ test('checkout page is rendered with per-response CSP nonce, SRI and Trusted Typ
   assert.match(first.headers['content-security-policy'], /script-src 'nonce-[A-Za-z0-9_-]{24}' 'strict-dynamic'/);
   assert.match(first.headers['content-security-policy'], /require-trusted-types-for 'script'/);
   assert.match(first.headers['content-security-policy'], /trusted-types elmpay-checkout/);
+  assert.match(first.headers['content-security-policy'], /frame-src 'self'/);
   assert.match(first.headers['content-security-policy'], /report-uri \/security\/csp-report/);
   assert.notEqual(first.headers['content-security-policy'], second.headers['content-security-policy']);
   const html = first.body.toString('utf8');

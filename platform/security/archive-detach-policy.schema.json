@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://elmpay.example/schemas/archive-detach-policy-v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "policyDigest", "validFrom", "validUntil"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "policyDigest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "validFrom": {"type": "string", "format": "date-time"},
+    "validUntil": {"type": "string", "format": "date-time"}
+  }
+}

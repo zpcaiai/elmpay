@@ -39,6 +39,19 @@ final class AlipayAdapterTest {
     private static KeyPair alipayKeys;
     private static KeyPair nextAlipayKeys;
 
+    @Test
+    void transportResponseIsDefensiveWipeableAndRejectsUseAfterClose() {
+        byte[] supplied = {1, 2, 3};
+        AlipayAdapter.HttpResult response = new AlipayAdapter.HttpResult(200, supplied);
+        supplied[0] = 9;
+        assertEquals(1, response.body()[0]);
+        assertEquals(3, response.bodyLength());
+        response.close();
+        response.close();
+        assertThrows(IllegalStateException.class, response::body);
+        assertThrows(IllegalStateException.class, response::bodyLength);
+    }
+
     @BeforeAll
     static void keys() throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
@@ -110,11 +123,41 @@ final class AlipayAdapterTest {
     }
 
     @Test
-    void commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed() {
+    void rejectsForgedSuccessfulSynchronousResponse() throws Exception {
+        AlipayAdapter.HttpResult forged = signedResponse("alipay.trade.app.pay",
+                "{\"code\":\"10000\",\"trade_no\":\"trade_forged\"}",
+                "{\"code\":\"10000\",\"trade_no\":\"trade_trusted\"}",
+                alipayKeys.getPrivate());
+        AlipayAdapter.OperationResult result = adapter(request -> forged).createOrder(
+                new AlipayAdapter.PaymentRequest("order_123456", 1025, "CNY", "fixture",
+                        AlipayAdapter.Channel.APP, null, "idem-alipay-00000001"), null);
+        assertEquals(AlipayAdapter.State.UNKNOWN, result.state());
+        assertFalse(result.finalState());
+        assertEquals("", result.providerReference());
+    }
+
+    @Test
+    void duplicateSignedBusinessFieldsFailToUnknown() throws Exception {
+        String duplicate = "{\"code\":\"10000\",\"code\":\"40004\","
+                + "\"trade_no\":\"trade_123456\"}";
+        AlipayAdapter.HttpResult response = signedResponse("alipay.trade.app.pay", duplicate,
+                null, alipayKeys.getPrivate());
+
+        AlipayAdapter.OperationResult result = adapter(request -> response).createOrder(
+                new AlipayAdapter.PaymentRequest("order_123456", 1025, "CNY", "fixture",
+                        AlipayAdapter.Channel.APP, null, "idem-alipay-00000001"), null);
+
+        assertEquals(AlipayAdapter.State.UNKNOWN, result.state());
+        assertFalse(result.finalState());
+    }
+
+    @Test
+    void commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed() throws Exception {
+        AlipayAdapter.HttpResult response = signedResponse("alipay.trade.app.pay",
+                "{\"code\":\"10000\",\"trade_no\":\"trade_123456\"}", null,
+                alipayKeys.getPrivate());
         AlipayProviderBridge bridge = new AlipayProviderBridge(new AlipayProviderBridge.Runtime(
-                adapter(request -> new AlipayAdapter.HttpResult(200,
-                        "{\"code\":\"10000\",\"trade_no\":\"trade_123456\"}"
-                                .getBytes(StandardCharsets.UTF_8))),
+                adapter(request -> response),
                 route -> URI.create("https://pay.example.test/alipay/return"),
                 request -> new AlipayAdapter.ExpectedNotify("app-001", "seller-001", "order_123456",
                         1025, "CNY"),
@@ -187,6 +230,19 @@ final class AlipayAdapterTest {
         String form = shuffled.stream().map(entry -> encode(entry.getKey()) + "=" + encode(entry.getValue()))
                 .collect(java.util.stream.Collectors.joining("&"));
         return form.getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static AlipayAdapter.HttpResult signedResponse(String method, String body,
+            String signedBodyOverride, PrivateKey key) throws Exception {
+        String signedBody = signedBodyOverride == null ? body : signedBodyOverride;
+        Signature signer = Signature.getInstance("SHA256withRSA");
+        signer.initSign(key);
+        signer.update(signedBody.getBytes(StandardCharsets.UTF_8));
+        String signature = Base64.getEncoder().encodeToString(signer.sign());
+        String responseName = method.replace('.', '_') + "_response";
+        String response = "{\"" + responseName + "\":" + body + ",\"sign\":\""
+                + signature + "\",\"alipay_cert_sn\":\"cert-old\"}";
+        return new AlipayAdapter.HttpResult(200, response.getBytes(StandardCharsets.UTF_8));
     }
 
     private static String encode(String value) {

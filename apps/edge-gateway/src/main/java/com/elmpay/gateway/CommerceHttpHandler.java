@@ -30,11 +30,11 @@ public final class CommerceHttpHandler implements HttpHandler {
     private static final Set<String> EVIDENCE_FIELDS = Set.of("object_digest", "media_type",
             "object_reference");
 
-    private final ApiKeyAuthenticator authenticator;
+    private final ApiAuthenticator authenticator;
     private final Optional<CommerceService> commerce;
     private final FixedWindowRateLimiter rateLimiter;
 
-    public CommerceHttpHandler(ApiKeyAuthenticator authenticator,
+    public CommerceHttpHandler(ApiAuthenticator authenticator,
             Optional<CommerceService> commerce) {
         this.authenticator = java.util.Objects.requireNonNull(authenticator, "authenticator");
         this.commerce = java.util.Objects.requireNonNull(commerce, "commerce");
@@ -43,15 +43,21 @@ public final class CommerceHttpHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        String requestId = exchange.getRequestHeaders().getFirst("X-Request-Id");
+        String requestId = null;
         try {
+            StrictJsonHttpRequest.validateEnvelope(exchange);
+            if (exchange.getRequestURI().getRawQuery() != null) {
+                throw new IllegalArgumentException(
+                        "commerce API query parameters are not supported");
+            }
+            requestId = StrictJsonHttpRequest.optionalHeader(exchange, "X-Request-Id", 128);
             if (!validRequestId(requestId) || !validTraceparent(
-                    exchange.getRequestHeaders().getFirst("traceparent"))) {
+                    StrictJsonHttpRequest.optionalHeader(exchange, "traceparent", 128))) {
                 error(exchange, 400, "invalid_request",
                         "X-Request-Id and a valid traceparent are required", safe(requestId));
                 return;
             }
-            ApiPrincipal principal = authenticator.authenticate(exchange.getRequestHeaders())
+            ApiPrincipal principal = authenticator.authenticate(exchange)
                     .orElse(null);
             if (principal == null) {
                 error(exchange, 401, "unauthenticated", "valid bearer credentials are required",
@@ -289,15 +295,7 @@ public final class CommerceHttpHandler implements HttpHandler {
 
     private static Map<String, Object> body(HttpExchange exchange, Set<String> allowed)
             throws IOException {
-        byte[] bytes = exchange.getRequestBody().readNBytes(MAX_BODY_BYTES + 1);
-        if (bytes.length > MAX_BODY_BYTES) {
-            throw new IllegalArgumentException("request body is too large");
-        }
-        Map<String, Object> value = Json.object(new String(bytes, StandardCharsets.UTF_8));
-        if (!allowed.containsAll(value.keySet())) {
-            throw new IllegalArgumentException("unknown request field");
-        }
-        return value;
+        return StrictJsonHttpRequest.body(exchange, MAX_BODY_BYTES, allowed);
     }
 
     private static String string(Map<String, Object> body, String name) {
@@ -325,11 +323,7 @@ public final class CommerceHttpHandler implements HttpHandler {
     }
 
     private static String idempotency(HttpExchange exchange) {
-        String value = exchange.getRequestHeaders().getFirst("Idempotency-Key");
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("Idempotency-Key is required");
-        }
-        return value;
+        return StrictJsonHttpRequest.requiredHeader(exchange, "Idempotency-Key", 128);
     }
 
     private static void requireScope(ApiPrincipal principal, String scope) {
@@ -339,7 +333,7 @@ public final class CommerceHttpHandler implements HttpHandler {
     }
 
     private static void requireProject(HttpExchange exchange, ApiPrincipal principal) {
-        String value = exchange.getRequestHeaders().getFirst("X-Project-Id");
+        String value = StrictJsonHttpRequest.requiredHeader(exchange, "X-Project-Id", 64);
         if (value == null || !principal.projectId().equals(UUID.fromString(value))) {
             throw new AccessDeniedException("request project does not match the authenticated principal");
         }

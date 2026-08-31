@@ -7,8 +7,8 @@ import java.math.RoundingMode;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
@@ -23,6 +23,8 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -34,6 +36,10 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
+import javax.net.ssl.SSLParameters;
+
+import com.elmpay.events.StrictJson;
+import com.elmpay.security.BoundedHttpTransport;
 
 /** Certificate-mode Alipay adapter using the public RSA2 protocol and JCA. */
 public final class AlipayAdapter implements AutoCloseable {
@@ -158,14 +164,46 @@ public final class AlipayAdapter implements AutoCloseable {
         }
     }
 
-    public record HttpResult(int statusCode, byte[] body) {
-        public HttpResult {
-            body = Objects.requireNonNull(body, "body").clone();
+    /** Transport response whose owned body must be wiped after one attempt. */
+    public static final class HttpResult implements AutoCloseable {
+        private final int statusCode;
+        private byte[] body;
+        private boolean closed;
+
+        public HttpResult(int statusCode, byte[] body) {
+            this.statusCode = statusCode;
+            this.body = Objects.requireNonNull(body, "body").clone();
+        }
+
+        public int statusCode() {
+            return statusCode;
+        }
+
+        public synchronized int bodyLength() {
+            ensureOpen();
+            return body.length;
+        }
+
+        /** Returns an owned copy; the caller must wipe it. */
+        public synchronized byte[] body() {
+            ensureOpen();
+            return body.clone();
         }
 
         @Override
-        public byte[] body() {
-            return body.clone();
+        public synchronized void close() {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            Arrays.fill(body, (byte) 0);
+            body = new byte[0];
+        }
+
+        private void ensureOpen() {
+            if (closed) {
+                throw new IllegalStateException("Alipay HTTP response is closed");
+            }
         }
     }
 
@@ -179,14 +217,48 @@ public final class AlipayAdapter implements AutoCloseable {
 
         public JdkTransport(Duration connectTimeout) {
             positive(connectTimeout, "connectTimeout");
+            SSLParameters tls = new SSLParameters();
+            tls.setProtocols(new String[] {"TLSv1.3"});
+            tls.setEndpointIdentificationAlgorithm("HTTPS");
             client = HttpClient.newBuilder().connectTimeout(connectTimeout)
-                    .followRedirects(HttpClient.Redirect.NEVER).build();
+                    .sslParameters(tls).followRedirects(HttpClient.Redirect.NEVER).build();
         }
 
         @Override
         public HttpResult send(HttpRequest request) throws IOException, InterruptedException {
-            HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-            return new HttpResult(response.statusCode(), response.body());
+            try (BoundedHttpTransport.Response response = BoundedHttpTransport.send(
+                    client, request, MAX_BODY_BYTES)) {
+                requireCompatibleContentType(response.headers());
+                byte[] body = response.body();
+                try {
+                    return new HttpResult(response.statusCode(), body);
+                } finally {
+                    Arrays.fill(body, (byte) 0);
+                }
+            }
+        }
+
+        private static void requireCompatibleContentType(HttpHeaders headers) {
+            List<String> values = headers.allValues("Content-Type");
+            // Alipay's gateway contract binds a signed JSON HTTP body but does not promise one
+            // stable response media type across classic gateway deployments.  Treat the header
+            // as advisory and accept the narrow set observed for JSON-string responses; the
+            // response still has to pass strict UTF-8, exact-envelope and RSA2 verification.
+            if (values.isEmpty()) {
+                return;
+            }
+            if (values.size() != 1) {
+                throw new SecurityException("Alipay response Content-Type is missing or ambiguous");
+            }
+            String value = values.getFirst().trim();
+            int separator = value.indexOf(';');
+            String mediaType = separator < 0 ? value : value.substring(0, separator).trim();
+            if (!("application/json".equalsIgnoreCase(mediaType)
+                    || "text/plain".equalsIgnoreCase(mediaType)
+                    || "text/html".equalsIgnoreCase(mediaType))
+                    || value.indexOf(',') >= 0) {
+                throw new SecurityException("Alipay response Content-Type is incompatible");
+            }
         }
     }
 
@@ -324,15 +396,21 @@ public final class AlipayAdapter implements AutoCloseable {
                 .filter(candidate -> candidate.validAt(receivedAt))
                 .findFirst().orElseThrow(() -> new SecurityException("unknown or expired Alipay certificate"));
         String canonical = canonical(parameters, Set.of("sign", "sign_type"));
+        byte[] supplied = null;
         try {
             Signature verifier = Signature.getInstance("SHA256withRSA");
             verifier.initVerify(key.publicKey());
             verifier.update(canonical.getBytes(StandardCharsets.UTF_8));
-            if (!verifier.verify(Base64.getDecoder().decode(signatureText))) {
+            supplied = Base64.getDecoder().decode(signatureText);
+            if (!verifier.verify(supplied)) {
                 throw new SecurityException("invalid Alipay notification signature");
             }
         } catch (GeneralSecurityException | IllegalArgumentException exception) {
             throw new SecurityException("invalid Alipay notification signature", exception);
+        } finally {
+            if (supplied != null) {
+                Arrays.fill(supplied, (byte) 0);
+            }
         }
         String appId = required(parameters, "app_id");
         String sellerId = required(parameters, "seller_id");
@@ -388,7 +466,7 @@ public final class AlipayAdapter implements AutoCloseable {
         String content = canonical(parameters, Set.of());
         parameters.put("sign", sign(content));
         String body = encodeForm(parameters);
-        HttpResult last = null;
+        int lastStatus = 0;
         for (int attempt = 1; attempt <= config.maxAttempts(); attempt++) {
             HttpRequest request = HttpRequest.newBuilder(config.gateway())
                     .timeout(config.requestTimeout())
@@ -396,36 +474,247 @@ public final class AlipayAdapter implements AutoCloseable {
                     .header("Accept", "application/json")
                     .header("X-Elmpay-Idempotency-Key", idempotencyKey)
                     .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)).build();
-            try {
-                last = transport.send(request);
-                if (last.body().length > MAX_BODY_BYTES) {
-                    return new OperationResult(State.UNKNOWN, false, last.statusCode(), "", "");
+            try (HttpResult result = transport.send(request)) {
+                lastStatus = result.statusCode();
+                if (result.bodyLength() > MAX_BODY_BYTES) {
+                    return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
                 }
-                String response = strictUtf8(last.body());
-                if (last.statusCode() >= 200 && last.statusCode() < 300) {
-                    String businessCode = optionalJsonString(response, "code");
-                    if (!businessCode.isBlank() && !"10000".equals(businessCode)) {
+                if ((lastStatus < 200 || lastStatus >= 300) && retryable(lastStatus)) {
+                    continue;
+                }
+                byte[] responseBytes = result.body();
+                String response;
+                try {
+                    response = strictUtf8(responseBytes);
+                } finally {
+                    Arrays.fill(responseBytes, (byte) 0);
+                }
+                if (lastStatus >= 200 && lastStatus < 300) {
+                    String signedResponse = verifySynchronousResponse(method, response,
+                            Instant.now(config.clock()));
+                    String businessCode = optionalJsonString(signedResponse, "code");
+                    if (businessCode.isBlank()) {
+                        return new OperationResult(State.UNKNOWN, false, lastStatus, "",
+                                signedResponse);
+                    }
+                    if (!"10000".equals(businessCode)) {
                         if ("20000".equals(businessCode)) {
                             continue;
                         }
-                        return new OperationResult(State.FAILED, true, last.statusCode(), "", response);
+                        return new OperationResult(State.FAILED, true, lastStatus, "",
+                                signedResponse);
                     }
-                    return new OperationResult(State.PENDING, false, last.statusCode(),
-                            optionalJsonString(response, "trade_no"), response);
+                    return new OperationResult(State.PENDING, false, lastStatus,
+                            optionalJsonString(signedResponse, "trade_no"), signedResponse);
                 }
-                if (!retryable(last.statusCode())) {
-                    return new OperationResult(State.FAILED, true, last.statusCode(), "", response);
-                }
+                return new OperationResult(State.FAILED, true, lastStatus, "", response);
             } catch (IOException exception) {
-                last = null;
+                lastStatus = 0;
+            } catch (SecurityException exception) {
+                return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 return new OperationResult(State.UNKNOWN, false, 0, "", "");
             }
         }
-        return new OperationResult(State.UNKNOWN, false, last == null ? 0 : last.statusCode(), "",
-                last == null ? "" : strictUtf8(last.body()));
+        return new OperationResult(State.UNKNOWN, false, lastStatus, "", "");
     }
+
+    private String verifySynchronousResponse(String method, String response, Instant receivedAt) {
+        Map<String, String> members = topLevelJsonMembers(response);
+        String responseName = method.replace('.', '_') + "_response";
+        String payload = requiredMember(members, responseName);
+        if (!payload.startsWith("{") || !payload.endsWith("}")) {
+            throw new SecurityException("Alipay response payload is not an object");
+        }
+        String signatureText = jsonStringMember(members, "sign");
+        String certificateSerial = jsonStringMember(members, "alipay_cert_sn");
+        List<VerificationKey> candidates = verificationKeys.get().stream()
+                .filter(candidate -> candidate.certificateSerial().equals(certificateSerial))
+                .filter(candidate -> candidate.validAt(receivedAt)).toList();
+        if (candidates.size() != 1) {
+            throw new SecurityException("unknown, expired, or ambiguous Alipay response certificate");
+        }
+        byte[] supplied = null;
+        try {
+            Signature verifier = Signature.getInstance("SHA256withRSA");
+            verifier.initVerify(candidates.getFirst().publicKey());
+            verifier.update(payload.getBytes(StandardCharsets.UTF_8));
+            supplied = Base64.getDecoder().decode(signatureText);
+            if (!verifier.verify(supplied)) {
+                throw new SecurityException("invalid Alipay response signature");
+            }
+        } catch (GeneralSecurityException | IllegalArgumentException exception) {
+            throw new SecurityException("invalid Alipay response signature", exception);
+        } finally {
+            if (supplied != null) {
+                Arrays.fill(supplied, (byte) 0);
+            }
+        }
+        return payload;
+    }
+
+    private static Map<String, String> topLevelJsonMembers(String source) {
+        int index = skipWhitespace(source, 0);
+        if (index >= source.length() || source.charAt(index++) != '{') {
+            throw new SecurityException("Alipay response is not a JSON object");
+        }
+        Map<String, String> result = new LinkedHashMap<>();
+        index = skipWhitespace(source, index);
+        if (index < source.length() && source.charAt(index) == '}') {
+            index++;
+        } else {
+            while (true) {
+                JsonString key = parseJsonString(source, index);
+                index = skipWhitespace(source, key.end());
+                if (index >= source.length() || source.charAt(index++) != ':') {
+                    throw new SecurityException("invalid Alipay response JSON member");
+                }
+                index = skipWhitespace(source, index);
+                int valueStart = index;
+                index = jsonValueEnd(source, index);
+                String value = source.substring(valueStart, index);
+                if (result.putIfAbsent(key.value(), value) != null) {
+                    throw new SecurityException("duplicate Alipay response JSON member");
+                }
+                index = skipWhitespace(source, index);
+                if (index >= source.length()) {
+                    throw new SecurityException("unterminated Alipay response JSON object");
+                }
+                char delimiter = source.charAt(index++);
+                if (delimiter == '}') {
+                    break;
+                }
+                if (delimiter != ',') {
+                    throw new SecurityException("invalid Alipay response JSON delimiter");
+                }
+                index = skipWhitespace(source, index);
+            }
+        }
+        if (skipWhitespace(source, index) != source.length()) {
+            throw new SecurityException("trailing Alipay response JSON data");
+        }
+        return Map.copyOf(result);
+    }
+
+    private static int jsonValueEnd(String source, int start) {
+        if (start >= source.length()) {
+            throw new SecurityException("missing Alipay response JSON value");
+        }
+        char first = source.charAt(start);
+        if (first == '"') {
+            return parseJsonString(source, start).end();
+        }
+        if (first == '{' || first == '[') {
+            ArrayDeque<Character> stack = new ArrayDeque<>();
+            stack.push(first == '{' ? '}' : ']');
+            for (int index = start + 1; index < source.length(); index++) {
+                char current = source.charAt(index);
+                if (current == '"') {
+                    index = parseJsonString(source, index).end() - 1;
+                } else if (current == '{') {
+                    stack.push('}');
+                } else if (current == '[') {
+                    stack.push(']');
+                } else if (current == '}' || current == ']') {
+                    if (stack.isEmpty() || stack.pop() != current) {
+                        throw new SecurityException("mismatched Alipay response JSON container");
+                    }
+                    if (stack.isEmpty()) {
+                        return index + 1;
+                    }
+                }
+            }
+            throw new SecurityException("unterminated Alipay response JSON container");
+        }
+        int index = start;
+        while (index < source.length() && source.charAt(index) != ','
+                && source.charAt(index) != '}') {
+            index++;
+        }
+        int end = index;
+        while (end > start && Character.isWhitespace(source.charAt(end - 1))) {
+            end--;
+        }
+        if (end == start) {
+            throw new SecurityException("empty Alipay response JSON value");
+        }
+        return end;
+    }
+
+    private static JsonString parseJsonString(String source, int start) {
+        if (start >= source.length() || source.charAt(start) != '"') {
+            throw new SecurityException("Alipay response JSON key is not a string");
+        }
+        StringBuilder decoded = new StringBuilder();
+        for (int index = start + 1; index < source.length(); index++) {
+            char current = source.charAt(index);
+            if (current == '"') {
+                return new JsonString(decoded.toString(), index + 1);
+            }
+            if (current < 0x20) {
+                throw new SecurityException("invalid control character in Alipay response JSON");
+            }
+            if (current != '\\') {
+                decoded.append(current);
+                continue;
+            }
+            if (++index >= source.length()) {
+                throw new SecurityException("unterminated Alipay response JSON escape");
+            }
+            char escaped = source.charAt(index);
+            switch (escaped) {
+                case '"', '\\', '/' -> decoded.append(escaped);
+                case 'b' -> decoded.append('\b');
+                case 'f' -> decoded.append('\f');
+                case 'n' -> decoded.append('\n');
+                case 'r' -> decoded.append('\r');
+                case 't' -> decoded.append('\t');
+                case 'u' -> {
+                    if (index + 4 >= source.length()) {
+                        throw new SecurityException("short Alipay response JSON unicode escape");
+                    }
+                    try {
+                        decoded.append((char) Integer.parseInt(source.substring(index + 1,
+                                index + 5), 16));
+                    } catch (NumberFormatException exception) {
+                        throw new SecurityException("invalid Alipay response JSON unicode escape",
+                                exception);
+                    }
+                    index += 4;
+                }
+                default -> throw new SecurityException("invalid Alipay response JSON escape");
+            }
+        }
+        throw new SecurityException("unterminated Alipay response JSON string");
+    }
+
+    private static int skipWhitespace(String source, int start) {
+        int index = start;
+        while (index < source.length() && Character.isWhitespace(source.charAt(index))) {
+            index++;
+        }
+        return index;
+    }
+
+    private static String requiredMember(Map<String, String> members, String name) {
+        String value = members.get(name);
+        if (value == null || value.isBlank()) {
+            throw new SecurityException("missing Alipay response member: " + name);
+        }
+        return value;
+    }
+
+    private static String jsonStringMember(Map<String, String> members, String name) {
+        String raw = requiredMember(members, name);
+        JsonString parsed = parseJsonString(raw, 0);
+        if (parsed.end() != raw.length() || parsed.value().isBlank()) {
+            throw new SecurityException("invalid Alipay response string member: " + name);
+        }
+        return parsed.value();
+    }
+
+    private record JsonString(String value, int end) { }
 
     private String sign(String content) {
         try {
@@ -529,39 +818,22 @@ public final class AlipayAdapter implements AutoCloseable {
     }
 
     private static String optionalJsonString(String source, String key) {
-        String needle = "\"" + key + "\"";
-        int keyIndex = source.indexOf(needle);
-        if (keyIndex < 0 || source.indexOf(needle, keyIndex + needle.length()) >= 0) {
+        final Map<String, Object> values;
+        try {
+            values = StrictJson.object(source);
+        } catch (IllegalArgumentException exception) {
+            throw new SecurityException("invalid Alipay JSON response", exception);
+        }
+        Object value = values.get(key);
+        if (value == null) {
             return "";
         }
-        int colon = source.indexOf(':', keyIndex + needle.length());
-        if (colon < 0) {
-            return "";
+        if (!(value instanceof String text) || text.length() > 8_192
+                || text.chars().anyMatch(character -> character < 0x20
+                        || character == 0x7f)) {
+            throw new SecurityException("invalid Alipay JSON string field: " + key);
         }
-        int quote = source.indexOf('"', colon + 1);
-        if (quote < 0) {
-            return "";
-        }
-        int end = quote + 1;
-        StringBuilder result = new StringBuilder();
-        boolean escaped = false;
-        while (end < source.length()) {
-            char character = source.charAt(end++);
-            if (escaped) {
-                if (character != '"' && character != '\\' && character != '/') {
-                    return "";
-                }
-                result.append(character);
-                escaped = false;
-            } else if (character == '\\') {
-                escaped = true;
-            } else if (character == '"') {
-                return result.toString();
-            } else {
-                result.append(character);
-            }
-        }
-        return "";
+        return text;
     }
 
     private static String strictUtf8(byte[] value) {

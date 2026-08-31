@@ -11,6 +11,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -21,6 +22,33 @@ final class PaymentGatewayE2eTest {
     private static final UUID TENANT = UUID.fromString("20000000-0000-0000-0000-000000000001");
     private static final UUID PROJECT = UUID.fromString("20000000-0000-0000-0000-000000000002");
     private static final UUID MERCHANT = UUID.fromString("20000000-0000-0000-0000-000000000003");
+
+    @Test
+    void exposesAllThreeUnauthenticatedKubernetesHealthProbes() throws Exception {
+        String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
+                + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
+        RuntimeComponents runtime = RuntimeFactory.create(Map.of(
+                "ELMPAY_RUNTIME_MODE", "local",
+                "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
+                "ELMPAY_API_PRINCIPALS", principals));
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
+        server.createContext("/", new PaymentHttpHandler(runtime));
+        server.start();
+        try {
+            URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            HttpClient client = HttpClient.newHttpClient();
+            for (String probe : List.of("startup", "live", "ready")) {
+                HttpResponse<String> response = client.send(HttpRequest.newBuilder(
+                                base.resolve("/health/" + probe)).GET().build(),
+                        HttpResponse.BodyHandlers.ofString());
+                assertEquals(200, response.statusCode(), response.body());
+                assertEquals("local", Json.object(response.body()).get("mode"));
+            }
+        } finally {
+            server.stop(0);
+        }
+    }
 
     @Test
     void createsAndConfirmsAnIntentThroughTheHttpBoundary() throws Exception {

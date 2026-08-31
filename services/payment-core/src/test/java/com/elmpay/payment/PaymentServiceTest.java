@@ -486,6 +486,83 @@ final class PaymentServiceTest {
                 command.idempotencyKey()).isPresent());
     }
 
+    @Test
+    void crashedProviderDispatchIsRecoveredAfterRestartWithoutRedispatch() {
+        InMemoryPaymentRepository repository = new InMemoryPaymentRepository();
+        FakeAdapter adapter = new FakeAdapter();
+        adapter.createCrash = new SimulatedProcessCrash();
+        Duration lease = Duration.ofSeconds(5);
+        PaymentService firstProcess = service(adapter, repository, CLOCK, lease);
+        PaymentIntent intent = firstProcess.create(
+                createCommand("restart-create-key-0001", "restart-order-1"));
+        ConfirmationCommand confirmation = confirmation(intent, "restart-confirm-key-0001");
+
+        assertThrows(SimulatedProcessCrash.class, () -> firstProcess.confirm(confirmation));
+        PaymentAttempt abandoned = repository.attempts(TENANT, intent.id()).getFirst();
+        assertEquals(AttemptState.INITIATED, abandoned.state());
+
+        adapter.createCrash = null;
+        adapter.queryResponse = success("provider-payment-after-crash");
+        Clock afterLease = Clock.fixed(CLOCK.instant().plusSeconds(6), ZoneOffset.UTC);
+        PaymentService restartedProcess = service(adapter, repository, afterLease, lease);
+        ConfirmationResult recovered = restartedProcess.resolveUnknown(TENANT, intent.id(),
+                "restart-recovery-correlation");
+        ConfirmationResult replay = restartedProcess.confirm(confirmation);
+
+        assertEquals(IntentState.CAPTURED, recovered.intent().state());
+        assertEquals(true, replay.replayed());
+        assertEquals(1, adapter.calls.get(), "a stale attempt must never redispatch createPayment");
+        assertEquals(1, adapter.queryCalls.get());
+        assertEquals(List.of(AttemptState.SUCCEEDED, AttemptState.SUCCEEDED),
+                repository.attempts(TENANT, intent.id()).stream()
+                        .map(PaymentAttempt::state).toList());
+    }
+
+    @Test
+    void recoveryClaimFencesLateOriginalWorkerAndRejectsCrossTenantClaims() {
+        InMemoryPaymentRepository repository = new InMemoryPaymentRepository();
+        PaymentIntent intent = PaymentIntent.create(
+                createCommand("fence-create-key-0001", "fence-order-1"), CLOCK);
+        repository.create(intent);
+        PaymentAttempt original = repository.beginAttempt(new AttemptDraft(TENANT, intent.id(),
+                ACCOUNT_ID, "stripe", AttemptOperation.PAYMENT, intent.version(), "b".repeat(64),
+                "fence-confirm-key-0001", CLOCK.instant(), "original-worker",
+                CLOCK.instant().plusSeconds(5)));
+
+        PaymentCoreException crossTenant = assertThrows(PaymentCoreException.class,
+                () -> repository.claimRecoverableAttempt(UUID.randomUUID(), intent.id(),
+                        "attacker-worker", CLOCK.instant().plusSeconds(6),
+                        CLOCK.instant().plusSeconds(11)));
+        assertEquals("RESOURCE_NOT_FOUND", crossTenant.code());
+
+        PaymentAttempt claimed = repository.claimRecoverableAttempt(TENANT, intent.id(),
+                "recovery-worker", CLOCK.instant().plusSeconds(6),
+                CLOCK.instant().plusSeconds(11)).orElseThrow();
+        assertEquals(original.fencingToken() + 1, claimed.fencingToken());
+        assertEquals(Optional.empty(), repository.claimRecoverableAttempt(TENANT, intent.id(),
+                "duplicate-worker", CLOCK.instant().plusSeconds(7),
+                CLOCK.instant().plusSeconds(12)));
+        PaymentAttempt late = original.resolve(new AttemptResolution(AttemptState.SUCCEEDED,
+                OutcomeClass.SUCCEEDED, "c".repeat(64), "late-request", "late-payment",
+                "adapter.normalized", "SUCCEEDED", CLOCK.instant().plusSeconds(7)));
+
+        PaymentCoreException leaseLost = assertThrows(PaymentCoreException.class,
+                () -> repository.resolveAttempt(late, intent, intent.version(),
+                        "payment.attempt.resolved.v1", "late-correlation"));
+        assertEquals("ATTEMPT_LEASE_LOST", leaseLost.code());
+
+        PaymentAttempt recovered = claimed.resolve(new AttemptResolution(AttemptState.SUCCEEDED,
+                OutcomeClass.SUCCEEDED, "d".repeat(64), "query-request", "query-payment",
+                "adapter.query.normalized", "SUCCEEDED", CLOCK.instant().plusSeconds(7)));
+        repository.resolveAttempt(recovered, intent, intent.version(),
+                "payment.query.recovered.v1", "recovery-correlation");
+        assertEquals(AttemptState.SUCCEEDED,
+                repository.attempts(TENANT, intent.id()).getFirst().state());
+        assertEquals(Optional.empty(), repository.claimRecoverableAttempt(TENANT, intent.id(),
+                "post-final-worker", CLOCK.instant().plusSeconds(20),
+                CLOCK.instant().plusSeconds(25)));
+    }
+
     private static PaymentService service(FakeAdapter adapter) {
         return service(adapter, new InMemoryPaymentRepository());
     }
@@ -496,7 +573,18 @@ final class PaymentServiceTest {
     }
 
     private static PaymentService service(FakeAdapter adapter, PaymentRepository repository,
+            Clock clock, Duration attemptLease) {
+        return service(adapter, repository, request -> decision(request, RiskAction.APPROVE),
+                clock, attemptLease);
+    }
+
+    private static PaymentService service(FakeAdapter adapter, PaymentRepository repository,
             SynchronousRiskGate riskGate) {
+        return service(adapter, repository, riskGate, CLOCK, Duration.ofSeconds(30));
+    }
+
+    private static PaymentService service(FakeAdapter adapter, PaymentRepository repository,
+            SynchronousRiskGate riskGate, Clock clock, Duration attemptLease) {
         ProviderAccount account = account();
         ProviderRoute route = new ProviderRoute(account, new ProviderCapability(
                 "stripe", "card", Set.of("USD"), Set.of("US"), true, true, true, true),
@@ -516,13 +604,14 @@ final class PaymentServiceTest {
         };
         return new PaymentService(repository, configuration,
                 new RoutingService(configuration), new ProviderAdapterRegistry(List.of(adapter)),
-                riskGate, CLOCK);
+                riskGate, clock, attemptLease);
     }
 
     private static RiskDecision decision(RiskEvaluationRequest request, RiskAction action) {
-        return new RiskDecision("decision-" + request.requestId(), request.tenantId(),
-                request.requestId(), action, List.of("TEST_RISK_DECISION"), "rules-test",
-                "a".repeat(64), "signals-test", "model-test",
+        return new RiskDecision("d".repeat(64), request.tenantId(), request.projectId(),
+                request.requestId(), request.requestDigest(), request.operation(),
+                request.subjectDigest(), action, List.of("TEST_RISK_DECISION"), "rules-test",
+                "a".repeat(64), "signals-test", "b".repeat(64), "model-test", "c".repeat(64),
                 action != RiskAction.APPROVE, CLOCK.instant());
     }
 
@@ -609,6 +698,7 @@ final class PaymentServiceTest {
         private final AtomicInteger calls = new AtomicInteger();
         private final AtomicInteger captureCalls = new AtomicInteger();
         private final AtomicInteger cancelCalls = new AtomicInteger();
+        private final AtomicInteger queryCalls = new AtomicInteger();
         private final CountDownLatch release = new CountDownLatch(1);
         private volatile boolean block;
         private volatile ProviderPayment createResponse;
@@ -616,6 +706,7 @@ final class PaymentServiceTest {
         private volatile ProviderPayment queryResponse;
         private volatile ProviderException queryException;
         private volatile ProviderPayment cancelResponse;
+        private volatile RuntimeException createCrash;
 
         @Override
         public String provider() {
@@ -625,6 +716,9 @@ final class PaymentServiceTest {
         @Override
         public ProviderPayment createPayment(CreatePaymentCommand command) {
             calls.incrementAndGet();
+            if (createCrash != null) {
+                throw createCrash;
+            }
             if (block) {
                 try {
                     release.await(3, TimeUnit.SECONDS);
@@ -641,6 +735,7 @@ final class PaymentServiceTest {
         @Override
         public ProviderPayment queryPayment(ProviderRequestContext context,
                 String providerPaymentId, String businessOrderNo) {
+            queryCalls.incrementAndGet();
             if (queryException != null) {
                 throw queryException;
             }
@@ -681,5 +776,9 @@ final class PaymentServiceTest {
             throw new UnsupportedOperationException("not used by this payment-core test");
         }
 
+    }
+
+    private static final class SimulatedProcessCrash extends RuntimeException {
+        private static final long serialVersionUID = 1L;
     }
 }

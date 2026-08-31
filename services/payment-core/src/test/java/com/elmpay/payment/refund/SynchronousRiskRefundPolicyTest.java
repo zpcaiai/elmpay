@@ -8,6 +8,7 @@ import com.elmpay.payment.IntentState;
 import com.elmpay.payment.PaymentIntent;
 import com.elmpay.risk.RiskAction;
 import com.elmpay.risk.RiskDecision;
+import com.elmpay.risk.RiskEvaluationRequest;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -34,19 +35,21 @@ final class SynchronousRiskRefundPolicyTest {
     void mostRestrictiveBasePolicyCannotBeOverriddenByGlobalApproval() {
         SynchronousRiskRefundPolicy policy = new SynchronousRiskRefundPolicy(
                 ignored -> RefundRiskDecision.DENY,
-                request -> decision(request.tenantId(), request.requestId(), RiskAction.APPROVE));
+                request -> decision(request, RiskAction.APPROVE));
         assertEquals(RefundRiskDecision.DENY, policy.decide(context()));
     }
 
     private static SynchronousRiskRefundPolicy policy(RiskAction action) {
         return new SynchronousRiskRefundPolicy(ignored -> RefundRiskDecision.AUTO_APPROVE,
-                request -> decision(request.tenantId(), request.requestId(), action));
+                request -> decision(request, action));
     }
 
-    private static RiskDecision decision(String tenantId, String requestId, RiskAction action) {
-        return new RiskDecision("risk-refund-1", tenantId, requestId, action,
-                List.of("TEST_RISK_DECISION"), "rules-1", "a".repeat(64), "signals-1",
-                "model-1", action != RiskAction.APPROVE, NOW);
+    private static RiskDecision decision(RiskEvaluationRequest request, RiskAction action) {
+        return new RiskDecision("d".repeat(64), request.tenantId(), request.projectId(),
+                request.requestId(), request.requestDigest(), request.operation(),
+                request.subjectDigest(), action, List.of("TEST_RISK_DECISION"), "rules-1",
+                "a".repeat(64), "signals-1", "b".repeat(64), "model-1", "c".repeat(64),
+                action != RiskAction.APPROVE, NOW);
     }
 
     private static RefundRiskPolicy.Context context() {

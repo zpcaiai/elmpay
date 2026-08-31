@@ -11,6 +11,7 @@
     "device_posture",
     "workload_attestation",
     "request_signature",
+    "token_holder_binding",
     "tenant_binding",
     "phishing_resistant_mfa",
     "justification",
@@ -66,12 +67,14 @@
     {
       "boundary": "TB-02",
       "requires": [
-        "request_signature",
+        "authenticated_identity",
+        "token_audience",
+        "token_holder_binding",
         "tenant_binding",
         "audit_record"
       ],
-      "mutual_tls": false,
-      "notes": "业务项目到平台：签名 + 租户绑定，租户来自密钥而不是请求体。"
+      "mutual_tls": true,
+      "notes": "业务项目到平台：短期 OIDC access token + mTLS 持有者绑定 + 租户绑定；租户来自已验签 token 声明而不是请求体。"
     },
     {
       "boundary": "TB-03",
@@ -187,11 +190,11 @@
       "id": "merchant-api-client",
       "kind": "machine",
       "home_zone": "Z02",
-      "identity_source": "tenant_api_key",
-      "credential": "http_signature",
-      "credential_lifetime_minutes": 15,
-      "rotation_days": 90,
-      "notes": "商户服务端。签名有效期 15 分钟，密钥 90 天轮换；密钥本身不落地，由 KMS 短期解密（NN-07）。"
+      "identity_source": "oidc_authorization_server",
+      "credential": "mtls_bound_access_token",
+      "credential_lifetime_minutes": 5,
+      "rotation_days": 0,
+      "notes": "商户服务端只使用最长 5 分钟的 OIDC at+jwt；token 必须与入口验证的 mTLS 客户端证书绑定，静态 API key 仅允许本地沙箱。"
     },
     {
       "id": "platform-operator",
@@ -269,13 +272,14 @@
         "authenticated_identity",
         "authorisation_policy",
         "audit_record",
-        "request_signature",
+        "token_audience",
+        "token_holder_binding",
         "tenant_binding"
       ],
       "step_up": false,
       "four_eyes": false,
       "audit_event": "merchant.payment_write",
-      "notes": "商户只能操作自己租户的支付。租户绑定来自密钥，不来自请求体——让请求体决定租户就是跨租户越权的入口。"
+      "notes": "商户只能操作自己租户的支付。租户绑定来自已验签 token 声明，不来自请求体；token 还必须绑定已验证的 mTLS peer。"
     },
     {
       "id": "ZTD-03",
@@ -286,7 +290,8 @@
         "authenticated_identity",
         "authorisation_policy",
         "audit_record",
-        "request_signature",
+        "token_audience",
+        "token_holder_binding",
         "tenant_binding"
       ],
       "step_up": false,

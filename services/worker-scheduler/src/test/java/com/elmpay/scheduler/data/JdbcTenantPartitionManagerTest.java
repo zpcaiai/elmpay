@@ -23,54 +23,39 @@ final class JdbcTenantPartitionManagerTest {
     private static final Instant NOW = Instant.parse("2026-08-28T00:00:00Z");
 
     @Test
-    void createsBoundedMonthlyRangePartitionsUnderAnAdvisoryLock() {
-        RecordingDatabase database = new RecordingDatabase(false, true);
+    void invokesOnlyBoundedDedicatedPartitionPrecreationCapability() {
+        RecordingDatabase database = new RecordingDatabase();
         JdbcTenantPartitionManager manager = new JdbcTenantPartitionManager(database,
                 Clock.fixed(NOW, ZoneOffset.UTC));
 
         assertEquals(2, manager.ensureMonthlyPartitions(YearMonth.of(2026, 8), 2,
                 "scheduler-one", "scheduled partition precreation", "ticket-123"));
-        assertTrue(database.sql.stream().anyMatch(value -> value.contains("pg_advisory_xact_lock")));
         assertTrue(database.sql.stream().anyMatch(value -> value.contains(
-                "CREATE TABLE tenant_archive_fact_202608 PARTITION OF tenant_archive_fact " +
-                        "FOR VALUES FROM ('2026-08-01') TO ('2026-09-01')")));
-        assertTrue(database.sql.stream().anyMatch(value -> value.contains(
-                "CREATE TABLE tenant_archive_fact_202609 PARTITION OF tenant_archive_fact")));
+                "elmpay_ensure_archive_partitions")));
+        assertTrue(database.sql.stream().noneMatch(value -> value.contains("CREATE TABLE")));
+        assertTrue(database.sql.stream().noneMatch(value -> value.contains("DETACH PARTITION")));
         assertThrows(IllegalArgumentException.class, () -> manager.ensureMonthlyPartitions(
                 YearMonth.of(2026, 8), 25, "actor", "reason", "ticket"));
     }
 
     @Test
-    void detachRequiresPastPartitionFourEyesAndVerifiedExternalReceipt() {
+    void legacySingleTenantDetachIsPermanentlyDisabled() {
         UUID tenant = UUID.fromString("00000000-0000-0000-0000-000000000013");
-        JdbcTenantPartitionManager missingReceipt = new JdbcTenantPartitionManager(
-                new RecordingDatabase(true, false), Clock.fixed(NOW, ZoneOffset.UTC));
-        assertThrows(IllegalStateException.class, () -> missingReceipt.detachArchivedPartition(
-                tenant, YearMonth.of(2026, 6), "operator-a", "approver-b", "archive", "ticket"));
         JdbcTenantPartitionManager manager = new JdbcTenantPartitionManager(
-                new RecordingDatabase(true, true), Clock.fixed(NOW, ZoneOffset.UTC));
-        assertThrows(IllegalArgumentException.class, () -> manager.detachArchivedPartition(
-                tenant, YearMonth.of(2026, 6), "operator-a", "operator-a", "archive", "ticket"));
-        manager.detachArchivedPartition(tenant, YearMonth.of(2026, 6), "operator-a",
-                "approver-b", "archive verified", "ticket-456");
+                new RecordingDatabase(), Clock.fixed(NOW, ZoneOffset.UTC));
+        assertThrows(UnsupportedOperationException.class,
+                () -> manager.detachArchivedPartition(tenant, YearMonth.of(2026, 6),
+                        "operator-a", "approver-b", "archive verified", "ticket-456"));
     }
 
     private static final class RecordingDatabase implements DataSource {
         private final List<String> sql = new ArrayList<>();
-        private final boolean partitionExists;
-        private final boolean receiptExists;
-
-        private RecordingDatabase(boolean partitionExists, boolean receiptExists) {
-            this.partitionExists = partitionExists;
-            this.receiptExists = receiptExists;
-        }
 
         @Override
         public Connection getConnection() {
             return (Connection) Proxy.newProxyInstance(getClass().getClassLoader(),
                     new Class<?>[] {Connection.class}, (proxy, method, arguments) -> switch (method.getName()) {
                         case "prepareStatement" -> prepared((String) arguments[0]);
-                        case "createStatement" -> statement();
                         case "getAutoCommit" -> false;
                         case "setAutoCommit", "commit", "rollback", "close" -> null;
                         case "isClosed" -> false;
@@ -80,51 +65,25 @@ final class JdbcTenantPartitionManagerTest {
                     });
         }
 
-        private Statement statement() {
-            return (Statement) Proxy.newProxyInstance(getClass().getClassLoader(),
-                    new Class<?>[] {Statement.class}, (proxy, method, arguments) -> switch (method.getName()) {
-                        case "execute" -> { sql.add((String) arguments[0]); yield true; }
-                        case "close" -> null;
-                        default -> throw new UnsupportedOperationException(method.getName());
-                    });
-        }
-
         private PreparedStatement prepared(String query) {
             sql.add(query);
             return (PreparedStatement) Proxy.newProxyInstance(getClass().getClassLoader(),
                     new Class<?>[] {PreparedStatement.class}, (proxy, method, arguments) -> switch (method.getName()) {
-                        case "setString", "setObject", "close" -> null;
+                        case "setString", "setObject", "setInt", "close" -> null;
                         case "execute" -> true;
                         case "executeUpdate" -> 1;
-                        case "executeQuery" -> query.contains("to_regclass")
-                                ? catalogRow(partitionExists) : rows(receiptExists);
+                        case "executeQuery" -> rows(query.contains("current_user") ? 1 : 2);
                         default -> throw new UnsupportedOperationException(method.getName());
                     });
         }
 
-        private ResultSet rows(boolean exists) {
-            int[] cursor = {0};
-            return (ResultSet) Proxy.newProxyInstance(getClass().getClassLoader(),
-                    new Class<?>[] {ResultSet.class}, (proxy, method, arguments) -> switch (method.getName()) {
-                        case "next" -> ++cursor[0] == 1 && exists;
-                        case "getBoolean" -> exists;
-                        case "getString" -> switch ((Integer) arguments[0]) {
-                            case 1, 2 -> "a".repeat(64);
-                            case 3 -> "external-verifier";
-                            case 4 -> "external-receipt";
-                            default -> throw new IllegalArgumentException();
-                        };
-                        case "close" -> null;
-                        default -> throw new UnsupportedOperationException(method.getName());
-                    });
-        }
-
-        private ResultSet catalogRow(boolean exists) {
+        private ResultSet rows(int value) {
             int[] cursor = {0};
             return (ResultSet) Proxy.newProxyInstance(getClass().getClassLoader(),
                     new Class<?>[] {ResultSet.class}, (proxy, method, arguments) -> switch (method.getName()) {
                         case "next" -> ++cursor[0] == 1;
-                        case "getBoolean" -> exists;
+                        case "getBoolean" -> value == 1;
+                        case "getInt" -> value;
                         case "close" -> null;
                         default -> throw new UnsupportedOperationException(method.getName());
                     });

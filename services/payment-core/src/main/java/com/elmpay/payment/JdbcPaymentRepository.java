@@ -1,19 +1,21 @@
 package com.elmpay.payment;
 
 import com.elmpay.money.Money;
+import com.elmpay.payment.events.SemanticOutboxAppender;
 import com.elmpay.security.CanonicalPayload;
-import java.nio.charset.StandardCharsets;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -31,7 +33,24 @@ public final class JdbcPaymentRepository implements PaymentRepository {
             id, tenant_id, payment_intent_id, provider_account_id, provider, operation,
             sequence, request_digest, idempotency_key, state, outcome_class, response_digest,
             provider_request_id, provider_transaction_id, provider_code_namespace,
-            provider_code, started_at, settled_at
+            provider_code, started_at, settled_at, lease_owner, fencing_token, lease_expires_at
+            """;
+    static final String CLAIM_RECOVERABLE_ATTEMPT_SQL = "SELECT " + ATTEMPT_COLUMNS + """
+             FROM payment_attempt
+            WHERE tenant_id = ?::uuid AND payment_intent_id = ?::uuid
+              AND operation <> 'query' AND state IN ('initiated', 'pending', 'unknown')
+              AND lease_expires_at <= ?
+            ORDER BY sequence DESC
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED
+            """;
+    static final String FENCED_ATTEMPT_UPDATE_SQL = """
+            UPDATE payment_attempt
+               SET lease_owner = ?, fencing_token = fencing_token + 1,
+                   lease_expires_at = ?
+             WHERE tenant_id = ?::uuid AND id = ?::uuid
+               AND lease_owner = ? AND fencing_token = ?
+               AND state IN ('initiated', 'pending', 'unknown')
             """;
 
     private final DataSource dataSource;
@@ -52,7 +71,8 @@ public final class JdbcPaymentRepository implements PaymentRepository {
                     bindIntent(statement, connection, intent, 1);
                     statement.executeUpdate();
                 }
-                appendOutbox(connection, intent, "payment.intent.created.v1", intent.id().toString());
+                appendOutbox(connection, intent, null, "payment.intent.created.v1",
+                        intent.id().toString());
                 connection.commit();
                 return intent;
             } catch (SQLException exception) {
@@ -110,7 +130,7 @@ public final class JdbcPaymentRepository implements PaymentRepository {
             try {
                 setTenant(connection, intent.tenantId());
                 updateIntent(connection, intent, expectedVersion);
-                appendOutbox(connection, intent, eventType, correlationId);
+                appendOutbox(connection, intent, null, eventType, correlationId);
                 connection.commit();
                 return intent;
             } catch (SQLException | RuntimeException exception) {
@@ -169,7 +189,7 @@ public final class JdbcPaymentRepository implements PaymentRepository {
                 }
                 updateIntent(connection, intent, expectedVersion);
                 insertActionReceipt(connection, receipt);
-                appendOutbox(connection, intent, eventType, correlationId);
+                appendOutbox(connection, intent, null, eventType, correlationId);
                 connection.commit();
                 return intent;
             } catch (SQLException | RuntimeException exception) {
@@ -188,7 +208,8 @@ public final class JdbcPaymentRepository implements PaymentRepository {
             try {
                 setTenant(connection, draft.tenantId());
                 advisoryLock(connection, draft.intentId());
-                if (currentVersion(connection, draft) != draft.expectedIntentVersion()) {
+                PaymentIntent current = currentIntent(connection, draft.tenantId(), draft.intentId());
+                if (current.version() != draft.expectedIntentVersion()) {
                     throw new PaymentCoreException("CONCURRENT_MODIFICATION",
                             "payment intent changed before provider dispatch");
                 }
@@ -208,10 +229,19 @@ public final class JdbcPaymentRepository implements PaymentRepository {
                 int sequence = nextSequence(connection, draft);
                 PaymentAttempt attempt = PaymentAttempt.begin(draft, sequence);
                 String sql = "INSERT INTO payment_attempt (" + ATTEMPT_COLUMNS + ") VALUES ("
-                        + "?::uuid, ?::uuid, ?::uuid, ?::uuid, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                        + "?::uuid, ?::uuid, ?::uuid, ?::uuid, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+                        + "?, ?, ?, ?, ?)";
                 try (PreparedStatement statement = connection.prepareStatement(sql)) {
                     bindAttempt(statement, attempt);
                     statement.executeUpdate();
+                }
+                if (draft.operation() == AttemptOperation.CAPTURE
+                        && Set.of("wechat", "alipay", "stripe", "paypal")
+                                .contains(draft.provider())) {
+                    new ProviderEffectExpectationService().registerCapture(connection,
+                            draft.tenantId(), current.projectId(), draft.intentId(), attempt.id(),
+                            draft.providerAccountId(), draft.provider(), draft.expectedDeltaMinor(),
+                            draft.currency(), draft.businessOrderDigest(), attempt.startedAt());
                 }
                 connection.commit();
                 return attempt;
@@ -225,6 +255,89 @@ public final class JdbcPaymentRepository implements PaymentRepository {
     }
 
     @Override
+    public Optional<PaymentAttempt> claimRecoverableAttempt(UUID tenantId, UUID intentId,
+            String leaseOwner, Instant now, Instant leaseExpiresAt) {
+        validateLease(leaseOwner, now, leaseExpiresAt);
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                setTenant(connection, tenantId);
+                advisoryLock(connection, intentId);
+                currentIntent(connection, tenantId, intentId);
+                PaymentAttempt candidate = null;
+                try (PreparedStatement statement = connection.prepareStatement(
+                        CLAIM_RECOVERABLE_ATTEMPT_SQL)) {
+                    statement.setString(1, tenantId.toString());
+                    statement.setString(2, intentId.toString());
+                    statement.setTimestamp(3, Timestamp.from(now));
+                    try (ResultSet result = statement.executeQuery()) {
+                        if (result.next()) {
+                            candidate = attempt(result);
+                        }
+                    }
+                }
+                if (candidate == null) {
+                    connection.commit();
+                    return Optional.empty();
+                }
+                try (PreparedStatement statement = connection.prepareStatement(
+                        FENCED_ATTEMPT_UPDATE_SQL)) {
+                    statement.setString(1, leaseOwner);
+                    statement.setTimestamp(2, Timestamp.from(leaseExpiresAt));
+                    statement.setString(3, tenantId.toString());
+                    statement.setString(4, candidate.id().toString());
+                    statement.setString(5, candidate.leaseOwner());
+                    statement.setLong(6, candidate.fencingToken());
+                    requireAttemptLease(statement.executeUpdate());
+                }
+                PaymentAttempt claimed = candidate.withLease(leaseOwner,
+                        Math.addExact(candidate.fencingToken(), 1), leaseExpiresAt);
+                connection.commit();
+                return Optional.of(claimed);
+            } catch (SQLException | RuntimeException exception) {
+                rollback(connection, exception);
+                throw translate("cannot claim payment attempt recovery", exception);
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("cannot claim payment attempt recovery", exception);
+        }
+    }
+
+    @Override
+    public void releaseAttemptLease(PaymentAttempt attempt, Instant releasedAt) {
+        java.util.Objects.requireNonNull(attempt, "attempt");
+        java.util.Objects.requireNonNull(releasedAt, "releasedAt");
+        Instant release = releasedAt.isBefore(attempt.startedAt())
+                ? attempt.startedAt() : releasedAt;
+        try (Connection connection = dataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                setTenant(connection, attempt.tenantId());
+                advisoryLock(connection, attempt.intentId());
+                try (PreparedStatement statement = connection.prepareStatement("""
+                        UPDATE payment_attempt SET lease_expires_at = ?
+                         WHERE tenant_id = ?::uuid AND id = ?::uuid
+                           AND lease_owner = ? AND fencing_token = ?
+                           AND state IN ('initiated', 'pending', 'unknown')
+                        """)) {
+                    statement.setTimestamp(1, Timestamp.from(release));
+                    statement.setString(2, attempt.tenantId().toString());
+                    statement.setString(3, attempt.id().toString());
+                    statement.setString(4, attempt.leaseOwner());
+                    statement.setLong(5, attempt.fencingToken());
+                    requireAttemptLease(statement.executeUpdate());
+                }
+                connection.commit();
+            } catch (SQLException | RuntimeException exception) {
+                rollback(connection, exception);
+                throw translate("cannot release payment attempt recovery", exception);
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("cannot release payment attempt recovery", exception);
+        }
+    }
+
+    @Override
     public PaymentIntent resolveAttempt(PaymentAttempt attempt, PaymentIntent intent,
             long expectedIntentVersion, String eventType, String correlationId) {
         try (Connection connection = dataSource.getConnection()) {
@@ -232,6 +345,7 @@ public final class JdbcPaymentRepository implements PaymentRepository {
             try {
                 setTenant(connection, intent.tenantId());
                 advisoryLock(connection, intent.id());
+                PaymentIntent previous = currentIntent(connection, intent.tenantId(), intent.id());
                 updateResolvedAttempt(connection, attempt, false);
                 if (intent.version() == expectedIntentVersion + 1) {
                     updateIntent(connection, intent, expectedIntentVersion);
@@ -240,7 +354,8 @@ public final class JdbcPaymentRepository implements PaymentRepository {
                     throw new PaymentCoreException("CONCURRENT_MODIFICATION",
                             "payment intent changed during provider resolution");
                 }
-                appendOutbox(connection, intent, eventType, correlationId);
+                appendOutbox(connection, intent, attempt, eventType, correlationId);
+                appendCapturedEvent(connection, previous, intent, attempt, correlationId);
                 connection.commit();
                 return intent;
             } catch (SQLException | RuntimeException exception) {
@@ -262,6 +377,7 @@ public final class JdbcPaymentRepository implements PaymentRepository {
             try {
                 setTenant(connection, intent.tenantId());
                 advisoryLock(connection, intent.id());
+                PaymentIntent previous = currentIntent(connection, intent.tenantId(), intent.id());
                 updateResolvedAttempt(connection, originalAttempt, true);
                 updateResolvedAttempt(connection, queryAttempt, false);
                 if (intent.version() == expectedIntentVersion + 1) {
@@ -271,7 +387,8 @@ public final class JdbcPaymentRepository implements PaymentRepository {
                     throw new PaymentCoreException("CONCURRENT_MODIFICATION",
                             "payment intent changed during provider recovery");
                 }
-                appendOutbox(connection, intent, eventType, correlationId);
+                appendOutbox(connection, intent, originalAttempt, eventType, correlationId);
+                appendCapturedEvent(connection, previous, intent, originalAttempt, correlationId);
                 connection.commit();
                 return intent;
             } catch (SQLException | RuntimeException exception) {
@@ -332,15 +449,18 @@ public final class JdbcPaymentRepository implements PaymentRepository {
     }
 
     private static void updateResolvedAttempt(Connection connection, PaymentAttempt attempt,
-            boolean requireUnknownSource) throws SQLException {
-        String statePredicate = requireUnknownSource
-                ? "state = 'unknown'" : "state IN ('initiated', 'pending', 'unknown')";
+            boolean requireRecoverySource) throws SQLException {
+        String statePredicate = requireRecoverySource
+                ? "operation <> 'query' AND state IN ('initiated', 'pending', 'unknown')"
+                : "state IN ('initiated', 'pending', 'unknown')";
         String sql = """
                 UPDATE payment_attempt
                    SET state = ?, outcome_class = ?, response_digest = ?,
                        provider_request_id = ?, provider_transaction_id = ?,
-                       provider_code_namespace = ?, provider_code = ?, settled_at = ?
-                 WHERE tenant_id = ?::uuid AND id = ?::uuid AND %s
+                       provider_code_namespace = ?, provider_code = ?, settled_at = ?,
+                       lease_expires_at = ?
+                 WHERE tenant_id = ?::uuid AND id = ?::uuid
+                   AND lease_owner = ? AND fencing_token = ? AND %s
                 """.formatted(statePredicate);
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, db(attempt.state()));
@@ -351,12 +471,12 @@ public final class JdbcPaymentRepository implements PaymentRepository {
             statement.setString(6, attempt.providerCodeNamespace());
             statement.setString(7, attempt.providerCode());
             statement.setTimestamp(8, Timestamp.from(attempt.finishedAt()));
-            statement.setString(9, attempt.tenantId().toString());
-            statement.setString(10, attempt.id().toString());
-            if (statement.executeUpdate() != 1) {
-                throw new PaymentCoreException("ATTEMPT_NOT_RESOLVABLE",
-                        "attempt is missing, final, or not an unknown recovery source");
-            }
+            statement.setTimestamp(9, Timestamp.from(attempt.leaseExpiresAt()));
+            statement.setString(10, attempt.tenantId().toString());
+            statement.setString(11, attempt.id().toString());
+            statement.setString(12, attempt.leaseOwner());
+            statement.setLong(13, attempt.fencingToken());
+            requireAttemptLease(statement.executeUpdate());
         }
     }
 
@@ -500,33 +620,71 @@ public final class JdbcPaymentRepository implements PaymentRepository {
         }
     }
 
-    private static void appendOutbox(Connection connection, PaymentIntent intent, String eventType,
-            String correlationId) throws SQLException {
-        Map<String, Object> payload = Map.ofEntries(
-                Map.entry("intent_id", intent.id().toString()),
-                Map.entry("tenant_id", intent.tenantId().toString()),
-                Map.entry("project_id", intent.projectId().toString()),
-                Map.entry("state", db(intent.state())),
-                Map.entry("amount_minor", intent.amount().amountMinor()),
-                Map.entry("currency", intent.amount().currency().code()),
-                Map.entry("captured_amount_minor", intent.capturedAmountMinor()),
-                Map.entry("refunded_amount_minor", intent.refundedAmountMinor()));
-        try (PreparedStatement statement = connection.prepareStatement("""
-                INSERT INTO outbox_event
-                  (id, tenant_id, project_id, aggregate_type, aggregate_id, event_type,
-                   event_version, payload, correlation_id, created_at)
-                VALUES (?::uuid, ?::uuid, ?::uuid, 'payment_intent', ?::uuid, ?, 1,
-                        ?::jsonb, ?, now())
-                """)) {
-            statement.setString(1, UUID.randomUUID().toString());
-            statement.setString(2, intent.tenantId().toString());
-            statement.setString(3, intent.projectId().toString());
-            statement.setString(4, intent.id().toString());
-            statement.setString(5, eventType);
-            statement.setString(6, new String(CanonicalPayload.encode(payload), StandardCharsets.UTF_8));
-            statement.setString(7, correlationId);
-            statement.executeUpdate();
+    private static void appendOutbox(Connection connection, PaymentIntent intent,
+            PaymentAttempt attempt, String eventType, String correlationId) throws SQLException {
+        Map<String, Object> payload = outboxPayload(intent, attempt, eventType);
+        SemanticOutboxAppender.append(connection, new SemanticOutboxAppender.EventDraft(
+                intent.tenantId(), intent.projectId(), "payment_intent", intent.id(), eventType,
+                1, intent.updatedAt(), correlationId, payload));
+    }
+
+    private static void appendCapturedEvent(Connection connection, PaymentIntent previous,
+            PaymentIntent current, PaymentAttempt attempt, String traceId) throws SQLException {
+        long delta = Math.subtractExact(current.capturedAmountMinor(),
+                previous.capturedAmountMinor());
+        if (delta <= 0 || attempt.state() != AttemptState.SUCCEEDED) {
+            return;
         }
+        Instant capturedAt = Objects.requireNonNull(attempt.finishedAt(), "attempt.finishedAt");
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("payment_intent_id", current.id().toString());
+        payload.put("project_id", current.projectId().toString());
+        payload.put("provider", attempt.provider());
+        payload.put("captured_at", capturedAt.toString());
+        payload.put("amount_minor", delta);
+        payload.put("currency", current.amount().currency().code());
+        payload.put("business_order_digest",
+                ProviderEffectExpectationService.businessOrderDigest(
+                        current.externalReference()));
+        SemanticOutboxAppender.append(connection, new SemanticOutboxAppender.EventDraft(
+                current.tenantId(), current.projectId(), "payment_intent", current.id(),
+                "payment_intent.captured", 1, capturedAt, traceId, payload));
+    }
+
+    static Map<String, Object> outboxPayload(PaymentIntent intent, PaymentAttempt attempt,
+            String eventType) {
+        java.util.Objects.requireNonNull(intent, "intent");
+        java.util.Objects.requireNonNull(eventType, "eventType");
+        Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("intent_id", intent.id().toString());
+        payload.put("tenant_id", intent.tenantId().toString());
+        payload.put("project_id", intent.projectId().toString());
+        payload.put("state", db(intent.state()));
+        payload.put("amount_minor", intent.amount().amountMinor());
+        payload.put("currency", intent.amount().currency().code());
+        payload.put("captured_amount_minor", intent.capturedAmountMinor());
+        payload.put("refunded_amount_minor", intent.refundedAmountMinor());
+        if (attempt != null) {
+            payload.put("provider", attempt.provider());
+            if (attempt.providerCode() != null) {
+                payload.put("provider_status", attempt.providerCode());
+            }
+            payload.put("attempt_operation", db(attempt.operation()));
+            payload.put("risk_outcome", riskOutcome(attempt.operation()));
+            if (attempt.providerTransactionId() != null) {
+                payload.put("provider_transaction_id", attempt.providerTransactionId());
+            }
+        } else if ("payment.intent.created.v1".equals(eventType)) {
+            payload.put("risk_outcome", "APPROVED");
+        }
+        return Map.copyOf(payload);
+    }
+
+    private static String riskOutcome(AttemptOperation operation) {
+        return switch (operation) {
+            case PAYMENT, CAPTURE -> "APPROVED";
+            case CANCEL, CLOSE, QUERY -> "NOT_EVALUATED";
+        };
     }
 
     private static boolean hasConflictingAttempt(Connection connection, AttemptDraft draft)
@@ -535,7 +693,7 @@ public final class JdbcPaymentRepository implements PaymentRepository {
                 ? """
                   SELECT 1 FROM payment_attempt WHERE tenant_id = ?::uuid
                    AND payment_intent_id = ?::uuid AND operation = 'query'
-                   AND state IN ('initiated', 'pending') LIMIT 1
+                   AND state IN ('initiated', 'pending') AND lease_expires_at > ? LIMIT 1
                   """
                 : """
                   SELECT 1 FROM payment_attempt WHERE tenant_id = ?::uuid
@@ -545,6 +703,9 @@ public final class JdbcPaymentRepository implements PaymentRepository {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, draft.tenantId().toString());
             statement.setString(2, draft.intentId().toString());
+            if (draft.operation() == AttemptOperation.QUERY) {
+                statement.setTimestamp(3, Timestamp.from(draft.startedAt()));
+            }
             try (ResultSet result = statement.executeQuery()) {
                 return result.next();
             }
@@ -624,6 +785,9 @@ public final class JdbcPaymentRepository implements PaymentRepository {
         statement.setString(16, null);
         statement.setTimestamp(17, Timestamp.from(attempt.startedAt()));
         statement.setTimestamp(18, null);
+        statement.setString(19, attempt.leaseOwner());
+        statement.setLong(20, attempt.fencingToken());
+        statement.setTimestamp(21, Timestamp.from(attempt.leaseExpiresAt()));
     }
 
     private static PaymentIntent intent(ResultSet result) throws SQLException {
@@ -660,7 +824,9 @@ public final class JdbcPaymentRepository implements PaymentRepository {
                 result.getString("provider_transaction_id"),
                 result.getString("provider_code_namespace"), result.getString("provider_code"),
                 result.getTimestamp("started_at").toInstant(),
-                finished == null ? null : finished.toInstant());
+                finished == null ? null : finished.toInstant(), result.getString("lease_owner"),
+                result.getLong("fencing_token"),
+                result.getTimestamp("lease_expires_at").toInstant());
     }
 
     private static PaymentActionReceipt actionReceipt(ResultSet result) throws SQLException {
@@ -697,6 +863,22 @@ public final class JdbcPaymentRepository implements PaymentRepository {
                 || !intent.id().equals(originalAttempt.intentId())) {
             throw new PaymentCoreException("RECOVERY_SCOPE_MISMATCH",
                     "recovery attempts must belong to the same tenant and intent");
+        }
+    }
+
+    private static void requireAttemptLease(int changedRows) {
+        if (changedRows != 1) {
+            throw new PaymentCoreException("ATTEMPT_LEASE_LOST",
+                    "attempt recovery lease is no longer owned by this worker");
+        }
+    }
+
+    private static void validateLease(String leaseOwner, Instant now, Instant leaseExpiresAt) {
+        java.util.Objects.requireNonNull(leaseOwner, "leaseOwner");
+        java.util.Objects.requireNonNull(now, "now");
+        java.util.Objects.requireNonNull(leaseExpiresAt, "leaseExpiresAt");
+        if (leaseOwner.isBlank() || leaseOwner.length() > 128 || !leaseExpiresAt.isAfter(now)) {
+            throw new IllegalArgumentException("invalid payment attempt lease");
         }
     }
 

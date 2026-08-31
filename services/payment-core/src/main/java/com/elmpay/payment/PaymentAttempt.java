@@ -10,7 +10,8 @@ public record PaymentAttempt(UUID id, UUID tenantId, UUID intentId, UUID provide
         String idempotencyKey,
         AttemptState state, OutcomeClass outcomeClass, String responseDigest,
         String providerRequestId, String providerTransactionId, String providerCodeNamespace,
-        String providerCode, Instant startedAt, Instant finishedAt) {
+        String providerCode, Instant startedAt, Instant finishedAt, String leaseOwner,
+        long fencingToken, Instant leaseExpiresAt) {
     public PaymentAttempt {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(tenantId, "tenantId");
@@ -22,8 +23,14 @@ public record PaymentAttempt(UUID id, UUID tenantId, UUID intentId, UUID provide
         Objects.requireNonNull(idempotencyKey, "idempotencyKey");
         Objects.requireNonNull(state, "state");
         Objects.requireNonNull(startedAt, "startedAt");
+        Objects.requireNonNull(leaseOwner, "leaseOwner");
+        Objects.requireNonNull(leaseExpiresAt, "leaseExpiresAt");
         if (provider.isBlank() || sequence < 1 || !requestDigest.matches("[0-9a-f]{64}")) {
             throw new IllegalArgumentException("invalid payment attempt");
+        }
+        if (leaseOwner.isBlank() || leaseOwner.length() > 128 || fencingToken < 1
+                || leaseExpiresAt.isBefore(startedAt)) {
+            throw new IllegalArgumentException("invalid payment attempt lease");
         }
         if (state == AttemptState.INITIATED && (outcomeClass != null || finishedAt != null)) {
             throw new IllegalArgumentException("initiated attempt cannot contain a resolution");
@@ -40,7 +47,8 @@ public record PaymentAttempt(UUID id, UUID tenantId, UUID intentId, UUID provide
                 draft.providerAccountId(), draft.provider(), draft.operation(), sequence,
                 draft.requestDigest(), draft.idempotencyKey(), AttemptState.INITIATED,
                 null, null, null, null,
-                null, null, draft.startedAt(), null);
+                null, null, draft.startedAt(), null, draft.leaseOwner(), 1,
+                draft.leaseExpiresAt());
     }
 
     public PaymentAttempt resolve(AttemptResolution resolution) {
@@ -52,6 +60,16 @@ public record PaymentAttempt(UUID id, UUID tenantId, UUID intentId, UUID provide
                 sequence, requestDigest, idempotencyKey, resolution.state(), resolution.outcomeClass(),
                 resolution.responseDigest(), resolution.providerRequestId(),
                 resolution.providerTransactionId(), resolution.providerCodeNamespace(),
-                resolution.providerCode(), startedAt, resolution.finishedAt());
+                resolution.providerCode(), startedAt, resolution.finishedAt(), leaseOwner,
+                fencingToken, resolution.finishedAt());
+    }
+
+    /** Returns the same immutable provider-call snapshot under a newly fenced recovery lease. */
+    public PaymentAttempt withLease(String newLeaseOwner, long newFencingToken,
+            Instant newLeaseExpiresAt) {
+        return new PaymentAttempt(id, tenantId, intentId, providerAccountId, provider, operation,
+                sequence, requestDigest, idempotencyKey, state, outcomeClass, responseDigest,
+                providerRequestId, providerTransactionId, providerCodeNamespace, providerCode,
+                startedAt, finishedAt, newLeaseOwner, newFencingToken, newLeaseExpiresAt);
     }
 }

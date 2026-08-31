@@ -1,5 +1,6 @@
 package com.elmpay.payment;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,6 +25,17 @@ public interface PaymentRepository {
             PaymentActionReceipt receipt, String eventType, String correlationId);
 
     PaymentAttempt beginAttempt(AttemptDraft draft);
+
+    /**
+     * Atomically claims the newest expired unresolved money attempt for query-only recovery.
+     * The returned fencing token supersedes every earlier worker; this method never redispatches
+     * the original provider operation.
+     */
+    Optional<PaymentAttempt> claimRecoverableAttempt(UUID tenantId, UUID intentId,
+            String leaseOwner, Instant now, Instant leaseExpiresAt);
+
+    /** Makes a handled recovery failure immediately claimable, guarded by owner and fence. */
+    void releaseAttemptLease(PaymentAttempt attempt, Instant releasedAt);
 
     PaymentIntent resolveAttempt(PaymentAttempt attempt, PaymentIntent intent,
             long expectedIntentVersion, String eventType, String correlationId);

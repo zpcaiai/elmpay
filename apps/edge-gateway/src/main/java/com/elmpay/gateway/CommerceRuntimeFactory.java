@@ -15,11 +15,11 @@ public final class CommerceRuntimeFactory {
         if (!"postgres".equals(environment.get("ELMPAY_RUNTIME_MODE"))) {
             return Optional.empty();
         }
-        DataSource dataSource = new DriverManagerDataSource(
-                required(environment, "ELMPAY_DATABASE_URL"),
-                required(environment, "ELMPAY_DATABASE_USER"),
-                required(environment, "ELMPAY_DATABASE_PASSWORD"));
-        return Optional.of(new JdbcCommerceService(dataSource, Clock.systemUTC()));
+        DataSource dataSource = DriverManagerDataSource.fromEnvironment(environment,
+                "elmpay-edge-commerce");
+        Clock clock = Clock.systemUTC();
+        return Optional.of(new JdbcCommerceService(dataSource, clock,
+                ProviderEvidenceRuntimeFactory.create(environment, dataSource, clock)));
     }
 
     private static String required(Map<String, String> environment, String name) {

@@ -14,6 +14,7 @@ import tempfile
 import threading
 from typing import Any, Mapping, Protocol
 
+from .downstream_receipt import verify_downstream_receipt
 from .common import (
     GateReport,
     ValidationError,
@@ -102,8 +103,10 @@ class CertificateAuthorityClient(Protocol):
 class IdentitySecurityStore:
     """SQLite runtime adapter mirroring the production Postgres B16-B21 schema."""
 
-    def __init__(self, path: str, policy: Mapping[str, Any]) -> None:
+    def __init__(self, path: str, policy: Mapping[str, Any],
+                 receipt_trust: Mapping[str, Any] | None = None) -> None:
         self.policy = policy
+        self.receipt_trust = receipt_trust
         if policy.get("defaultDecision") != "DENY":
             raise ValidationError("zero-trust policy must default deny")
         self._lock = threading.RLock()
@@ -118,6 +121,17 @@ class IdentitySecurityStore:
               holder_thumbprint TEXT NOT NULL, refresh_family TEXT NOT NULL,
               refresh_counter INTEGER NOT NULL, issued_at TEXT NOT NULL,
               expires_at TEXT NOT NULL, revoked_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS oidc_nonce(
+              nonce TEXT PRIMARY KEY, issuer TEXT NOT NULL, audience TEXT NOT NULL,
+              expires_at TEXT NOT NULL, consumed_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS oidc_token_jti(
+              issuer TEXT NOT NULL, token_jti TEXT NOT NULL, token_digest TEXT NOT NULL,
+              accepted_at TEXT NOT NULL, PRIMARY KEY(issuer,token_jti)
+            );
+            CREATE TABLE IF NOT EXISTS holder_proof_replay(
+              proof_jti TEXT PRIMARY KEY, proof_digest TEXT NOT NULL, accepted_at TEXT NOT NULL
             );
             CREATE TABLE IF NOT EXISTS workload_identity(
               spiffe_id TEXT PRIMARY KEY, service_name TEXT NOT NULL,
@@ -172,12 +186,11 @@ class IdentitySecurityStore:
     def verify_oidc_and_issue_session(
         self,
         compact_token: str,
-        public_keys: Mapping[str, str],
         *,
         expected_issuer: str,
         expected_audience: str,
         expected_nonce: str,
-        holder_thumbprint: str,
+        holder_proof: Mapping[str, Any],
         device_id: str,
         now: datetime,
     ) -> VerifiedPrincipal:
@@ -193,11 +206,20 @@ class IdentitySecurityStore:
             "allowedAlgorithms"), "OIDC algorithms"))
         if algorithm != "RS256" or algorithm not in allowed:
             raise ValidationError("OIDC algorithm is not allowed")
+        issuer_trust = self._oidc_issuer(expected_issuer)
+        audiences = {
+            require_text(item, "trusted OIDC audience")
+            for item in require_list(issuer_trust.get("audiences"), "trusted OIDC audiences")
+        }
+        if expected_audience not in audiences:
+            raise ValidationError("OIDC audience is not configured for the trusted issuer")
+        public_keys = require_mapping(issuer_trust.get("keys"), "trusted OIDC keys")
         key_id = require_text(header.get("kid"), "JWT kid")
         public_key = public_keys.get(key_id)
         if public_key is None:
             raise ValidationError("OIDC signing key is unknown")
-        self._verify_rs256(public_key, f"{parts[0]}.{parts[1]}".encode("ascii"),
+        self._verify_rs256(require_text(public_key, "trusted OIDC public key"),
+                           f"{parts[0]}.{parts[1]}".encode("ascii"),
                            _b64url_decode(parts[2], "JWT signature"))
         if require_text(claims.get("iss"), "iss") != expected_issuer:
             raise ValidationError("OIDC issuer mismatch")
@@ -219,6 +241,10 @@ class IdentitySecurityStore:
             raise ValidationError("OIDC assertion is outside its validity window")
         if expires_at - issued_at > int(self.policy["sessionMaximumSeconds"]):
             raise ValidationError("OIDC assertion lifetime exceeds policy")
+        token_digest = hashlib.sha256(compact_token.encode("ascii")).hexdigest()
+        holder_thumbprint, proof_jti, proof_digest = self._verify_holder_proof(
+            holder_proof, token_digest=token_digest, expected_nonce=expected_nonce, now=now,
+        )
         confirmation = require_mapping(claims.get("cnf"), "cnf")
         bound_thumbprint = confirmation.get("jkt", confirmation.get("x5t#S256"))
         if not secrets.compare_digest(require_text(bound_thumbprint, "cnf thumbprint"),
@@ -226,19 +252,124 @@ class IdentitySecurityStore:
             raise ValidationError("OIDC holder binding mismatch")
         tenant = require_text(claims.get("tenant_id"), "tenant_id")
         subject = require_text(claims.get("sub"), "sub")
+        token_jti = require_text(claims.get("jti"), "jti")
         assurance = self._assurance(claims)
         device_digest = _digest_text(require_text(device_id, "device_id"))
         session_id = secrets.token_hex(16)
         refresh_family = secrets.token_hex(16)
         expiry = datetime.fromtimestamp(expires_at, timezone.utc)
-        self._db.execute(
-            "INSERT INTO identity_session VALUES(?,?,?,?,?,?,?,0,?,?,NULL)",
-            (session_id, tenant, subject, assurance, device_digest, holder_thumbprint,
-             refresh_family, _utc(now), _utc(expiry)),
-        )
-        self._audit(tenant, "IDENTITY_SESSION_ISSUED", _digest_text(session_id), subject, now)
+        with self._lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                nonce_row = self._db.execute(
+                    "SELECT issuer,audience,expires_at,consumed_at FROM oidc_nonce WHERE nonce=?",
+                    (expected_nonce,),
+                ).fetchone()
+                if (nonce_row is None or nonce_row[3] is not None
+                        or nonce_row[0] != expected_issuer or nonce_row[1] != expected_audience
+                        or parse_instant(nonce_row[2], "OIDC nonce expiry") <= now.astimezone(timezone.utc)):
+                    raise ValidationError("OIDC nonce is unknown, expired, mismatched or consumed")
+                if self._db.execute(
+                    "SELECT 1 FROM oidc_token_jti WHERE issuer=? AND token_jti=?",
+                    (expected_issuer, token_jti),
+                ).fetchone():
+                    raise ValidationError("OIDC token jti was replayed")
+                if self._db.execute(
+                    "SELECT 1 FROM holder_proof_replay WHERE proof_jti=?", (proof_jti,),
+                ).fetchone():
+                    raise ValidationError("holder proof jti was replayed")
+                self._db.execute(
+                    "UPDATE oidc_nonce SET consumed_at=? WHERE nonce=? AND consumed_at IS NULL",
+                    (_utc(now), expected_nonce),
+                )
+                self._db.execute(
+                    "INSERT INTO oidc_token_jti VALUES(?,?,?,?)",
+                    (expected_issuer, token_jti, token_digest, _utc(now)),
+                )
+                self._db.execute(
+                    "INSERT INTO holder_proof_replay VALUES(?,?,?)",
+                    (proof_jti, proof_digest, _utc(now)),
+                )
+                self._db.execute(
+                    "INSERT INTO identity_session VALUES(?,?,?,?,?,?,?,0,?,?,NULL)",
+                    (session_id, tenant, subject, assurance, device_digest, holder_thumbprint,
+                     refresh_family, _utc(now), _utc(expiry)),
+                )
+                self._audit(
+                    tenant, "IDENTITY_SESSION_ISSUED", _digest_text(session_id), subject, now,
+                )
+                self._db.execute("COMMIT")
+            except Exception:
+                self._db.execute("ROLLBACK")
+                raise
         return VerifiedPrincipal(tenant, subject, "HUMAN", assurance, device_digest,
                                  holder_thumbprint, session_id, expiry)
+
+    def issue_oidc_nonce(self, issuer: str, audience: str, now: datetime) -> str:
+        """Issue a short, durable one-use nonce for an exact trusted issuer/audience pair."""
+
+        issuer_trust = self._oidc_issuer(issuer)
+        audiences = {
+            require_text(item, "trusted OIDC audience")
+            for item in require_list(issuer_trust.get("audiences"), "trusted OIDC audiences")
+        }
+        if audience not in audiences:
+            raise ValidationError("OIDC audience is not configured for the trusted issuer")
+        oidc = require_mapping(self.policy.get("oidc"), "oidc policy")
+        lifetime = int(oidc.get("nonceSeconds", 180))
+        if not 30 <= lifetime <= 600:
+            raise ValidationError("OIDC nonce lifetime is outside the safe bound")
+        nonce = _b64url(secrets.token_bytes(32))
+        self._db.execute(
+            "INSERT INTO oidc_nonce VALUES(?,?,?,?,NULL)",
+            (nonce, issuer, audience, _utc(now + timedelta(seconds=lifetime))),
+        )
+        return nonce
+
+    def _oidc_issuer(self, issuer: str) -> Mapping[str, Any]:
+        trust = self._receipt_trust()
+        issuers = require_mapping(trust.get("oidcIssuers"), "identity trust oidcIssuers")
+        configured = issuers.get(issuer)
+        if configured is None:
+            raise ValidationError("OIDC issuer is not in the trusted configuration")
+        return require_mapping(configured, f"trusted OIDC issuer {issuer}")
+
+    def _verify_holder_proof(
+        self, proof: Mapping[str, Any], *, token_digest: str,
+        expected_nonce: str, now: datetime,
+    ) -> tuple[str, str, str]:
+        value = require_mapping(proof, "holder proof")
+        public_key = require_text(value.get("publicKeyPem"), "holder proof publicKeyPem")
+        if "BEGIN PUBLIC KEY" not in public_key or len(public_key) > 16_384:
+            raise ValidationError("holder proof public key is invalid")
+        algorithm = require_text(value.get("algorithm"), "holder proof algorithm")
+        if algorithm != "RS256":
+            raise ValidationError("holder proof algorithm is not allowed")
+        oidc = require_mapping(self.policy.get("oidc"), "oidc policy")
+        method = require_text(value.get("method"), "holder proof method")
+        uri = require_text(value.get("uri"), "holder proof uri")
+        if method != oidc.get("holderProofMethod") or uri != oidc.get("holderProofUri"):
+            raise ValidationError("holder proof request binding mismatch")
+        if require_text(value.get("nonce"), "holder proof nonce") != expected_nonce:
+            raise ValidationError("holder proof nonce mismatch")
+        if require_text(value.get("tokenDigest"), "holder proof tokenDigest") != token_digest:
+            raise ValidationError("holder proof token binding mismatch")
+        proof_jti = require_text(value.get("jti"), "holder proof jti")
+        if not __import__("re").fullmatch(r"[A-Za-z0-9._:-]{16,160}", proof_jti):
+            raise ValidationError("holder proof jti is invalid")
+        issued_at = parse_instant(value.get("issuedAt"), "holder proof issuedAt")
+        skew = timedelta(seconds=int(self.policy.get("clockSkewSeconds", 0)))
+        if not now.astimezone(timezone.utc) - skew <= issued_at <= now.astimezone(timezone.utc) + skew:
+            raise ValidationError("holder proof is outside its validity window")
+        unsigned = {key: item for key, item in value.items() if key != "signature"}
+        signature = _b64url_decode(
+            require_text(value.get("signature"), "holder proof signature"),
+            "holder proof signature",
+        )
+        self._verify_rs256(public_key, canonical_json(unsigned), signature)
+        proof_digest = hashlib.sha256(canonical_json(unsigned)).hexdigest()
+        thumbprint = hashlib.sha256(public_key.encode("ascii")).hexdigest()
+        return thumbprint, proof_jti, proof_digest
 
     def register_workload_identity(
         self, spiffe_id: str, service_name: str, certificate_thumbprint: str,
@@ -327,20 +458,23 @@ class IdentitySecurityStore:
         webauthn = require_mapping(self.policy.get("webauthn"), "webauthn policy")
         if rp_id not in set(require_list(webauthn.get("rpIds"), "rpIds")):
             raise ValidationError("WebAuthn RP ID is not allowlisted")
-        if attestation_receipt.get("status") != "VERIFIED" or attestation_receipt.get(
-            "metadataStatus"
-        ) != "TRUSTED":
-            raise ValidationError("trusted WebAuthn attestation receipt is required")
-        if require_text(attestation_receipt.get("credentialId"), "receipt credentialId") != credential_id:
-            raise ValidationError("attestation receipt credential binding mismatch")
         expected_key_digest = hashlib.sha256(public_key_pem.encode("ascii")).hexdigest()
-        if require_text(attestation_receipt.get("publicKeyDigest"), "publicKeyDigest") != expected_key_digest:
-            raise ValidationError("attestation receipt public-key binding mismatch")
         if "BEGIN PUBLIC KEY" not in public_key_pem or len(public_key_pem) > 16_384:
             raise ValidationError("WebAuthn public key must be bounded PEM")
         if isinstance(sign_count, bool) or not isinstance(sign_count, int) or sign_count < 0:
             raise ValidationError("WebAuthn sign count is invalid")
-        receipt_digest = hashlib.sha256(canonical_json(attestation_receipt)).hexdigest()
+        receipt_digest, _signer = verify_downstream_receipt(
+            attestation_receipt, self._receipt_trust(),
+            receipt_type="WEBAUTHN_ATTESTATION", outcome="VERIFIED",
+            fields={
+                "tenantId": tenant_id, "userId": user_id,
+                "credentialId": credential_id, "publicKeyDigest": expected_key_digest,
+                "rpId": rp_id, "aaguid": aaguid, "signCount": sign_count,
+                "backupEligible": backup_eligible, "metadataStatus": "TRUSTED",
+            },
+            required_role="webauthn_attestation_verifier", require_independent=True,
+            now=now,
+        )
         self._db.execute(
             "INSERT INTO webauthn_credential VALUES(?,?,?,?,?,?,?,?,?,?,NULL)",
             (tenant_id, user_id, credential_id, public_key_pem, rp_id, aaguid, sign_count,
@@ -652,14 +786,7 @@ class IdentitySecurityStore:
 
         reasons: list[str] = []
         tenant = require_text(request.get("tenantId"), "tenantId")
-        device_posture = require_text(request.get("devicePosture"), "devicePosture")
-        network_zone = require_text(request.get("networkZone"), "networkZone")
-        if device_posture not in set(require_list(self.policy.get("allowedDevicePostures"),
-                                                  "allowedDevicePostures")):
-            reasons.append("device_posture_not_trusted")
-        if network_zone not in set(require_list(self.policy.get("allowedNetworkZones"),
-                                                "allowedNetworkZones")):
-            reasons.append("network_zone_not_trusted")
+        context_receipts = require_mapping(request.get("contextReceipts"), "contextReceipts")
         try:
             principal = self.require_session(
                 tenant, require_text(request.get("sessionId"), "sessionId"),
@@ -670,7 +797,38 @@ class IdentitySecurityStore:
             reasons.append(f"identity_invalid:{exc}")
             return GateReport.from_reasons(reasons)
         action = require_text(request.get("action"), "action")
+        object_id = require_text(request.get("objectId"), "objectId")
+        device_posture = require_text(request.get("devicePosture"), "devicePosture")
+        network_zone = require_text(request.get("networkZone"), "networkZone")
         risk_action = require_text(request.get("riskAction"), "riskAction")
+        bindings = (
+            ("device", "DEVICE_POSTURE", "device_attestation_verifier", {
+                "tenantId": tenant, "sessionId": principal.session_id,
+                "deviceDigest": principal.device_digest, "posture": device_posture,
+            }),
+            ("network", "NETWORK_ZONE", "network_context_verifier", {
+                "tenantId": tenant, "sessionId": principal.session_id, "zone": network_zone,
+            }),
+            ("risk", "RISK_DECISION", "risk_decision_service", {
+                "tenantId": tenant, "sessionId": principal.session_id, "action": action,
+                "objectId": object_id, "decision": risk_action,
+            }),
+        )
+        for receipt_name, receipt_type, role, fields in bindings:
+            try:
+                verify_downstream_receipt(
+                    require_mapping(context_receipts.get(receipt_name), receipt_name),
+                    self._receipt_trust(), receipt_type=receipt_type, outcome="VERIFIED",
+                    fields=fields, required_role=role, now=now,
+                )
+            except ValidationError as exc:
+                reasons.append(f"{receipt_name}_receipt_invalid:{exc}")
+        if device_posture not in set(require_list(self.policy.get("allowedDevicePostures"),
+                                                  "allowedDevicePostures")):
+            reasons.append("device_posture_not_trusted")
+        if network_zone not in set(require_list(self.policy.get("allowedNetworkZones"),
+                                                "allowedNetworkZones")):
+            reasons.append("network_zone_not_trusted")
         high_risk = action in set(require_list(self.policy.get("highRiskActions"),
                                                "highRiskActions"))
         if risk_action == "BLOCK":
@@ -681,16 +839,27 @@ class IdentitySecurityStore:
             if principal.assurance_level != "PHISHING_RESISTANT":
                 reasons.append("high_risk_action_requires_phishing_resistant_authentication")
             try:
-                step_up = parse_instant(request.get("stepUpAt"), "stepUpAt")
+                step_up_text = require_text(request.get("stepUpAt"), "stepUpAt")
+                step_up = parse_instant(step_up_text, "stepUpAt")
                 if not now.astimezone(timezone.utc) - timedelta(minutes=5) <= step_up <= now.astimezone(
                     timezone.utc
                 ):
                     reasons.append("step_up_is_missing_or_stale")
+                verify_downstream_receipt(
+                    require_mapping(context_receipts.get("stepUp"), "stepUp"),
+                    self._receipt_trust(), receipt_type="STEP_UP_AUTHENTICATION",
+                    outcome="VERIFIED", fields={
+                        "tenantId": tenant, "sessionId": principal.session_id,
+                        "subjectId": principal.subject_id, "action": action,
+                        "objectId": object_id, "performedAt": step_up_text,
+                        "assuranceLevel": principal.assurance_level,
+                    }, required_role="step_up_authenticator", now=now,
+                )
             except ValidationError:
                 reasons.append("step_up_is_missing_or_stale")
         authorization = self.authorize(
             tenant, principal.subject_id, require_text(request.get("role"), "role"),
-            require_text(request.get("objectId"), "objectId"),
+            object_id,
             [require_text(item, "requested field") for item in require_list(
                 request.get("requestedFields"), "requestedFields")], now,
         )
@@ -757,10 +926,15 @@ class IdentitySecurityStore:
         names = sorted({require_text(item, "certificate SAN") for item in san_names})
         if not names or subject_name not in names:
             raise ValidationError("certificate SANs must include the subject name")
-        if ca_receipt.get("status") != "ISSUED" or require_text(
-            ca_receipt.get("serialNumber"), "CA serialNumber"
-        ) != serial_number or require_text(ca_receipt.get("keyReference"), "CA keyReference") != key_reference:
-            raise ValidationError("CA issuance receipt is absent or not bound to the certificate")
+        receipt_digest, _signer = verify_downstream_receipt(
+            ca_receipt, self._receipt_trust(), receipt_type="CERTIFICATE_ISSUANCE",
+            outcome="ISSUED", fields={
+                "serialNumber": serial_number, "subjectName": subject_name,
+                "sanNames": names, "issuerName": issuer_name,
+                "keyReference": key_reference, "notBefore": _utc(not_before),
+                "notAfter": _utc(not_after),
+            }, required_role="certificate_authority", require_independent=True, now=now,
+        )
         current = self._db.execute(
             "SELECT not_after FROM certificate_inventory WHERE overlap_group=? AND status='ACTIVE'",
             (overlap_group,),
@@ -771,7 +945,6 @@ class IdentitySecurityStore:
             )
             if overlap.total_seconds() < int(pki["minimumOverlapSeconds"]):
                 raise ValidationError("certificate rotation has insufficient verification overlap")
-        receipt_digest = hashlib.sha256(canonical_json(ca_receipt)).hexdigest()
         self._db.execute(
             "INSERT INTO certificate_inventory VALUES(?,?,?,?,?,?,'PROPOSED',?,?,?,NULL,?,?,NULL)",
             (serial_number, subject_name, canonical_json(names), issuer_name, key_reference,
@@ -820,9 +993,11 @@ class IdentitySecurityStore:
         if row is None or row[0] not in {"ACTIVE", "OVERLAP"}:
             raise ValidationError("certificate is not revocable")
         receipt = require_mapping(ca_client.revoke(serial_number, reason), "CA revocation receipt")
-        if receipt.get("status") != "REVOKED" or receipt.get("serialNumber") != serial_number:
-            raise ValidationError("CA did not confirm certificate revocation")
-        receipt_digest = hashlib.sha256(canonical_json(receipt)).hexdigest()
+        receipt_digest, _signer = verify_downstream_receipt(
+            receipt, self._receipt_trust(), receipt_type="CERTIFICATE_REVOCATION",
+            outcome="REVOKED", fields={"serialNumber": serial_number, "reason": reason},
+            required_role="certificate_authority", require_independent=True, now=now,
+        )
         with self._lock:
             self._db.execute("BEGIN IMMEDIATE")
             try:
@@ -886,3 +1061,8 @@ class IdentitySecurityStore:
             "previous_hash,audit_hash,occurred_at) VALUES(?,?,?,?,?,?,?)",
             (tenant_id, event_type, object_digest, actor, previous_hash, audit_hash, _utc(now)),
         )
+
+    def _receipt_trust(self) -> Mapping[str, Any]:
+        if self.receipt_trust is None:
+            raise ValidationError("signed external receipt trust is not configured")
+        return require_mapping(self.receipt_trust, "identity receipt trust")

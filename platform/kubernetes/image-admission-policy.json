@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "mode": "ENFORCE",
+  "allowedRepositoryPrefix": "ghcr.io/zpcaiai/elmpay/",
+  "requiredImageManifest": "platform/oci/product-images.json",
+  "signature": {
+    "scheme": "Sigstore-keyless",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "workflowIdentity": "https://github.com/zpcaiai/elmpay/.github/workflows/ci.yml@refs/heads/main",
+    "transparencyLogRequired": true
+  },
+  "attestations": {
+    "provenancePredicateType": "https://slsa.dev/provenance/v1",
+    "sbomFormat": "CycloneDX-1.6-json",
+    "exactImageSubjectRequired": true,
+    "vulnerabilityScanRequired": true
+  },
+  "workload": {
+    "digestPinned": true,
+    "runAsUser": 10001,
+    "runAsNonRoot": true,
+    "readOnlyRootFilesystem": true,
+    "allowPrivilegeEscalation": false,
+    "dropAllCapabilities": true,
+    "seccompRuntimeDefault": true,
+    "serviceAccountToken": false
+  },
+  "externalControllerRequired": true,
+  "missingOrUnknownAction": "DENY"
+}

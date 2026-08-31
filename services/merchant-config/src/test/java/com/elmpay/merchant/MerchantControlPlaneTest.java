@@ -4,10 +4,23 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.elmpay.tenant.AuthorityEvidenceReceipt;
+import com.elmpay.tenant.TenantEvidenceType;
+import com.elmpay.tenant.TenantEvidenceVerifier;
+import com.elmpay.tenant.VerifiedTenantEvidence;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.Signature;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -39,9 +52,12 @@ final class MerchantControlPlaneTest {
     @Test
     void tenantTransitionsRequireGovernedEvidenceAndFourEyes() {
         RecordingStore store = new RecordingStore();
-        MerchantControlPlane service = new MerchantControlPlane(store);
+        EvidenceAuthority authority = new EvidenceAuthority();
+        MerchantControlPlane service = authority.service(store);
         MerchantControlPlane.TenantTransitionEvidence none =
                 MerchantControlPlane.TenantTransitionEvidence.none();
+        assertTrue(java.util.Arrays.stream(MerchantControlPlane.TenantTransitionEvidence.class
+                .getRecordComponents()).noneMatch(component -> component.getType() == boolean.class));
         assertThrows(IllegalArgumentException.class,
                 () -> service.transitionTenant(TENANT, 0,
                         MerchantControlPlane.TenantState.DRAFT,
@@ -50,8 +66,11 @@ final class MerchantControlPlaneTest {
         MerchantControlPlane.Tenant activated = service.transitionTenant(TENANT, 0,
                 MerchantControlPlane.TenantState.DRAFT,
                 MerchantControlPlane.TenantState.ACTIVE,
-                new MerchantControlPlane.TenantTransitionEvidence(true, true, false, false,
-                        false, null),
+                new MerchantControlPlane.TenantTransitionEvidence(List.of(
+                        authority.receipt(TENANT, TenantEvidenceType.KYB_VERIFIED,
+                                "tenant-kyb-nonce-0001"),
+                        authority.receipt(TENANT, TenantEvidenceType.CONTRACT_SIGNED,
+                                "tenant-contract-nonce-0001")), null),
                 "actor-001", "activate merchant", "ticket-001", NOW);
         assertEquals(MerchantControlPlane.TenantState.ACTIVE, activated.state());
 
@@ -61,10 +80,35 @@ final class MerchantControlPlaneTest {
                         MerchantControlPlane.TenantState.OFFBOARDING, none, "actor-001",
                         "begin offboarding", "ticket-002", NOW));
         assertThrows(IllegalArgumentException.class,
+                () -> service.transitionTenant(TENANT, 1,
+                        MerchantControlPlane.TenantState.ACTIVE,
+                        MerchantControlPlane.TenantState.OFFBOARDING,
+                        new MerchantControlPlane.TenantTransitionEvidence(List.of(),
+                                "actor-001"),
+                        "actor-001", "begin offboarding", "ticket-002", NOW));
+        MerchantControlPlane.Tenant offboarding = service.transitionTenant(TENANT, 1,
+                MerchantControlPlane.TenantState.ACTIVE,
+                MerchantControlPlane.TenantState.OFFBOARDING,
+                new MerchantControlPlane.TenantTransitionEvidence(List.of(), "approver-002"),
+                "actor-001", "begin offboarding", "ticket-002", NOW);
+        assertEquals(MerchantControlPlane.TenantState.OFFBOARDING, offboarding.state());
+        assertThrows(IllegalArgumentException.class,
                 () -> service.transitionTenant(TENANT, 2,
                         MerchantControlPlane.TenantState.OFFBOARDING,
                         MerchantControlPlane.TenantState.CLOSED, none, "actor-001",
                         "close merchant", "ticket-003", NOW));
+        MerchantControlPlane.Tenant closed = service.transitionTenant(TENANT, 2,
+                MerchantControlPlane.TenantState.OFFBOARDING,
+                MerchantControlPlane.TenantState.CLOSED,
+                new MerchantControlPlane.TenantTransitionEvidence(List.of(
+                        authority.receipt(TENANT, TenantEvidenceType.SETTLEMENT_COMPLETE,
+                                "tenant-settlement-nonce-0001"),
+                        authority.receipt(TENANT, TenantEvidenceType.RETENTION_PERIOD_STARTED,
+                                "tenant-retention-nonce-0001"),
+                        authority.receipt(TENANT, TenantEvidenceType.KEK_DESTROYED,
+                                "tenant-kek-nonce-0000001")), null),
+                "actor-001", "close merchant", "ticket-003", NOW);
+        assertEquals(MerchantControlPlane.TenantState.CLOSED, closed.state());
     }
 
     @Test
@@ -91,7 +135,7 @@ final class MerchantControlPlaneTest {
     @Test
     void highRiskVerificationRequiresTwoDistinctApproversAndCanExpire() {
         RecordingStore store = new RecordingStore();
-        MerchantControlPlane service = new MerchantControlPlane(store);
+        MerchantControlPlane service = new EvidenceAuthority().service(store);
         MerchantControlPlane.MerchantProfile travel = profile("travel",
                 MerchantControlPlane.RiskLevel.HIGH, "HK", "USD");
         MerchantControlPlane.VerificationDecision oneReviewer =
@@ -115,7 +159,7 @@ final class MerchantControlPlaneTest {
     @Test
     void onboardingApprovalIsFourEyesDigestBoundAndResumable() {
         RecordingStore store = new RecordingStore();
-        MerchantControlPlane service = new MerchantControlPlane(store);
+        MerchantControlPlane service = new EvidenceAuthority().service(store);
         MerchantControlPlane.Onboarding requested = service.requestOnboarding(WORKFLOW, TENANT,
                 PROJECT, MERCHANT, ACCOUNT, DIGEST, "onboarding-key-001", "requester-001",
                 NOW, Duration.ofHours(1));
@@ -155,7 +199,7 @@ final class MerchantControlPlaneTest {
 
     @Test
     void onboardingApprovalCannotOutliveGovernedWindow() {
-        MerchantControlPlane service = new MerchantControlPlane(new RecordingStore());
+        MerchantControlPlane service = new EvidenceAuthority().service(new RecordingStore());
         assertThrows(IllegalArgumentException.class,
                 () -> service.requestOnboarding(WORKFLOW, TENANT, PROJECT, MERCHANT, ACCOUNT,
                         DIGEST, "onboarding-key-001", "requester-001", NOW,
@@ -190,8 +234,8 @@ final class MerchantControlPlaneTest {
         public MerchantControlPlane.Tenant transitionTenant(UUID tenantId, long expectedVersion,
                 MerchantControlPlane.TenantState current,
                 MerchantControlPlane.TenantState next,
-                MerchantControlPlane.TenantTransitionEvidence evidence, String actorId,
-                String reason, String ticketId, Instant now) {
+                List<VerifiedTenantEvidence> verifiedEvidence, String secondApproverId,
+                String actorId, String reason, String ticketId, Instant now) {
             return new MerchantControlPlane.Tenant(tenantId, "tenant-external-001",
                     "tenant_code", next, expectedVersion + 1, NOW, now);
         }
@@ -285,6 +329,59 @@ final class MerchantControlPlaneTest {
         @Override
         public void retryStep(MerchantControlPlane.StepLease lease, String safeErrorCode,
                 Instant now, Duration retryDelay) {
+        }
+    }
+
+    private static final class EvidenceAuthority {
+        private static final String KEY_ID = "tenant-authority-key-1";
+        private static final String AUTHORITY = "licensed-tenant-authority";
+        private final KeyPair keyPair;
+        private final TenantEvidenceVerifier verifier;
+
+        private EvidenceAuthority() {
+            try {
+                keyPair = KeyPairGenerator.getInstance("Ed25519").generateKeyPair();
+            } catch (GeneralSecurityException unavailable) {
+                throw new IllegalStateException(unavailable);
+            }
+            Map<String, String> accepted = new HashMap<>();
+            TenantEvidenceVerifier.TrustKey trust = new TenantEvidenceVerifier.TrustKey(
+                    keyPair.getPublic(), "tenant-authority-workload", AUTHORITY,
+                    Set.of(TenantEvidenceType.KYB_VERIFIED,
+                            TenantEvidenceType.CONTRACT_SIGNED,
+                            TenantEvidenceType.SETTLEMENT_COMPLETE,
+                            TenantEvidenceType.RETENTION_PERIOD_STARTED,
+                            TenantEvidenceType.KEK_DESTROYED), NOW.minus(Duration.ofDays(1)),
+                    NOW.plus(Duration.ofDays(1)), false);
+            verifier = new TenantEvidenceVerifier(Map.of(KEY_ID, trust),
+                    (receipt, digest, acceptedAt) -> accepted.merge(
+                            receipt.keyId() + ":" + receipt.nonce(), digest,
+                            (stored, replay) -> stored.equals(replay) ? stored : "reused")
+                            .equals(digest), Duration.ofMinutes(5), Duration.ofSeconds(5));
+        }
+
+        private MerchantControlPlane service(RecordingStore store) {
+            return new MerchantControlPlane(store, verifier,
+                    Clock.fixed(NOW, ZoneOffset.UTC));
+        }
+
+        private AuthorityEvidenceReceipt receipt(UUID tenantId, TenantEvidenceType type,
+                String nonce) {
+            AuthorityEvidenceReceipt unsigned = new AuthorityEvidenceReceipt(tenantId, type,
+                    AUTHORITY, "decision/" + type.name().toLowerCase(java.util.Locale.ROOT),
+                    DIGEST, NOW.minusSeconds(1), NOW.plus(Duration.ofMinutes(4)), nonce, KEY_ID,
+                    new byte[64]);
+            try {
+                Signature signer = Signature.getInstance("Ed25519");
+                signer.initSign(keyPair.getPrivate());
+                signer.update(TenantEvidenceVerifier.signaturePayload(unsigned));
+                return new AuthorityEvidenceReceipt(unsigned.tenantId(), unsigned.evidenceType(),
+                        unsigned.authority(), unsigned.decisionReference(),
+                        unsigned.payloadDigest(), unsigned.issuedAt(), unsigned.expiresAt(),
+                        unsigned.nonce(), unsigned.keyId(), signer.sign());
+            } catch (GeneralSecurityException unavailable) {
+                throw new IllegalStateException(unavailable);
+            }
         }
     }
 }

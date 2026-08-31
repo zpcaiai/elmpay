@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.elmpay.example/security/oidc-revocation-snapshot-v1.json",
+  "title": "ELMPay signed OIDC revocation snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "generatedAt", "expiresAt", "revokedBefore", "revokedJtis",
+    "revokedSubjects", "keyId", "signature"
+  ],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "generatedAt": {"type": "integer", "minimum": 0},
+    "expiresAt": {"type": "integer", "minimum": 1},
+    "revokedBefore": {"type": "integer", "minimum": 0},
+    "revokedJtis": {
+      "type": "array", "maxItems": 10000, "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 160}
+    },
+    "revokedSubjects": {
+      "type": "array", "maxItems": 10000, "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1, "maxLength": 160}
+    },
+    "keyId": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$"},
+    "signature": {
+      "type": "string", "minLength": 342, "maxLength": 684,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    }
+  }
+}

@@ -853,6 +853,96 @@
       }
     },
     {
+      "table": "provider_effect_application",
+      "owner": "payment-core",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "none",
+        "reason": "immutable provider-event application facts are compact and keyed by tenant/provider event identity"
+      },
+      "retention": {
+        "hot_days": 400,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/provider_effect_application"
+      },
+      "shard_key": ["tenant_id"],
+      "indexes": [{
+        "name": "provider_effect_application_target_idx",
+        "columns": ["tenant_id", "target_type", "target_id", "provider_occurred_at"],
+        "unique": false
+      }],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "provider_effect_application_tenant_policy",
+        "predicate": "tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "provider_effect_expectation",
+      "owner": "payment-core",
+      "tenant_scoped": true,
+      "mutability": "append_only",
+      "partition": {
+        "kind": "none",
+        "reason": "immutable capture expectation is one compact fact per payment attempt"
+      },
+      "retention": {
+        "hot_days": 400,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/provider_effect_expectation"
+      },
+      "shard_key": ["tenant_id"],
+      "indexes": [{
+        "name": "provider_effect_expectation_binding_idx",
+        "columns": ["tenant_id", "project_id", "provider_account_id", "provider", "payment_intent_id"],
+        "unique": false
+      }],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "provider_effect_expectation_tenant_policy",
+        "predicate": "tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
+      "table": "provider_effect_target_clock",
+      "owner": "payment-core",
+      "tenant_scoped": true,
+      "mutability": "mutable",
+      "partition": {
+        "kind": "none",
+        "reason": "one monotonic provider ordering fence per bound payment or refund"
+      },
+      "retention": {
+        "hot_days": 400,
+        "warm_days": 2555,
+        "cold_days": 2555,
+        "archive_after_days": 2555,
+        "archive_target": "object-storage://elmpay-archive/provider_effect_target_clock"
+      },
+      "shard_key": ["tenant_id"],
+      "indexes": [{
+        "name": "provider_effect_target_clock_pkey",
+        "columns": ["tenant_id", "target_type", "target_id"],
+        "unique": true
+      }],
+      "personal_columns": [],
+      "rls": {
+        "enabled": true,
+        "policy": "provider_effect_target_clock_tenant_policy",
+        "predicate": "tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid",
+        "force_for_owner": true
+      }
+    },
+    {
       "table": "provider_statement",
       "owner": "reconciliation-service",
       "tenant_scoped": true,
@@ -895,12 +985,12 @@
       "table": "provider_webhook_inbox",
       "owner": "webhook-ingress",
       "tenant_scoped": true,
-      "mutability": "append_only",
+      "mutability": "mutable",
       "partition": {
-        "kind": "range",
-        "key": "created_at",
-        "interval": "monthly",
-        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+        "kind": "none",
+        "key": null,
+        "interval": null,
+        "reason": "lease/fencing state is updated in place; partitioning requires a later online migration"
       },
       "retention": {
         "hot_days": 90,
@@ -914,10 +1004,21 @@
       ],
       "indexes": [
         {
-          "name": "provider_webhook_inbox_tenant_created_idx",
+          "name": "provider_webhook_inbox_due_idx",
           "columns": [
             "tenant_id",
-            "created_at"
+            "next_attempt_at",
+            "received_at",
+            "inbox_id"
+          ],
+          "unique": false
+        },
+        {
+          "name": "provider_webhook_inbox_stale_lease_idx",
+          "columns": [
+            "tenant_id",
+            "lease_expires_at",
+            "inbox_id"
           ],
           "unique": false
         }
@@ -925,47 +1026,47 @@
       "personal_columns": [],
       "rls": {
         "enabled": true,
-        "policy": "provider_webhook_inbox_tenant_isolation",
-        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "policy": "provider_webhook_inbox_tenant_policy",
+        "predicate": "tenant_id = current_setting('app.tenant_id', true)",
         "force_for_owner": true
       }
     },
     {
-      "table": "provider_webhook_raw",
+      "table": "provider_webhook_effect_commit",
       "owner": "webhook-ingress",
       "tenant_scoped": true,
       "mutability": "append_only",
       "partition": {
-        "kind": "range",
-        "key": "created_at",
-        "interval": "monthly",
-        "reason": "支付数据按时间写入、按时间归档；按月分区让归档变成 DETACH 而不是 DELETE"
+        "kind": "none",
+        "key": null,
+        "interval": null,
+        "reason": "compact append-only idempotency marker keyed by tenant and inbox id"
       },
       "retention": {
         "hot_days": 90,
         "warm_days": 400,
         "cold_days": 400,
         "archive_after_days": 400,
-        "archive_target": "object-storage://elmpay-archive/provider_webhook_raw"
+        "archive_target": "object-storage://elmpay-archive/provider_webhook_effect_commit"
       },
       "shard_key": [
         "tenant_id"
       ],
       "indexes": [
         {
-          "name": "provider_webhook_raw_tenant_created_idx",
+          "name": "provider_webhook_effect_commit_pkey",
           "columns": [
             "tenant_id",
-            "created_at"
+            "inbox_id"
           ],
-          "unique": false
+          "unique": true
         }
       ],
       "personal_columns": [],
       "rls": {
         "enabled": true,
-        "policy": "provider_webhook_raw_tenant_isolation",
-        "predicate": "tenant_id = current_setting('app.tenant_id')::uuid",
+        "policy": "provider_webhook_effect_commit_tenant_policy",
+        "predicate": "tenant_id = current_setting('app.tenant_id', true)",
         "force_for_owner": true
       }
     },
@@ -1503,6 +1604,55 @@
         "enabled": false,
         "reason": "tenant 表本身就是租户目录；对它做行级隔离会让租户无法被创建或查询"
       }
-    }
+    },
+    {"table":"admin_access_audit","owner":"admin-web","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_access_audit"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_access_audit_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_access_audit_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"admin_action_diagnostic_audit","owner":"edge-gateway","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_action_diagnostic_audit"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_action_diagnostic_audit_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_action_diagnostic_audit_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"admin_action_dispatch","owner":"admin-web","tenant_scoped":true,"mutability":"mutable","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_action_dispatch"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_action_dispatch_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_action_dispatch_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"admin_action_effect_receipt","owner":"edge-gateway","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_action_effect_receipt"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_action_effect_receipt_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_action_effect_receipt_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"admin_approval","owner":"admin-web","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_approval"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_approval_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_approval_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"admin_approval_audit","owner":"admin-web","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_approval_audit"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_approval_audit_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_approval_audit_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"admin_diagnostic_snapshot","owner":"admin-web","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_diagnostic_snapshot"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_diagnostic_snapshot_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_diagnostic_snapshot_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"admin_dispatch_signal","owner":"admin-web","tenant_scoped":true,"mutability":"mutable","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_dispatch_signal"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_dispatch_signal_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_dispatch_signal_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"admin_domain_command","owner":"edge-gateway","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_domain_command"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_domain_command_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_domain_command_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"admin_domain_command_signal","owner":"edge-gateway","tenant_scoped":true,"mutability":"mutable","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_domain_command_signal"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_domain_command_signal_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_domain_command_signal_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"admin_dpop_nonce","owner":"admin-web","tenant_scoped":false,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_dpop_nonce"},"shard_key":null,"indexes":[{"name":"admin_dpop_nonce_idx","columns":["created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":false,"reason":"platform control metadata has no tenant payload and is guarded by its owning service role"}},
+    {"table":"admin_dpop_replay","owner":"admin-web","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_dpop_replay"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_dpop_replay_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_dpop_replay_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"admin_rollout_stage_approval","owner":"worker-scheduler","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/admin_rollout_stage_approval"},"shard_key":["tenant_id"],"indexes":[{"name":"admin_rollout_stage_approval_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"admin_rollout_stage_approval_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"consumer_event_inbox","owner":"worker-scheduler","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/consumer_event_inbox"},"shard_key":["tenant_id"],"indexes":[{"name":"consumer_event_inbox_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"consumer_event_inbox_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"data_table_ownership","owner":"worker-scheduler","tenant_scoped":false,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/data_table_ownership"},"shard_key":null,"indexes":[{"name":"data_table_ownership_idx","columns":["created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":false,"reason":"platform control metadata has no tenant payload and is guarded by its owning service role"}},
+    {"table":"event_aggregate_revision","owner":"worker-scheduler","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/event_aggregate_revision"},"shard_key":["tenant_id"],"indexes":[{"name":"event_aggregate_revision_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"event_aggregate_revision_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"financial_admin_audit","owner":"reconciliation-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/financial_admin_audit"},"shard_key":["tenant_id"],"indexes":[{"name":"financial_admin_audit_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"financial_admin_audit_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"financial_export","owner":"reconciliation-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/financial_export"},"shard_key":["tenant_id"],"indexes":[{"name":"financial_export_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"financial_export_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"financial_runtime_job","owner":"reconciliation-service","tenant_scoped":true,"mutability":"mutable","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/financial_runtime_job"},"shard_key":["tenant_id"],"indexes":[{"name":"financial_runtime_job_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"financial_runtime_job_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"ledger_event_revision_guard","owner":"ledger-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/ledger_event_revision_guard"},"shard_key":["tenant_id"],"indexes":[{"name":"ledger_event_revision_guard_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"ledger_event_revision_guard_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"ledger_posting_account_mapping","owner":"ledger-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/ledger_posting_account_mapping"},"shard_key":["tenant_id"],"indexes":[{"name":"ledger_posting_account_mapping_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"ledger_posting_account_mapping_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"ledger_posting_policy","owner":"ledger-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/ledger_posting_policy"},"shard_key":["tenant_id"],"indexes":[{"name":"ledger_posting_policy_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"ledger_posting_policy_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"recon_exception_action","owner":"reconciliation-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/recon_exception_action"},"shard_key":["tenant_id"],"indexes":[{"name":"recon_exception_action_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"recon_exception_action_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"recon_exception_current","owner":"reconciliation-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/recon_exception_current"},"shard_key":["tenant_id"],"indexes":[{"name":"recon_exception_current_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"recon_exception_current_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"recon_exception_origin","owner":"reconciliation-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/recon_exception_origin"},"shard_key":["tenant_id"],"indexes":[{"name":"recon_exception_origin_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"recon_exception_origin_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"reconciliation_fact_snapshot","owner":"reconciliation-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/reconciliation_fact_snapshot"},"shard_key":["tenant_id"],"indexes":[{"name":"reconciliation_fact_snapshot_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"reconciliation_fact_snapshot_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"reconciliation_fact_snapshot_member","owner":"reconciliation-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/reconciliation_fact_snapshot_member"},"shard_key":["tenant_id"],"indexes":[{"name":"reconciliation_fact_snapshot_member_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"reconciliation_fact_snapshot_member_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"reconciliation_schedule_cursor","owner":"reconciliation-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/reconciliation_schedule_cursor"},"shard_key":["tenant_id"],"indexes":[{"name":"reconciliation_schedule_cursor_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"reconciliation_schedule_cursor_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_audit","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_audit"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_audit_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_audit_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_operation","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_operation"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_operation_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_operation_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_outbox","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_outbox"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_outbox_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_outbox_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_rule_set","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_rule_set"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_rule_set_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_rule_set_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_runtime_audit","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_runtime_audit"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_runtime_audit_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_runtime_audit_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_runtime_capability_health","owner":"risk-engine","tenant_scoped":false,"mutability":"mutable","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_runtime_capability_health"},"shard_key":null,"indexes":[{"name":"risk_runtime_capability_health_idx","columns":["created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":false,"reason":"platform control metadata has no tenant payload and is guarded by its owning service role"}},
+    {"table":"risk_runtime_case_resolution","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_runtime_case_resolution"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_runtime_case_resolution_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_runtime_case_resolution_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_runtime_decision","owner":"risk-engine","tenant_scoped":true,"mutability":"mutable","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_runtime_decision"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_runtime_decision_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_runtime_decision_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_runtime_list_entry","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_runtime_list_entry"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_runtime_list_entry_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_runtime_list_entry_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_runtime_model_result","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_runtime_model_result"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_runtime_model_result_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_runtime_model_result_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_runtime_nonce","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_runtime_nonce"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_runtime_nonce_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_runtime_nonce_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_runtime_operation_request","owner":"risk-engine","tenant_scoped":true,"mutability":"mutable","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_runtime_operation_request"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_runtime_operation_request_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_runtime_operation_request_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_runtime_rule_set","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_runtime_rule_set"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_runtime_rule_set_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_runtime_rule_set_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_runtime_signal_snapshot","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_runtime_signal_snapshot"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_runtime_signal_snapshot_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_runtime_signal_snapshot_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"risk_signal_snapshot","owner":"risk-engine","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/risk_signal_snapshot"},"shard_key":["tenant_id"],"indexes":[{"name":"risk_signal_snapshot_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"risk_signal_snapshot_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"rollout_execution","owner":"worker-scheduler","tenant_scoped":true,"mutability":"mutable","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/rollout_execution"},"shard_key":["tenant_id"],"indexes":[{"name":"rollout_execution_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"rollout_execution_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"statement_file","owner":"reconciliation-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/statement_file"},"shard_key":["tenant_id"],"indexes":[{"name":"statement_file_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"statement_file_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"statement_row","owner":"reconciliation-service","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/statement_row"},"shard_key":["tenant_id"],"indexes":[{"name":"statement_row_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"statement_row_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"tenant_archive_export_receipt","owner":"worker-scheduler","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/tenant_archive_export_receipt"},"shard_key":["tenant_id"],"indexes":[{"name":"tenant_archive_export_receipt_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"tenant_archive_export_receipt_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"tenant_archive_fact","owner":"worker-scheduler","tenant_scoped":true,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/tenant_archive_fact"},"shard_key":["tenant_id"],"indexes":[{"name":"tenant_archive_fact_tenant_idx","columns":["tenant_id","created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":true,"policy":"tenant_archive_fact_tenant_policy","predicate":"tenant_id = current_setting('app.tenant_id', true)","force_for_owner":true}},
+    {"table":"tenant_partition_change","owner":"worker-scheduler","tenant_scoped":false,"mutability":"append_only","partition":{"kind":"none","reason":"compact operational control state is retained in place; range partitioning is not required for this bounded relation"},"retention":{"hot_days":90,"warm_days":400,"cold_days":2555,"archive_after_days":2555,"archive_target":"object-storage://elmpay-archive/tenant_partition_change"},"shard_key":null,"indexes":[{"name":"tenant_partition_change_idx","columns":["created_at"],"unique":false}],"personal_columns":[],"rls":{"enabled":false,"reason":"platform control metadata has no tenant payload and is guarded by its owning service role"}}
   ]
 }

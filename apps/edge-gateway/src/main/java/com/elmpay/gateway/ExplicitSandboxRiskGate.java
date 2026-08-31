@@ -30,9 +30,12 @@ final class ExplicitSandboxRiskGate implements SynchronousRiskGate {
                 ? "LOCAL_SANDBOX_EXPLICIT_APPROVAL" : "LOCAL_SANDBOX_REVIEW_ALL";
         String decisionId = sha256(request.tenantId() + "\n" + request.requestId()
                 + "\n" + action.name());
-        return new RiskDecision(decisionId, request.tenantId(), request.requestId(), action,
-                List.of(reason), "local-sandbox", sha256("local-sandbox"), "local-sandbox",
-                "disabled", action != RiskAction.APPROVE, clock.instant());
+        String localDigest = sha256("local-sandbox");
+        return new RiskDecision(decisionId, request.tenantId(), request.projectId(),
+                request.requestId(), request.requestDigest(), request.operation(),
+                request.subjectDigest(), action, List.of(reason), "local-sandbox", localDigest,
+                "local-sandbox", localDigest, "disabled", sha256("model-disabled"),
+                action != RiskAction.APPROVE, clock.instant());
     }
 
     private static String sha256(String value) {

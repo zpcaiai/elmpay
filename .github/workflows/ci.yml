@@ -137,27 +137,30 @@ jobs:
       - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
-      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (1/7)'
+      - name: '运行 tools/tests、testing 产品面、128 批次本地矩阵、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (1/8)'
         run: |
           python3 scripts/test-summary.py --suite-root tools/tests --out build/test-summary.json --log build/unittest.log
-      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (2/7)'
+      - name: '运行 tools/tests、testing 产品面、128 批次本地矩阵、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (2/8)'
         run: |
           mkdir -p build/test-surfaces && python3 -m unittest discover -s testing -p 'test_*.py' -v > build/test-surfaces/testing.log 2>&1
-      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (3/7)'
+      - name: '运行 tools/tests、testing 产品面、128 批次本地矩阵、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (3/8)'
         run: |
           python3 scripts/provider-contract-matrix.py > build/test-surfaces/provider-contract-matrix.log 2>&1
-      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (4/7)'
+      - name: '运行 tools/tests、testing 产品面、128 批次本地矩阵、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (4/8)'
         run: |
           node --test apps/checkout-web/test/*.test.mjs > build/test-surfaces/checkout-web.log 2>&1
-      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (5/7)'
+      - name: '运行 tools/tests、testing 产品面、128 批次本地矩阵、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (5/8)'
         run: |
           node --test apps/admin-web/test/*.test.mjs > build/test-surfaces/admin-web.log 2>&1
-      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (6/7)'
+      - name: '运行 tools/tests、testing 产品面、128 批次本地矩阵、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (6/8)'
         run: |
           python3 scripts/sdk-contract-smoke.py > build/test-surfaces/server-sdk.log 2>&1
-      - name: '运行 tools/tests、testing 产品面、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (7/7)'
+      - name: '运行 tools/tests、testing 产品面、128 批次本地矩阵、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (7/8)'
         run: |
           ./gradlew --no-daemon test > build/test-surfaces/gradle.log 2>&1
+      - name: '运行 tools/tests、testing 产品面、128 批次本地矩阵、渠道矩阵、checkout/admin Web、server SDK 与含 Android 的根 Gradle 测试，禁止跳过关键测试 (8/8)'
+        run: |
+          python3 scripts/run-test-matrix.py --execution local --json-out build/test-matrix/local-report.json --junit-out build/test-matrix/local-junit.xml > build/test-surfaces/test-matrix-local.log 2>&1
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
         if: always()
         with:
@@ -166,6 +169,7 @@ jobs:
             build/test-summary.json
             build/unittest.log
             build/test-surfaces/
+            build/test-matrix/
           if-no-files-found: error
 
   ios-sdk-test:
@@ -396,7 +400,7 @@ jobs:
           if-no-files-found: error
 
   container-scan:
-    name: '容器工具链与本地平台治理'
+    name: '产品 OCI 源契约与外部扫描门禁'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: [build]
@@ -414,7 +418,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c  # v5.0.2
         with:
           cache-read-only: true
-      - name: '验证镜像摘要声明和本地平台配置；当前没有 OCI 产品镜像，因而不宣称镜像漏洞扫描 (1/1)'
+      - name: '验证六个产品 OCI 构建、运行布局和准入源契约；真实镜像构建、逐镜像 SBOM、扫描、注册表签名必须以 exact release index 进入终态门禁，未执行不宣称通过 (1/2)'
+        run: |
+          python3 scripts/product-image-pipeline.py source-gate
+      - name: '验证六个产品 OCI 构建、运行布局和准入源契约；真实镜像构建、逐镜像 SBOM、扫描、注册表签名必须以 exact release index 进入终态门禁，未执行不宣称通过 (2/2)'
         run: |
           python3 -m tools.paygov.cli verify toolchain dev-platform --repo . --out container-scan.json
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  # v6.0.0
@@ -649,6 +656,7 @@ jobs:
           ELMPAY_RELEASE_TRUST_B64: ${{ secrets.ELMPAY_RELEASE_TRUST_B64 }}
           ELMPAY_EXTERNAL_EVIDENCE_B64: ${{ secrets.ELMPAY_EXTERNAL_EVIDENCE_B64 }}
           ELMPAY_EXTERNAL_TRUST_B64: ${{ secrets.ELMPAY_EXTERNAL_TRUST_B64 }}
+          ELMPAY_PRODUCT_IMAGE_INDEX_B64: ${{ secrets.ELMPAY_PRODUCT_IMAGE_INDEX_B64 }}
           ELMPAY_SIGNING_OPT_IN: ${{ vars.ELMPAY_PUBLIC_SIGSTORE_METADATA_DISCLOSURE_OPT_IN }}
           ELMPAY_NEEDS_GOVERNANCE: ${{ needs['governance'].result }}
           ELMPAY_NEEDS_PYTHON_FLOOR: ${{ needs['python-floor'].result }}
@@ -711,6 +719,7 @@ jobs:
             done
             for variable in ELMPAY_RELEASE_MANIFEST_B64 ELMPAY_RELEASE_TRUST_B64 \
                             ELMPAY_EXTERNAL_EVIDENCE_B64 ELMPAY_EXTERNAL_TRUST_B64 \
+                            ELMPAY_PRODUCT_IMAGE_INDEX_B64 \
                             ELMPAY_GATE_SHA; do
               if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
                 echo "release gate blocked: protected evidence input '${variable}' is missing" >&2

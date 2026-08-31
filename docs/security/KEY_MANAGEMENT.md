@@ -59,6 +59,7 @@ KEK 轮换只需重新包裹数据密钥，不必重写业务数据——这也�
 | `ci-oidc` | external_jwks | RS256 | `kek-provider-credentials` |
 | `corporate-idp` | external_jwks | RS256 | `kek-provider-credentials` |
 | `customer-idp` | external_jwks | RS256 | `kek-provider-credentials` |
+| `merchant-authorization-server` | external_jwks | RS256 | `kek-provider-credentials` |
 | `paypal` | envelope_encrypted | none | `kek-provider-credentials` |
 | `stripe` | envelope_encrypted | none | `kek-provider-credentials` |
 | `wechat` | hsm_backed | RSA-2048-PSS | `kek-provider-credentials` |
@@ -70,6 +71,7 @@ KEK 轮换只需重新包裹数据密钥，不必重写业务数据——这也�
 - **`paypal`**：PayPal 同上。
 - **`apple_pay`**：Apple Pay 支付处理私钥由 HSM 托管，用于解密支付令牌。
 - **`customer-idp`**：外部身份提供方的验签公钥来自 JWKS，本平台不持有其私钥。
+- **`merchant-authorization-server`**：商户 OAuth2 authorization server 的 at+jwt 验签公钥仅通过轮换 JWKS 获取，本平台不持有其签发私钥。
 - **`corporate-idp`**：企业身份提供方的验签公钥同样来自 JWKS；本平台不持有其私钥，也就无从泄露。
 - **`workload-ca`**：工作负载身份 CA 的签发私钥必须在 HSM 内：它能签出任何服务身份。
 - **`ci-oidc`**：CI 的 OIDC 令牌由外部签发。

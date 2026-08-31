@@ -330,8 +330,8 @@ public final class ReconciliationRepository {
     }
 
     private static void requiredDigest(String value, String label) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(label + " is required");
+        if (value == null || !value.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException(label + " must be SHA-256 hex");
         }
     }
 

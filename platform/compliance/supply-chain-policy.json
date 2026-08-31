@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "allowedBuilders": ["https://github.com/zpcaiai/elmpay/.github/workflows/release.yml"],
+  "allowedBuilders": ["https://github.com/zpcaiai/elmpay/.github/workflows/ci.yml"],
   "requiredMaterials": ["source", "dependency-locks", "build-toolchain", "container-base"],
   "signatureAlgorithm": "Ed25519",
   "signatureEnvelope": "DSSE",

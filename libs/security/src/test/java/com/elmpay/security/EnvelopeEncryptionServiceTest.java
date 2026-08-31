@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
+import java.net.http.HttpHeaders;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
@@ -19,10 +20,14 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.crypto.Cipher;
 import org.junit.jupiter.api.Test;
 
 final class EnvelopeEncryptionServiceTest {
+    private static final HttpHeaders JSON_HEADERS = HttpHeaders.of(
+            Map.of("Content-Type", java.util.List.of("application/json")),
+            (name, value) -> true);
     private static final Instant NOW = Instant.parse("2026-08-28T00:00:00Z");
     private static final Map<String, String> AAD = Map.of(
             "tenantId", "tenant-a", "resourceId", "provider-account-1",
@@ -82,9 +87,15 @@ final class EnvelopeEncryptionServiceTest {
                 () -> "short-lived-token", Duration.ofSeconds(2));
 
         var generated = client.generateDataKey("kms://provider/v1", AAD, Duration.ofSeconds(5));
-        assertArrayEquals(key, generated.plaintextKey());
+        byte[] returned = generated.plaintextKey();
+        assertArrayEquals(key, returned);
+        Arrays.fill(returned, (byte) 0);
+        generated.close();
+        assertThrows(IllegalStateException.class, generated::plaintextKey);
         assertTrue(transport.endpoint.toString().endsWith("/v1/data-keys/generate"));
         assertTrue(transport.authorization.startsWith("Bearer "));
+        assertTrue(allZero(transport.requestBody));
+        assertThrows(IllegalStateException.class, transport.lastResponse::body);
 
         var duplicate = new HttpsKmsClient(URI.create("https://kms.example/v1"),
                 new RecordingTransport("{\"keyVersion\":\"1\",\"keyVersion\":\"2\"}"
@@ -92,16 +103,46 @@ final class EnvelopeEncryptionServiceTest {
                 () -> "token", Duration.ofSeconds(1));
         assertThrows(SecurityException.class, () -> duplicate.generateDataKey(
                 "kms://provider/v1", AAD, Duration.ofSeconds(5)));
+        var invalidUtf8 = new HttpsKmsClient(URI.create("https://kms.example/v1"),
+                new RecordingTransport(new byte[] {'{', '"', 'x', '"', ':', '"',
+                        (byte) 0xc3, (byte) 0x28, '"', '}'}),
+                () -> "token", Duration.ofSeconds(1));
+        assertThrows(SecurityException.class, () -> invalidUtf8.generateDataKey(
+                "kms://provider/v1", AAD, Duration.ofSeconds(5)));
+        RecordingTransport wrongTypeTransport = new RecordingTransport(transport.response);
+        wrongTypeTransport.responseHeaders = HttpHeaders.of(
+                Map.of("Content-Type", java.util.List.of("text/plain")),
+                (name, value) -> true);
+        var wrongType = new HttpsKmsClient(URI.create("https://kms.example/v1"),
+                wrongTypeTransport, () -> "token", Duration.ofSeconds(1));
+        assertThrows(SecurityException.class, () -> wrongType.generateDataKey(
+                "kms://provider/v1", AAD, Duration.ofSeconds(5)));
         assertThrows(SecurityException.class, () -> new HttpsKmsClient(
                 URI.create("https://kms.example/v1"), transport, () -> "bad\ntoken",
                 Duration.ofSeconds(1)).generateDataKey("kms://provider/v1", AAD,
                         Duration.ofSeconds(5)));
+
+        AtomicReference<byte[]> failedRequest = new AtomicReference<>();
+        var unavailable = new HttpsKmsClient(URI.create("https://kms.example/v1"),
+                (target, headers, body, timeout) -> {
+                    failedRequest.set(body);
+                    throw new IllegalStateException("unavailable");
+                }, () -> "token", Duration.ofSeconds(1));
+        assertThrows(IllegalStateException.class, () -> unavailable.unwrapDataKey(
+                "kms://provider/v1", "7", wrapped, AAD, Duration.ofSeconds(5)));
+        assertTrue(allZero(failedRequest.get()));
+        assertThrows(IllegalStateException.class, () -> HttpsKmsClient.fromEnvironment(
+                Map.of("ELMPAY_KMS_ACCESS_TOKEN", "inline-is-forbidden"),
+                Clock.systemUTC()));
     }
 
     private static final class RecordingTransport implements HttpsKmsClient.Transport {
         private final byte[] response;
         private URI endpoint;
         private String authorization;
+        private byte[] requestBody;
+        private HttpsKmsClient.Response lastResponse;
+        private HttpHeaders responseHeaders = JSON_HEADERS;
 
         private RecordingTransport(byte[] response) {
             this.response = response.clone();
@@ -112,10 +153,21 @@ final class EnvelopeEncryptionServiceTest {
                 Duration timeout) {
             endpoint = target;
             authorization = headers.get("Authorization");
+            requestBody = body;
             assertTrue(body.length > 0);
             assertTrue(timeout.compareTo(Duration.ofSeconds(10)) <= 0);
-            return new HttpsKmsClient.Response(200, response);
+            lastResponse = new HttpsKmsClient.Response(200, responseHeaders, response);
+            return lastResponse;
         }
+    }
+
+    private static boolean allZero(byte[] value) {
+        for (byte item : value) {
+            if (item != 0) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static final class RsaKms implements KmsClient {

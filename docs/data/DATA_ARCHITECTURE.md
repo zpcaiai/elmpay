@@ -46,9 +46,12 @@
 | `project` | `merchant-config` | RLS 强制 | mutable | 不分区 | 2555 / 2555 / 2555 | `object-storage://elmpay-archive/project` |
 | `provider_account` | `merchant-config` | RLS 强制 | mutable | 不分区 | 2555 / 2555 / 2555 | `object-storage://elmpay-archive/provider_account` |
 | `provider_capability` | `merchant-config` | RLS 强制 | mutable | 不分区 | 2555 / 2555 / 2555 | `object-storage://elmpay-archive/provider_capability` |
+| `provider_effect_application` | `payment-core` | RLS 强制 | append_only | 不分区 | 400 / 2555 / 2555 | `object-storage://elmpay-archive/provider_effect_application` |
+| `provider_effect_expectation` | `payment-core` | RLS 强制 | append_only | 不分区 | 400 / 2555 / 2555 | `object-storage://elmpay-archive/provider_effect_expectation` |
+| `provider_effect_target_clock` | `payment-core` | RLS 强制 | mutable | 不分区 | 400 / 2555 / 2555 | `object-storage://elmpay-archive/provider_effect_target_clock` |
 | `provider_statement` | `reconciliation-service` | RLS 强制 | append_only | range / `created_at` / monthly | 90 / 400 / 2555 | `object-storage://elmpay-archive/provider_statement` |
-| `provider_webhook_inbox` | `webhook-ingress` | RLS 强制 | append_only | range / `created_at` / monthly | 90 / 400 / 400 | `object-storage://elmpay-archive/provider_webhook_inbox` |
-| `provider_webhook_raw` | `webhook-ingress` | RLS 强制 | append_only | range / `created_at` / monthly | 90 / 400 / 400 | `object-storage://elmpay-archive/provider_webhook_raw` |
+| `provider_webhook_inbox` | `webhook-ingress` | RLS 强制 | mutable | 不分区 | 90 / 400 / 400 | `object-storage://elmpay-archive/provider_webhook_inbox` |
+| `provider_webhook_effect_commit` | `webhook-ingress` | RLS 强制 | append_only | 不分区 | 90 / 400 / 400 | `object-storage://elmpay-archive/provider_webhook_effect_commit` |
 | `recon_exception` | `reconciliation-service` | RLS 强制 | mutable | range / `created_at` / monthly | 90 / 400 / 2555 | `object-storage://elmpay-archive/recon_exception` |
 | `recon_match` | `reconciliation-service` | RLS 强制 | append_only | range / `created_at` / monthly | 90 / 400 / 2555 | `object-storage://elmpay-archive/recon_match` |
 | `recon_run` | `reconciliation-service` | RLS 强制 | mutable | range / `created_at` / monthly | 90 / 400 / 2555 | `object-storage://elmpay-archive/recon_run` |
@@ -63,12 +66,61 @@
 | `settlement_instruction` | `ledger-service` | RLS 强制 | mutable | range / `created_at` / monthly | 90 / 400 / 2555 | `object-storage://elmpay-archive/settlement_instruction` |
 | `subscription` | `payment-core` | RLS 强制 | mutable | range / `created_at` / monthly | 90 / 400 / 2555 | `object-storage://elmpay-archive/subscription` |
 | `tenant` | `merchant-config` | 不适用 | mutable | 不分区 | 2555 / 2555 / 2555 | `object-storage://elmpay-archive/tenant` |
+| `admin_access_audit` | `admin-web` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_access_audit` |
+| `admin_action_diagnostic_audit` | `edge-gateway` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_action_diagnostic_audit` |
+| `admin_action_dispatch` | `admin-web` | RLS 强制 | mutable | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_action_dispatch` |
+| `admin_action_effect_receipt` | `edge-gateway` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_action_effect_receipt` |
+| `admin_approval` | `admin-web` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_approval` |
+| `admin_approval_audit` | `admin-web` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_approval_audit` |
+| `admin_diagnostic_snapshot` | `admin-web` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_diagnostic_snapshot` |
+| `admin_dispatch_signal` | `admin-web` | RLS 强制 | mutable | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_dispatch_signal` |
+| `admin_domain_command` | `edge-gateway` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_domain_command` |
+| `admin_domain_command_signal` | `edge-gateway` | RLS 强制 | mutable | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_domain_command_signal` |
+| `admin_dpop_nonce` | `admin-web` | 不适用 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_dpop_nonce` |
+| `admin_dpop_replay` | `admin-web` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_dpop_replay` |
+| `admin_rollout_stage_approval` | `worker-scheduler` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/admin_rollout_stage_approval` |
+| `consumer_event_inbox` | `worker-scheduler` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/consumer_event_inbox` |
+| `data_table_ownership` | `worker-scheduler` | 不适用 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/data_table_ownership` |
+| `event_aggregate_revision` | `worker-scheduler` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/event_aggregate_revision` |
+| `financial_admin_audit` | `reconciliation-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/financial_admin_audit` |
+| `financial_export` | `reconciliation-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/financial_export` |
+| `financial_runtime_job` | `reconciliation-service` | RLS 强制 | mutable | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/financial_runtime_job` |
+| `ledger_event_revision_guard` | `ledger-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/ledger_event_revision_guard` |
+| `ledger_posting_account_mapping` | `ledger-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/ledger_posting_account_mapping` |
+| `ledger_posting_policy` | `ledger-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/ledger_posting_policy` |
+| `recon_exception_action` | `reconciliation-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/recon_exception_action` |
+| `recon_exception_current` | `reconciliation-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/recon_exception_current` |
+| `recon_exception_origin` | `reconciliation-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/recon_exception_origin` |
+| `reconciliation_fact_snapshot` | `reconciliation-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/reconciliation_fact_snapshot` |
+| `reconciliation_fact_snapshot_member` | `reconciliation-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/reconciliation_fact_snapshot_member` |
+| `reconciliation_schedule_cursor` | `reconciliation-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/reconciliation_schedule_cursor` |
+| `risk_audit` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_audit` |
+| `risk_operation` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_operation` |
+| `risk_outbox` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_outbox` |
+| `risk_rule_set` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_rule_set` |
+| `risk_runtime_audit` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_runtime_audit` |
+| `risk_runtime_capability_health` | `risk-engine` | 不适用 | mutable | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_runtime_capability_health` |
+| `risk_runtime_case_resolution` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_runtime_case_resolution` |
+| `risk_runtime_decision` | `risk-engine` | RLS 强制 | mutable | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_runtime_decision` |
+| `risk_runtime_list_entry` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_runtime_list_entry` |
+| `risk_runtime_model_result` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_runtime_model_result` |
+| `risk_runtime_nonce` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_runtime_nonce` |
+| `risk_runtime_operation_request` | `risk-engine` | RLS 强制 | mutable | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_runtime_operation_request` |
+| `risk_runtime_rule_set` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_runtime_rule_set` |
+| `risk_runtime_signal_snapshot` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_runtime_signal_snapshot` |
+| `risk_signal_snapshot` | `risk-engine` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/risk_signal_snapshot` |
+| `rollout_execution` | `worker-scheduler` | RLS 强制 | mutable | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/rollout_execution` |
+| `statement_file` | `reconciliation-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/statement_file` |
+| `statement_row` | `reconciliation-service` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/statement_row` |
+| `tenant_archive_export_receipt` | `worker-scheduler` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/tenant_archive_export_receipt` |
+| `tenant_archive_fact` | `worker-scheduler` | RLS 强制 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/tenant_archive_fact` |
+| `tenant_partition_change` | `worker-scheduler` | 不适用 | append_only | 不分区 | 90 / 400 / 2555 | `object-storage://elmpay-archive/tenant_partition_change` |
 
-### 仅追加表（14 张）
+### 仅追加表（56 张）
 
 这些表记录的是**发生过什么**，不是**现在是什么**。它们可以被插入和读取，不能被更新或删除——生成的 DDL 在权限层直接拿掉 UPDATE/DELETE。
 
-`bank_statement`、`delivery_attempt`、`delivery_dead_letter`、`fee_record`、`job_run`、`ledger_entry`、`ledger_transaction`、`outbox_event`、`provider_statement`、`provider_webhook_inbox`、`provider_webhook_raw`、`recon_match`、`risk_decision`、`risk_signal`
+`bank_statement`、`delivery_attempt`、`delivery_dead_letter`、`fee_record`、`job_run`、`ledger_entry`、`ledger_transaction`、`outbox_event`、`provider_effect_application`、`provider_effect_expectation`、`provider_statement`、`provider_webhook_effect_commit`、`recon_match`、`risk_decision`、`risk_signal`、`admin_access_audit`、`admin_action_diagnostic_audit`、`admin_action_effect_receipt`、`admin_approval`、`admin_approval_audit`、`admin_diagnostic_snapshot`、`admin_domain_command`、`admin_dpop_nonce`、`admin_dpop_replay`、`admin_rollout_stage_approval`、`consumer_event_inbox`、`data_table_ownership`、`event_aggregate_revision`、`financial_admin_audit`、`financial_export`、`ledger_event_revision_guard`、`ledger_posting_account_mapping`、`ledger_posting_policy`、`recon_exception_action`、`recon_exception_current`、`recon_exception_origin`、`reconciliation_fact_snapshot`、`reconciliation_fact_snapshot_member`、`reconciliation_schedule_cursor`、`risk_audit`、`risk_operation`、`risk_outbox`、`risk_rule_set`、`risk_runtime_audit`、`risk_runtime_case_resolution`、`risk_runtime_list_entry`、`risk_runtime_model_result`、`risk_runtime_nonce`、`risk_runtime_rule_set`、`risk_runtime_signal_snapshot`、`risk_signal_snapshot`、`statement_file`、`statement_row`、`tenant_archive_export_receipt`、`tenant_archive_fact`、`tenant_partition_change`
 
 ### 含个人数据的表（3 张）
 
@@ -78,4 +130,4 @@
 | `merchant` | `contact_email`、`contact_phone` | `crypto_shred` |
 | `risk_case` | `reviewer_note` | `crypto_shred` |
 
-共 38 张表，其中 37 张受租户隔离，14 张仅追加。
+共 90 张表，其中 85 张受租户隔离，56 张仅追加。
