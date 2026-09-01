@@ -5,17 +5,15 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Rejects cardholder data and common credentials before persistence or logging. */
 public final class SensitiveDataGuard {
-    private static final Set<String> DENIED_KEYS = Set.of("pan", "card_number", "cardnumber",
-            "cvv", "cvc", "cid", "track1", "track2", "pin", "private_key", "privatekey",
-            "api_key", "apikey", "authorization", "apple_pay_token", "paymentdata");
+    // The list itself lives in governance/payment-method.json and reaches Java through the
+    // generated SensitiveFieldCatalog. A literal copy here is what let `card_pan` walk past a
+    // guard that was watching `pan` (B35).
     private static final Pattern DIGITS = Pattern.compile("(?<!\\d)(?:\\d[ -]?){13,19}(?!\\d)");
 
     private SensitiveDataGuard() {
@@ -71,7 +69,7 @@ public final class SensitiveDataGuard {
     }
 
     private static boolean isDeniedKey(String key) {
-        return DENIED_KEYS.contains(key.toLowerCase(Locale.ROOT).replace('-', '_'));
+        return SensitiveFieldCatalog.denied(key);
     }
 
     private static boolean containsPaymentCard(String value) {

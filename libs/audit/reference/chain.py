@@ -29,6 +29,7 @@ import hashlib
 import hmac
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
 OK = "OK"
 MODIFIED = "MODIFIED"
@@ -40,7 +41,39 @@ FORBIDDEN_FIELD = "FORBIDDEN_FIELD"
 CLOCK_REVERSED = "CLOCK_REVERSED"
 
 GENESIS = "0" * 64
-NEVER_LOGGED = ("card_pan", "card_cvv", "password", "authorization_header")
+
+# The forbidden-field list is not written here. It is derived from
+# contracts/payment-method/sensitive-fields.json, which is generated from
+# governance/payment-method.json (B35).
+#
+# It used to be a four-name tuple in this file, and one of those names was
+# "card_pan" while the Java guard was watching "pan". Neither list was wrong;
+# they were simply different, and nothing compared them — so the same field
+# passed one layer under the spelling the other layer was guarding.
+_CONTRACT = (Path(__file__).resolve().parents[3]
+             / "contracts/payment-method/sensitive-fields.json")
+
+
+def _catalogue() -> tuple[frozenset[str], dict]:
+    data = json.loads(_CONTRACT.read_text(encoding="utf-8"))
+    return frozenset(data["normalized_names"]), data["normalization"]
+
+
+NEVER_LOGGED, _NORMALIZATION = _catalogue()
+
+
+def normalize_field(name: str) -> str:
+    """One field name is one name, whatever the caller spelled it as."""
+    text = str(name)
+    if _NORMALIZATION.get("lowercase", True):
+        text = text.lower()
+    for character in _NORMALIZATION.get("strip_characters") or []:
+        text = text.replace(character, "")
+    return text
+
+
+def field_is_forbidden(name: str) -> bool:
+    return normalize_field(name) in NEVER_LOGGED
 
 
 class AuditRefused(Exception):
@@ -111,10 +144,10 @@ class Ledger:
     # -- writing ----------------------------------------------------------
     def append(self, *, occurred_at: int, event_class: str, actor: str, action: str,
                decision: str, rule_version: str, payload: dict) -> Record:
-        for forbidden in NEVER_LOGGED:
-            if forbidden in payload:
+        for key in payload:
+            if field_is_forbidden(key):
                 raise AuditRefused(FORBIDDEN_FIELD,
-                                   f"{forbidden} must never enter an immutable log")
+                                   f"{key} must never enter an immutable log")
         if self.records and occurred_at < self.records[-1].occurred_at:
             # The sequence stays monotonic even when a clock does not; refusing
             # here keeps "order" from becoming an opinion held by NTP.

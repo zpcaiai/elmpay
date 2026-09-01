@@ -87,47 +87,47 @@
 [OK ] B03 Java baseline silently downgraded: exit=2 expected=2 code=TOOLCHAIN_JDK
 [OK ] B04 enabled provider loses its offline simulator: exit=2 expected=2 code=DEV_SIMULATOR_MISSING
 [OK ] B05 required CI stage turned fail-open: exit=2 expected=2 code=CI_FAIL_OPEN
-[OK ] B05 evidence blocking condition removed: exit=2 expected=2 code=CI_BLOCKING_MISSING
-[OK ] B06 evidence policy demands an uncovered command class: exit=2 expected=2 code=EVIDENCE_COMMAND_CLASS
-[OK ] B06 sharded proof mixes partition sizes: exit=2 expected=2 code=EVIDENCE_SHARD_MIXED
-[OK ] B07 governance file removed from the SSOT registry: exit=2 expected=2 code=SSOT_UNREGISTERED
-[OK ] B08 tenant scoping removed from an entity: exit=2 expected=2 code=DOMAIN_TENANT_SCOPE
-[OK ] B09 currency exponent silently widened: exit=2 expected=2 code=MONEY_EXPONENT
-[OK ] B10 merchant allowed to assert a captured payment: exit=2 expected=2 code=STATE_UNTRUSTED_SUCCESS
-[OK ] B10 terminal state given a way out: exit=2 expected=2 code=STATE_TERMINAL_EXIT
-[OK ] B11 hard decline marked retryable: exit=2 expected=2 code=API_ERROR_RETRYABLE
-[OK ] B12 outbox write moved outside the state transaction: exit=2 expected=2 code=OUTBOX_NOT_TRANSACTIONAL
-[OK ] B12 transport claims exactly-once delivery: exit=2 expected=2 code=EVENT_DELIVERY
-[OK ] B13 row level security turned off on a tenant table: exit=2 expected=2 code=DATA_RLS_MISSING
-[OK ] B13 financial retention cut to a quarter: exit=2 expected=2 code=DATA_RETENTION_FLOOR
-[OK ] B14 synchronous dependency cycle introduced: exit=2 expected=2 code=TOPO_SYNC_CYCLE
-[OK ] B14 tier-1 dependency switched to fail open: exit=2 expected=2 code=TOPO_FAIL_OPEN
-[OK ] B15 dual write turned into two provider calls: exit=2 expected=2 code=MIG_DOUBLE_CHARGE
-[OK ] B15 rollback stops preserving payment facts: exit=2 expected=2 code=MIG_ROLLBACK_DESTRUCTIVE
-[OK ] B16 a network range granted implicit trust: exit=2 expected=2 code=ZT_NETWORK_TRUST
-[OK ] B16 refund approval loses its second approver: exit=2 expected=2 code=ZT_FOUR_EYES
-[OK ] B16 human session extended to eight hours: exit=2 expected=2 code=ZT_SESSION
-[OK ] B17 PKCE downgraded to plain: exit=2 expected=2 code=ID_PKCE
-[OK ] B17 operator recovery loses its cooling-off period: exit=2 expected=2 code=ID_RECOVERY_DELAY
-[OK ] B18 push approval promoted to a sole factor: exit=2 expected=2 code=MFA_SOLE_FACTOR
-[OK ] B18 downgrade fallback re-enabled: exit=2 expected=2 code=MFA_DOWNGRADE_FALLBACK
-[OK ] B18 an http origin accepted for assertions: exit=2 expected=2 code=MFA_ORIGIN
-[OK ] B19 a finance role also gains the right to raise refunds: exit=2 expected=2 code=AUTHZ_SOD_VIOLATION
-[OK ] B19 approvals never expire: exit=2 expected=2 code=AUTHZ_DUAL_TTL
-[OK ] B19 elevation stretched to a whole day: exit=2 expected=2 code=AUTHZ_ELEVATION_DURATION
-[OK ] B19 card numbers become readable by a role: exit=2 expected=2 code=AUTHZ_FIELD_PAN_READABLE
-[OK ] B19 a privileged role loses its recovery path: exit=2 expected=2 code=AUTHZ_ROLE_NO_RECOVERY
-[OK ] B20 the tenant is removed from the authenticated data: exit=2 expected=2 code=KEY_AAD_MISSING
-[OK ] B20 plaintext data keys kept for a day: exit=2 expected=2 code=KEY_PLAINTEXT_TTL
-[OK ] B20 KEK rotation stretched to a decade: exit=2 expected=2 code=KEY_ROTATION_PERIOD
-[OK ] B20 a sensitive field loses its data key: exit=2 expected=2 code=KEY_FIELD_UNPROTECTED
-[OK ] B23 audit document hand-edited: exit=2 expected=2 code=AUDIT_GENERATED_DRIFT
-[OK ] B27 capability document hand-edited: exit=2 expected=2 code=CAP_GENERATED_DRIFT
-[OK ] B31 isolation document hand-edited: exit=2 expected=2 code=ISO_GENERATED_DRIFT
-[OK ] B03 dependency scan points at an ungoverned NVD mirror: exit=2 expected=2 code=TOOLCHAIN_SECURITY_DATAFEED
-[OK ] B09 minor-unit exponent becomes a float: exit=2 expected=2 code=MONEY_FLOAT_LITERAL
-[OK ] B12 event catalogue document hand-edited: exit=2 expected=2 code=EVENT_GENERATED_DRIFT
-[OK ] B16 zero-trust document hand-edited: exit=2 expected=2 code=ZT_GENERATED_DRIFT
-[OK ] B20 key management document hand-edited: exit=2 expected=2 code=KEY_GENERATED_DRIFT
+[OK ] B05 blocking security findings allowed above zero: exit=2 expected=2 code=CI_QUALITY_GATE
+[OK ] B06 evidence policy drops the fail-closed proof requirement: exit=2 expected=2 code=EVIDENCE_POLICY_FLOOR
+[OK ] B06 sharded proof drops one of its shards: exit=2 expected=2 code=EVIDENCE_SHARD_INCOMPLETE
+[OK ] B07 control left unclaimed by any requirement: exit=2 expected=2 code=TRACE_CONTROL_UNCOVERED
+[OK ] B08 monetary field silently becomes floating point: exit=2 expected=2 code=DOMAIN_MONEY_TYPE
+[OK ] B08 entity dropped from the ubiquitous language: exit=2 expected=2 code=DOMAIN_GLOSSARY
+[OK ] B09 metadata source repointed at an unvalidated file: exit=2 expected=2 code=MONEY_SOURCE
+[OK ] B10 timeout redefined as an outright failure: exit=2 expected=2 code=STATE_SET
+[OK ] B11 idempotency scope drifts from the state machine: exit=2 expected=2 code=API_TRANSITION_KEY_MISMATCH
+[OK ] B11 API money becomes a decimal: exit=2 expected=2 code=API_MONEY_SHAPE
+[OK ] B12 ordering switched from revision to wall clock: exit=2 expected=2 code=EVENT_ORDERING
+[OK ] B12 dead letter destination removed: exit=2 expected=2 code=OUTBOX_DEAD_LETTER
+[OK ] B13 ledger entries become mutable: exit=2 expected=2 code=DATA_LEDGER_MUTABLE
+[OK ] B13 tenant index no longer leads with tenant_id: exit=2 expected=2 code=DATA_INDEX_TENANT
+[OK ] B14 provider timeout redefined as a decline: exit=2 expected=2 code=TOPO_CONNECTOR_DEGRADATION
+[OK ] B14 service reaches into another service tables: exit=2 expected=2 code=TOPO_TABLE_ACCESS
+[OK ] B15 adapter invents its own idempotency key: exit=2 expected=2 code=MIG_ADAPTER_IDEMPOTENCY
+[OK ] B15 cutover switched to a global flip: exit=2 expected=2 code=MIG_CUTOVER_GRANULARITY
+[OK ] B16 audit reduced to denials only: exit=2 expected=2 code=ZT_AUDIT_ALLOW_ONLY
+[OK ] B16 mutual TLS dropped between internal zones: exit=2 expected=2 code=ZT_INTERNAL_TRUST
+[OK ] B17 implicit flow re-enabled: exit=2 expected=2 code=ID_FLOW
+[OK ] B17 operator recovery downgraded to SMS: exit=2 expected=2 code=ID_RECOVERY_SMS
+[OK ] B18 SMS one-time codes relabelled as phishing-resistant: exit=2 expected=2 code=MFA_MISCLASSIFIED
+[OK ] B18 step-up stops binding the transaction: exit=2 expected=2 code=MFA_NO_TRANSACTION_BINDING
+[OK ] B18 user verification relaxed to discouraged: exit=2 expected=2 code=MFA_USER_VERIFICATION
+[OK ] B18 push-fatigue protection switched off: exit=2 expected=2 code=MFA_PUSH_FATIGUE
+[OK ] B19 self-approval quietly permitted: exit=2 expected=2 code=AUTHZ_DUAL_SELF_APPROVAL
+[OK ] B19 an elevation-only permission handed out standing: exit=2 expected=2 code=AUTHZ_STANDING_ELEVATED
+[OK ] B19 break-glass use no longer reviewed: exit=2 expected=2 code=AUTHZ_BREAK_GLASS_REVIEW
+[OK ] B19 a privileged role loses its MFA requirement: exit=2 expected=2 code=AUTHZ_ROLE_NO_MFA
+[OK ] B20 additional authenticated data dropped: exit=2 expected=2 code=KEY_AAD_MISSING
+[OK ] B20 one data key for the whole table: exit=2 expected=2 code=KEY_DEK_SCOPE
+[OK ] B20 crypto-shredding removed: exit=2 expected=2 code=KEY_NO_SHREDDING
+[OK ] B20 a channel private key stops being managed: exit=2 expected=2 code=KEY_PROVIDER_UNMANAGED
+[OK ] B22 baseline document hand-edited: exit=2 expected=2 code=BASE_GENERATED_DRIFT
+[OK ] B26 provider account document hand-edited: exit=2 expected=2 code=ACCOUNT_GENERATED_DRIFT
+[OK ] B30 onboarding document hand-edited: exit=2 expected=2 code=ONB_GENERATED_DRIFT
+[OK ] B03 toolchain source requires a Python newer than the floor: exit=2 expected=2 code=TOOLCHAIN_PYTHON_FLOOR
+[OK ] B02 ADR points at a non-existent requirement: exit=2 expected=2 code=ADR_REQUIREMENT
+[OK ] B11 OpenAPI document hand-edited: exit=2 expected=2 code=API_GENERATED_DRIFT
+[OK ] B15 migration runbook hand-edited: exit=2 expected=2 code=MIG_GENERATED_DRIFT
+[OK ] B19 authorisation document hand-edited: exit=2 expected=2 code=AUTHZ_GENERATED_DRIFT
 
 shard=1/4 scenarios=131 rejection_scenarios=130 baseline_timeout_and_subprocess=1 failures=0

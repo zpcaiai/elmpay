@@ -172,6 +172,17 @@
       ]
     },
     {
+      "id": "payment-method",
+      "path": "governance/payment-method.json",
+      "batch": "B35",
+      "owner": "payment-platform-security",
+      "validator": "payment-method",
+      "generates": [
+        "contracts/payment-method/sensitive-fields.json",
+        "libs/security/src/main/java/com/elmpay/security/SensitiveFieldCatalog.java"
+      ]
+    },
+    {
       "id": "api-contract",
       "path": "governance/api-contract.json",
       "batch": "B11",

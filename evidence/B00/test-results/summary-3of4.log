@@ -1,7 +1,7 @@
 [B06] --review-attestation is required for completion
 completion refused; previous state restored: reviewed HEAD or artifacts changed at completion boundary
 completion refused; previous state restored: reviewed HEAD or artifacts changed at completion boundary
-/sessions/rcw-011ehraswd3ju7eykwevrcsz/tmp/finish-review-b7foawze/evidence/completion/B06.json
+/tmp/finish-review-9h7nyuqg/evidence/completion/B06.json
 completion refused; previous state restored: dependency completions changed at completion boundary
 completion refused: review notes must be non-empty
 completion refused: review attestation top-level schema is malformed
@@ -58,8 +58,8 @@ completion refused; previous state restored: review attestation changed at compl
   "shard": "3/4",
   "shards": 4,
   "log_path": "evidence/B00/test-results/unittest-3of4.log",
-  "run": 697,
-  "passed": 697,
+  "run": 710,
+  "passed": 710,
   "failed": 0,
   "skipped": 0,
   "skipped_critical": 0,
