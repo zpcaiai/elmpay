@@ -126,6 +126,17 @@ class ProductOciSourceTest(unittest.TestCase):
             with self.subTest(injected=injected.strip()), self.assertRaises(ValidationError):
                 OCI._validate_containerfile_contract(relative, canonical + injected, declared)
 
+    def test_java_policy_directory_is_read_only_and_traversable(self) -> None:
+        containerfile = (ROOT / "platform/oci/java-runtime.Containerfile").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "chmod 0555 /opt/elmpay/bin /opt/elmpay/etc",
+            containerfile,
+        )
+        self.assertNotIn("chmod 0444 /opt/elmpay/bin", containerfile)
+        self.assertNotIn("chmod 0444 /opt/elmpay/etc", containerfile)
+
     def test_dockerignore_is_exact_digest_bound(self) -> None:
         mutated = deepcopy(self.manifest)
         mutated["contextPolicy"]["dockerignoreDigest"] = "0" * 64

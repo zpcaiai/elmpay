@@ -42,7 +42,7 @@ CANONICAL_JAVA_LAUNCHER_DIGEST = (
 )
 CANONICAL_CONTAINERFILE_DIGESTS = {
     "platform/oci/java-runtime.Containerfile": (
-        "8ed6cf29762a8bf6e9aa868f7a285e8f10b282965fe385a5d37ec8b0b7b2b9a0"
+        "4893ce8336a8978b4dec9860451af36ce069ae0bc41aae51ae05eb5636c60f50"
     ),
     "platform/oci/checkout-web.Containerfile": (
         "05612036eabb62773b3d89da6b6c157ab050390b441db669f8ab26c8f9f550c0"

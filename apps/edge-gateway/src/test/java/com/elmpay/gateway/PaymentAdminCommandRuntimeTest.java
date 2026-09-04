@@ -15,6 +15,17 @@ import org.junit.jupiter.api.Test;
 
 final class PaymentAdminCommandRuntimeTest {
     @Test
+    void disabledConsumerDoesNotExpireLocalReadiness() {
+        MutableClock clock = new MutableClock(Instant.parse("2026-08-30T00:00:00Z"));
+        PaymentAdminCommandRuntime runtime = PaymentAdminCommandRuntime.disabled(clock);
+        assertTrue(runtime.ready());
+        clock.advance(Duration.ofDays(365));
+        assertTrue(runtime.ready());
+        runtime.close();
+        assertFalse(runtime.ready());
+    }
+
+    @Test
     void readinessRequiresSuccessfulPollingAndCurrentGovernanceBinding() throws Exception {
         MutableClock clock = new MutableClock(Instant.parse("2026-08-30T00:00:00Z"));
         PaymentAdminCommandRuntime runtime = new PaymentAdminCommandRuntime(

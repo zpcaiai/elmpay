@@ -28,6 +28,7 @@ public final class PaymentAdminCommandRuntime implements AutoCloseable {
     private final Instant policyValidUntil;
     private final int maximumPerCycle;
     private final Runnable schemaVerifier;
+    private final boolean readinessRequired;
     private final ScheduledExecutorService executor;
     private final AtomicBoolean started = new AtomicBoolean();
     private final AtomicBoolean closed = new AtomicBoolean();
@@ -55,7 +56,7 @@ public final class PaymentAdminCommandRuntime implements AutoCloseable {
     static PaymentAdminCommandRuntime disabled(Clock clock) {
         PaymentAdminCommandRuntime runtime = new PaymentAdminCommandRuntime(
                 () -> PaymentAdminDomainCommandConsumer.Outcome.IDLE, clock,
-                Duration.ofSeconds(1), Duration.ofMinutes(1), Instant.MAX, 1, () -> { });
+                Duration.ofSeconds(1), Duration.ofMinutes(1), Instant.MAX, 1, () -> { }, false);
         runtime.started.set(true);
         runtime.running.set(true);
         runtime.schemaVerified.set(true);
@@ -66,12 +67,19 @@ public final class PaymentAdminCommandRuntime implements AutoCloseable {
     PaymentAdminCommandRuntime(Work work, Clock clock, Duration pollInterval,
             Duration readinessStaleness, Instant policyValidUntil, int maximumPerCycle) {
         this(work, clock, pollInterval, readinessStaleness, policyValidUntil, maximumPerCycle,
-                () -> { });
+                () -> { }, true);
     }
 
     PaymentAdminCommandRuntime(Work work, Clock clock, Duration pollInterval,
             Duration readinessStaleness, Instant policyValidUntil, int maximumPerCycle,
             Runnable schemaVerifier) {
+        this(work, clock, pollInterval, readinessStaleness, policyValidUntil, maximumPerCycle,
+                schemaVerifier, true);
+    }
+
+    private PaymentAdminCommandRuntime(Work work, Clock clock, Duration pollInterval,
+            Duration readinessStaleness, Instant policyValidUntil, int maximumPerCycle,
+            Runnable schemaVerifier, boolean readinessRequired) {
         this.work = Objects.requireNonNull(work, "work");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.pollInterval = bounded(pollInterval, Duration.ofMillis(100),
@@ -84,6 +92,7 @@ public final class PaymentAdminCommandRuntime implements AutoCloseable {
         }
         this.maximumPerCycle = maximumPerCycle;
         this.schemaVerifier = Objects.requireNonNull(schemaVerifier, "schemaVerifier");
+        this.readinessRequired = readinessRequired;
         this.executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread thread = new Thread(runnable, "edge-payment-admin-command-consumer");
             thread.setDaemon(false);
@@ -139,6 +148,9 @@ public final class PaymentAdminCommandRuntime implements AutoCloseable {
     }
 
     public boolean ready() {
+        if (!readinessRequired) {
+            return !closed.get();
+        }
         Instant success = lastSuccessfulCycle.get();
         Instant now = clock.instant();
         return running.get() && schemaVerified.get() && success != null && !closed.get()

@@ -1,0 +1,215 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elmpay-local
+  labels:
+    app.kubernetes.io/part-of: elmpay
+    elmpay.io/evidence-class: local-tested
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elmpay-local-stack
+  namespace: elmpay-local
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elmpay-local-stack
+  namespace: elmpay-local
+  labels:
+    app.kubernetes.io/name: elmpay-local-stack
+    app.kubernetes.io/part-of: elmpay
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: elmpay-local-stack
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: elmpay-local-stack
+        app.kubernetes.io/part-of: elmpay
+        elmpay.io/runtime-mode: local-sandbox
+    spec:
+      serviceAccountName: elmpay-local-stack
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: edge-gateway
+          image: elmpay/edge-gateway:local
+          imagePullPolicy: Never
+          env:
+            - name: ELMPAY_RUNTIME_MODE
+              value: local
+            - name: ELMPAY_ENABLE_LOCAL_SANDBOX
+              value: "true"
+            - name: ELMPAY_LOCAL_RISK_POLICY
+              value: approve-sandbox
+            - name: ELMPAY_API_PRINCIPALS
+              value: 175456bfef0fd746ab87618a505dc364140e5e583b6da0812d6dc351afd7717e|local-k8s|20000000-0000-0000-0000-000000000001|20000000-0000-0000-0000-000000000002|20000000-0000-0000-0000-000000000003
+            - name: PORT
+              value: "8080"
+            - name: ELMPAY_HEALTH_PORT
+              value: "8090"
+          ports:
+            - name: edge-http
+              containerPort: 8080
+            - name: edge-health
+              containerPort: 8090
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: edge-health
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: edge-health
+            periodSeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: edge-health
+            periodSeconds: 5
+            timeoutSeconds: 2
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsUser: 10001
+            runAsGroup: 10001
+          volumeMounts:
+            - name: edge-tmp
+              mountPath: /tmp
+        - name: checkout-web
+          image: elmpay/checkout-web:local
+          imagePullPolicy: Never
+          env:
+            - name: ELMPAY_CHECKOUT_WEB_MODE
+              value: local
+            - name: ELMPAY_ENABLE_LOCAL_SANDBOX
+              value: "true"
+            - name: ELMPAY_API_BASE_URL
+              value: http://127.0.0.1:8080/
+            - name: PORT
+              value: "8088"
+          ports:
+            - name: checkout-http
+              containerPort: 8088
+          startupProbe:
+            httpGet:
+              path: /health/startup
+              port: checkout-http
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: checkout-http
+            periodSeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: checkout-http
+            periodSeconds: 5
+            timeoutSeconds: 2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsUser: 10001
+            runAsGroup: 10001
+          volumeMounts:
+            - name: checkout-tmp
+              mountPath: /tmp
+      volumes:
+        - name: edge-tmp
+          emptyDir:
+            sizeLimit: 64Mi
+        - name: checkout-tmp
+          emptyDir:
+            sizeLimit: 32Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: edge-gateway-local
+  namespace: elmpay-local
+spec:
+  selector:
+    app.kubernetes.io/name: elmpay-local-stack
+  ports:
+    - name: http
+      port: 8080
+      targetPort: edge-http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: checkout-web-local
+  namespace: elmpay-local
+spec:
+  selector:
+    app.kubernetes.io/name: elmpay-local-stack
+  ports:
+    - name: http
+      port: 8088
+      targetPort: checkout-http
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: elmpay-local
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-local-services
+  namespace: elmpay-local
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: elmpay-local-stack
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8088
