@@ -331,6 +331,9 @@ class SiemRuntimeTest(unittest.TestCase):
     def test_siem_ingest_cli_persists_signed_event_and_alert(self) -> None:
         current = datetime.now(timezone.utc)
         issued = current - timedelta(seconds=30)
+        source_key = self.source_trust["keys"]["admin-source"]
+        source_key["notBefore"] = (current - timedelta(minutes=5)).isoformat()
+        source_key["notAfter"] = (current + timedelta(minutes=15)).isoformat()
         event: dict[str, object] = {
             "schemaVersion": 1,
             "eventId": "cli-siem-event-0001",

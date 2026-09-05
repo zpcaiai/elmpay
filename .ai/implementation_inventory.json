@@ -566,7 +566,7 @@
       "migration_required": false,
       "migration_not_applicable_reason": "Raw payment credentials must not be stored; only external references are used transiently.",
       "artifacts": {
-        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentMethodReference.java", "markers": ["SAFE_SCHEMES", "external token reference", "SensitiveDataGuard.assertSafe"]}],
+        "executable": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentMethodReference.java", "markers": ["SensitiveFieldCatalog.TOKEN_SCHEMES", "MAX_REFERENCE_LENGTH", "external token reference", "SensitiveDataGuard.assertSafe"]}],
         "runtime_entrypoint": [{"path": "services/payment-core/src/main/java/com/elmpay/payment/PaymentService.java", "markers": ["payment_method_reference", "command.paymentMethod()"]}],
         "config": [{"path": "governance/payment-intent.json", "markers": ["\"method_constraints\"", "\"widen_after_creation_allowed\""]}],
         "migrations": [],

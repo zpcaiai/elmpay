@@ -1,14 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
 import { buildDiagnosticView } from "../src/diagnostics.mjs";
 import { AuthorizationPolicy } from "../src/authorization-policy.mjs";
 import { createApprovalCommand, createDecisionCommand, initialAuditEvent } from "../src/approval-model.mjs";
 import { NOW, TENANT, verifiedOperator } from "./auth-fixture.mjs";
+import { policyPaths, removePolicyFixture } from "./controlled-policy-fixture.mjs";
 
-const authorizationPath = fileURLToPath(new URL("../../../governance/authorization.json", import.meta.url));
-const actionPolicyPath = fileURLToPath(new URL("../security/action-policy.json", import.meta.url));
-const policy = AuthorizationPolicy.load({ authorizationPath, actionPolicyPath });
+const policy = AuthorizationPolicy.load(policyPaths);
+test.after(removePolicyFixture);
 
 test("diagnostic projection strips secrets, PII and raw references", () => {
   const view = buildDiagnosticView({ tenantId: TENANT }, {

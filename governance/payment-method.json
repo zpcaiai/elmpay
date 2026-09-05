@@ -1,0 +1,178 @@
+{
+  "schema_version": "1.0.0",
+  "batch": "B35",
+  "principle": "**平台永远不持有卡本身，只持有一个指向它的引用。** 这条谁都同意，问题从来不在这里——问题在于「什么算卡本身」这份清单存在几份。进入本批次时它存在四份，而且已经互相不认识了：`SensitiveDataGuard.DENIED_KEYS` 拦 `pan`，`libs/audit/reference/chain.py` 的 `NEVER_LOGGED` 拦 `card_pan`，收银台的 `deniedParameterNames` 是另一条正则，`JdbcCommerceService` 里还有一处 `contains(\"cvv\")`。四份清单里没有任何两份是相同的，也没有任何东西比对它们——于是同一个字段换个写法就能从某一层穿过去，而每一层看起来都在防守。所以本批次的承重规则不是「禁止存 PAN」，是：**禁止字段清单必须是治理数据，每个实现从它派生；硬编码的第二份一定会漂移，而它已经漂了。** 由此派生的另外三条：**指纹必须是单向、带密钥、按租户隔离的**——跨租户共享的卡指纹就是一个跨租户的人员标识符，它不是脱敏，是换了个名字的身份证号；**令牌引用必须是不透明且绑定渠道的**——一个渠道的令牌拿到另一个渠道去用，要么失败要么更糟；**可展示字段是允许清单不是禁止清单**——默认展示、遇到敏感再加一条禁止，顺序反了就永远慢一步。",
+  "custody": {
+    "vault_holder": "provider",
+    "platform_holds": [
+      "method",
+      "provider",
+      "token_reference",
+      "fingerprint",
+      "brand",
+      "last4",
+      "expiry_month",
+      "expiry_year"
+    ],
+    "platform_never_holds": [
+      "pan",
+      "cvv",
+      "track_data",
+      "pin",
+      "wallet_cleartext",
+      "credential"
+    ],
+    "notes": "卡在渠道的 PCI 范围内，不在我们的范围内。这不是分工偏好，是把 PCI 范围挡在门外的唯一方法。"
+  },
+  "token_reference": {
+    "form": "uri",
+    "schemes": [
+      "psp",
+      "wallet",
+      "mandate"
+    ],
+    "opaque": true,
+    "provider_scoped": true,
+    "max_length": 512,
+    "notes": "令牌是渠道的不透明字符串，平台不解析、不推断、不跨渠道复用。scheme 是允许清单：任何 http(s) 形式的引用意味着这个「令牌」其实是一个可被取回的地址。"
+  },
+  "fingerprint": {
+    "one_way": true,
+    "keyed": true,
+    "key_source": "governance/key-management.json",
+    "tenant_scoped": true,
+    "max_length": 128,
+    "notes": "指纹用来在同一租户内识别「这是不是同一张卡」。不带密钥的哈希对 16 位数字空间等于没有；不按租户隔离的指纹让两个商户能确认同一个人在双方都消费过。"
+  },
+  "forbidden_fields": [
+    {
+      "canonical": "pan",
+      "aliases": [
+        "card_number",
+        "cardnumber",
+        "card_pan",
+        "primary_account_number",
+        "account_number",
+        "accountnumber",
+        "dpan",
+        "fpan",
+        "card_no",
+        "cardno"
+      ],
+      "reason": "主账号本身。任何长度 13–19 的连续数字串也按此处理。"
+    },
+    {
+      "canonical": "cvv",
+      "aliases": [
+        "cvc",
+        "cvv2",
+        "cvc2",
+        "cav2",
+        "cid",
+        "csc",
+        "card_cvv",
+        "security_code",
+        "card_verification_value"
+      ],
+      "reason": "验证码在授权后禁止留存，任何形式、任何时长。"
+    },
+    {
+      "canonical": "track_data",
+      "aliases": [
+        "track1",
+        "track2",
+        "track3",
+        "magstripe",
+        "magnetic_stripe",
+        "track_1",
+        "track_2"
+      ],
+      "reason": "磁道数据包含 PAN 与服务码，等价于卡的完整复制品。"
+    },
+    {
+      "canonical": "pin",
+      "aliases": [
+        "pin_block",
+        "pinblock",
+        "pin_data",
+        "card_pin"
+      ],
+      "reason": "PIN 及其密文块。"
+    },
+    {
+      "canonical": "wallet_cleartext",
+      "aliases": [
+        "apple_pay_token",
+        "paymentdata",
+        "payment_data",
+        "payment_token_cleartext",
+        "cryptogram",
+        "onlinepaymentcryptogram",
+        "decrypted_token"
+      ],
+      "reason": "解密后的钱包支付数据是一次性可用的支付凭证，落盘即等于把一次扣款权限存了下来。"
+    },
+    {
+      "canonical": "credential",
+      "aliases": [
+        "private",
+        "private_key",
+        "privatekey",
+        "api_key",
+        "apikey",
+        "authorization",
+        "authorization_header",
+        "password",
+        "secret",
+        "client_secret"
+      ],
+      "reason": "凭证不进日志、不进数据库明文、不进异常与追踪。裸的 `private` 也在内：收银台的参数正则一直拦着它，而本目录一开始漏了，这正是本批次要消灭的那种「每一层各有一份、互相漏掉对方」。"
+    }
+  ],
+  "normalization": {
+    "lowercase": true,
+    "strip_characters": [
+      "_",
+      "-",
+      " ",
+      "."
+    ],
+    "notes": "比对前先规范化，否则 `card_pan` 与 `pan`、`CVV2` 与 `cvv2` 会被当成不同字段——这正是四份清单互相漏掉对方的原因。"
+  },
+  "display_allowlist": [
+    "method",
+    "provider",
+    "brand",
+    "last4",
+    "expiry_month",
+    "expiry_year"
+  ],
+  "retention": {
+    "token_reference_days": 1095,
+    "fingerprint_days": 1095,
+    "bounded": true,
+    "notes": "引用与指纹都随租户数据生命周期删除，不存在「永久保留以便将来分析」。"
+  },
+  "tenant_scope": {
+    "tenant_id_required": true,
+    "lookup_key": [
+      "tenant_id",
+      "fingerprint"
+    ],
+    "notes": "指纹只在租户内唯一，跨租户比对被禁止。"
+  },
+  "audit_event": "payment.method.referenced.v1",
+  "conformance": {
+    "contract": "contracts/payment-method/sensitive-fields.json",
+    "java_catalog": "libs/security/src/main/java/com/elmpay/security/SensitiveFieldCatalog.java",
+    "derived_implementations": [
+      "libs/security/src/main/java/com/elmpay/security/SensitiveDataGuard.java",
+      "services/payment-core/src/main/java/com/elmpay/payment/PaymentMethodReference.java",
+      "libs/audit/reference/chain.py"
+    ],
+    "notes": "生成物由本文件派生；派生实现必须引用生成物而不是自己再写一份字面量清单。",
+    "scope_divergence": {
+      "token": "收银台的 SDK 参数正则拦 `token`，本目录**故意不拦**。两者作用域不同：那条正则管的是浏览器端 SDK 的入参名，而本目录管的是落盘与日志。平台合法持有的字段叫 `token_reference`（见 custody.platform_holds），把裸 `token` 列为禁止会让审计日志拒绝合法记录——一条会误报的规则只会教人绕开它。这条分歧是记录在案的决定，不是遗漏。"
+    }
+  }
+}

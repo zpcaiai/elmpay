@@ -255,7 +255,7 @@
       "critical": true,
       "command": ["python3", "scripts/run-code-suite.py", "platform"],
       "timeout_seconds": 240,
-      "target_paths": ["apps/edge-gateway", "services/worker-scheduler", "platform/kubernetes", "platform/dev", "platform/terraform"],
+      "target_paths": ["apps/edge-gateway", "services/worker-scheduler", "platform/kubernetes", "platform/dev"],
       "scenarios": [
         {"id": "PLAT-01", "steps": "Exercise gateway authentication, WAF/rate-limit and mTLS/network-policy fixtures.", "expected": "Unauthenticated, over-limit and unauthorized paths are rejected."},
         {"id": "PLAT-02", "steps": "Inject database, Kafka, Redis and lock/lease failures into deterministic adapters.", "expected": "Durability, fencing, replay and recovery behavior is explicit."},

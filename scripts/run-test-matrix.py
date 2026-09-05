@@ -81,8 +81,11 @@ def _relative_target(root: Path, value: Any, *, field: str) -> Path:
         candidate.relative_to(root.resolve())
     except ValueError as exc:
         raise MatrixError(f"{field} escapes repository: {value}") from exc
-    if not (root / value).exists():
+    target = root / value
+    if not target.exists():
         raise MatrixError(f"{field} does not exist: {value}")
+    if target.is_dir() and not any(path.is_file() for path in target.rglob("*")):
+        raise MatrixError(f"{field} contains no files: {value}")
     return candidate
 
 

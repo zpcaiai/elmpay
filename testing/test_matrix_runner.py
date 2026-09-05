@@ -148,6 +148,12 @@ class MatrixRunnerTest(unittest.TestCase):
         with self.assertRaises(runner.MatrixError):
             runner.validate_matrix(escaped, ROOT)
 
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "empty").mkdir()
+            with self.assertRaisesRegex(runner.MatrixError, "contains no files"):
+                runner._relative_target(root, "empty", field="target_paths")
+
         production = copy.deepcopy(self.matrix)
         production["suites"][0]["command"] = ["python3", "-c", "print('ok')", "production"]
         with self.assertRaises(runner.MatrixError):

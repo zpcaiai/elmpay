@@ -1,0 +1,221 @@
+{
+  "_generated": "GENERATED FILE — scripts/render-paymethod.py; do not edit by hand",
+  "display_allowlist": [
+    "brand",
+    "expiry_month",
+    "expiry_year",
+    "last4",
+    "method",
+    "provider"
+  ],
+  "families": [
+    {
+      "canonical": "credential",
+      "names": [
+        "api_key",
+        "apikey",
+        "authorization",
+        "authorization_header",
+        "client_secret",
+        "credential",
+        "password",
+        "private",
+        "private_key",
+        "privatekey",
+        "secret"
+      ],
+      "normalized": [
+        "apikey",
+        "authorization",
+        "authorizationheader",
+        "clientsecret",
+        "credential",
+        "password",
+        "private",
+        "privatekey",
+        "secret"
+      ],
+      "reason": "凭证不进日志、不进数据库明文、不进异常与追踪。裸的 `private` 也在内：收银台的参数正则一直拦着它，而本目录一开始漏了，这正是本批次要消灭的那种「每一层各有一份、互相漏掉对方」。"
+    },
+    {
+      "canonical": "cvv",
+      "names": [
+        "card_cvv",
+        "card_verification_value",
+        "cav2",
+        "cid",
+        "csc",
+        "cvc",
+        "cvc2",
+        "cvv",
+        "cvv2",
+        "security_code"
+      ],
+      "normalized": [
+        "cardcvv",
+        "cardverificationvalue",
+        "cav2",
+        "cid",
+        "csc",
+        "cvc",
+        "cvc2",
+        "cvv",
+        "cvv2",
+        "securitycode"
+      ],
+      "reason": "验证码在授权后禁止留存，任何形式、任何时长。"
+    },
+    {
+      "canonical": "pan",
+      "names": [
+        "account_number",
+        "accountnumber",
+        "card_no",
+        "card_number",
+        "card_pan",
+        "cardno",
+        "cardnumber",
+        "dpan",
+        "fpan",
+        "pan",
+        "primary_account_number"
+      ],
+      "normalized": [
+        "accountnumber",
+        "cardno",
+        "cardnumber",
+        "cardpan",
+        "dpan",
+        "fpan",
+        "pan",
+        "primaryaccountnumber"
+      ],
+      "reason": "主账号本身。任何长度 13–19 的连续数字串也按此处理。"
+    },
+    {
+      "canonical": "pin",
+      "names": [
+        "card_pin",
+        "pin",
+        "pin_block",
+        "pin_data",
+        "pinblock"
+      ],
+      "normalized": [
+        "cardpin",
+        "pin",
+        "pinblock",
+        "pindata"
+      ],
+      "reason": "PIN 及其密文块。"
+    },
+    {
+      "canonical": "track_data",
+      "names": [
+        "magnetic_stripe",
+        "magstripe",
+        "track1",
+        "track2",
+        "track3",
+        "track_1",
+        "track_2",
+        "track_data"
+      ],
+      "normalized": [
+        "magneticstripe",
+        "magstripe",
+        "track1",
+        "track2",
+        "track3",
+        "trackdata"
+      ],
+      "reason": "磁道数据包含 PAN 与服务码，等价于卡的完整复制品。"
+    },
+    {
+      "canonical": "wallet_cleartext",
+      "names": [
+        "apple_pay_token",
+        "cryptogram",
+        "decrypted_token",
+        "onlinepaymentcryptogram",
+        "payment_data",
+        "payment_token_cleartext",
+        "paymentdata",
+        "wallet_cleartext"
+      ],
+      "normalized": [
+        "applepaytoken",
+        "cryptogram",
+        "decryptedtoken",
+        "onlinepaymentcryptogram",
+        "paymentdata",
+        "paymenttokencleartext",
+        "walletcleartext"
+      ],
+      "reason": "解密后的钱包支付数据是一次性可用的支付凭证，落盘即等于把一次扣款权限存了下来。"
+    }
+  ],
+  "normalization": {
+    "lowercase": true,
+    "notes": "比对前先规范化，否则 `card_pan` 与 `pan`、`CVV2` 与 `cvv2` 会被当成不同字段——这正是四份清单互相漏掉对方的原因。",
+    "strip_characters": [
+      "_",
+      "-",
+      " ",
+      "."
+    ]
+  },
+  "normalized_names": [
+    "accountnumber",
+    "apikey",
+    "applepaytoken",
+    "authorization",
+    "authorizationheader",
+    "cardcvv",
+    "cardno",
+    "cardnumber",
+    "cardpan",
+    "cardpin",
+    "cardverificationvalue",
+    "cav2",
+    "cid",
+    "clientsecret",
+    "credential",
+    "cryptogram",
+    "csc",
+    "cvc",
+    "cvc2",
+    "cvv",
+    "cvv2",
+    "decryptedtoken",
+    "dpan",
+    "fpan",
+    "magneticstripe",
+    "magstripe",
+    "onlinepaymentcryptogram",
+    "pan",
+    "password",
+    "paymentdata",
+    "paymenttokencleartext",
+    "pin",
+    "pinblock",
+    "pindata",
+    "primaryaccountnumber",
+    "private",
+    "privatekey",
+    "secret",
+    "securitycode",
+    "track1",
+    "track2",
+    "track3",
+    "trackdata",
+    "walletcleartext"
+  ],
+  "note": "由 governance/payment-method.json 派生。任何语言的实现必须使用这份清单，不得另写字面量副本——四份互不相同的副本正是本批次要消灭的东西。",
+  "schema_version": "1.0.0",
+  "token_reference_schemes": [
+    "mandate",
+    "psp",
+    "wallet"
+  ]
+}

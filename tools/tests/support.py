@@ -32,6 +32,16 @@ def _discovered() -> tuple:
         for path in sorted(REAL_ROOT.glob(pattern)):
             if path.is_file():
                 found.append(path.relative_to(REAL_ROOT).as_posix())
+    ssot_registry = REAL_ROOT / "governance/ssot-registry.json"
+    if ssot_registry.is_file():
+        registry = json.loads(ssot_registry.read_text(encoding="utf-8"))
+        for entry in registry.get("sources", []):
+            for rel in (entry.get("path"), *(entry.get("generates") or [])):
+                if not isinstance(rel, str):
+                    continue
+                path = REAL_ROOT / rel
+                if path.is_file():
+                    found.append(path.relative_to(REAL_ROOT).as_posix())
     return tuple(dict.fromkeys(found))
 
 

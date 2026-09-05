@@ -178,6 +178,12 @@ final class PaymentServiceTest {
                 IntentState.AUTHORIZED, AuthoritySource.MERCHANT_REQUEST, CLOCK.instant()));
         assertThrows(IllegalArgumentException.class, () -> PaymentMethodReference.parse(
                 "card", "psp://4242424242424242", "fingerprint"));
+        assertThrows(IllegalArgumentException.class, () -> PaymentMethodReference.parse(
+                "card", "https://provider.example/payment-method", "fingerprint"));
+        assertThrows(IllegalArgumentException.class, () -> PaymentMethodReference.parse(
+                "card", "psp:unscoped-token", "fingerprint"));
+        assertThrows(IllegalArgumentException.class, () -> PaymentMethodReference.parse(
+                "card", "psp://provider/" + "x".repeat(512), "fingerprint"));
     }
 
     @Test

@@ -6,11 +6,10 @@ import { fileURLToPath } from "node:url";
 import { AuthorizationPolicy } from "../src/authorization-policy.mjs";
 import { createAdminHandler } from "../src/server.mjs";
 import { TENANT, verifiedOperator } from "./auth-fixture.mjs";
+import { policyPaths, removePolicyFixture } from "./controlled-policy-fixture.mjs";
 
-const policy = AuthorizationPolicy.load({
-  authorizationPath: fileURLToPath(new URL("../../../governance/authorization.json", import.meta.url)),
-  actionPolicyPath: fileURLToPath(new URL("../security/action-policy.json", import.meta.url)),
-});
+const policy = AuthorizationPolicy.load(policyPaths);
+test.after(removePolicyFixture);
 
 function invoke(handler, { method = "GET", url = "/", headers = {}, rawHeaders = null,
   body = "" } = {}) {
