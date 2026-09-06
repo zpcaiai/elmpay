@@ -199,6 +199,7 @@ def _run(
     output = bytearray()
     errors = bytearray()
     overflow = threading.Event()
+    termination_denied = threading.Event()
     threads: list[threading.Thread] = []
 
     def terminate_group() -> None:
@@ -211,6 +212,12 @@ def _run(
             os.killpg(process.pid, signal.SIGKILL)
         except ProcessLookupError:
             pass
+        except PermissionError:
+            # A fast-exiting group leader can race with PID/process-group reuse
+            # under heavy host load.  Never leak the raw OS exception and,
+            # more importantly, never report the tool as successful when its
+            # descendants could not be proven stopped.
+            termination_denied.set()
 
     def collect(stream: Any, destination: bytearray) -> None:
         try:
@@ -278,6 +285,8 @@ def _run(
         ):
             if stream is not None and not stream.closed:
                 stream.close()
+    if termination_denied.is_set():
+        raise ValidationError("external tool process group termination was denied")
     if overflow.is_set():
         raise ValidationError("external tool output exceeded the bounded diagnostic limit")
     stdout_bytes = bytes(output) if stdout == subprocess.PIPE else None

@@ -11,6 +11,7 @@ import tarfile
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -346,6 +347,19 @@ class ProductOciEvidenceDocumentTest(unittest.TestCase):
         completed = PIPELINE._run([sys.executable, "-c", parent], timeout=5)
         self.assertEqual(0, completed.returncode)
         self.assertLess(time.monotonic() - started, 5)
+
+    def test_external_tool_process_group_permission_error_fails_closed(self) -> None:
+        with mock.patch.object(
+            PIPELINE.os,
+            "killpg",
+            side_effect=PermissionError(1, "operation not permitted"),
+        ):
+            with self.assertRaisesRegex(
+                ValidationError, "process group termination was denied"
+            ):
+                PIPELINE._run(
+                    [sys.executable, "-c", "raise SystemExit(0)"], timeout=5
+                )
 
     def test_partial_publication_resume_recopies_only_a_missing_exact_tag(self) -> None:
         expected = "a" * 64
