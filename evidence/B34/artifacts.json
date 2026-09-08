@@ -1,0 +1,15 @@
+[
+  "contracts/capture/vectors.json",
+  "governance/capture-lifecycle.json",
+  "libs/capture/reference/__init__.py",
+  "libs/capture/reference/capture.py",
+  "scripts/capture-smoke.py",
+  "scripts/render-capture.py",
+  "services/payment-core/src/main/java/com/elmpay/payment/PaymentService.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/PaymentStateMachine.java",
+  "services/payment-core/src/test/java/com/elmpay/payment/CaptureLifecycleVectorsTest.java",
+  "tools/negative/b34.py",
+  "tools/paygov/capture.py",
+  "tools/paygov/capturegen.py",
+  "tools/tests/test_b34_capture.py"
+]

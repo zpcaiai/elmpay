@@ -1,0 +1,14 @@
+[
+  "contracts/payment-method/sensitive-fields.json",
+  "governance/payment-method.json",
+  "libs/audit/reference/chain.py",
+  "libs/security/src/main/java/com/elmpay/security/SensitiveDataGuard.java",
+  "libs/security/src/main/java/com/elmpay/security/SensitiveFieldCatalog.java",
+  "scripts/paymethod-smoke.py",
+  "scripts/render-paymethod.py",
+  "services/payment-core/src/main/java/com/elmpay/payment/PaymentMethodReference.java",
+  "tools/negative/b35.py",
+  "tools/paygov/paymethod.py",
+  "tools/paygov/paymethodgen.py",
+  "tools/tests/test_b35_paymethod.py"
+]

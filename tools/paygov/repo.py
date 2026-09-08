@@ -17,7 +17,12 @@ from typing import Any
 from .errors import BudgetExceeded, GovernanceError
 
 DEFAULT_MAX_BYTES = 8 * 1024 * 1024
+# CPU seconds, not wall-clock seconds. See ADR-0015.
 DEFAULT_SECONDS = 30.0
+# A validator that is not spending CPU is not working, it is stuck. The ceiling
+# exists to catch that — a stalled mount, a hostile FIFO — and nothing else, so
+# it is deliberately far above any honest run.
+WALL_CEILING_MULTIPLIER = 10.0
 
 # Directories that are vendored inputs or build output: they are read-only for
 # governance purposes and must never be scanned or rewritten by paygov.
@@ -25,24 +30,49 @@ EXCLUDED_DIR_NAMES = frozenset({
     ".git", "__pycache__", "node_modules", ".gradle", "build", "out",
     "target", "dist", ".venv", ".idea", ".vscode",
 })
+# Matched against top-level names only. "enterprise-payment-platform-skills-v1.0.0"
+# used to be listed here and was removed: that directory lives at
+# skills/enterprise-payment-platform-skills-v1.0.0, so the entry had never matched
+# anything since the copy moved. An exclusion that matches nothing is not a
+# harmless leftover — it reads as protection in a diff and behaves as absence, and
+# the module docstring above was describing it as though it worked. The vendored
+# copy under skills/ is therefore scanned like any other tree, which is the safe
+# direction to be wrong in; its integrity is separately pinned by CHECKSUMS.sha256
+# and `make skills-verify`.
 EXCLUDED_TOP_LEVEL = (
     ".payment-platform",
     ".claude",
     ".agents",
-    "enterprise-payment-platform-skills-v1.0.0",
 )
 
 
 @dataclass
 class Budget:
-    """A shared wall-clock budget for one validator run."""
+    """A CPU-time budget for one validator run, with a wall-clock backstop.
+
+    This used to be wall-clock only, and that made the verdict a property of the
+    machine rather than of the repository. Measured on 2026-09-01: ``repo-hygiene``
+    spent **5.9 CPU-seconds** and **23.3 wall-seconds** — 25% CPU, the rest of it
+    waiting on file reads. Against a 30-second wall budget that is a gate running
+    at 78% of its limit while doing six seconds of work, and it aborted twice, both
+    times just after a heavy Gradle build had given the machine something else to
+    do. A gate that cannot finish is not judging; ``VALIDATOR_ABORTED`` is exit 3,
+    and exit 3 is indistinguishable from "the tool is broken, skip it".
+
+    So the budget now counts the work, and a separate, generous ceiling counts the
+    waiting. Exceeding either still fails closed — the ceiling is what still catches
+    a validator wedged on a stalled mount, which CPU time alone never would.
+    """
 
     seconds: float = DEFAULT_SECONDS
     max_bytes: int = DEFAULT_MAX_BYTES
+    wall_ceiling: float | None = None
     _started: float | None = None
+    _cpu_started: float | None = None
 
     def start(self) -> "Budget":
         self._started = time.monotonic()
+        self._cpu_started = time.process_time()
         return self
 
     def elapsed(self) -> float:
@@ -50,12 +80,29 @@ class Budget:
             return 0.0
         return time.monotonic() - self._started
 
+    def cpu_elapsed(self) -> float:
+        if self._cpu_started is None:
+            return 0.0
+        return time.process_time() - self._cpu_started
+
+    def ceiling(self) -> float:
+        if self.wall_ceiling is not None:
+            return self.wall_ceiling
+        return self.seconds * WALL_CEILING_MULTIPLIER
+
     def check(self, where: str = "") -> None:
         if self._started is None:
             return
-        if self.elapsed() > self.seconds:
+        if self.cpu_elapsed() > self.seconds:
             raise BudgetExceeded(
-                f"governance budget of {self.seconds}s exceeded while reading {where or '<repo>'}"
+                f"governance budget of {self.seconds}s CPU exceeded while reading "
+                f"{where or '<repo>'}"
+            )
+        if self.elapsed() > self.ceiling():
+            raise BudgetExceeded(
+                f"governance wall-clock ceiling of {self.ceiling()}s exceeded while reading "
+                f"{where or '<repo>'} after only {self.cpu_elapsed():.1f}s of CPU: a validator "
+                f"that is not spending CPU is stuck, not working"
             )
 
 
