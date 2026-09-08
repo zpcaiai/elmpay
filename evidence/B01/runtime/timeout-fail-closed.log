@@ -5,7 +5,7 @@
     {
       "code": "VALIDATOR_ABORTED",
       "context": {},
-      "message": "governance budget of 0.0s exceeded while reading /sessions/rcw-011ehraswd3ju7eykwevrcsz/mnt/elmpay/governance/requirements.json",
+      "message": "governance budget of 0.0s CPU exceeded while reading /Users/stephen/Documents/Projects/python/elmpay/governance/requirements.json",
       "rule": "NN-12",
       "where": "requirements"
     }

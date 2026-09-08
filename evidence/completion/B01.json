@@ -1,28 +1,28 @@
 {
   "batch_id": "B01",
   "status": "passed",
-  "commit_sha": "65559c799c487c16ce85271f846bcd005131f371",
+  "commit_sha": "51eae615ee0822edcda3ba9c231e14d8ba1da619",
   "environment": "integration",
-  "started_at": "2026-08-20T03:18:18Z",
-  "completed_at": "2026-08-20T03:20:06Z",
+  "started_at": "2026-09-08T10:55:51Z",
+  "completed_at": "2026-09-08T11:03:24Z",
   "executor": "claude-agent",
   "reviewer": "Ethan",
   "artifacts": [
     {
       "path": "governance/requirements.json",
-      "sha256": "8859cbaf9403751696768f6cf544bc8fd501a1b114d2043bca140a6632339790"
+      "sha256": "a7cd655585acbcad1fbc8f3adb190aeaa1cb1e09e12a930ec5165acf2ec00192"
     },
     {
       "path": "governance/service-boundaries.json",
-      "sha256": "3321bed5911e02bb0a1795339f59d8c94281b5dc68c553d768f22994600c1a7c"
+      "sha256": "a070bb96e12369d2e99ef1240a294213525e0a5ceb1a2ad5f211615ad91f3eb4"
     },
     {
       "path": "docs/requirements/REQUIREMENTS_BASELINE.md",
-      "sha256": "25530179669347b2206f925674dd7acc519e88eef1db628a80f20bc2dbfdf43d"
+      "sha256": "a99a14948e127b50d23e095d3e3c13542e85c42cdf124b7caa04a56090f82a25"
     },
     {
       "path": "docs/requirements/SERVICE_BOUNDARIES.md",
-      "sha256": "7de067fb710e4b9023a47336f9a35c125e4ee9ecde74e3ef9bf305ca6437a237"
+      "sha256": "316da279423a1c5bf1d56828b6add89b024435c3f456c88e3dfc4595cdbb02c3"
     },
     {
       "path": "tools/paygov/requirements.py",
@@ -66,7 +66,7 @@
     }
   ],
   "tests": {
-    "passed": 2772,
+    "passed": 3175,
     "failed": 0,
     "skipped_critical": 0
   },
@@ -75,6 +75,6 @@
     "accepted_findings": 0
   },
   "dependency_hashes": {
-    "B00": "1b16d7e2239709b1629d6a57bb2f772fe159ebe351bbdef259afb87ab70c1fb0"
+    "B00": "a3c0761ccc95789f4a7ddb1e9177db55ffb62f50e6e55f98d6865b72feb3e876"
   }
 }

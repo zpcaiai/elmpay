@@ -1,9 +1,9 @@
 {
-  "capabilities_total": 18,
+  "capabilities_total": 19,
   "dangling_capability_requirements": [],
   "forbidden_flows_total": 10,
-  "modules_total": 22,
-  "requirements_must": 51,
+  "modules_total": 23,
+  "requirements_must": 52,
   "requirements_per_batch": {
     "B02": [
       "PAY-REQ-0051"
@@ -187,6 +187,9 @@
     "B59": [
       "PAY-REQ-0038"
     ],
+    "B60": [
+      "PAY-REQ-0054"
+    ],
     "B62": [
       "PAY-REQ-0009"
     ],
@@ -364,7 +367,8 @@
     ],
     "NN-03": [
       "PAY-REQ-0005",
-      "PAY-REQ-0011"
+      "PAY-REQ-0011",
+      "PAY-REQ-0054"
     ],
     "NN-04": [
       "PAY-REQ-0002",
@@ -373,7 +377,8 @@
       "PAY-REQ-0012",
       "PAY-REQ-0020",
       "PAY-REQ-0022",
-      "PAY-REQ-0032"
+      "PAY-REQ-0032",
+      "PAY-REQ-0054"
     ],
     "NN-05": [
       "PAY-REQ-0028"
@@ -394,7 +399,8 @@
     ],
     "NN-10": [
       "PAY-REQ-0006",
-      "PAY-REQ-0039"
+      "PAY-REQ-0039",
+      "PAY-REQ-0054"
     ],
     "NN-11": [
       "PAY-REQ-0008",
@@ -461,6 +467,9 @@
       "PAY-REQ-0050",
       "PAY-REQ-0052"
     ],
+    "mobile-android": [
+      "PAY-REQ-0054"
+    ],
     "money": [
       "PAY-REQ-0028"
     ],
@@ -518,7 +527,7 @@
       "PAY-REQ-0048"
     ]
   },
-  "requirements_total": 53,
+  "requirements_total": 54,
   "unclaimed_requirements": [],
   "uncovered_modules": []
 }

@@ -1,9 +1,9 @@
 {
-  "requirements_total": 53,
-  "requirements_must": 51,
-  "capabilities_total": 18,
+  "requirements_total": 54,
+  "requirements_must": 52,
+  "capabilities_total": 19,
   "forbidden_flows_total": 10,
-  "modules_total": 22,
+  "modules_total": 23,
   "uncovered_modules": [],
   "unclaimed_requirements": [],
   "dangling_capability_requirements": []

@@ -66,40 +66,62 @@
 [OK ] B32 intent events are recorded as configuration changes: exit=2 expected=2 code=INTENT_AUDIT_CLASS_TOO_WEAK
 [OK ] B33 B10 makes unknown a terminal state: exit=2 expected=2 code=ATTEMPT_UNKNOWN_IS_FINAL
 [OK ] B33 a retry writes over the previous attempt: exit=2 expected=2 code=ATTEMPT_REUSED
-[OK ] B33 the whole request is stored: exit=2 expected=2 code=ATTEMPT_STORES_PAYLOAD
-[OK ] B33 a definitive decline becomes retryable: exit=2 expected=2 code=ATTEMPT_FINAL_RETRYABLE
+[OK ] B33 the tenant scope disappears: exit=2 expected=2 code=ATTEMPT_TENANT_SCOPE_MISSING
+[OK ] B33 the tenant boundary is unexplained: exit=2 expected=2 code=ATTEMPT_TENANT_SCOPE_NOTES
+[OK ] B33 a racing duplicate may call the provider: exit=2 expected=2 code=ATTEMPT_CONCURRENT_DUPLICATE_CALL
+[OK ] B33 the reference claims production durability: exit=2 expected=2 code=ATTEMPT_REFERENCE_OVERCLAIM
+[OK ] B33 the request digest weakens to md5: exit=2 expected=2 code=ATTEMPT_WEAK_DIGEST
+[OK ] B33 the response digest weakens to md5: exit=2 expected=2 code=ATTEMPT_RESPONSE_WEAK_DIGEST
+[OK ] B33 the response retention policy is unexplained: exit=2 expected=2 code=ATTEMPT_RESPONSE_NOTES
+[OK ] B33 finality policy lets failure settle the intent: exit=2 expected=2 code=ATTEMPT_FAILURE_SETTLES_INTENT
+[OK ] B33 replacement requests lose their scope: exit=2 expected=2 code=ATTEMPT_REPLACEMENT_SCOPE
 [OK ] B33 an unmapped provider code defaults to failed: exit=2 expected=2 code=ATTEMPT_UNMAPPED_IS_SUCCESS
-[OK ] B33 a final attempt may be overwritten: exit=2 expected=2 code=ATTEMPT_FINAL_OVERWRITTEN
-[OK ] B33 B32 accepts the client return page: exit=2 expected=2 code=ATTEMPT_RETURN_PAGE_EVIDENCE
-[OK ] NN-05 float money model: exit=2 expected=2 code=CONFIG_MONEY
-[OK ] NN-01 business order table claimed: exit=2 expected=2 code=MODULE_BUSINESS_TABLE
-[OK ] B01 requirement becomes an orphan: exit=2 expected=2 code=BOUNDARY_REQ_UNCLAIMED
-[OK ] B02 critical risk accepted instead of fixed: exit=2 expected=2 code=THREAT_RISK_SEVERITY
-[OK ] B03 container image pinned by tag only: exit=2 expected=2 code=TOOLCHAIN_DIGEST
-[OK ] B04 inline password in the local platform: exit=2 expected=2 code=DEV_INLINE_SECRET
-[OK ] B04 required service removed: exit=2 expected=2 code=DEV_REQUIRED_SERVICE
-[OK ] B05 action pinned to a movable tag: exit=2 expected=2 code=CI_ACTION_PIN
-[OK ] B05 pipeline granted write access to contents: exit=2 expected=2 code=CI_PERMISSIONS
-[OK ] B06 sharded proof drops one of its shards: exit=2 expected=2 code=EVIDENCE_SHARD_INCOMPLETE
-[OK ] B07 control left unclaimed by any requirement: exit=2 expected=2 code=TRACE_CONTROL_UNCOVERED
-[OK ] B08 monetary field silently becomes floating point: exit=2 expected=2 code=DOMAIN_MONEY_TYPE
-[OK ] B08 entity dropped from the ubiquitous language: exit=2 expected=2 code=DOMAIN_GLOSSARY
-[OK ] B09 metadata source repointed at an unvalidated file: exit=2 expected=2 code=MONEY_SOURCE
-[OK ] B10 timeout redefined as an outright failure: exit=2 expected=2 code=STATE_SET
-[OK ] B11 idempotency scope drifts from the state machine: exit=2 expected=2 code=API_TRANSITION_KEY_MISMATCH
-[OK ] B11 API money becomes a decimal: exit=2 expected=2 code=API_MONEY_SHAPE
-[OK ] B12 ordering switched from revision to wall clock: exit=2 expected=2 code=EVENT_ORDERING
-[OK ] B12 dead letter destination removed: exit=2 expected=2 code=OUTBOX_DEAD_LETTER
-[OK ] B13 ledger entries become mutable: exit=2 expected=2 code=DATA_LEDGER_MUTABLE
-[OK ] B13 tenant index no longer leads with tenant_id: exit=2 expected=2 code=DATA_INDEX_TENANT
-[OK ] B14 provider timeout redefined as a decline: exit=2 expected=2 code=TOPO_CONNECTOR_DEGRADATION
-[OK ] B14 service reaches into another service tables: exit=2 expected=2 code=TOPO_TABLE_ACCESS
-[OK ] B15 adapter invents its own idempotency key: exit=2 expected=2 code=MIG_ADAPTER_IDEMPOTENCY
-[OK ] B15 cutover switched to a global flip: exit=2 expected=2 code=MIG_CUTOVER_GRANULARITY
-[OK ] B16 audit reduced to denials only: exit=2 expected=2 code=ZT_AUDIT_ALLOW_ONLY
-[OK ] B16 mutual TLS dropped between internal zones: exit=2 expected=2 code=ZT_INTERNAL_TRUST
-[OK ] B17 implicit flow re-enabled: exit=2 expected=2 code=ID_FLOW
-[OK ] B17 operator recovery downgraded to SMS: exit=2 expected=2 code=ID_RECOVERY_SMS
+[OK ] B33 a mapping points at an undeclared class: exit=2 expected=2 code=ATTEMPT_CLASS_UNKNOWN
+[OK ] B33 the attempt states diverge from B10: exit=2 expected=2 code=ATTEMPT_STATES_DIVERGE
+[OK ] B34 the close operation disappears: exit=2 expected=2 code=CAPTURE_NO_EXPLICIT_CLOSE
+[OK ] B34 expiry becomes the release path: exit=2 expected=2 code=CAPTURE_EXPIRY_AS_RELEASE
+[OK ] B34 close stops being terminal: exit=2 expected=2 code=CAPTURE_AFTER_TERMINAL
+[OK ] B34 capture stops carrying an idempotency key: exit=2 expected=2 code=CAPTURE_NOT_IDEMPOTENT
+[OK ] B34 a capture may be settled by the client return page: exit=2 expected=2 code=CAPTURE_AUTHORITY_WEAK
+[OK ] B34 the vectors are bound to another file: exit=2 expected=2 code=CAPTURE_VECTORS_DRIFT
+[OK ] B35 the PAN family disappears: exit=2 expected=2 code=PMETHOD_FAMILY_MISSING
+[OK ] B35 apple_pay_token drops out of the wallet aliases: exit=2 expected=2 code=PMETHOD_ALIAS_GAP
+[OK ] B35 the platform becomes the vault: exit=2 expected=2 code=PMETHOD_CUSTODY_CLAIMED
+[OK ] B35 the scheme allowlist is emptied: exit=2 expected=2 code=PMETHOD_TOKEN_SCHEME
+[OK ] B35 the fingerprint is shared across tenants: exit=2 expected=2 code=PMETHOD_FINGERPRINT_CROSS_TENANT
+[OK ] B35 retention loses its bound: exit=2 expected=2 code=PMETHOD_RETENTION_UNBOUNDED
+[OK ] B35 referencing a method stops being audited: exit=2 expected=2 code=PMETHOD_UNAUDITED
+[OK ] NN-13 fund pool enabled: exit=2 expected=2 code=CONFIG_REGULATED
+[OK ] NN-11 executor equals reviewer: exit=2 expected=2 code=CONFIG_EVIDENCE
+[OK ] B01 requirement loses its verifying batch: exit=2 expected=2 code=REQ_VERIFICATION
+[OK ] B01 generated document drifts from source: exit=2 expected=2 code=DOC_DRIFT
+[OK ] B02 abuse case dropped from the model: exit=2 expected=2 code=THREAT_PARITY
+[OK ] B03 module left without a build system: exit=2 expected=2 code=TOOLCHAIN_BUILD_SYSTEM
+[OK ] B04 local data declared non-synthetic: exit=2 expected=2 code=DEV_DATA_CLASS
+[OK ] B04 service health check removed: exit=2 expected=2 code=DEV_HEALTHCHECK
+[OK ] B05 NVD freshness preflight removed from dependency scan: exit=2 expected=2 code=CI_SUPPLY_CHAIN_TASK
+[OK ] B05 installed skill mirror verification removed: exit=2 expected=2 code=CI_SKILL_PACKAGE
+[OK ] B06 evidence policy renames the reviewer: exit=2 expected=2 code=EVIDENCE_PRINCIPAL
+[OK ] B07 non-negotiable left unclaimed by any requirement: exit=2 expected=2 code=TRACE_RULE_UNCOVERED
+[OK ] B07 generated file claimed by two generators: exit=2 expected=2 code=SSOT_DOUBLE_GENERATOR
+[OK ] B08 entity claims a table its module does not own: exit=2 expected=2 code=DOMAIN_TABLE_OWNERSHIP
+[OK ] B09 currency rounding switched to an unknown mode: exit=2 expected=2 code=MONEY_ROUNDING
+[OK ] B10 backwards edge disguised as forward progress: exit=2 expected=2 code=STATE_UNDECLARED_COMPENSATION
+[OK ] B11 merchant endpoint wired to a provider-only transition: exit=2 expected=2 code=API_TRANSITION_ACTOR
+[OK ] B11 webhook signature verification removed: exit=2 expected=2 code=API_SIGNATURE
+[OK ] B12 inbox stops recording a payload hash: exit=2 expected=2 code=INBOX_PAYLOAD_HASH
+[OK ] B12 card number added to an event payload: exit=2 expected=2 code=EVENT_FORBIDDEN_FIELD
+[OK ] B13 row level security no longer forced for the owner: exit=2 expected=2 code=DATA_RLS_FORCE
+[OK ] B13 table ownership contradicts the module registry: exit=2 expected=2 code=DATA_OWNER
+[OK ] B14 caller budget no longer covers its timeouts: exit=2 expected=2 code=TOPO_BUDGET_EXCEEDED
+[OK ] B14 ledger moved onto the synchronous payment path: exit=2 expected=2 code=TOPO_TIMEOUT_TOO_TIGHT
+[OK ] B15 platform granted legacy database access: exit=2 expected=2 code=MIG_LEGACY_DB_ACCESS
+[OK ] B15 backfill allowed to write to the legacy system: exit=2 expected=2 code=MIG_BACKFILL_WRITES
+[OK ] B16 policy switched to allow by default: exit=2 expected=2 code=ZT_DENY_BY_DEFAULT
+[OK ] B16 refund approval loses its second approver: exit=2 expected=2 code=ZT_FOUR_EYES
+[OK ] B16 human session extended to eight hours: exit=2 expected=2 code=ZT_SESSION
+[OK ] B17 PKCE downgraded to plain: exit=2 expected=2 code=ID_PKCE
+[OK ] B17 operator recovery loses its cooling-off period: exit=2 expected=2 code=ID_RECOVERY_DELAY
 [OK ] B18 SMS one-time codes relabelled as phishing-resistant: exit=2 expected=2 code=MFA_MISCLASSIFIED
 [OK ] B18 step-up stops binding the transaction: exit=2 expected=2 code=MFA_NO_TRANSACTION_BINDING
 [OK ] B18 user verification relaxed to discouraged: exit=2 expected=2 code=MFA_USER_VERIFICATION
@@ -115,6 +137,7 @@
 [OK ] B22 baseline document hand-edited: exit=2 expected=2 code=BASE_GENERATED_DRIFT
 [OK ] B26 provider account document hand-edited: exit=2 expected=2 code=ACCOUNT_GENERATED_DRIFT
 [OK ] B30 onboarding document hand-edited: exit=2 expected=2 code=ONB_GENERATED_DRIFT
+[OK ] B35 the generated catalogue is hand-edited: exit=2 expected=2 code=PMETHOD_GENERATED_DRIFT
 [OK ] B02 ADR loses its alternatives section: exit=2 expected=2 code=ADR_SECTION
 [OK ] B10 state machine document hand-edited: exit=2 expected=2 code=STATE_DOC_DRIFT
 [OK ] B14 cross-module foreign key reintroduced: exit=2 expected=2 code=TOPO_FOREIGN_KEY_CROSS_MODULE
@@ -124,4 +147,4 @@
 [OK ] subprocess governance problem: exit=2 expected=2
 [OK ] subprocess budget exhausted: exit=3 expected=3
 
-shard=4/4 scenarios=125 rejection_scenarios=120 baseline_timeout_and_subprocess=5 failures=0
+shard=4/4 scenarios=148 rejection_scenarios=143 baseline_timeout_and_subprocess=5 failures=0

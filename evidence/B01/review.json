@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0",
+  "batch_id": "B01",
+  "decision": "approved",
+  "reviewer": "Ethan",
+  "executor": "claude-agent",
+  "reviewed_at": "2026-09-08T19:08:29+08:00",
+  "scope": "B01 program foundation evidence and bound repository artifacts",
+  "notes": "已独立复核 B01 的 17 条命令回执、3175 项测试及绑定产物，同意批准。",
+  "bindings": {
+    "git_head": "51eae615ee0822edcda3ba9c231e14d8ba1da619",
+    "manifest_sha256": "97eeeebcaf9df8db60519ca0698b8683b5df8c9686fb8c20e6f6548f7180c09a",
+    "commands_spec_sha256": "326d0786608889b02320fc5ab87e3c8439ff5878aaf5d1f8450628d6be4f23d7",
+    "artifacts_json_sha256": "2facf41a331d23f86a1e5d5e89222a40deb95a25a7d21e86089f0f2b4e113e18",
+    "traceability_sha256": "d0c3aac5c91f4f2d8b910d8cfc647e1192e49de15740370b721b1f78edbc720b",
+    "artifacts": {
+      "governance/requirements.json": "a7cd655585acbcad1fbc8f3adb190aeaa1cb1e09e12a930ec5165acf2ec00192",
+      "governance/service-boundaries.json": "a070bb96e12369d2e99ef1240a294213525e0a5ceb1a2ad5f211615ad91f3eb4",
+      "docs/requirements/REQUIREMENTS_BASELINE.md": "a99a14948e127b50d23e095d3e3c13542e85c42cdf124b7caa04a56090f82a25",
+      "docs/requirements/SERVICE_BOUNDARIES.md": "316da279423a1c5bf1d56828b6add89b024435c3f456c88e3dfc4595cdbb02c3",
+      "tools/paygov/requirements.py": "43dd3d3effa06b03345b0a0b8ccce8186fd5b04b3f3e625bb58c8b90fd1fbf38",
+      "tools/paygov/boundaries.py": "8f92e4fec7ccd665a3b09a782d0ff89f6bb1946939014ef9403e5948a41a7d91",
+      "tools/paygov/catalogue.py": "16cbddd320ae48fe657dd9abe27e1f2b23fc33608a73d8d4332689c85074de16",
+      "tools/paygov/render.py": "05f32ab05325620ec8e82fa2db2390cd4de102a7a1f6d931039b4b144208b987",
+      "tools/paygov/docs.py": "e628ab0b976d34eb73690ac412ffbdc4d275afa112a3101232fd09d4f7a80662",
+      "tools/tests/test_b01_requirements.py": "c2e170a3a36b63fd0303d8caf80a77bf00b2ddb813c4dfe776035e9fe3527751",
+      "tools/tests/test_b01_boundaries.py": "8e0592c935b943154da3c63adfd29ebdbe26ec9e24624e9b57bc30633d8543a8",
+      "tools/tests/test_b01_docs_drift.py": "d2535391fb2fc8422d9049def45b2ef1a2aac5fc8b0454b35ec9c61f2f541662",
+      "scripts/render-docs.py": "abde14875c5f36b225a53aaac08eaf199e4b8095dd49f1cbebc79096d5d070b4",
+      "scripts/trace-coverage.py": "5aabff0778c7ae5417cd4f88d4c48931ca5e0d3dff210ede3162e33a9cb1accc"
+    }
+  }
+}

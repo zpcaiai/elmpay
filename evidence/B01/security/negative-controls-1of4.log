@@ -67,40 +67,62 @@
 [OK ] B33 a timeout is classified as a failure: exit=2 expected=2 code=ATTEMPT_TIMEOUT_IS_FAILURE
 [OK ] B33 an unknown needs no resolution: exit=2 expected=2 code=ATTEMPT_UNKNOWN_UNRESOLVED
 [OK ] B33 attempts become mutable: exit=2 expected=2 code=ATTEMPT_MUTABLE
-[OK ] B33 the request digest weakens to md5: exit=2 expected=2 code=ATTEMPT_WEAK_DIGEST
+[OK ] B33 tenant id becomes optional: exit=2 expected=2 code=ATTEMPT_TENANT_ID_OPTIONAL
+[OK ] B33 the concurrency policy disappears: exit=2 expected=2 code=ATTEMPT_CONCURRENCY_MISSING
+[OK ] B33 the concurrency mechanism is unexplained: exit=2 expected=2 code=ATTEMPT_CONCURRENCY_NOTES
+[OK ] B33 the reference limitations are unexplained: exit=2 expected=2 code=ATTEMPT_REFERENCE_LIMITS_NOTES
+[OK ] B33 the redaction list loses the card number: exit=2 expected=2 code=ATTEMPT_UNREDACTED
+[OK ] B33 response evidence loses provider identifiers: exit=2 expected=2 code=ATTEMPT_RESPONSE_EVIDENCE_MISSING
+[OK ] B33 a definitive decline becomes retryable: exit=2 expected=2 code=ATTEMPT_FINAL_RETRYABLE
 [OK ] B33 success stops being final: exit=2 expected=2 code=ATTEMPT_SUCCESS_NOT_FINAL
+[OK ] B33 replacement requests reuse the old key: exit=2 expected=2 code=ATTEMPT_REPLACEMENT_REUSES_KEY
 [OK ] B33 a provider loses its error mapping: exit=2 expected=2 code=ATTEMPT_PROVIDER_UNMAPPED
-[OK ] B33 a contradicting event is ignored: exit=2 expected=2 code=ATTEMPT_CONTRADICTION_IGNORED
-[OK ] B33 attempt events are recorded as configuration changes: exit=2 expected=2 code=ATTEMPT_AUDIT_CLASS_TOO_WEAK
-[OK ] NN-07 literal provider secret: exit=2 expected=2 code=CONFIG_CREDENTIAL_REF
-[OK ] red line silently removed: exit=2 expected=2 code=NONNEG_COUNT
-[OK ] B01 forbidden flow loses its enforcement: exit=2 expected=2 code=BOUNDARY_FLOW
-[OK ] B02 residual risk loses its owner: exit=2 expected=2 code=THREAT_RISK_OWNER
-[OK ] B03 dependency loses its owner: exit=2 expected=2 code=TOOLCHAIN_METADATA
-[OK ] B04 local service points at a production value: exit=2 expected=2 code=DEV_PRODUCTION_VALUE
-[OK ] B04 host port collision: exit=2 expected=2 code=DEV_PORT_CONFLICT
-[OK ] B05 dependency scanning removed from the pipeline: exit=2 expected=2 code=CI_REQUIRED_STAGE
+[OK ] B33 a final attempt may be overwritten: exit=2 expected=2 code=ATTEMPT_FINAL_OVERWRITTEN
+[OK ] B33 B10 settles every provider decline: exit=2 expected=2 code=ATTEMPT_INTENT_DECLINE_UNSCOPED
+[OK ] B34 close stops releasing the remainder: exit=2 expected=2 code=CAPTURE_NO_EXPLICIT_CLOSE
+[OK ] B34 reaching expiry stops raising exposure: exit=2 expected=2 code=CAPTURE_EXPIRY_AS_RELEASE
+[OK ] B34 the cumulative ceiling loses its rule: exit=2 expected=2 code=CAPTURE_EXCEEDS_AUTHORIZED
+[OK ] B34 closing stops being audited: exit=2 expected=2 code=CAPTURE_UNAUDITED
+[OK ] B34 an invariant delegates to a rule nobody emits: exit=2 expected=2 code=CAPTURE_INVARIANT_UNENFORCED
+[OK ] B34 the Java conformance test is unbound: exit=2 expected=2 code=CAPTURE_JAVA_UNBOUND
+[OK ] B35 the wallet cleartext family disappears: exit=2 expected=2 code=PMETHOD_FAMILY_MISSING
+[OK ] B35 comparison becomes case sensitive: exit=2 expected=2 code=PMETHOD_NORMALIZATION_WEAK
+[OK ] B35 the platform stops promising never to hold the CVV: exit=2 expected=2 code=PMETHOD_CUSTODY_CLAIMED
+[OK ] B35 a token may be reused across providers: exit=2 expected=2 code=PMETHOD_TOKEN_NOT_PROVIDER_SCOPED
+[OK ] B35 the fingerprint key is defined locally: exit=2 expected=2 code=PMETHOD_KEY_SOURCE
+[OK ] B35 fingerprints are kept for a century: exit=2 expected=2 code=PMETHOD_RETENTION_UNBOUNDED
+[OK ] B35 no implementation is bound to the catalogue: exit=2 expected=2 code=PMETHOD_CATALOG_UNBOUND
+[OK ] NN-02 raw card data allowed: exit=2 expected=2 code=CONFIG_CARD_DATA
+[OK ] NN-01 connector reaches a service: exit=2 expected=2 code=MODULE_DEP_LAYER
+[OK ] B01 requirement points at a non-existent control: exit=2 expected=2 code=REQ_CONTROL
+[OK ] B02 security exception silently expires: exit=2 expected=2 code=THREAT_RISK_EXPIRED
+[OK ] B03 dependency floats to a dynamic version: exit=2 expected=2 code=TOOLCHAIN_FLOATING
+[OK ] B03 Java baseline silently downgraded: exit=2 expected=2 code=TOOLCHAIN_JDK
+[OK ] B04 enabled provider loses its offline simulator: exit=2 expected=2 code=DEV_SIMULATOR_MISSING
+[OK ] B05 required CI stage turned fail-open: exit=2 expected=2 code=CI_FAIL_OPEN
+[OK ] B05 blocking security findings allowed above zero: exit=2 expected=2 code=CI_QUALITY_GATE
 [OK ] B06 evidence policy drops the fail-closed proof requirement: exit=2 expected=2 code=EVIDENCE_POLICY_FLOOR
-[OK ] B06 sharded proof mixes partition sizes: exit=2 expected=2 code=EVIDENCE_SHARD_MIXED
-[OK ] B07 governance file removed from the SSOT registry: exit=2 expected=2 code=SSOT_UNREGISTERED
-[OK ] B08 tenant scoping removed from an entity: exit=2 expected=2 code=DOMAIN_TENANT_SCOPE
-[OK ] B09 currency exponent silently widened: exit=2 expected=2 code=MONEY_EXPONENT
-[OK ] B10 merchant allowed to assert a captured payment: exit=2 expected=2 code=STATE_UNTRUSTED_SUCCESS
-[OK ] B10 terminal state given a way out: exit=2 expected=2 code=STATE_TERMINAL_EXIT
-[OK ] B11 hard decline marked retryable: exit=2 expected=2 code=API_ERROR_RETRYABLE
-[OK ] B12 outbox write moved outside the state transaction: exit=2 expected=2 code=OUTBOX_NOT_TRANSACTIONAL
-[OK ] B12 transport claims exactly-once delivery: exit=2 expected=2 code=EVENT_DELIVERY
-[OK ] B13 row level security turned off on a tenant table: exit=2 expected=2 code=DATA_RLS_MISSING
-[OK ] B13 financial retention cut to a quarter: exit=2 expected=2 code=DATA_RETENTION_FLOOR
-[OK ] B14 synchronous dependency cycle introduced: exit=2 expected=2 code=TOPO_SYNC_CYCLE
-[OK ] B14 tier-1 dependency switched to fail open: exit=2 expected=2 code=TOPO_FAIL_OPEN
-[OK ] B15 dual write turned into two provider calls: exit=2 expected=2 code=MIG_DOUBLE_CHARGE
-[OK ] B15 rollback stops preserving payment facts: exit=2 expected=2 code=MIG_ROLLBACK_DESTRUCTIVE
-[OK ] B16 a network range granted implicit trust: exit=2 expected=2 code=ZT_NETWORK_TRUST
-[OK ] B16 refund approval loses its second approver: exit=2 expected=2 code=ZT_FOUR_EYES
-[OK ] B16 human session extended to eight hours: exit=2 expected=2 code=ZT_SESSION
-[OK ] B17 PKCE downgraded to plain: exit=2 expected=2 code=ID_PKCE
-[OK ] B17 operator recovery loses its cooling-off period: exit=2 expected=2 code=ID_RECOVERY_DELAY
+[OK ] B06 sharded proof drops one of its shards: exit=2 expected=2 code=EVIDENCE_SHARD_INCOMPLETE
+[OK ] B07 control left unclaimed by any requirement: exit=2 expected=2 code=TRACE_CONTROL_UNCOVERED
+[OK ] B08 monetary field silently becomes floating point: exit=2 expected=2 code=DOMAIN_MONEY_TYPE
+[OK ] B08 entity dropped from the ubiquitous language: exit=2 expected=2 code=DOMAIN_GLOSSARY
+[OK ] B09 metadata source repointed at an unvalidated file: exit=2 expected=2 code=MONEY_SOURCE
+[OK ] B10 timeout redefined as an outright failure: exit=2 expected=2 code=STATE_SET
+[OK ] B11 idempotency scope drifts from the state machine: exit=2 expected=2 code=API_TRANSITION_KEY_MISMATCH
+[OK ] B11 API money becomes a decimal: exit=2 expected=2 code=API_MONEY_SHAPE
+[OK ] B12 inbox deduplication key weakened: exit=2 expected=2 code=INBOX_UNIQUE_KEY
+[OK ] B12 successful capture stops publishing an event: exit=2 expected=2 code=EVENT_SUCCESS_UNPUBLISHED
+[OK ] B13 tenant predicate widened to true: exit=2 expected=2 code=DATA_RLS_PREDICATE
+[OK ] B13 break-glass access loses its second approver: exit=2 expected=2 code=DATA_BREAK_GLASS
+[OK ] B14 mutating provider call given retries: exit=2 expected=2 code=TOPO_CONNECTOR_RETRY
+[OK ] B14 circuit breaker removed from a synchronous call: exit=2 expected=2 code=TOPO_CIRCUIT_BREAKER
+[OK ] B15 adapter starts passing order line data: exit=2 expected=2 code=MIG_ADAPTER_LEAK
+[OK ] B15 divergence detection drops the amount: exit=2 expected=2 code=MIG_DIVERGENCE
+[OK ] B16 static long-lived service credentials allowed: exit=2 expected=2 code=ZT_STATIC_CREDENTIAL
+[OK ] B16 admin access drops phishing-resistant MFA: exit=2 expected=2 code=ZT_ADMIN_MFA
+[OK ] B17 unbound bearer tokens allowed again: exit=2 expected=2 code=ID_BEARER_TOKEN
+[OK ] B17 redirect URI matching relaxed to prefix: exit=2 expected=2 code=ID_REDIRECT_MATCH
+[OK ] B17 static service account secrets allowed: exit=2 expected=2 code=ID_STATIC_SERVICE_ACCOUNT
 [OK ] B18 push approval promoted to a sole factor: exit=2 expected=2 code=MFA_SOLE_FACTOR
 [OK ] B18 downgrade fallback re-enabled: exit=2 expected=2 code=MFA_DOWNGRADE_FALLBACK
 [OK ] B18 an http origin accepted for assertions: exit=2 expected=2 code=MFA_ORIGIN
@@ -116,9 +138,10 @@
 [OK ] B23 audit document hand-edited: exit=2 expected=2 code=AUDIT_GENERATED_DRIFT
 [OK ] B27 capability document hand-edited: exit=2 expected=2 code=CAP_GENERATED_DRIFT
 [OK ] B31 isolation document hand-edited: exit=2 expected=2 code=ISO_GENERATED_DRIFT
+[OK ] B03 toolchain source requires a Python newer than the floor: exit=2 expected=2 code=TOOLCHAIN_PYTHON_FLOOR
 [OK ] B02 ADR points at a non-existent requirement: exit=2 expected=2 code=ADR_REQUIREMENT
 [OK ] B11 OpenAPI document hand-edited: exit=2 expected=2 code=API_GENERATED_DRIFT
 [OK ] B15 migration runbook hand-edited: exit=2 expected=2 code=MIG_GENERATED_DRIFT
 [OK ] B19 authorisation document hand-edited: exit=2 expected=2 code=AUTHZ_GENERATED_DRIFT
 
-shard=1/4 scenarios=122 rejection_scenarios=121 baseline_timeout_and_subprocess=1 failures=0
+shard=1/4 scenarios=145 rejection_scenarios=144 baseline_timeout_and_subprocess=1 failures=0
