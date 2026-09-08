@@ -48,7 +48,7 @@ public final class PaymentHttpHandler implements HttpHandler {
             "payment_method_reference", "fingerprint", "approved_return_route_id",
             "return_url_token", "provider_parameters");
     private static final Set<String> CHECKOUT_CREATE_FIELDS = Set.of("business_order_no", "amount",
-            "currency", "return_route_id");
+            "currency", "return_route_id", "payment_method");
     private static final Set<String> CHECKOUT_CONFIRM_FIELDS = Set.of("payment_method_type",
             "payment_method_reference", "fingerprint", "provider_parameters", "method");
     private static final Set<String> REFUND_CREATE_FIELDS = Set.of("payment_intent_id", "amount",
@@ -264,7 +264,8 @@ public final class PaymentHttpHandler implements HttpHandler {
                         optionalString(body, "return_route_id"),
                         StrictJsonHttpRequest.optionalHeader(
                                 exchange, "X-Device-Context-Digest", 64),
-                        requiredHeader(exchange, "Idempotency-Key")));
+                        requiredHeader(exchange, "Idempotency-Key"),
+                        optionalString(body, "payment_method")));
         response(exchange, 201, Map.of("checkout_session_id", created.checkoutSessionId(),
                 "payment_intent_id", created.paymentIntentId(),
                 "expires_at", created.expiresAt(), "checkout_url", created.checkoutUrl().toString(),
@@ -851,7 +852,7 @@ public final class PaymentHttpHandler implements HttpHandler {
                 "amount", "capture_method", "allowed_payment_methods", "metadata",
                 "method", "payment_method_type", "payment_method_reference", "fingerprint",
                 "approved_return_route_id", "return_url_token", "provider_parameters",
-                "return_route_id", "payment_intent_id", "reason", "ticket_id"));
+                "return_route_id", "payment_method", "payment_intent_id", "reason", "ticket_id"));
     }
 
     private static void requireOnly(Map<String, Object> body, Set<String> allowed) {

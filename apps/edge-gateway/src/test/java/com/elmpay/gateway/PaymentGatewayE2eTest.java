@@ -173,7 +173,7 @@ final class PaymentGatewayE2eTest {
                     base.resolve("/v1/checkout-sessions"), "POST", KEY,
                     "checkout-create-00000001", """
                     {"business_order_no":"checkout-order-1","amount":1250,"currency":"USD",
-                     "return_route_id":"checkout-complete"}
+                     "return_route_id":"checkout-complete","payment_method":"card"}
                     """), HttpResponse.BodyHandlers.ofString());
             assertEquals(201, created.statusCode(), created.body());
             Map<String, Object> createdBody = Json.object(created.body());
@@ -233,6 +233,13 @@ final class PaymentGatewayE2eTest {
                     "{\"business_order_no\":\"o3\",\"amount\":1,\"currency\":\"USD\",\"return_url\":\"https://evil.example\"}"),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(400, rawRedirect.statusCode(), rawRedirect.body());
+            HttpResponse<String> disabledMethod = client.send(checkoutRequest(
+                    base.resolve("/v1/checkout-sessions"), "POST", KEY,
+                    "checkout-create-00000004",
+                    "{\"business_order_no\":\"o4\",\"amount\":1,\"currency\":\"USD\","
+                            + "\"payment_method\":\"alipay\"}"),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, disabledMethod.statusCode(), disabledMethod.body());
         } finally {
             server.stop(0);
         }

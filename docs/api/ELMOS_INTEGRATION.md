@@ -12,6 +12,11 @@ ELMOS calls `POST /v1/checkout-sessions` with OAuth/API bearer authentication, m
 - integer `amount` in minor units
 - `currency` (`CNY`)
 - allowlisted `return_route_id`
+- exact `payment_method` (`alipay` or `wechat`) selected by the ELMOS order
+
+`payment_method` narrows the signed checkout session and its payment intent to that one configured
+method. It is included in the create-request fingerprint, so replaying the same idempotency key
+with a different channel fails instead of opening a second payable route.
 
 The create response now includes the additive `payment_intent_id` field alongside
 `checkout_session_id`, `expires_at`, `checkout_url`, and `status`. Existing clients may ignore the

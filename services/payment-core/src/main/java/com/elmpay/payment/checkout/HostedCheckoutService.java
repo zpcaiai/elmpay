@@ -36,7 +36,7 @@ public final class HostedCheckoutService {
 
     public record CreateCommand(UUID tenantId, UUID projectId, UUID merchantId,
             String businessOrderNo, long amountMinor, String currency, String returnRouteId,
-            String deviceContextDigest, String idempotencyKey) {
+            String deviceContextDigest, String idempotencyKey, String paymentMethod) {
         public CreateCommand {
             Objects.requireNonNull(tenantId, "tenantId");
             Objects.requireNonNull(projectId, "projectId");
@@ -51,6 +51,15 @@ public final class HostedCheckoutService {
             }
             deviceContextDigest = normalizeDeviceContext(deviceContextDigest);
             RequestFingerprint.validateKey(idempotencyKey);
+            paymentMethod = paymentMethod == null ? null : normalizeMethod(paymentMethod);
+        }
+
+        /** Backwards-compatible command for callers that intentionally expose all configured methods. */
+        public CreateCommand(UUID tenantId, UUID projectId, UUID merchantId,
+                String businessOrderNo, long amountMinor, String currency, String returnRouteId,
+                String deviceContextDigest, String idempotencyKey) {
+            this(tenantId, projectId, merchantId, businessOrderNo, amountMinor, currency,
+                    returnRouteId, deviceContextDigest, idempotencyKey, null);
         }
     }
 
@@ -191,15 +200,24 @@ public final class HostedCheckoutService {
         if (returnUri == null) {
             throw new IllegalArgumentException("return route is not registered");
         }
-        String digest = CanonicalPayload.sha256Hex(Map.ofEntries(
-                Map.entry("tenant_id", command.tenantId().toString()),
-                Map.entry("project_id", command.projectId().toString()),
-                Map.entry("merchant_id", command.merchantId().toString()),
-                Map.entry("business_order_no", command.businessOrderNo()),
-                Map.entry("amount", command.amountMinor()),
-                Map.entry("currency", command.currency().toUpperCase(Locale.ROOT)),
-                Map.entry("return_route_id", routeId),
-                Map.entry("device_context_digest", command.deviceContextDigest())));
+        Set<String> requestedMethods = command.paymentMethod() == null
+                ? allowedMethods : Set.of(command.paymentMethod());
+        if (!allowedMethods.containsAll(requestedMethods)) {
+            throw new IllegalArgumentException("payment method is not enabled for checkout");
+        }
+        Map<String, Object> fingerprint = new java.util.LinkedHashMap<>();
+        fingerprint.put("tenant_id", command.tenantId().toString());
+        fingerprint.put("project_id", command.projectId().toString());
+        fingerprint.put("merchant_id", command.merchantId().toString());
+        fingerprint.put("business_order_no", command.businessOrderNo());
+        fingerprint.put("amount", command.amountMinor());
+        fingerprint.put("currency", command.currency().toUpperCase(Locale.ROOT));
+        fingerprint.put("return_route_id", routeId);
+        fingerprint.put("device_context_digest", command.deviceContextDigest());
+        if (command.paymentMethod() != null) {
+            fingerprint.put("payment_method", command.paymentMethod());
+        }
+        String digest = CanonicalPayload.sha256Hex(fingerprint);
         CheckoutSessionRepository.Record replay = repository.findByCreateKey(command.tenantId(),
                 command.projectId(), command.idempotencyKey()).orElse(null);
         if (replay != null) {
@@ -208,7 +226,7 @@ public final class HostedCheckoutService {
         }
         PaymentIntent intent = payments.create(new CreateIntentCommand(command.tenantId(),
                 command.projectId(), command.merchantId(), command.businessOrderNo(),
-                Money.of(command.amountMinor(), command.currency()), allowedMethods,
+                Money.of(command.amountMinor(), command.currency()), requestedMethods,
                 ConfirmationMode.AUTOMATIC, region, sessionTtl, command.idempotencyKey()));
         Instant now = clock.instant();
         CheckoutSessionRepository.Record candidate = new CheckoutSessionRepository.Record(
@@ -216,7 +234,7 @@ public final class HostedCheckoutService {
                 command.merchantId(), intent.id(), command.businessOrderNo(), command.amountMinor(),
                 command.currency().toUpperCase(Locale.ROOT), routeId, returnUri,
                 command.deviceContextDigest(), now.plus(sessionTtl), signer.activeKeyId(),
-                signer.newNonce(), allowedMethods, command.idempotencyKey(), digest, now);
+                signer.newNonce(), requestedMethods, command.idempotencyKey(), digest, now);
         CheckoutSessionRepository.Record winner = repository.createOrGet(candidate);
         requireSameRequest(winner, digest);
         return created(winner);
@@ -454,24 +472,38 @@ public final class HostedCheckoutService {
                 && session.amountMinor() == intent.amount().amountMinor()
                 && session.currency().equals(intent.amount().currency().code())
                 && session.allowedMethods().equals(intent.allowedMethods());
-        String digest = checkoutRequestDigest(session);
-        if (!identityMatches || !MessageDigest.isEqual(
-                session.requestDigest().getBytes(StandardCharsets.US_ASCII),
-                digest.getBytes(StandardCharsets.US_ASCII))) {
+        if (!identityMatches || !checkoutRequestDigestMatches(session)) {
             throw new SecurityException("checkout immutable snapshot does not match its payment intent");
         }
     }
 
-    private static String checkoutRequestDigest(CheckoutSessionRepository.Record session) {
-        return CanonicalPayload.sha256Hex(Map.ofEntries(
-                Map.entry("tenant_id", session.tenantId().toString()),
-                Map.entry("project_id", session.projectId().toString()),
-                Map.entry("merchant_id", session.merchantId().toString()),
-                Map.entry("business_order_no", session.businessOrderNo()),
-                Map.entry("amount", session.amountMinor()),
-                Map.entry("currency", session.currency()),
-                Map.entry("return_route_id", session.returnRouteId()),
-                Map.entry("device_context_digest", session.deviceContextDigest())));
+    private static boolean checkoutRequestDigestMatches(CheckoutSessionRepository.Record session) {
+        Map<String, Object> fields = new java.util.LinkedHashMap<>();
+        fields.put("tenant_id", session.tenantId().toString());
+        fields.put("project_id", session.projectId().toString());
+        fields.put("merchant_id", session.merchantId().toString());
+        fields.put("business_order_no", session.businessOrderNo());
+        fields.put("amount", session.amountMinor());
+        fields.put("currency", session.currency());
+        fields.put("return_route_id", session.returnRouteId());
+        fields.put("device_context_digest", session.deviceContextDigest());
+        if (sameDigest(session.requestDigest(), CanonicalPayload.sha256Hex(fields))) {
+            return true;
+        }
+        // A constrained create adds payment_method to the request fingerprint. The
+        // stored allowed-method snapshot is already immutable and equal to the intent;
+        // a singleton therefore reconstructs that exact additive field. Accepting the
+        // legacy form above keeps pre-upgrade sessions readable.
+        if (session.allowedMethods().size() != 1) {
+            return false;
+        }
+        fields.put("payment_method", session.allowedMethods().iterator().next());
+        return sameDigest(session.requestDigest(), CanonicalPayload.sha256Hex(fields));
+    }
+
+    private static boolean sameDigest(String left, String right) {
+        return MessageDigest.isEqual(left.getBytes(StandardCharsets.US_ASCII),
+                right.getBytes(StandardCharsets.US_ASCII));
     }
 
     private static String authoritativeSnapshotDigest(CheckoutSessionRepository.Record session) {
