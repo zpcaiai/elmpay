@@ -75,7 +75,7 @@ public final class WorkerAdminCommandSchemaVerifier {
             Map.entry("audit_anchor_receipt", Set.of("INSERT")),
             Map.entry("webhook_endpoint", Set.of("SELECT")),
             Map.entry("webhook_signing_key", Set.of("SELECT")),
-            Map.entry("webhook_delivery_outbox", Set.of("SELECT", "UPDATE")),
+            Map.entry("webhook_delivery_outbox", Set.of("SELECT", "INSERT", "UPDATE")),
             Map.entry("webhook_delivery_dead_letter", Set.of("INSERT")));
     private static final List<String> FORCE_RLS = List.copyOf(EXPECTED.keySet());
 

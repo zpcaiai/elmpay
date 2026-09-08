@@ -6,6 +6,8 @@ import com.elmpay.scheduler.events.JdbcEventDeliveryStore;
 import com.elmpay.scheduler.events.KafkaLedgerConsumer;
 import com.elmpay.scheduler.events.KafkaLedgerConsumerRunner;
 import com.elmpay.scheduler.events.KafkaOutboxPublisher;
+import com.elmpay.scheduler.events.OutboxRelay;
+import com.elmpay.scheduler.events.WebhookFanoutPublisher;
 import java.io.IOException;
 import java.time.Clock;
 import java.util.Map;
@@ -29,7 +31,9 @@ public final class WorkerSchedulerApplication {
                 settings.databaseClientCertificateFile(),
                 settings.databaseClientPrivateKeyFile());
         Clock clock = Clock.systemUTC();
-        KafkaOutboxPublisher publisher = new KafkaOutboxPublisher(settings);
+        KafkaOutboxPublisher kafkaPublisher = new KafkaOutboxPublisher(settings);
+        OutboxRelay.Publisher publisher = new WebhookFanoutPublisher(
+                dataSource, kafkaPublisher, clock);
         JdbcEventDeliveryStore eventStore = new JdbcEventDeliveryStore(dataSource);
         LedgerPostingConsumer posting = new LedgerPostingConsumer(eventStore,
                 new LedgerService(dataSource, clock), new JdbcPostingPolicyResolver(),
@@ -48,7 +52,7 @@ public final class WorkerSchedulerApplication {
                 health.close();
                 ledgerConsumer.close();
                 runtime.close();
-                publisher.close();
+                kafkaPublisher.close();
             }
         };
         Thread shutdown = new Thread(() -> {

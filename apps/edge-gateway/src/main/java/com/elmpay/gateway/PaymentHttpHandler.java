@@ -266,6 +266,7 @@ public final class PaymentHttpHandler implements HttpHandler {
                                 exchange, "X-Device-Context-Digest", 64),
                         requiredHeader(exchange, "Idempotency-Key")));
         response(exchange, 201, Map.of("checkout_session_id", created.checkoutSessionId(),
+                "payment_intent_id", created.paymentIntentId(),
                 "expires_at", created.expiresAt(), "checkout_url", created.checkoutUrl().toString(),
                 "status", created.status()), requestId);
     }

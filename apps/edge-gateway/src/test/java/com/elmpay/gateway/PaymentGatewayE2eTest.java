@@ -178,6 +178,7 @@ final class PaymentGatewayE2eTest {
             assertEquals(201, created.statusCode(), created.body());
             Map<String, Object> createdBody = Json.object(created.body());
             String sessionId = String.valueOf(createdBody.get("checkout_session_id"));
+            assertEquals(36, String.valueOf(createdBody.get("payment_intent_id")).length());
             URI checkoutUrl = URI.create(String.valueOf(createdBody.get("checkout_url")));
             assertNull(checkoutUrl.getQuery(), "the checkout bearer must never enter an HTTP query");
             assertFalse(checkoutUrl.getRawPath().contains("token"));

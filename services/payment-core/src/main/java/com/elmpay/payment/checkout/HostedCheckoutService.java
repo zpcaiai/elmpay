@@ -54,8 +54,8 @@ public final class HostedCheckoutService {
         }
     }
 
-    public record Created(String checkoutSessionId, Instant expiresAt, URI checkoutUrl,
-            String status) {
+    public record Created(String checkoutSessionId, String paymentIntentId, Instant expiresAt,
+            URI checkoutUrl, String status) {
     }
 
     public record MethodView(String id, String label, boolean eligible, String reason) {
@@ -430,7 +430,8 @@ public final class HostedCheckoutService {
 
     private Created created(CheckoutSessionRepository.Record session) {
         String token = signer.token(session);
-        return new Created(session.sessionId(), session.expiresAt(),
+        return new Created(session.sessionId(), session.paymentIntentId().toString(),
+                session.expiresAt(),
                 checkoutUrl(session.sessionId(), token), status(session,
                         payments.get(session.tenantId(), session.paymentIntentId())));
     }
