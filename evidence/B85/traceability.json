@@ -1,0 +1,97 @@
+{
+  "batch_id": "B85",
+  "requirements": [
+    {
+      "id": "B85-GOAL",
+      "statement": "实施脚本清单、授权、完整性、CSP、Trusted Types、页面变更检测和第三方隔离。",
+      "source": ".payment-platform/skill-package/batches/B85.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/browser_integrity.py",
+      "requirements": [
+        "B85-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/b85_browser_integrity.py",
+      "requirements": [
+        "B85-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/b85_browser_report.py",
+      "requirements": [
+        "B85-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/checkout-web/src/server.mjs",
+      "requirements": [
+        "B85-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/checkout-web/security/script-allowlist.json",
+      "requirements": [
+        "B85-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V084_086__security_controls.sql",
+      "requirements": [
+        "B85-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "apps/checkout-web/test/browser-security.test.mjs",
+      "requirements": [
+        "B85-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test_b84_b86_security.py",
+      "requirements": [
+        "B85-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/browser_integrity.py",
+        "tools/b85_browser_integrity.py",
+        "tools/b85_browser_report.py",
+        "apps/checkout-web/src/server.mjs",
+        "apps/checkout-web/security/script-allowlist.json",
+        "tools/runtime/migrations/V084_086__security_controls.sql"
+      ],
+      "verified_by": [
+        "apps/checkout-web/test/browser-security.test.mjs",
+        "testing/test_b84_b86_security.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B85/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B85/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B85/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B85/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

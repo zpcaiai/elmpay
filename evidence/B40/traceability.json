@@ -1,0 +1,76 @@
+{
+  "batch_id": "B40",
+  "requirements": [
+    {
+      "id": "B40-GOAL",
+      "statement": "使用官方 APIv3 SDK、商户证书/微信支付公钥、APIv3 密钥、自动验签和安全轮换。",
+      "source": ".payment-platform/skill-package/batches/B40.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatPayAdapter.java",
+      "requirements": [
+        "B40-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java",
+      "requirements": [
+        "B40-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+      "requirements": [
+        "B40-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B40-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java",
+      "requirements": [
+        "B40-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatPayAdapter.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B40/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B40/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B40/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B40/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

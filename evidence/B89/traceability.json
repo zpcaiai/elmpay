@@ -1,0 +1,69 @@
+{
+  "batch_id": "B89",
+  "requirements": [
+    {
+      "id": "B89-GOAL",
+      "statement": "为东西向流量启用工作负载身份、mTLS、最小可达性和出口控制。",
+      "source": ".payment-platform/skill-package/batches/B89.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/egress_policy.py",
+      "requirements": [
+        "B89-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/render_egress_policy.py",
+      "requirements": [
+        "B89-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/egress-policy.json",
+      "requirements": [
+        "B89-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b89_egress_policy.py",
+      "requirements": [
+        "B89-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/egress_policy.py",
+        "tools/render_egress_policy.py",
+        "platform/kubernetes/egress-policy.json"
+      ],
+      "verified_by": [
+        "testing/test_b89_egress_policy.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B89/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B89/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B89/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B89/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

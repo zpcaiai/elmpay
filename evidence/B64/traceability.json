@@ -1,0 +1,76 @@
+{
+  "batch_id": "B64",
+  "requirements": [
+    {
+      "id": "B64-GOAL",
+      "statement": "支持全额/部分/多次退款、剩余额度、渠道约束、状态追踪和不确定结果恢复。",
+      "source": ".payment-platform/skill-package/batches/B64.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/refund/RefundApplicationService.java",
+      "requirements": [
+        "B64-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentHttpHandler.java",
+      "requirements": [
+        "B64-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+      "requirements": [
+        "B64-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/db/migration/V034__durable_refund_runtime.sql",
+      "requirements": [
+        "B64-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/refund/RefundApplicationServiceTest.java",
+      "requirements": [
+        "B64-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/refund/RefundApplicationService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentHttpHandler.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+        "services/payment-core/src/main/resources/db/migration/V034__durable_refund_runtime.sql"
+      ],
+      "verified_by": [
+        "services/payment-core/src/test/java/com/elmpay/payment/refund/RefundApplicationServiceTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B64/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B64/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B64/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B64/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

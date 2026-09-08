@@ -1,0 +1,11 @@
+[
+  "services/ledger-service/src/main/java/com/elmpay/ledger/LedgerService.java",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/JdbcPostingPolicyResolver.java",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/LedgerPostingConsumer.java",
+  "services/worker-scheduler/worker-scheduler.env.schema.json",
+  "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql",
+  "services/ledger-service/src/main/resources/db/migration/V073__event_ledger_posting_policy.sql",
+  "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java",
+  "services/worker-scheduler/src/test/java/com/elmpay/scheduler/LedgerPostingConsumerTest.java",
+  "evidence/B72/traceability.json"
+]

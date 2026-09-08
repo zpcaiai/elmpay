@@ -1,0 +1,104 @@
+{
+  "batch_id": "B36",
+  "requirements": [
+    {
+      "id": "B36-GOAL",
+      "statement": "覆盖客户端重试、服务重试、回调重放、并发确认、重复退款和分布式竞态。",
+      "source": ".payment-platform/skill-package/batches/B36.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "libs/idempotency/src/main/java/com/elmpay/idempotency/JdbcIdempotencyRegistry.java",
+      "requirements": [
+        "B36-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/ProviderEffectExpectationService.java",
+      "requirements": [
+        "B36-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/PaymentService.java",
+      "requirements": [
+        "B36-GOAL"
+      ]
+    },
+    {
+      "ref": "governance/api-contract.json",
+      "requirements": [
+        "B36-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/resources/db/migration/V032__payment_runtime.sql",
+      "requirements": [
+        "B36-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/db/migration/V036_2__verified_provider_effect_runtime.sql",
+      "requirements": [
+        "B36-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "libs/idempotency/src/test/java/com/elmpay/idempotency/RequestFingerprintTest.java",
+      "requirements": [
+        "B36-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/PaymentServiceTest.java",
+      "requirements": [
+        "B36-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/VerifiedProviderEffectRuntimeTest.java",
+      "requirements": [
+        "B36-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "libs/idempotency/src/main/java/com/elmpay/idempotency/JdbcIdempotencyRegistry.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/ProviderEffectExpectationService.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/PaymentService.java",
+        "governance/api-contract.json",
+        "apps/edge-gateway/src/main/resources/db/migration/V032__payment_runtime.sql",
+        "services/payment-core/src/main/resources/db/migration/V036_2__verified_provider_effect_runtime.sql"
+      ],
+      "verified_by": [
+        "libs/idempotency/src/test/java/com/elmpay/idempotency/RequestFingerprintTest.java",
+        "services/payment-core/src/test/java/com/elmpay/payment/PaymentServiceTest.java",
+        "services/payment-core/src/test/java/com/elmpay/payment/VerifiedProviderEffectRuntimeTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B36/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B36/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B36/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B36/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

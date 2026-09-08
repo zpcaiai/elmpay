@@ -1,0 +1,69 @@
+{
+  "batch_id": "B97",
+  "requirements": [
+    {
+      "id": "B97-GOAL",
+      "statement": "定义支付成功率、确认延迟、回调延迟、对账差错、风险误杀和恢复指标。",
+      "source": ".payment-platform/skill-package/batches/B97.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/operations.py",
+      "requirements": [
+        "B97-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B97-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/observability/slos.json",
+      "requirements": [
+        "B97-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b96_b103_operations.py",
+      "requirements": [
+        "B97-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/operations.py",
+        "tools/platform_control.py",
+        "platform/observability/slos.json"
+      ],
+      "verified_by": [
+        "testing/test_b96_b103_operations.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B97/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B97/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B97/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B97/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+[
+  "tools/runtime/elmpay_runtime/infrastructure.py",
+  "tools/platform_control.py",
+  "platform/dr/plan.json",
+  "testing/test_b89_b95_infrastructure.py",
+  "evidence/B95/traceability.json"
+]

@@ -1,0 +1,76 @@
+{
+  "batch_id": "B101",
+  "requirements": [
+    {
+      "id": "B101-GOAL",
+      "statement": "提供只读诊断、受控重试、Webhook 回放、状态修复建议和双人审批。",
+      "source": ".payment-platform/skill-package/batches/B101.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/operations.py",
+      "requirements": [
+        "B101-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B101-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/policies/provider-resilience.json",
+      "requirements": [
+        "B101-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V088_117__platform_controls.sql",
+      "requirements": [
+        "B101-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b98_b117_runtime_entrypoints.py",
+      "requirements": [
+        "B101-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/operations.py",
+        "tools/platform_control.py",
+        "platform/policies/provider-resilience.json",
+        "tools/runtime/migrations/V088_117__platform_controls.sql"
+      ],
+      "verified_by": [
+        "testing/test_b98_b117_runtime_entrypoints.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B101/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B101/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B101/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B101/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

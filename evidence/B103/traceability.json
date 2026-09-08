@@ -1,0 +1,83 @@
+{
+  "batch_id": "B103",
+  "requirements": [
+    {
+      "id": "B103-GOAL",
+      "statement": "建模峰值 TPS、队列、数据库、渠道限额、成本上限和自动扩缩容保护。",
+      "source": ".payment-platform/skill-package/batches/B103.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/capacity.py",
+      "requirements": [
+        "B103-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/elmpay_runtime/operations.py",
+      "requirements": [
+        "B103-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/control.py",
+      "requirements": [
+        "B103-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/observability/capacity.json",
+      "requirements": [
+        "B103-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_runtime_controls.py",
+      "requirements": [
+        "B103-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test_b96_b103_operations.py",
+      "requirements": [
+        "B103-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/capacity.py",
+        "tools/runtime/elmpay_runtime/operations.py",
+        "tools/runtime/control.py",
+        "platform/observability/capacity.json"
+      ],
+      "verified_by": [
+        "testing/test_runtime_controls.py",
+        "testing/test_b96_b103_operations.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B103/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B103/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B103/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B103/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

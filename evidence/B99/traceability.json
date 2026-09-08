@@ -1,0 +1,76 @@
+{
+  "batch_id": "B99",
+  "requirements": [
+    {
+      "id": "B99-GOAL",
+      "statement": "接入身份、网关、KMS、数据库、容器、代码供应链和支付风险检测。",
+      "source": ".payment-platform/skill-package/batches/B99.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/monitoring_runtime.py",
+      "requirements": [
+        "B99-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B99-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/alerts/siem-runtime-policy.json",
+      "requirements": [
+        "B99-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/alerts/siem-rules.json",
+      "requirements": [
+        "B99-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b96_b99_monitoring_runtime.py",
+      "requirements": [
+        "B99-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/monitoring_runtime.py",
+        "tools/platform_control.py",
+        "platform/alerts/siem-runtime-policy.json",
+        "platform/alerts/siem-rules.json"
+      ],
+      "verified_by": [
+        "testing/test_b96_b99_monitoring_runtime.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B99/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B99/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B99/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B99/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

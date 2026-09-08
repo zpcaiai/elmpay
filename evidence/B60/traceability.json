@@ -1,0 +1,97 @@
+{
+  "batch_id": "B60",
+  "requirements": [
+    {
+      "id": "B60-GOAL",
+      "statement": "封装会话创建、渠道调起、深链回传、设备证明接口、重试和安全日志。",
+      "source": ".payment-platform/skill-package/batches/B60.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "sdks/mobile/ios/Sources/ElmPay/ElmPayClient.swift",
+      "requirements": [
+        "B60-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/mobile/android/src/main/java/com/elmpay/sdk/ElmPayAndroidClient.java",
+      "requirements": [
+        "B60-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/mobile/flutter/lib/elmpay_client.dart",
+      "requirements": [
+        "B60-GOAL"
+      ]
+    },
+    {
+      "ref": "scripts/mobile-sdk-contract-smoke.sh",
+      "requirements": [
+        "B60-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/mobile/flutter/pubspec.yaml",
+      "requirements": [
+        "B60-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "sdks/mobile/ios/Tests/ElmPayTests/ElmPayClientTests.swift",
+      "requirements": [
+        "B60-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/mobile/android/src/test/java/com/elmpay/sdk/ElmPayAndroidClientTest.java",
+      "requirements": [
+        "B60-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/mobile/flutter/test/elmpay_client_test.dart",
+      "requirements": [
+        "B60-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "sdks/mobile/ios/Sources/ElmPay/ElmPayClient.swift",
+        "sdks/mobile/android/src/main/java/com/elmpay/sdk/ElmPayAndroidClient.java",
+        "sdks/mobile/flutter/lib/elmpay_client.dart",
+        "scripts/mobile-sdk-contract-smoke.sh",
+        "sdks/mobile/flutter/pubspec.yaml"
+      ],
+      "verified_by": [
+        "sdks/mobile/ios/Tests/ElmPayTests/ElmPayClientTests.swift",
+        "sdks/mobile/android/src/test/java/com/elmpay/sdk/ElmPayAndroidClientTest.java",
+        "sdks/mobile/flutter/test/elmpay_client_test.dart"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B60/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B60/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B60/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B60/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

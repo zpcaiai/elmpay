@@ -1,0 +1,83 @@
+{
+  "batch_id": "B94",
+  "requirements": [
+    {
+      "id": "B94-GOAL",
+      "statement": "选择主动-被动或受控主动-主动，明确写入归属、数据驻留、RPO/RTO 和回切。",
+      "source": ".payment-platform/skill-package/batches/B94.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/infrastructure.py",
+      "requirements": [
+        "B94-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B94-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/dr/plan.json",
+      "requirements": [
+        "B94-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/policies/data-residency.json",
+      "requirements": [
+        "B94-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V088_117__platform_controls.sql",
+      "requirements": [
+        "B94-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b89_b95_infrastructure.py",
+      "requirements": [
+        "B94-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/infrastructure.py",
+        "tools/platform_control.py",
+        "platform/dr/plan.json",
+        "platform/policies/data-residency.json",
+        "tools/runtime/migrations/V088_117__platform_controls.sql"
+      ],
+      "verified_by": [
+        "testing/test_b89_b95_infrastructure.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B94/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B94/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B94/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B94/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

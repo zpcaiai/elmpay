@@ -1,0 +1,69 @@
+{
+  "batch_id": "B115",
+  "requirements": [
+    {
+      "id": "B115-GOAL",
+      "statement": "验证双击、网络重试、多实例竞态、锁失效、回调先于响应和跨日。",
+      "source": ".payment-platform/skill-package/batches/B115.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/quality.py",
+      "requirements": [
+        "B115-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/quality_gate.py",
+      "requirements": [
+        "B115-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test-matrix.json",
+      "requirements": [
+        "B115-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b98_b117_runtime_entrypoints.py",
+      "requirements": [
+        "B115-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/quality.py",
+        "tools/quality_gate.py",
+        "testing/test-matrix.json"
+      ],
+      "verified_by": [
+        "testing/test_b98_b117_runtime_entrypoints.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B115/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B115/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B115/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B115/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

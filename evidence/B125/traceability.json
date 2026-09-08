@@ -1,0 +1,76 @@
+{
+  "batch_id": "B125",
+  "requirements": [
+    {
+      "id": "B125-GOAL",
+      "statement": "首日、首周和首月强化监控，逐日完成交易、资金和银行三方核对。",
+      "source": ".payment-platform/skill-package/batches/B125.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/postlaunch.py",
+      "requirements": [
+        "B125-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/postlaunch_worker.py",
+      "requirements": [
+        "B125-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/required-release-gates.json",
+      "requirements": [
+        "B125-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V120_127__release_control.sql",
+      "requirements": [
+        "B125-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b118_b127_controls.py",
+      "requirements": [
+        "B125-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/postlaunch.py",
+        "tools/runtime/postlaunch_worker.py",
+        "platform/compliance/required-release-gates.json",
+        "tools/runtime/migrations/V120_127__release_control.sql"
+      ],
+      "verified_by": [
+        "testing/test_b118_b127_controls.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B125/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B125/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B125/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B125/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

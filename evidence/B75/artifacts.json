@@ -1,0 +1,8 @@
+[
+  "services/ledger-service/src/main/java/com/elmpay/ledger/FeeFxSettlementService.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+  "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql",
+  "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java",
+  "evidence/B75/traceability.json"
+]

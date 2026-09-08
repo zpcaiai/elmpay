@@ -1,0 +1,69 @@
+{
+  "batch_id": "B95",
+  "requirements": [
+    {
+      "id": "B95-GOAL",
+      "statement": "验证渠道故障、数据库故障、消息堆积、KMS 不可用、域名劫持和区域中断。",
+      "source": ".payment-platform/skill-package/batches/B95.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/infrastructure.py",
+      "requirements": [
+        "B95-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B95-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/dr/plan.json",
+      "requirements": [
+        "B95-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b89_b95_infrastructure.py",
+      "requirements": [
+        "B95-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/infrastructure.py",
+        "tools/platform_control.py",
+        "platform/dr/plan.json"
+      ],
+      "verified_by": [
+        "testing/test_b89_b95_infrastructure.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B95/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B95/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B95/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B95/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

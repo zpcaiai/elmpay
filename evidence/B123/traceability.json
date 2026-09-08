@@ -1,0 +1,69 @@
+{
+  "batch_id": "B123",
+  "requirements": [
+    {
+      "id": "B123-GOAL",
+      "statement": "逐项检查安全、可靠性、财务、合规、运营、支持、回滚和外部依赖。",
+      "source": ".payment-platform/skill-package/batches/B123.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/release_control.py",
+      "requirements": [
+        "B123-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/required-release-gates.json",
+      "requirements": [
+        "B123-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V120_127__release_control.sql",
+      "requirements": [
+        "B123-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b118_b127_controls.py",
+      "requirements": [
+        "B123-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/release_control.py",
+        "platform/compliance/required-release-gates.json",
+        "tools/runtime/migrations/V120_127__release_control.sql"
+      ],
+      "verified_by": [
+        "testing/test_b118_b127_controls.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B123/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B123/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B123/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B123/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "batch_id": "B76",
+  "requirements": [
+    {
+      "id": "B76-GOAL",
+      "statement": "下载、校验、解析、去重和版本化微信/支付宝/Stripe/PayPal 账单与银行文件。",
+      "source": ".payment-platform/skill-package/batches/B76.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/StatementIngestionService.java",
+      "requirements": [
+        "B76-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+      "requirements": [
+        "B76-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+      "requirements": [
+        "B76-GOAL"
+      ]
+    },
+    {
+      "ref": "services/reconciliation-service/src/main/resources/db/migration/V076__reconciliation.sql",
+      "requirements": [
+        "B76-GOAL"
+      ]
+    },
+    {
+      "ref": "services/reconciliation-service/src/main/resources/db/migration/V079_1__reconciliation_snapshot_scheduler.sql",
+      "requirements": [
+        "B76-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java",
+      "requirements": [
+        "B76-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/StatementIngestionService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+        "services/reconciliation-service/src/main/resources/db/migration/V076__reconciliation.sql",
+        "services/reconciliation-service/src/main/resources/db/migration/V079_1__reconciliation_snapshot_scheduler.sql"
+      ],
+      "verified_by": [
+        "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B76/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B76/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B76/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B76/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

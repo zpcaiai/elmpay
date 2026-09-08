@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +14,7 @@ sys.path.insert(0, str(ROOT / "tools/runtime"))
 from elmpay_runtime.common import read_json, sha256_json  # noqa: E402
 from elmpay_runtime.attestation import attach_dsse, generate_ed25519_keypair  # noqa: E402
 from elmpay_runtime.external_evidence import validate_external_evidence  # noqa: E402
+from external_batch_gate import validate_batch  # noqa: E402
 
 
 NOW = datetime(2026, 8, 26, 0, 0, tzinfo=timezone.utc)
@@ -64,6 +66,35 @@ class ExternalEvidenceGateTest(unittest.TestCase):
         )
         self.assertTrue(report.allowed, report.reasons)
         self.assertGreaterEqual(len(report.checks), len(self.policy["requiredCategories"]))
+
+    def test_batch_gate_requires_only_its_assigned_real_external_categories(self) -> None:
+        gate_policy = read_json(
+            ROOT / "platform/compliance/rebaseline-external-gates.json"
+        )
+        bundle = self._bundle()
+        with mock.patch("external_batch_gate.release_binding", return_value="d" * 64):
+            report = validate_batch(
+                "B118", gate_policy, self.policy, bundle, self.trust,
+                {"release": "fixture"}, now=NOW,
+            )
+        self.assertTrue(report.allowed, report.reasons)
+        self.assertEqual(1, len(report.checks))
+
+    def test_batch_gate_fails_closed_when_assigned_category_is_missing(self) -> None:
+        gate_policy = read_json(
+            ROOT / "platform/compliance/rebaseline-external-gates.json"
+        )
+        bundle = self._bundle()
+        bundle["evidence"] = [
+            item for item in bundle["evidence"] if item["category"] != "uat_acceptance"
+        ]
+        with mock.patch("external_batch_gate.release_binding", return_value="d" * 64):
+            report = validate_batch(
+                "B118", gate_policy, self.policy, bundle, self.trust,
+                {"release": "fixture"}, now=NOW,
+            )
+        self.assertFalse(report.allowed)
+        self.assertIn("missing_external_evidence:uat_acceptance", report.reasons)
 
     def test_missing_bundle_category_blocks(self) -> None:
         bundle = self._bundle()
@@ -229,8 +260,16 @@ class ExternalEvidenceGateTest(unittest.TestCase):
             attestation.update({"stage": "CANARY", "tenantId": "tenant-1", "targetDigest": "1" * 64, "trafficPercent": 10, "windowMinutes": 60, "errorRateDelta": 0.001, "latencyP99DeltaMs": 10, "authorizationRateDrop": 0.001, "autoStopTriggered": False, "duplicateSideEffectCount": 0, "securityCriticalCount": 0})
         elif category == "merchant_acceptance":
             attestation.update({"merchantId": "merchant-1", "tenantId": "tenant-1", "targetDigest": "1" * 64, "acceptanceId": "accept-1", "accepted": True, "merchantSignoff": True, "scenarioDigest": "1" * 64})
-        else:
+        elif category in {"legal_compliance", "regional_market_approval"}:
             attestation.update({"jurisdiction": "US", "market": "US", "decision": "APPROVE", "externalAuthority": True})
+        elif category == "post_launch_reconciliation":
+            attestation.update({"environment": "PRODUCTION", "tenantId": "tenant-1", "targetDigest": "1" * 64, "daysObserved": 1, "transactionsReconciled": 100, "unexplainedDifferenceMinor": 0, "openCriticalIncidents": 0, "financeSignoff": True})
+        elif category == "commercial_sla":
+            attestation.update({"pricingVersion": "pricing-v1", "slaVersion": "sla-v1", "supportOwner": "support-a", "usageBillingReconciled": True, "decision": "APPROVE", "approverId": identity})
+        elif category == "go_no_go":
+            attestation.update({"decisionId": "decision-1", "decision": "APPROVE", "releaseManagerId": "release-a", "securityApproverId": "security-b", "targetDigest": "1" * 64, "openCriticalFindings": 0, "rollbackReady": True})
+        elif category == "final_release_signoff":
+            attestation.update({"releaseId": "release-1", "decision": "APPROVE", "releaseManagerId": "release-a", "securityApproverId": "security-b", "targetDigest": "1" * 64})
         item: dict[str, object] = {
             "category": category,
             "evidenceId": f"evidence-{category}",

@@ -1,0 +1,8 @@
+[
+  "tools/runtime/elmpay_runtime/brand_protection.py",
+  "tools/b84_brand_control.py",
+  "platform/security/brand-protection-policy.json",
+  "tools/runtime/migrations/V084_086__security_controls.sql",
+  "testing/test_b84_b86_security.py",
+  "evidence/B84/traceability.json"
+]

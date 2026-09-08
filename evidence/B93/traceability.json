@@ -1,0 +1,195 @@
+{
+  "batch_id": "B93",
+  "requirements": [
+    {
+      "id": "B93-GOAL",
+      "statement": "实现最小镜像、只读根、非 root、准入策略、网络策略、密钥挂载和可审计发布。",
+      "source": ".payment-platform/skill-package/batches/B93.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/oci.py",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "scripts/product-image-pipeline.py",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/elmpay_runtime/kubernetes.py",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/paygov/buildgen.py",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/elmpay_runtime/infrastructure.py",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/elmpay_runtime/egress_policy.py",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/control.py",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/oci/java-main",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/WorkerSchedulerApplication.java",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookProcessorApplication.java",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/oci/product-images.json",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": ".dockerignore",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/image-admission-policy.json",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/required-release-gates.json",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/workload-policy.json",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/service-callers.json",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/egress-policy.json",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/policies/gitops.json",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_product_oci.py",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test_runtime_controls.py",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test_b89_b95_infrastructure.py",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test_b89_egress_policy.py",
+      "requirements": [
+        "B93-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/oci.py",
+        "scripts/product-image-pipeline.py",
+        "tools/runtime/elmpay_runtime/kubernetes.py",
+        "tools/paygov/buildgen.py",
+        "tools/runtime/elmpay_runtime/infrastructure.py",
+        "tools/runtime/elmpay_runtime/egress_policy.py",
+        "tools/runtime/control.py",
+        "platform/oci/java-main",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/WorkerSchedulerApplication.java",
+        "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookProcessorApplication.java",
+        "platform/oci/product-images.json",
+        ".dockerignore",
+        "platform/kubernetes/image-admission-policy.json",
+        "platform/compliance/required-release-gates.json",
+        "platform/kubernetes/workload-policy.json",
+        "platform/kubernetes/service-callers.json",
+        "platform/kubernetes/egress-policy.json",
+        "platform/policies/gitops.json"
+      ],
+      "verified_by": [
+        "testing/test_product_oci.py",
+        "testing/test_runtime_controls.py",
+        "testing/test_b89_b95_infrastructure.py",
+        "testing/test_b89_egress_policy.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B93/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B93/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B93/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B93/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

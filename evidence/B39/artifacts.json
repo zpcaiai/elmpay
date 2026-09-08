@@ -1,0 +1,9 @@
+[
+  "services/payment-core/src/main/java/com/elmpay/payment/readmodel/JdbcPaymentTimeline.java",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/PaymentTimelineProjectionJob.java",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/PaymentTimelineProjectionSettings.java",
+  "services/payment-core/src/main/resources/db/migration/V039__payment_timeline_read_model.sql",
+  "services/payment-core/src/test/java/com/elmpay/payment/readmodel/JdbcPaymentTimelineTest.java",
+  "services/worker-scheduler/src/test/java/com/elmpay/scheduler/PaymentTimelineProjectionSettingsTest.java",
+  "evidence/B39/traceability.json"
+]

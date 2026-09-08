@@ -1,0 +1,8 @@
+[
+  "tools/runtime/elmpay_runtime/assurance.py",
+  "tools/platform_control.py",
+  "platform/compliance/data-lifecycle.json",
+  "tools/runtime/migrations/V088_117__platform_controls.sql",
+  "testing/test_b98_b117_runtime_entrypoints.py",
+  "evidence/B108/traceability.json"
+]

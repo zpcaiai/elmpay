@@ -1,0 +1,9 @@
+[
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/JdbcCheckoutCapabilitySource.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/CheckoutRuntimeFactory.java",
+  "apps/edge-gateway/src/main/resources/db/migration/V062__checkout_capability_health.sql",
+  "apps/edge-gateway/src/test/java/com/elmpay/gateway/CheckoutCapabilityLocalizationTest.java",
+  "services/payment-core/src/test/java/com/elmpay/payment/checkout/CapabilityResolverTest.java",
+  "evidence/B62/traceability.json"
+]

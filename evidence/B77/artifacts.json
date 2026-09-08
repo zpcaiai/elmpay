@@ -1,0 +1,19 @@
+[
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/JdbcReconciliationFactSnapshotSource.java",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/JdbcReconciliationScheduleStore.java",
+  "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/ReconciliationEngine.java",
+  "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/JdbcFinancialOperationsService.java",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/WorkerSchedulerRuntime.java",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/ReconciliationSchedulerJob.java",
+  "services/worker-scheduler/worker-scheduler.env.schema.json",
+  "platform/kubernetes/workload-policy.json",
+  "services/reconciliation-service/src/main/resources/db/migration/V076__reconciliation.sql",
+  "services/reconciliation-service/src/main/resources/db/migration/V079_1__reconciliation_snapshot_scheduler.sql",
+  "services/reconciliation-service/src/main/resources/db/migration/V104__reconciliation_scheduler_hardening.sql",
+  "services/worker-scheduler/src/test/java/com/elmpay/scheduler/JdbcReconciliationFactSnapshotSourceTest.java",
+  "services/worker-scheduler/src/test/java/com/elmpay/scheduler/JdbcReconciliationScheduleStoreTest.java",
+  "services/worker-scheduler/src/test/java/com/elmpay/scheduler/ReconciliationSchedulerJobTest.java",
+  "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java",
+  "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/JdbcFinancialOperationsServiceTest.java",
+  "evidence/B77/traceability.json"
+]

@@ -1,0 +1,76 @@
+{
+  "batch_id": "B82",
+  "requirements": [
+    {
+      "id": "B82-GOAL",
+      "statement": "实现确定性规则、优先级、冲突策略、影子评估、回滚和命中理由。",
+      "source": ".payment-platform/skill-package/batches/B82.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/JdbcRiskControlPlane.java",
+      "requirements": [
+        "B82-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskHttpApi.java",
+      "requirements": [
+        "B82-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskRuntimeConfig.java",
+      "requirements": [
+        "B82-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql",
+      "requirements": [
+        "B82-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/risk-engine/src/test/java/com/elmpay/risk/runtime/RiskRuntimeContractTest.java",
+      "requirements": [
+        "B82-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/JdbcRiskControlPlane.java",
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskHttpApi.java",
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskRuntimeConfig.java",
+        "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql"
+      ],
+      "verified_by": [
+        "services/risk-engine/src/test/java/com/elmpay/risk/runtime/RiskRuntimeContractTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B82/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B82/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B82/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B82/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

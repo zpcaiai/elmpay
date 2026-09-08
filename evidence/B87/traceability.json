@@ -1,0 +1,111 @@
+{
+  "batch_id": "B87",
+  "requirements": [
+    {
+      "id": "B87-GOAL",
+      "statement": "提供案件、证据、处置、申诉、白名单/黑名单、过期和双人审批。",
+      "source": ".payment-platform/skill-package/batches/B87.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/JdbcRiskControlPlane.java",
+      "requirements": [
+        "B87-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/AdminRiskActionCommandConsumer.java",
+      "requirements": [
+        "B87-GOAL"
+      ]
+    },
+    {
+      "ref": "libs/domain-events/src/main/java/com/elmpay/admin/JdbcAdminDomainCommandQueue.java",
+      "requirements": [
+        "B87-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+      "requirements": [
+        "B87-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskHttpApi.java",
+      "requirements": [
+        "B87-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskCallerPolicy.java",
+      "requirements": [
+        "B87-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql",
+      "requirements": [
+        "B87-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/resources/db/migration/V087_1__admin_action_effects.sql",
+      "requirements": [
+        "B87-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/risk-engine/src/test/java/com/elmpay/risk/runtime/RiskRuntimeContractTest.java",
+      "requirements": [
+        "B87-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/test/java/com/elmpay/risk/runtime/RiskCallerPolicyTest.java",
+      "requirements": [
+        "B87-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/JdbcRiskControlPlane.java",
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/AdminRiskActionCommandConsumer.java",
+        "libs/domain-events/src/main/java/com/elmpay/admin/JdbcAdminDomainCommandQueue.java",
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskHttpApi.java",
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskCallerPolicy.java",
+        "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql",
+        "apps/edge-gateway/src/main/resources/db/migration/V087_1__admin_action_effects.sql"
+      ],
+      "verified_by": [
+        "services/risk-engine/src/test/java/com/elmpay/risk/runtime/RiskRuntimeContractTest.java",
+        "services/risk-engine/src/test/java/com/elmpay/risk/runtime/RiskCallerPolicyTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B87/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B87/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B87/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B87/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

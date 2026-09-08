@@ -1,0 +1,7 @@
+[
+  "tools/runtime/elmpay_runtime/assurance.py",
+  "tools/platform_control.py",
+  "platform/compliance/psd2-sca-policy.json",
+  "testing/test_b98_b117_runtime_entrypoints.py",
+  "evidence/B106/traceability.json"
+]

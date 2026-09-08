@@ -1,0 +1,13 @@
+[
+  "services/risk-engine/src/main/java/com/elmpay/risk/runtime/JdbcRiskControlPlane.java",
+  "services/risk-engine/src/main/java/com/elmpay/risk/runtime/AdminRiskActionCommandConsumer.java",
+  "libs/domain-events/src/main/java/com/elmpay/admin/JdbcAdminDomainCommandQueue.java",
+  "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+  "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskHttpApi.java",
+  "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskCallerPolicy.java",
+  "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql",
+  "apps/edge-gateway/src/main/resources/db/migration/V087_1__admin_action_effects.sql",
+  "services/risk-engine/src/test/java/com/elmpay/risk/runtime/RiskRuntimeContractTest.java",
+  "services/risk-engine/src/test/java/com/elmpay/risk/runtime/RiskCallerPolicyTest.java",
+  "evidence/B87/traceability.json"
+]

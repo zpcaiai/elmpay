@@ -1,0 +1,69 @@
+{
+  "batch_id": "B105",
+  "requirements": [
+    {
+      "id": "B105-GOAL",
+      "statement": "映射非银行支付业务边界、个人信息保护、数据安全、网络安全与数据驻留要求。",
+      "source": ".payment-platform/skill-package/batches/B105.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/assurance.py",
+      "requirements": [
+        "B105-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B105-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/regional-boundaries.json",
+      "requirements": [
+        "B105-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b104_b111_assurance.py",
+      "requirements": [
+        "B105-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/assurance.py",
+        "tools/platform_control.py",
+        "platform/compliance/regional-boundaries.json"
+      ],
+      "verified_by": [
+        "testing/test_b104_b111_assurance.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B105/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B105/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B105/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B105/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

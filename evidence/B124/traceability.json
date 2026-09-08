@@ -1,0 +1,76 @@
+{
+  "batch_id": "B124",
+  "requirements": [
+    {
+      "id": "B124-GOAL",
+      "statement": "按租户、项目、渠道和地区灰度，使用自动停机线和可验证回滚。",
+      "source": ".payment-platform/skill-package/batches/B124.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/release_control.py",
+      "requirements": [
+        "B124-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/release_control_cli.py",
+      "requirements": [
+        "B124-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/rollout/policy.json",
+      "requirements": [
+        "B124-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V120_127__release_control.sql",
+      "requirements": [
+        "B124-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b118_b127_controls.py",
+      "requirements": [
+        "B124-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/release_control.py",
+        "tools/runtime/release_control_cli.py",
+        "platform/rollout/policy.json",
+        "tools/runtime/migrations/V120_127__release_control.sql"
+      ],
+      "verified_by": [
+        "testing/test_b118_b127_controls.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B124/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B124/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B124/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B124/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

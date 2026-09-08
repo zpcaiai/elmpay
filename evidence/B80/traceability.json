@@ -1,0 +1,76 @@
+{
+  "batch_id": "B80",
+  "requirements": [
+    {
+      "id": "B80-GOAL",
+      "statement": "在创建、确认、捕获、退款、改密、加支付方式和提权时返回可解释决策。",
+      "source": ".payment-platform/skill-package/batches/B80.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/JdbcRiskDecisionService.java",
+      "requirements": [
+        "B80-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+      "requirements": [
+        "B80-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/workload-policy.json",
+      "requirements": [
+        "B80-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql",
+      "requirements": [
+        "B80-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/risk-engine/src/test/java/com/elmpay/risk/runtime/RiskRuntimeContractTest.java",
+      "requirements": [
+        "B80-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/JdbcRiskDecisionService.java",
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+        "platform/kubernetes/workload-policy.json",
+        "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql"
+      ],
+      "verified_by": [
+        "services/risk-engine/src/test/java/com/elmpay/risk/runtime/RiskRuntimeContractTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B80/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B80/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B80/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B80/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

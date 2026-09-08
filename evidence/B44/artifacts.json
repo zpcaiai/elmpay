@@ -1,0 +1,8 @@
+[
+  "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayAdapter.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+  "contracts/provider/local-simulator-matrix.json",
+  "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java",
+  "evidence/B44/traceability.json"
+]

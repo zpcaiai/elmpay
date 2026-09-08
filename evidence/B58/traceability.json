@@ -1,0 +1,76 @@
+{
+  "batch_id": "B58",
+  "requirements": [
+    {
+      "id": "B58-GOAL",
+      "statement": "将金额、币种、项目、回跳白名单、设备上下文和过期时间绑定到签名会话。",
+      "source": ".payment-platform/skill-package/batches/B58.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/checkout/CheckoutTokenSigner.java",
+      "requirements": [
+        "B58-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java",
+      "requirements": [
+        "B58-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CheckoutRuntimeFactory.java",
+      "requirements": [
+        "B58-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/resources/db/migration/V056__checkout_sessions.sql",
+      "requirements": [
+        "B58-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/checkout/CheckoutPersistenceTest.java",
+      "requirements": [
+        "B58-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/checkout/CheckoutTokenSigner.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/CheckoutRuntimeFactory.java",
+        "apps/edge-gateway/src/main/resources/db/migration/V056__checkout_sessions.sql"
+      ],
+      "verified_by": [
+        "services/payment-core/src/test/java/com/elmpay/payment/checkout/CheckoutPersistenceTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B58/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B58/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B58/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B58/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

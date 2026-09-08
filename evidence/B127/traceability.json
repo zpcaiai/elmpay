@@ -1,0 +1,90 @@
+{
+  "batch_id": "B127",
+  "requirements": [
+    {
+      "id": "B127-GOAL",
+      "statement": "只有全部批次、控制、测试、恢复、对账和独立评审通过后才允许生产认证。",
+      "source": ".payment-platform/skill-package/batches/B127.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/external_evidence.py",
+      "requirements": [
+        "B127-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/elmpay_runtime/release_control.py",
+      "requirements": [
+        "B127-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/external-evidence-policy.json",
+      "requirements": [
+        "B127-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/required-release-gates.json",
+      "requirements": [
+        "B127-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V120_127__release_control.sql",
+      "requirements": [
+        "B127-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b118_b127_controls.py",
+      "requirements": [
+        "B127-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test_external_evidence.py",
+      "requirements": [
+        "B127-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/external_evidence.py",
+        "tools/runtime/elmpay_runtime/release_control.py",
+        "platform/compliance/external-evidence-policy.json",
+        "platform/compliance/required-release-gates.json",
+        "tools/runtime/migrations/V120_127__release_control.sql"
+      ],
+      "verified_by": [
+        "testing/test_b118_b127_controls.py",
+        "testing/test_external_evidence.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B127/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B127/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B127/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B127/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

@@ -48,7 +48,8 @@ python3 scripts/batch.py status
 python3 scripts/batch.py crosscheck
 ```
 
-`.ai/rebaseline.py` remains the sole supported evidence replay workflow for batches that have
-command specifications. Run it only after the implementation commit is final. Each batch will
+`.ai/rebaseline.py` remains the sole supported evidence replay workflow. B36-B127 command inputs
+are deterministically scaffolded from repository SSOT and release batches carry explicit signed
+external-evidence commands. Run it only after the implementation commit is final. Each batch will
 stop at `review-blocked` until the configured independent reviewer supplies a tracked attestation
 bound to the exact commit and artifact hashes.

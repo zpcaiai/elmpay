@@ -1,0 +1,69 @@
+{
+  "batch_id": "B106",
+  "requirements": [
+    {
+      "id": "B106-GOAL",
+      "statement": "实现合法基础、数据主体权利、DPIA、跨境机制、SCA/3DS 和地区化策略。",
+      "source": ".payment-platform/skill-package/batches/B106.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/assurance.py",
+      "requirements": [
+        "B106-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B106-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/psd2-sca-policy.json",
+      "requirements": [
+        "B106-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b98_b117_runtime_entrypoints.py",
+      "requirements": [
+        "B106-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/assurance.py",
+        "tools/platform_control.py",
+        "platform/compliance/psd2-sca-policy.json"
+      ],
+      "verified_by": [
+        "testing/test_b98_b117_runtime_entrypoints.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B106/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B106/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B106/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B106/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+[
+  "tools/runtime/elmpay_runtime/edge_security.py",
+  "tools/platform_control.py",
+  "platform/policies/edge-security.json",
+  "tools/runtime/migrations/V088_117__platform_controls.sql",
+  "testing/test_b88_edge_security.py",
+  "evidence/B88/traceability.json"
+]

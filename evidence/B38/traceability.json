@@ -1,0 +1,83 @@
+{
+  "batch_id": "B38",
+  "requirements": [
+    {
+      "id": "B38-GOAL",
+      "statement": "向各业务项目可靠投递支付事实，提供签名、重试、死信、暂停、回放和端点轮换。",
+      "source": ".payment-platform/skill-package/batches/B38.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/DataSourceWebhookOutbox.java",
+      "requirements": [
+        "B38-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/WebhookDeliveryRuntime.java",
+      "requirements": [
+        "B38-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/HttpsWebhookSigningSecretResolver.java",
+      "requirements": [
+        "B38-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/security/business-webhook-delivery-policy.json",
+      "requirements": [
+        "B38-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-delivery/src/main/resources/db/migration/V038__business_webhook_delivery.sql",
+      "requirements": [
+        "B38-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/webhook-delivery/src/test/java/com/elmpay/webhook/delivery/WebhookDeliveryServiceTest.java",
+      "requirements": [
+        "B38-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/DataSourceWebhookOutbox.java",
+        "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/WebhookDeliveryRuntime.java",
+        "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/HttpsWebhookSigningSecretResolver.java",
+        "platform/security/business-webhook-delivery-policy.json",
+        "services/webhook-delivery/src/main/resources/db/migration/V038__business_webhook_delivery.sql"
+      ],
+      "verified_by": [
+        "services/webhook-delivery/src/test/java/com/elmpay/webhook/delivery/WebhookDeliveryServiceTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B38/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B38/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B38/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B38/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

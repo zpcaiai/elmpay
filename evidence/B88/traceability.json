@@ -1,0 +1,76 @@
+{
+  "batch_id": "B88",
+  "requirements": [
+    {
+      "id": "B88-GOAL",
+      "statement": "实现统一鉴权、请求大小、Schema 校验、限流、签名、CORS、WAF 和审计。",
+      "source": ".payment-platform/skill-package/batches/B88.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/edge_security.py",
+      "requirements": [
+        "B88-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B88-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/policies/edge-security.json",
+      "requirements": [
+        "B88-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V088_117__platform_controls.sql",
+      "requirements": [
+        "B88-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b88_edge_security.py",
+      "requirements": [
+        "B88-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/edge_security.py",
+        "tools/platform_control.py",
+        "platform/policies/edge-security.json",
+        "tools/runtime/migrations/V088_117__platform_controls.sql"
+      ],
+      "verified_by": [
+        "testing/test_b88_edge_security.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B88/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B88/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B88/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B88/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

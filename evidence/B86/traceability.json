@@ -1,0 +1,76 @@
+{
+  "batch_id": "B86",
+  "requirements": [
+    {
+      "id": "B86-GOAL",
+      "statement": "在 CDN/WAF/API/身份层实施速率、挑战、信誉、凭证泄漏检测和会话撤销。",
+      "source": ".payment-platform/skill-package/batches/B86.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/abuse_protection.py",
+      "requirements": [
+        "B86-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/b86_abuse_control.py",
+      "requirements": [
+        "B86-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/security/abuse-protection-policy.json",
+      "requirements": [
+        "B86-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V084_086__security_controls.sql",
+      "requirements": [
+        "B86-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b84_b86_security.py",
+      "requirements": [
+        "B86-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/abuse_protection.py",
+        "tools/b86_abuse_control.py",
+        "platform/security/abuse-protection-policy.json",
+        "tools/runtime/migrations/V084_086__security_controls.sql"
+      ],
+      "verified_by": [
+        "testing/test_b84_b86_security.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B86/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B86/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B86/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B86/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "batch": "B106",
+  "commands": [
+    {
+      "purpose": "environment fingerprint",
+      "expect": 0,
+      "command": "python3 -VV && uname -a && git --version && echo repo=$(git rev-parse --short HEAD)",
+      "save_to": "runtime/environment.txt"
+    },
+    {
+      "purpose": "vendored skill package checksum and inventory",
+      "expect": 0,
+      "command": "python3 .payment-platform/skill-package/scripts/verify_package.py",
+      "save_to": "runtime/skill-package.json"
+    },
+    {
+      "purpose": "dependency B104 evidence still validates",
+      "expect": 0,
+      "command": "python3 .payment-platform/skill-package/scripts/orchestrate.py validate B104 --repo .",
+      "save_to": "runtime/dependency-b104.json"
+    },
+    {
+      "purpose": "full governance regression suite shard 1 of 4",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 1/4 --out evidence/B106/test-results/summary-1of4.json --log evidence/B106/test-results/unittest-1of4.log",
+      "save_to": "test-results/summary-1of4.log"
+    },
+    {
+      "purpose": "full governance regression suite shard 2 of 4",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 2/4 --out evidence/B106/test-results/summary-2of4.json --log evidence/B106/test-results/unittest-2of4.log",
+      "save_to": "test-results/summary-2of4.log"
+    },
+    {
+      "purpose": "full governance regression suite shard 3 of 4",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 3/4 --out evidence/B106/test-results/summary-3of4.json --log evidence/B106/test-results/unittest-3of4.log",
+      "save_to": "test-results/summary-3of4.log"
+    },
+    {
+      "purpose": "full governance regression suite shard 4 of 4",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --shard 4/4 --out evidence/B106/test-results/summary-4of4.json --log evidence/B106/test-results/unittest-4of4.log",
+      "save_to": "test-results/summary-4of4.log"
+    },
+    {
+      "purpose": "merge all test shards and refuse missing or duplicate units",
+      "expect": 0,
+      "command": "python3 scripts/test-summary.py --merge evidence/B106/test-results/summary-1of4.json evidence/B106/test-results/summary-2of4.json evidence/B106/test-results/summary-3of4.json evidence/B106/test-results/summary-4of4.json --out evidence/B106/test-results/summary.json --log evidence/B106/test-results/unittest.log",
+      "save_to": "test-results/summary.log"
+    },
+    {
+      "purpose": "batch-owned code suite TM-B104-B111-COMPLIANCE",
+      "expect": 0,
+      "command": "python3 scripts/run-code-suite.py assurance",
+      "save_to": "runtime/batch-code-suite.log"
+    },
+    {
+      "purpose": "test module ownership is exact",
+      "expect": 0,
+      "command": "python3 scripts/run-code-suite.py --check-coverage",
+      "save_to": "runtime/test-coverage-map.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof shard 1 of 4",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 1/4",
+      "save_to": "security/negative-controls-1of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof shard 2 of 4",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 2/4",
+      "save_to": "security/negative-controls-2of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof shard 3 of 4",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 3/4",
+      "save_to": "security/negative-controls-3of4.log"
+    },
+    {
+      "purpose": "runtime fail-closed proof shard 4 of 4",
+      "expect": 0,
+      "command": "python3 scripts/negative-controls.py --shard 4/4",
+      "save_to": "security/negative-controls-4of4.log"
+    },
+    {
+      "purpose": "governance gate on the real repository",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo .",
+      "save_to": "security/governance-report.json"
+    },
+    {
+      "purpose": "exhausted budget must exit 3, never 0",
+      "expect": 3,
+      "command": "python3 -m tools.paygov.cli verify repo-hygiene --repo . --budget-seconds 0",
+      "save_to": "runtime/timeout-fail-closed.log"
+    },
+    {
+      "purpose": "duplicate governance invocation is byte-identical",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli verify-all --repo . > /tmp/B106-1.json && python3 -m tools.paygov.cli verify-all --repo . > /tmp/B106-2.json && diff /tmp/B106-1.json /tmp/B106-2.json && echo IDENTICAL",
+      "save_to": "runtime/idempotency.txt"
+    },
+    {
+      "purpose": "registered validators",
+      "expect": 0,
+      "command": "python3 -m tools.paygov.cli list-validators --repo .",
+      "save_to": "runtime/validators.txt"
+    }
+  ]
+}

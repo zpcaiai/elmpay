@@ -1,0 +1,69 @@
+{
+  "batch_id": "B118",
+  "requirements": [
+    {
+      "id": "B118-GOAL",
+      "statement": "以真实业务场景验证下单、支付、退款、订阅、争议、对账、报表和客服流程。",
+      "source": ".payment-platform/skill-package/batches/B118.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/uat.py",
+      "requirements": [
+        "B118-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/external-evidence-policy.json",
+      "requirements": [
+        "B118-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V120_127__release_control.sql",
+      "requirements": [
+        "B118-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b118_b127_controls.py",
+      "requirements": [
+        "B118-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/uat.py",
+        "platform/compliance/external-evidence-policy.json",
+        "tools/runtime/migrations/V120_127__release_control.sql"
+      ],
+      "verified_by": [
+        "testing/test_b118_b127_controls.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B118/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B118/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B118/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B118/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

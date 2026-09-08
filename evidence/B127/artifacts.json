@@ -1,0 +1,10 @@
+[
+  "tools/runtime/elmpay_runtime/external_evidence.py",
+  "tools/runtime/elmpay_runtime/release_control.py",
+  "platform/compliance/external-evidence-policy.json",
+  "platform/compliance/required-release-gates.json",
+  "tools/runtime/migrations/V120_127__release_control.sql",
+  "testing/test_b118_b127_controls.py",
+  "testing/test_external_evidence.py",
+  "evidence/B127/traceability.json"
+]

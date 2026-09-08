@@ -41,6 +41,14 @@ from typing import Any, Iterator
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from tools.paygov.rebaseline_scaffold import (  # noqa: E402
+    ScaffoldError,
+    scaffold as scaffold_rebaseline_inputs,
+)
+
+
 MANIFEST_REL = Path(".payment-platform/skill-package/manifest.json")
 STATE_REL = Path(".ai/.state/rebaseline.json")
 LOCK_REL = Path(".ai/.state/rebaseline.lock")
@@ -221,6 +229,19 @@ def resolve_range(
             "range contains batches without command specifications: " + ", ".join(missing)
         )
     return batches
+
+
+def resolve_manifest_range(
+    root: Path, batch_from: str | None = None, batch_to: str | None = None
+) -> list[str]:
+    """Resolve a manifest range without requiring existing evidence inputs."""
+    order = manifest_order(root)
+    first = normalize_batch_id(batch_from, order) if batch_from else order[0]
+    last = normalize_batch_id(batch_to, order) if batch_to else order[-1]
+    start, stop = order.index(first), order.index(last)
+    if start > stop:
+        raise RebaselineError(f"invalid range: --from {first} comes after --to {last}")
+    return order[start : stop + 1]
 
 
 def git_head(root: Path) -> str:
@@ -1154,17 +1175,33 @@ def validate_review_attestation(
         root, batch, binding, traceability_sha256=traceability_sha256
     )
     path = review_path(root, batch)
+    config = _load_json(root.resolve() / "governance/project-config.json")
+    evidence = config.get("evidence") if isinstance(config, dict) else None
+    reviewer = evidence.get("reviewer") if isinstance(evidence, dict) else None
+    executor = evidence.get("executor") if isinstance(evidence, dict) else None
     template = {
         "schema_version": "1.0.0",
         "batch_id": batch,
         "decision": "approved",
-        "reviewer": "configured independent human reviewer",
-        "executor": "configured implementation executor",
+        "reviewer": reviewer,
+        "executor": executor,
         "reviewed_at": "ISO-8601 timestamp with timezone",
         "scope": "non-empty review scope",
         "notes": "non-empty independent review notes",
         "bindings": expected,
     }
+    if (
+        not isinstance(reviewer, str)
+        or not reviewer.strip()
+        or not isinstance(executor, str)
+        or not executor.strip()
+        or reviewer == executor
+    ):
+        raise ReviewBlocked(
+            batch,
+            "project evidence identities are missing or violate independent review",
+            template,
+        )
     if not path.is_file():
         raise ReviewBlocked(batch, f"independent review attestation is missing: {path}", template)
     if not review_is_git_tracked(root, path):
@@ -1179,11 +1216,8 @@ def validate_review_attestation(
         raise ReviewBlocked(
             batch, f"independent review attestation is unreadable: {exc}", template
         ) from exc
-    config = _load_json(root.resolve() / "governance/project-config.json")
-    evidence = config.get("evidence") if isinstance(config, dict) else None
     if not isinstance(doc, dict) or not isinstance(evidence, dict):
         raise ReviewBlocked(batch, "review attestation or project evidence config is malformed", template)
-    reviewer, executor = evidence.get("reviewer"), evidence.get("executor")
     reasons = []
     expected_top = {
         "schema_version", "batch_id", "decision", "reviewer", "executor",
@@ -1567,6 +1601,14 @@ def build_parser() -> argparse.ArgumentParser:
     migrate.add_argument("--shards", type=_shard_count, default=DEFAULT_SHARDS)
     migrate.add_argument("--dry-run", action="store_true")
 
+    scaffold = commands.add_parser(
+        "scaffold",
+        allow_abbrev=False,
+        help="create non-certifying plans/specs/traceability from repository SSOT",
+    )
+    _add_range(scaffold)
+    scaffold.add_argument("--dry-run", action="store_true")
+
     resume = commands.add_parser("resume", allow_abbrev=False)
     _add_range(resume)
     resume.add_argument(
@@ -1596,6 +1638,24 @@ def main(argv: list[str] | None = None, *, root: Path | None = None) -> int:
         with state_lock(repo):
             if args.subcommand == "reset":
                 _print_json(reset_state(repo, dry_run=args.dry_run))
+                return 0
+
+            if args.subcommand == "scaffold":
+                batches = resolve_manifest_range(repo, args.batch_from, args.batch_to)
+                if state_path(repo).is_file() and not args.dry_run:
+                    raise RebaselineError(
+                        "resume state exists; reset it explicitly before creating command specifications"
+                    )
+                try:
+                    result = scaffold_rebaseline_inputs(
+                        repo,
+                        batches,
+                        dry_run=args.dry_run,
+                        atomic_write=atomic_write_bytes,
+                    )
+                except ScaffoldError as exc:
+                    raise RebaselineError(str(exc)) from exc
+                _print_json(result)
                 return 0
 
             batches = resolve_range(repo, args.batch_from, args.batch_to)

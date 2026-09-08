@@ -1,0 +1,69 @@
+{
+  "batch_id": "B55",
+  "requirements": [
+    {
+      "id": "B55-GOAL",
+      "statement": "对微信、支付宝、Stripe、PayPal、Apple Pay 建立官方沙箱、模拟器、回放和上线检查矩阵。",
+      "source": ".payment-platform/skill-package/batches/B55.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/simulator/provider_sim.py",
+      "requirements": [
+        "B55-GOAL"
+      ]
+    },
+    {
+      "ref": "scripts/provider-contract-matrix.py",
+      "requirements": [
+        "B55-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B55-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b40_b55_provider_contract_matrix.py",
+      "requirements": [
+        "B55-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/simulator/provider_sim.py",
+        "scripts/provider-contract-matrix.py",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "testing/test_b40_b55_provider_contract_matrix.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B55/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B55/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B55/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B55/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

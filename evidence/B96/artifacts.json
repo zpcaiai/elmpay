@@ -1,0 +1,7 @@
+[
+  "tools/runtime/elmpay_runtime/monitoring_runtime.py",
+  "tools/platform_control.py",
+  "platform/observability/runtime-export.json",
+  "testing/test_b96_b99_monitoring_runtime.py",
+  "evidence/B96/traceability.json"
+]

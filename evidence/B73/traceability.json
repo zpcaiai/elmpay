@@ -1,0 +1,90 @@
+{
+  "batch_id": "B73",
+  "requirements": [
+    {
+      "id": "B73-GOAL",
+      "statement": "确保每笔交易借贷平衡、币种一致、唯一业务来源、可逆但不可改写。",
+      "source": ".payment-platform/skill-package/batches/B73.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/ledger-service/src/main/java/com/elmpay/ledger/LedgerService.java",
+      "requirements": [
+        "B73-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/LedgerPostingConsumer.java",
+      "requirements": [
+        "B73-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/EventDeliverySettings.java",
+      "requirements": [
+        "B73-GOAL"
+      ]
+    },
+    {
+      "ref": "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql",
+      "requirements": [
+        "B73-GOAL"
+      ]
+    },
+    {
+      "ref": "services/ledger-service/src/main/resources/db/migration/V073__event_ledger_posting_policy.sql",
+      "requirements": [
+        "B73-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java",
+      "requirements": [
+        "B73-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/events/KafkaLedgerConsumerTest.java",
+      "requirements": [
+        "B73-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/ledger-service/src/main/java/com/elmpay/ledger/LedgerService.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/LedgerPostingConsumer.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/EventDeliverySettings.java",
+        "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql",
+        "services/ledger-service/src/main/resources/db/migration/V073__event_ledger_posting_policy.sql"
+      ],
+      "verified_by": [
+        "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java",
+        "services/worker-scheduler/src/test/java/com/elmpay/scheduler/events/KafkaLedgerConsumerTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B73/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B73/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B73/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B73/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

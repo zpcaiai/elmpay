@@ -1,0 +1,8 @@
+[
+  "connectors/stripe/src/main/java/com/elmpay/connectors/stripe/StripeAdapter.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/provider/StripeAccountAdapterFactory.java",
+  "contracts/provider/local-simulator-matrix.json",
+  "testing/test_b40_b55_provider_contract_matrix.py",
+  "services/payment-core/src/test/java/com/elmpay/payment/provider/ProductionProviderAccountFactoriesTest.java",
+  "evidence/B50/traceability.json"
+]

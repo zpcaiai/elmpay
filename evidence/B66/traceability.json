@@ -1,0 +1,97 @@
+{
+  "batch_id": "B66",
+  "requirements": [
+    {
+      "id": "B66-GOAL",
+      "statement": "统一争议事件、截止时间、证据、责任、财务影响和申诉操作。",
+      "source": ".payment-platform/skill-package/batches/B66.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+      "requirements": [
+        "B66-GOAL"
+      ]
+    },
+    {
+      "ref": "libs/domain-events/src/main/java/com/elmpay/provider/ProviderEvidenceVerifier.java",
+      "requirements": [
+        "B66-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java",
+      "requirements": [
+        "B66-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/ProviderEvidenceRuntimeFactory.java",
+      "requirements": [
+        "B66-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
+      "requirements": [
+        "B66-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/db/migration/V066_1__provider_evidence_receipts.sql",
+      "requirements": [
+        "B66-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/commerce/JdbcCommerceServiceTest.java",
+      "requirements": [
+        "B66-GOAL"
+      ]
+    },
+    {
+      "ref": "libs/domain-events/src/test/java/com/elmpay/provider/ProviderEvidenceVerifierTest.java",
+      "requirements": [
+        "B66-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+        "libs/domain-events/src/main/java/com/elmpay/provider/ProviderEvidenceVerifier.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/ProviderEvidenceRuntimeFactory.java",
+        "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
+        "services/payment-core/src/main/resources/db/migration/V066_1__provider_evidence_receipts.sql"
+      ],
+      "verified_by": [
+        "services/payment-core/src/test/java/com/elmpay/payment/commerce/JdbcCommerceServiceTest.java",
+        "libs/domain-events/src/test/java/com/elmpay/provider/ProviderEvidenceVerifierTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B66/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B66/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B66/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B66/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

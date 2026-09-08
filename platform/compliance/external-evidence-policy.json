@@ -107,6 +107,38 @@
       "externalVerifierRequired": true,
       "maximumAgeHours": 2160,
       "requiredFields": ["market", "decision", "externalAuthority", "reference"]
+    },
+    "post_launch_reconciliation": {
+      "category": "post_launch_reconciliation",
+      "requiredRole": "external_verifier",
+      "requiredSource": "PRODUCTION_FINANCE_OBSERVER",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 24,
+      "requiredFields": ["environment", "tenantId", "targetDigest", "daysObserved", "transactionsReconciled", "unexplainedDifferenceMinor", "openCriticalIncidents", "financeSignoff"]
+    },
+    "commercial_sla": {
+      "category": "commercial_sla",
+      "requiredRole": "external_verifier",
+      "requiredSource": "COMMERCIAL_APPROVER",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 720,
+      "requiredFields": ["pricingVersion", "slaVersion", "supportOwner", "usageBillingReconciled", "decision", "approverId"]
+    },
+    "go_no_go": {
+      "category": "go_no_go",
+      "requiredRole": "external_verifier",
+      "requiredSource": "GO_NO_GO_BOARD",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 24,
+      "requiredFields": ["decisionId", "decision", "releaseManagerId", "securityApproverId", "targetDigest", "openCriticalFindings", "rollbackReady"]
+    },
+    "final_release_signoff": {
+      "category": "final_release_signoff",
+      "requiredRole": "external_verifier",
+      "requiredSource": "RELEASE_AUTHORITY",
+      "externalVerifierRequired": true,
+      "maximumAgeHours": 24,
+      "requiredFields": ["releaseId", "decision", "releaseManagerId", "securityApproverId", "targetDigest"]
     }
   }
 }

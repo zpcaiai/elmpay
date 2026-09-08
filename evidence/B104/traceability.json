@@ -1,0 +1,69 @@
+{
+  "batch_id": "B104",
+  "requirements": [
+    {
+      "id": "B104-GOAL",
+      "statement": "通过托管字段/令牌化缩小卡数据环境，并建立控制责任、证据和评估路径。",
+      "source": ".payment-platform/skill-package/batches/B104.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/assurance.py",
+      "requirements": [
+        "B104-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B104-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/control-matrix.json",
+      "requirements": [
+        "B104-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b104_b111_assurance.py",
+      "requirements": [
+        "B104-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/assurance.py",
+        "tools/platform_control.py",
+        "platform/compliance/control-matrix.json"
+      ],
+      "verified_by": [
+        "testing/test_b104_b111_assurance.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B104/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B104/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B104/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B104/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

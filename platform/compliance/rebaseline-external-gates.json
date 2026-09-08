@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "defaultBundle": "evidence/external/release-evidence.json",
+  "defaultTrust": "evidence/external/trust.json",
+  "defaultManifest": "evidence/external/release-manifest.json",
+  "batches": {
+    "B118": {
+      "requiredCategories": ["uat_acceptance"],
+      "minimumDistinctVerifiers": 1
+    },
+    "B119": {
+      "requiredCategories": [
+        "independent_human_review",
+        "pci_assessor",
+        "penetration_test",
+        "legal_compliance",
+        "regional_market_approval"
+      ],
+      "minimumDistinctVerifiers": 2
+    },
+    "B121": {
+      "requiredCategories": ["shadow_rollout"],
+      "minimumDistinctVerifiers": 1
+    },
+    "B122": {
+      "requiredCategories": ["provider_certification", "merchant_acceptance"],
+      "minimumDistinctVerifiers": 2
+    },
+    "B123": {
+      "requiredCategories": ["production_kubernetes", "go_no_go"],
+      "minimumDistinctVerifiers": 2
+    },
+    "B124": {
+      "requiredCategories": ["canary_rollout"],
+      "minimumDistinctVerifiers": 1
+    },
+    "B125": {
+      "requiredCategories": ["dr_exercise", "post_launch_reconciliation"],
+      "minimumDistinctVerifiers": 2
+    },
+    "B126": {
+      "requiredCategories": ["commercial_sla"],
+      "minimumDistinctVerifiers": 1
+    },
+    "B127": {
+      "requiredCategories": [
+        "independent_human_review",
+        "provider_certification",
+        "production_kubernetes",
+        "dr_exercise",
+        "pci_assessor",
+        "uat_acceptance",
+        "penetration_test",
+        "shadow_rollout",
+        "canary_rollout",
+        "merchant_acceptance",
+        "legal_compliance",
+        "regional_market_approval",
+        "post_launch_reconciliation",
+        "commercial_sla",
+        "go_no_go",
+        "final_release_signoff"
+      ],
+      "minimumDistinctVerifiers": 2
+    }
+  }
+}

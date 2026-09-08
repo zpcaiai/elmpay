@@ -1,0 +1,76 @@
+{
+  "batch_id": "B78",
+  "requirements": [
+    {
+      "id": "B78-GOAL",
+      "statement": "将长短款、重复、丢失、金额不符和跨日差异形成可审计工单。",
+      "source": ".payment-platform/skill-package/batches/B78.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/JdbcFinancialOperationsService.java",
+      "requirements": [
+        "B78-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+      "requirements": [
+        "B78-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+      "requirements": [
+        "B78-GOAL"
+      ]
+    },
+    {
+      "ref": "services/reconciliation-service/src/main/resources/db/migration/V079__financial_runtime.sql",
+      "requirements": [
+        "B78-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java",
+      "requirements": [
+        "B78-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/JdbcFinancialOperationsService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+        "services/reconciliation-service/src/main/resources/db/migration/V079__financial_runtime.sql"
+      ],
+      "verified_by": [
+        "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B78/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B78/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B78/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B78/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

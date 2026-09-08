@@ -1,0 +1,7 @@
+[
+  "tools/runtime/elmpay_runtime/egress_policy.py",
+  "tools/render_egress_policy.py",
+  "platform/kubernetes/egress-policy.json",
+  "testing/test_b89_egress_policy.py",
+  "evidence/B89/traceability.json"
+]

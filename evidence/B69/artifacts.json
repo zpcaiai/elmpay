@@ -1,0 +1,8 @@
+[
+  "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/BillingLifecycleJob.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+  "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
+  "services/worker-scheduler/src/test/java/com/elmpay/scheduler/BillingLifecycleJobTest.java",
+  "evidence/B69/traceability.json"
+]

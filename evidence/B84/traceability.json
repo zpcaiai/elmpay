@@ -1,0 +1,76 @@
+{
+  "batch_id": "B84",
+  "requirements": [
+    {
+      "id": "B84-GOAL",
+      "statement": "实现统一支付域名、IDN 同形检测、证书透明度监控、DNS/注册商保护和仿冒告警。",
+      "source": ".payment-platform/skill-package/batches/B84.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/brand_protection.py",
+      "requirements": [
+        "B84-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/b84_brand_control.py",
+      "requirements": [
+        "B84-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/security/brand-protection-policy.json",
+      "requirements": [
+        "B84-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V084_086__security_controls.sql",
+      "requirements": [
+        "B84-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b84_b86_security.py",
+      "requirements": [
+        "B84-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/brand_protection.py",
+        "tools/b84_brand_control.py",
+        "platform/security/brand-protection-policy.json",
+        "tools/runtime/migrations/V084_086__security_controls.sql"
+      ],
+      "verified_by": [
+        "testing/test_b84_b86_security.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B84/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B84/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B84/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B84/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

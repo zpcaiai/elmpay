@@ -1,0 +1,76 @@
+{
+  "batch_id": "B75",
+  "requirements": [
+    {
+      "id": "B75-GOAL",
+      "statement": "展示渠道结算批次和银行到账预期，但不建立自有资金池或代收代付。",
+      "source": ".payment-platform/skill-package/batches/B75.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/ledger-service/src/main/java/com/elmpay/ledger/FeeFxSettlementService.java",
+      "requirements": [
+        "B75-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+      "requirements": [
+        "B75-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+      "requirements": [
+        "B75-GOAL"
+      ]
+    },
+    {
+      "ref": "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql",
+      "requirements": [
+        "B75-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java",
+      "requirements": [
+        "B75-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/ledger-service/src/main/java/com/elmpay/ledger/FeeFxSettlementService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+        "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql"
+      ],
+      "verified_by": [
+        "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B75/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B75/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B75/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B75/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

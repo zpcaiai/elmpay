@@ -1,0 +1,8 @@
+[
+  "services/payment-core/src/main/java/com/elmpay/payment/checkout/CheckoutLocalization.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java",
+  "services/payment-core/src/main/resources/checkout/catalog-v1.properties",
+  "services/payment-core/src/test/java/com/elmpay/payment/checkout/CheckoutLocalizationCatalogTest.java",
+  "apps/checkout-web/test/checkout.test.mjs",
+  "evidence/B63/traceability.json"
+]

@@ -1,0 +1,69 @@
+{
+  "batch_id": "B96",
+  "requirements": [
+    {
+      "id": "B96-GOAL",
+      "statement": "统一 trace、metric、log、baggage、关联 ID 和敏感字段脱敏。",
+      "source": ".payment-platform/skill-package/batches/B96.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/monitoring_runtime.py",
+      "requirements": [
+        "B96-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B96-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/observability/runtime-export.json",
+      "requirements": [
+        "B96-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b96_b99_monitoring_runtime.py",
+      "requirements": [
+        "B96-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/monitoring_runtime.py",
+        "tools/platform_control.py",
+        "platform/observability/runtime-export.json"
+      ],
+      "verified_by": [
+        "testing/test_b96_b99_monitoring_runtime.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B96/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B96/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B96/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B96/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

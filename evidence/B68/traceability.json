@@ -1,0 +1,76 @@
+{
+  "batch_id": "B68",
+  "requirements": [
+    {
+      "id": "B68-GOAL",
+      "statement": "记录用户授权范围、用途、渠道 mandate、撤销和 PSP 令牌，不保存卡号。",
+      "source": ".payment-platform/skill-package/batches/B68.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+      "requirements": [
+        "B68-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java",
+      "requirements": [
+        "B68-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+      "requirements": [
+        "B68-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
+      "requirements": [
+        "B68-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/billing/BillingLifecycleTest.java",
+      "requirements": [
+        "B68-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+        "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql"
+      ],
+      "verified_by": [
+        "services/payment-core/src/test/java/com/elmpay/payment/billing/BillingLifecycleTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B68/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B68/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B68/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B68/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

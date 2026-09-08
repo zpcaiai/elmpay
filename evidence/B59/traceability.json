@@ -1,0 +1,76 @@
+{
+  "batch_id": "B59",
+  "requirements": [
+    {
+      "id": "B59-GOAL",
+      "statement": "实现支付方法选择、状态恢复、异步等待、无障碍、错误解释和无敏感数据日志。",
+      "source": ".payment-platform/skill-package/batches/B59.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "apps/checkout-web/public/checkout.mjs",
+      "requirements": [
+        "B59-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/checkout-web/public/provider-handlers.mjs",
+      "requirements": [
+        "B59-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/checkout-web/security/script-allowlist.json",
+      "requirements": [
+        "B59-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "apps/checkout-web/test/provider-handlers.test.mjs",
+      "requirements": [
+        "B59-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/checkout-web/test/checkout.test.mjs",
+      "requirements": [
+        "B59-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "apps/checkout-web/public/checkout.mjs",
+        "apps/checkout-web/public/provider-handlers.mjs",
+        "apps/checkout-web/security/script-allowlist.json"
+      ],
+      "verified_by": [
+        "apps/checkout-web/test/provider-handlers.test.mjs",
+        "apps/checkout-web/test/checkout.test.mjs"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B59/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B59/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B59/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B59/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "batch_id": "B126",
+  "requirements": [
+    {
+      "id": "B126-GOAL",
+      "statement": "提供内部成本、服务等级、支持分级、审计导出和平台自身计费。",
+      "source": ".payment-platform/skill-package/batches/B126.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/commercial.py",
+      "requirements": [
+        "B126-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/commercial_control.py",
+      "requirements": [
+        "B126-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/rollout/billing-policy.json",
+      "requirements": [
+        "B126-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V120_127__release_control.sql",
+      "requirements": [
+        "B126-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b118_b127_controls.py",
+      "requirements": [
+        "B126-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/commercial.py",
+        "tools/runtime/commercial_control.py",
+        "platform/rollout/billing-policy.json",
+        "tools/runtime/migrations/V120_127__release_control.sql"
+      ],
+      "verified_by": [
+        "testing/test_b118_b127_controls.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B126/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B126/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B126/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B126/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

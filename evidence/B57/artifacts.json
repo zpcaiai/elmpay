@@ -1,0 +1,8 @@
+[
+  "services/payment-core/src/main/java/com/elmpay/payment/checkout/DurablePaymentLinkService.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentLinkHttpHandler.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentLinkRuntimeFactory.java",
+  "apps/edge-gateway/src/main/resources/db/migration/V057__durable_payment_links.sql",
+  "services/payment-core/src/test/java/com/elmpay/payment/checkout/DurablePaymentLinkServiceTest.java",
+  "evidence/B57/traceability.json"
+]

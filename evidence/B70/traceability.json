@@ -1,0 +1,76 @@
+{
+  "batch_id": "B70",
+  "requirements": [
+    {
+      "id": "B70-GOAL",
+      "statement": "实现可解释且可追溯的订阅变更、信用余额和发票调整。",
+      "source": ".payment-platform/skill-package/batches/B70.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+      "requirements": [
+        "B70-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java",
+      "requirements": [
+        "B70-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+      "requirements": [
+        "B70-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
+      "requirements": [
+        "B70-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/billing/BillingLifecycleTest.java",
+      "requirements": [
+        "B70-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+        "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql"
+      ],
+      "verified_by": [
+        "services/payment-core/src/test/java/com/elmpay/payment/billing/BillingLifecycleTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B70/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B70/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B70/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B70/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

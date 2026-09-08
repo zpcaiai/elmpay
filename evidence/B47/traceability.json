@@ -1,0 +1,76 @@
+{
+  "batch_id": "B47",
+  "requirements": [
+    {
+      "id": "B47-GOAL",
+      "statement": "实现通知验签、seller/app/order/amount 多重校验、退款、关闭、账单与差错处理。",
+      "source": ".payment-platform/skill-package/batches/B47.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayAdapter.java",
+      "requirements": [
+        "B47-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java",
+      "requirements": [
+        "B47-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B47-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java",
+      "requirements": [
+        "B47-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test_b40_b55_provider_contract_matrix.py",
+      "requirements": [
+        "B47-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayAdapter.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java",
+        "testing/test_b40_b55_provider_contract_matrix.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B47/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B47/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B47/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B47/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

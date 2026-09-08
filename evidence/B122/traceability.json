@@ -1,0 +1,69 @@
+{
+  "batch_id": "B122",
+  "requirements": [
+    {
+      "id": "B122-GOAL",
+      "statement": "完成正式商户号、域名、证书、Webhook、限额、告警、账单和应急联系人。",
+      "source": ".payment-platform/skill-package/batches/B122.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/onboarding.py",
+      "requirements": [
+        "B122-GOAL"
+      ]
+    },
+    {
+      "ref": "governance/onboarding-workflow.json",
+      "requirements": [
+        "B122-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V120_127__release_control.sql",
+      "requirements": [
+        "B122-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b118_b127_controls.py",
+      "requirements": [
+        "B122-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/onboarding.py",
+        "governance/onboarding-workflow.json",
+        "tools/runtime/migrations/V120_127__release_control.sql"
+      ],
+      "verified_by": [
+        "testing/test_b118_b127_controls.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B122/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B122/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B122/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B122/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

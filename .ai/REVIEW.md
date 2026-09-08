@@ -9,7 +9,7 @@
 1. 让驱动跑到复核边界，它会把该批次的模板连同算好的绑定哈希一起打印出来：
 
    ```bash
-   python3 .ai/rebaseline.py resume --from B00 --to B33 --launch-window-seconds 1
+   python3 .ai/rebaseline.py resume --from B00 --to B127 --launch-window-seconds 1
    ```
 
    输出里的 `expected_review` 就是模板。**不要用旧的副本**：`bindings.git_head` 等字段

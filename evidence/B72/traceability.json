@@ -1,0 +1,97 @@
+{
+  "batch_id": "B72",
+  "requirements": [
+    {
+      "id": "B72-GOAL",
+      "statement": "建立追加式双分录账本、科目、交易、分录、有效时间和不可修改规则。",
+      "source": ".payment-platform/skill-package/batches/B72.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/ledger-service/src/main/java/com/elmpay/ledger/LedgerService.java",
+      "requirements": [
+        "B72-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/JdbcPostingPolicyResolver.java",
+      "requirements": [
+        "B72-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/LedgerPostingConsumer.java",
+      "requirements": [
+        "B72-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/worker-scheduler.env.schema.json",
+      "requirements": [
+        "B72-GOAL"
+      ]
+    },
+    {
+      "ref": "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql",
+      "requirements": [
+        "B72-GOAL"
+      ]
+    },
+    {
+      "ref": "services/ledger-service/src/main/resources/db/migration/V073__event_ledger_posting_policy.sql",
+      "requirements": [
+        "B72-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java",
+      "requirements": [
+        "B72-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/LedgerPostingConsumerTest.java",
+      "requirements": [
+        "B72-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/ledger-service/src/main/java/com/elmpay/ledger/LedgerService.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/JdbcPostingPolicyResolver.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/LedgerPostingConsumer.java",
+        "services/worker-scheduler/worker-scheduler.env.schema.json",
+        "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql",
+        "services/ledger-service/src/main/resources/db/migration/V073__event_ledger_posting_policy.sql"
+      ],
+      "verified_by": [
+        "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java",
+        "services/worker-scheduler/src/test/java/com/elmpay/scheduler/LedgerPostingConsumerTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B72/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B72/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B72/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B72/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+[
+  "services/risk-engine/src/main/java/com/elmpay/risk/runtime/HttpsRiskDependencies.java",
+  "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+  "platform/kubernetes/workload-policy.json",
+  "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql",
+  "services/risk-engine/src/test/java/com/elmpay/risk/RiskEngineTest.java",
+  "evidence/B83/traceability.json"
+]

@@ -1,0 +1,76 @@
+{
+  "batch_id": "B51",
+  "requirements": [
+    {
+      "id": "B51-GOAL",
+      "statement": "实现 create/approve/authorize/capture、PayPal-Request-Id、货币与金额校验及不确定结果查询。",
+      "source": ".payment-platform/skill-package/batches/B51.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/paypal/src/main/java/com/elmpay/connectors/paypal/PayPalAdapter.java",
+      "requirements": [
+        "B51-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/PayPalAccountAdapterFactory.java",
+      "requirements": [
+        "B51-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+      "requirements": [
+        "B51-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B51-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "connectors/paypal/src/test/java/com/elmpay/connectors/paypal/PayPalAdapterTest.java",
+      "requirements": [
+        "B51-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/paypal/src/main/java/com/elmpay/connectors/paypal/PayPalAdapter.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/PayPalAccountAdapterFactory.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "connectors/paypal/src/test/java/com/elmpay/connectors/paypal/PayPalAdapterTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B51/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B51/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B51/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B51/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

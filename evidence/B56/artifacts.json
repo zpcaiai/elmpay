@@ -1,0 +1,14 @@
+[
+  "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/JdbcCheckoutProviderSdkSource.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/CheckoutProviderSdkRuntime.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentHttpHandler.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/CheckoutRuntimeFactory.java",
+  "apps/edge-gateway/src/main/resources/provider-sdk-runtime.json",
+  "apps/edge-gateway/src/main/resources/db/migration/V056__checkout_sessions.sql",
+  "apps/edge-gateway/src/main/resources/db/migration/V056_1__checkout_provider_sdk_audit.sql",
+  "apps/edge-gateway/src/test/java/com/elmpay/gateway/HostedCheckoutProductionE2eTest.java",
+  "apps/edge-gateway/src/test/java/com/elmpay/gateway/CheckoutProviderSdkRuntimeTest.java",
+  "apps/checkout-web/test/provider-sdk-server.test.mjs",
+  "evidence/B56/traceability.json"
+]

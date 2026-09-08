@@ -1,0 +1,8 @@
+[
+  "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayAdapter.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java",
+  "contracts/provider/local-simulator-matrix.json",
+  "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java",
+  "testing/test_b40_b55_provider_contract_matrix.py",
+  "evidence/B47/traceability.json"
+]

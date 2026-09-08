@@ -1,0 +1,69 @@
+{
+  "batch_id": "B121",
+  "requirements": [
+    {
+      "id": "B121-GOAL",
+      "statement": "不扣款地对比路由与请求，随后小流量双轨验证状态和对账一致性。",
+      "source": ".payment-platform/skill-package/batches/B121.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/migration_pipeline.py",
+      "requirements": [
+        "B121-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/rollout/policy.json",
+      "requirements": [
+        "B121-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V120_127__release_control.sql",
+      "requirements": [
+        "B121-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b118_b127_controls.py",
+      "requirements": [
+        "B121-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/migration_pipeline.py",
+        "platform/rollout/policy.json",
+        "tools/runtime/migrations/V120_127__release_control.sql"
+      ],
+      "verified_by": [
+        "testing/test_b118_b127_controls.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B121/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B121/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B121/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B121/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

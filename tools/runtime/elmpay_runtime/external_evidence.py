@@ -358,9 +358,10 @@ def validate_external_evidence(
     for category in sorted(set(required) - verified):
         reasons.append(f"missing_external_evidence:{category}")
     required_matrix = policy.get("requiredProviderCapabilities")
-    if not isinstance(required_matrix, dict) or not required_matrix:
-        reasons.append("provider_certification_matrix_missing")
-    else:
+    if "provider_certification" in required:
+        if not isinstance(required_matrix, dict) or not required_matrix:
+            reasons.append("provider_certification_matrix_missing")
+            required_matrix = {}
         for provider, raw_capabilities in sorted(required_matrix.items()):
             try:
                 required_capabilities = {
@@ -485,7 +486,8 @@ def _validate_record(
             expected_target_digest is not None
             and category in {
                 "uat_acceptance", "shadow_rollout", "canary_rollout",
-                "merchant_acceptance",
+                "merchant_acceptance", "post_launch_reconciliation",
+                "go_no_go", "final_release_signoff",
             }
             and attestation.get("targetDigest") != expected_target_digest
         ):
@@ -733,4 +735,50 @@ def _semantic_reasons(
     elif category in {"legal_compliance", "regional_market_approval"}:
         if attestation.get("decision") != "APPROVE" or attestation.get("externalAuthority") is not True:
             reasons.append("external_legal_approval_missing")
+    elif category == "post_launch_reconciliation":
+        if attestation.get("environment") != "PRODUCTION":
+            reasons.append("post_launch_environment_invalid")
+        for field in ("daysObserved", "transactionsReconciled"):
+            value = attestation.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+                reasons.append(f"post_launch_{field}_invalid")
+        for field in ("unexplainedDifferenceMinor", "openCriticalIncidents"):
+            value = attestation.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value != 0:
+                reasons.append(f"post_launch_{field}_nonzero")
+        if attestation.get("financeSignoff") is not True:
+            reasons.append("post_launch_finance_signoff_missing")
+        target = attestation.get("targetDigest")
+        if not isinstance(target, str) or not DIGEST_PATTERN.fullmatch(target):
+            reasons.append("post_launch_target_digest_invalid")
+    elif category == "commercial_sla":
+        if attestation.get("decision") != "APPROVE":
+            reasons.append("commercial_sla_not_approved")
+        if attestation.get("usageBillingReconciled") is not True:
+            reasons.append("commercial_usage_billing_not_reconciled")
+        for field in ("pricingVersion", "slaVersion", "supportOwner", "approverId"):
+            value = attestation.get(field)
+            if not isinstance(value, str) or not value.strip():
+                reasons.append(f"commercial_{field}_invalid")
+    elif category == "go_no_go":
+        if attestation.get("decision") != "APPROVE":
+            reasons.append("go_no_go_not_approved")
+        if attestation.get("releaseManagerId") == attestation.get("securityApproverId"):
+            reasons.append("go_no_go_approvers_not_independent")
+        findings = attestation.get("openCriticalFindings")
+        if isinstance(findings, bool) or not isinstance(findings, int) or findings != 0:
+            reasons.append("go_no_go_open_critical_findings")
+        if attestation.get("rollbackReady") is not True:
+            reasons.append("go_no_go_rollback_not_ready")
+        target = attestation.get("targetDigest")
+        if not isinstance(target, str) or not DIGEST_PATTERN.fullmatch(target):
+            reasons.append("go_no_go_target_digest_invalid")
+    elif category == "final_release_signoff":
+        if attestation.get("decision") != "APPROVE":
+            reasons.append("final_release_not_approved")
+        if attestation.get("releaseManagerId") == attestation.get("securityApproverId"):
+            reasons.append("final_release_approvers_not_independent")
+        target = attestation.get("targetDigest")
+        if not isinstance(target, str) or not DIGEST_PATTERN.fullmatch(target):
+            reasons.append("final_release_target_digest_invalid")
     return reasons

@@ -1,0 +1,8 @@
+[
+  "services/payment-core/src/main/java/com/elmpay/payment/checkout/CheckoutTokenSigner.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/CheckoutRuntimeFactory.java",
+  "apps/edge-gateway/src/main/resources/db/migration/V056__checkout_sessions.sql",
+  "services/payment-core/src/test/java/com/elmpay/payment/checkout/CheckoutPersistenceTest.java",
+  "evidence/B58/traceability.json"
+]

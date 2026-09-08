@@ -1,0 +1,9 @@
+[
+  "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatProviderBridge.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+  "contracts/provider/local-simulator-matrix.json",
+  "testing/test_b40_b55_provider_contract_matrix.py",
+  "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java",
+  "evidence/B42/traceability.json"
+]

@@ -1,0 +1,7 @@
+[
+  "tools/runtime/elmpay_runtime/operations.py",
+  "tools/platform_control.py",
+  "platform/observability/funnel-policy.json",
+  "testing/test_b98_b117_runtime_entrypoints.py",
+  "evidence/B98/traceability.json"
+]

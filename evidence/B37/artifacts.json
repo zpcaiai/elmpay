@@ -1,0 +1,18 @@
+[
+  "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/DataSourceWebhookInbox.java",
+  "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookInboxProcessor.java",
+  "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/PaymentCoreWebhookEffectAdapter.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/ProviderWebhookEffectService.java",
+  "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookIngressHttpHandler.java",
+  "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookIngressRuntime.java",
+  "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookProcessorApplication.java",
+  "platform/security/provider-webhook-ingress-policy.json",
+  "services/webhook-ingress/src/main/resources/db/migration/V037__provider_webhook_inbox.sql",
+  "services/webhook-ingress/src/main/resources/db/migration/V037_1__provider_webhook_processing.sql",
+  "services/webhook-ingress/src/main/resources/db/migration/V037_2__provider_webhook_processor_runtime.sql",
+  "services/webhook-ingress/src/test/java/com/elmpay/webhook/ingress/WebhookIngressServiceTest.java",
+  "services/webhook-ingress/src/test/java/com/elmpay/webhook/ingress/WebhookInboxProcessorTest.java",
+  "services/payment-core/src/test/java/com/elmpay/payment/ProviderWebhookEffectServiceTest.java",
+  "services/webhook-ingress/src/test/java/com/elmpay/webhook/ingress/WebhookProcessorRuntimeTest.java",
+  "evidence/B37/traceability.json"
+]

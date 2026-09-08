@@ -1,0 +1,12 @@
+[
+  "services/payment-core/src/main/java/com/elmpay/payment/provider/ProviderCallCircuitBreaker.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/provider/JdbcProviderCallCircuitBreaker.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/provider/AccountAwareProviderAdapterFactory.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+  "platform/policies/provider-resilience.json",
+  "services/payment-core/src/main/resources/db/migration/V100__provider_call_circuit.sql",
+  "services/payment-core/src/test/java/com/elmpay/payment/provider/AccountAwareProviderAdapterFactoryTest.java",
+  "services/payment-core/src/test/java/com/elmpay/payment/provider/JdbcProviderCallCircuitBreakerTest.java",
+  "apps/edge-gateway/src/test/java/com/elmpay/gateway/DatabaseMigratorTest.java",
+  "evidence/B100/traceability.json"
+]

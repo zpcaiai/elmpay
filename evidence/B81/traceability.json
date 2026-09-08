@@ -1,0 +1,76 @@
+{
+  "batch_id": "B81",
+  "requirements": [
+    {
+      "id": "B81-GOAL",
+      "statement": "构建时间窗计数、设备信誉、IP/ASN、地理异常、账户年龄和行为序列。",
+      "source": ".payment-platform/skill-package/batches/B81.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/HttpsRiskDependencies.java",
+      "requirements": [
+        "B81-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+      "requirements": [
+        "B81-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/workload-policy.json",
+      "requirements": [
+        "B81-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql",
+      "requirements": [
+        "B81-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/risk-engine/src/test/java/com/elmpay/risk/RiskEngineTest.java",
+      "requirements": [
+        "B81-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/HttpsRiskDependencies.java",
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+        "platform/kubernetes/workload-policy.json",
+        "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql"
+      ],
+      "verified_by": [
+        "services/risk-engine/src/test/java/com/elmpay/risk/RiskEngineTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B81/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B81/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B81/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B81/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

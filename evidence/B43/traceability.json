@@ -1,0 +1,76 @@
+{
+  "batch_id": "B43",
+  "requirements": [
+    {
+      "id": "B43-GOAL",
+      "statement": "实现全额/部分退款、退款查询、关单、交易/资金账单下载、哈希校验和对账输入。",
+      "source": ".payment-platform/skill-package/batches/B43.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatPayAdapter.java",
+      "requirements": [
+        "B43-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java",
+      "requirements": [
+        "B43-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B43-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b40_b55_provider_contract_matrix.py",
+      "requirements": [
+        "B43-GOAL"
+      ]
+    },
+    {
+      "ref": "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java",
+      "requirements": [
+        "B43-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatPayAdapter.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "testing/test_b40_b55_provider_contract_matrix.py",
+        "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B43/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B43/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B43/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B43/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

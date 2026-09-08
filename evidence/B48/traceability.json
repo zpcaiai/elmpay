@@ -1,0 +1,76 @@
+{
+  "batch_id": "B48",
+  "requirements": [
+    {
+      "id": "B48-GOAL",
+      "statement": "使用 PaymentIntents、Elements/Payment Element、SetupIntents、3DS/SCA 和服务器端幂等。",
+      "source": ".payment-platform/skill-package/batches/B48.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/stripe/src/main/java/com/elmpay/connectors/stripe/StripeAdapter.java",
+      "requirements": [
+        "B48-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/StripeAccountAdapterFactory.java",
+      "requirements": [
+        "B48-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+      "requirements": [
+        "B48-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B48-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "connectors/stripe/src/test/java/com/elmpay/connectors/stripe/StripeAdapterTest.java",
+      "requirements": [
+        "B48-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/stripe/src/main/java/com/elmpay/connectors/stripe/StripeAdapter.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/StripeAccountAdapterFactory.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "connectors/stripe/src/test/java/com/elmpay/connectors/stripe/StripeAdapterTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B48/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B48/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B48/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B48/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

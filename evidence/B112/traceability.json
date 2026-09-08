@@ -1,0 +1,69 @@
+{
+  "batch_id": "B112",
+  "requirements": [
+    {
+      "id": "B112-GOAL",
+      "statement": "对金额、状态机、账本、路由、授权和日期边界实施属性与状态模型测试。",
+      "source": ".payment-platform/skill-package/batches/B112.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/quality.py",
+      "requirements": [
+        "B112-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/quality_gate.py",
+      "requirements": [
+        "B112-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test-matrix.json",
+      "requirements": [
+        "B112-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b112_b117_quality.py",
+      "requirements": [
+        "B112-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/quality.py",
+        "tools/quality_gate.py",
+        "testing/test-matrix.json"
+      ],
+      "verified_by": [
+        "testing/test_b112_b117_quality.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B112/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B112/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B112/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B112/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

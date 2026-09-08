@@ -1,0 +1,9 @@
+[
+  "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/DataSourceWebhookOutbox.java",
+  "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/WebhookDeliveryRuntime.java",
+  "services/webhook-delivery/src/main/java/com/elmpay/webhook/delivery/HttpsWebhookSigningSecretResolver.java",
+  "platform/security/business-webhook-delivery-policy.json",
+  "services/webhook-delivery/src/main/resources/db/migration/V038__business_webhook_delivery.sql",
+  "services/webhook-delivery/src/test/java/com/elmpay/webhook/delivery/WebhookDeliveryServiceTest.java",
+  "evidence/B38/traceability.json"
+]

@@ -1,0 +1,11 @@
+[
+  "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+  "libs/domain-events/src/main/java/com/elmpay/provider/ProviderEvidenceVerifier.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/ProviderEvidenceRuntimeFactory.java",
+  "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
+  "services/payment-core/src/main/resources/db/migration/V066_1__provider_evidence_receipts.sql",
+  "services/payment-core/src/test/java/com/elmpay/payment/commerce/JdbcCommerceServiceTest.java",
+  "libs/domain-events/src/test/java/com/elmpay/provider/ProviderEvidenceVerifierTest.java",
+  "evidence/B66/traceability.json"
+]

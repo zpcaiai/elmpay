@@ -1,0 +1,8 @@
+[
+  "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+  "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
+  "services/payment-core/src/test/java/com/elmpay/payment/billing/BillingLifecycleTest.java",
+  "evidence/B68/traceability.json"
+]

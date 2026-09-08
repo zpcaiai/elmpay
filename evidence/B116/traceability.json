@@ -1,0 +1,90 @@
+{
+  "batch_id": "B116",
+  "requirements": [
+    {
+      "id": "B116-GOAL",
+      "statement": "构建 fail-closed 安全流水线并对支付入口、后台和 SDK 做专项测试。",
+      "source": ".payment-platform/skill-package/batches/B116.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/security_testing.py",
+      "requirements": [
+        "B116-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/dynamic_security_scanner.py",
+      "requirements": [
+        "B116-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/elmpay_runtime/quality.py",
+      "requirements": [
+        "B116-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/quality_gate.py",
+      "requirements": [
+        "B116-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test-matrix.json",
+      "requirements": [
+        "B116-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b116_security_orchestration.py",
+      "requirements": [
+        "B116-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test_b112_b117_quality.py",
+      "requirements": [
+        "B116-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/security_testing.py",
+        "tools/dynamic_security_scanner.py",
+        "tools/runtime/elmpay_runtime/quality.py",
+        "tools/quality_gate.py",
+        "testing/test-matrix.json"
+      ],
+      "verified_by": [
+        "testing/test_b116_security_orchestration.py",
+        "testing/test_b112_b117_quality.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B116/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B116/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B116/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B116/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "batch_id": "B42",
+  "requirements": [
+    {
+      "id": "B42-GOAL",
+      "statement": "覆盖二维码、H5 域名、App 签名包、过期、重复扫码、回跳和端能力判断。",
+      "source": ".payment-platform/skill-package/batches/B42.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatProviderBridge.java",
+      "requirements": [
+        "B42-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java",
+      "requirements": [
+        "B42-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+      "requirements": [
+        "B42-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B42-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b40_b55_provider_contract_matrix.py",
+      "requirements": [
+        "B42-GOAL"
+      ]
+    },
+    {
+      "ref": "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java",
+      "requirements": [
+        "B42-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatProviderBridge.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "testing/test_b40_b55_provider_contract_matrix.py",
+        "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B42/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B42/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B42/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B42/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

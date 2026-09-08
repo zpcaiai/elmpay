@@ -1,0 +1,76 @@
+{
+  "batch_id": "B41",
+  "requirements": [
+    {
+      "id": "B41-GOAL",
+      "statement": "实现 openid 绑定、预支付、前端调起、回调确认、订单查询和用户取消语义。",
+      "source": ".payment-platform/skill-package/batches/B41.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatProviderBridge.java",
+      "requirements": [
+        "B41-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java",
+      "requirements": [
+        "B41-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+      "requirements": [
+        "B41-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B41-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java",
+      "requirements": [
+        "B41-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/wechat-pay/src/main/java/com/elmpay/connectors/wechatpay/WechatProviderBridge.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/WechatAccountAdapterFactory.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "connectors/wechat-pay/src/test/java/com/elmpay/connectors/wechatpay/WechatPayAdapterTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B41/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B41/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B41/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B41/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

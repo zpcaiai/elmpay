@@ -1,0 +1,153 @@
+{
+  "batch_id": "B77",
+  "requirements": [
+    {
+      "id": "B77-GOAL",
+      "statement": "对业务订单、支付平台、渠道账单和银行到账进行逐笔与汇总核对。",
+      "source": ".payment-platform/skill-package/batches/B77.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/JdbcReconciliationFactSnapshotSource.java",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/JdbcReconciliationScheduleStore.java",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/ReconciliationEngine.java",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/JdbcFinancialOperationsService.java",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/WorkerSchedulerRuntime.java",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/ReconciliationSchedulerJob.java",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/worker-scheduler.env.schema.json",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/workload-policy.json",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/reconciliation-service/src/main/resources/db/migration/V076__reconciliation.sql",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/reconciliation-service/src/main/resources/db/migration/V079_1__reconciliation_snapshot_scheduler.sql",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/reconciliation-service/src/main/resources/db/migration/V104__reconciliation_scheduler_hardening.sql",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/JdbcReconciliationFactSnapshotSourceTest.java",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/JdbcReconciliationScheduleStoreTest.java",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/ReconciliationSchedulerJobTest.java",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    },
+    {
+      "ref": "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/JdbcFinancialOperationsServiceTest.java",
+      "requirements": [
+        "B77-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/JdbcReconciliationFactSnapshotSource.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/JdbcReconciliationScheduleStore.java",
+        "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/ReconciliationEngine.java",
+        "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/JdbcFinancialOperationsService.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/WorkerSchedulerRuntime.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/ReconciliationSchedulerJob.java",
+        "services/worker-scheduler/worker-scheduler.env.schema.json",
+        "platform/kubernetes/workload-policy.json",
+        "services/reconciliation-service/src/main/resources/db/migration/V076__reconciliation.sql",
+        "services/reconciliation-service/src/main/resources/db/migration/V079_1__reconciliation_snapshot_scheduler.sql",
+        "services/reconciliation-service/src/main/resources/db/migration/V104__reconciliation_scheduler_hardening.sql"
+      ],
+      "verified_by": [
+        "services/worker-scheduler/src/test/java/com/elmpay/scheduler/JdbcReconciliationFactSnapshotSourceTest.java",
+        "services/worker-scheduler/src/test/java/com/elmpay/scheduler/JdbcReconciliationScheduleStoreTest.java",
+        "services/worker-scheduler/src/test/java/com/elmpay/scheduler/ReconciliationSchedulerJobTest.java",
+        "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java",
+        "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/JdbcFinancialOperationsServiceTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B77/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B77/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B77/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B77/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

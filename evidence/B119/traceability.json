@@ -1,0 +1,69 @@
+{
+  "batch_id": "B119",
+  "requirements": [
+    {
+      "id": "B119-GOAL",
+      "statement": "由非实现者复核威胁模型、控制、渗透、恢复、账本和合规证据。",
+      "source": ".payment-platform/skill-package/batches/B119.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/attestation.py",
+      "requirements": [
+        "B119-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/external-evidence-policy.json",
+      "requirements": [
+        "B119-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V120_127__release_control.sql",
+      "requirements": [
+        "B119-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b118_b127_controls.py",
+      "requirements": [
+        "B119-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/attestation.py",
+        "platform/compliance/external-evidence-policy.json",
+        "tools/runtime/migrations/V120_127__release_control.sql"
+      ],
+      "verified_by": [
+        "testing/test_b118_b127_controls.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B119/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B119/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B119/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B119/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

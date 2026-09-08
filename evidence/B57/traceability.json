@@ -1,0 +1,76 @@
+{
+  "batch_id": "B57",
+  "requirements": [
+    {
+      "id": "B57-GOAL",
+      "statement": "生成短期、一次性、签名绑定金额/商户/订单的链接和二维码，拒绝任意跳转。",
+      "source": ".payment-platform/skill-package/batches/B57.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/checkout/DurablePaymentLinkService.java",
+      "requirements": [
+        "B57-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentLinkHttpHandler.java",
+      "requirements": [
+        "B57-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentLinkRuntimeFactory.java",
+      "requirements": [
+        "B57-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/resources/db/migration/V057__durable_payment_links.sql",
+      "requirements": [
+        "B57-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/checkout/DurablePaymentLinkServiceTest.java",
+      "requirements": [
+        "B57-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/checkout/DurablePaymentLinkService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentLinkHttpHandler.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/PaymentLinkRuntimeFactory.java",
+        "apps/edge-gateway/src/main/resources/db/migration/V057__durable_payment_links.sql"
+      ],
+      "verified_by": [
+        "services/payment-core/src/test/java/com/elmpay/payment/checkout/DurablePaymentLinkServiceTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B57/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B57/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B57/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B57/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

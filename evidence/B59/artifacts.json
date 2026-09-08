@@ -1,0 +1,8 @@
+[
+  "apps/checkout-web/public/checkout.mjs",
+  "apps/checkout-web/public/provider-handlers.mjs",
+  "apps/checkout-web/security/script-allowlist.json",
+  "apps/checkout-web/test/provider-handlers.test.mjs",
+  "apps/checkout-web/test/checkout.test.mjs",
+  "evidence/B59/traceability.json"
+]

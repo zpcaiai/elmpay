@@ -1,0 +1,132 @@
+{
+  "batch_id": "B91",
+  "requirements": [
+    {
+      "id": "B91-GOAL",
+      "statement": "明确至少一次传递，使用 Outbox/Inbox 保证业务效果，处理乱序、重平衡和毒消息。",
+      "source": ".payment-platform/skill-package/batches/B91.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/infrastructure.py",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/KafkaOutboxPublisher.java",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/KafkaLedgerConsumer.java",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/JdbcEventDeliveryStore.java",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/WorkerSchedulerApplication.java",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/data-plane-policy.json",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/worker-scheduler.env.schema.json",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/resources/db/migration/V012__event_delivery_runtime.sql",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b89_b95_infrastructure.py",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/events/KafkaOutboxPublisherTest.java",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/events/KafkaLedgerConsumerTest.java",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/WorkerSchedulerRuntimeTest.java",
+      "requirements": [
+        "B91-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/infrastructure.py",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/KafkaOutboxPublisher.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/KafkaLedgerConsumer.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/JdbcEventDeliveryStore.java",
+        "tools/platform_control.py",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/WorkerSchedulerApplication.java",
+        "platform/kubernetes/data-plane-policy.json",
+        "services/worker-scheduler/worker-scheduler.env.schema.json",
+        "services/worker-scheduler/src/main/resources/db/migration/V012__event_delivery_runtime.sql"
+      ],
+      "verified_by": [
+        "testing/test_b89_b95_infrastructure.py",
+        "services/worker-scheduler/src/test/java/com/elmpay/scheduler/events/KafkaOutboxPublisherTest.java",
+        "services/worker-scheduler/src/test/java/com/elmpay/scheduler/events/KafkaLedgerConsumerTest.java",
+        "services/worker-scheduler/src/test/java/com/elmpay/scheduler/WorkerSchedulerRuntimeTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B91/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B91/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B91/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B91/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

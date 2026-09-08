@@ -1,0 +1,76 @@
+{
+  "batch_id": "B79",
+  "requirements": [
+    {
+      "id": "B79-GOAL",
+      "statement": "提供 GMV、净收入、费用、退款、拒付、结算、差错和不可篡改导出。",
+      "source": ".payment-platform/skill-package/batches/B79.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/FinancialReportService.java",
+      "requirements": [
+        "B79-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+      "requirements": [
+        "B79-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+      "requirements": [
+        "B79-GOAL"
+      ]
+    },
+    {
+      "ref": "services/reconciliation-service/src/main/resources/db/migration/V079__financial_runtime.sql",
+      "requirements": [
+        "B79-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java",
+      "requirements": [
+        "B79-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/FinancialReportService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+        "services/reconciliation-service/src/main/resources/db/migration/V079__financial_runtime.sql"
+      ],
+      "verified_by": [
+        "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B79/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B79/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B79/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B79/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

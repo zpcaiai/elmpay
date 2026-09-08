@@ -1,0 +1,76 @@
+{
+  "batch_id": "B74",
+  "requirements": [
+    {
+      "id": "B74-GOAL",
+      "statement": "记录原币、结算币、汇率来源、费用组成、舍入差额和估算/最终值。",
+      "source": ".payment-platform/skill-package/batches/B74.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/ledger-service/src/main/java/com/elmpay/ledger/FeeFxSettlementService.java",
+      "requirements": [
+        "B74-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+      "requirements": [
+        "B74-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+      "requirements": [
+        "B74-GOAL"
+      ]
+    },
+    {
+      "ref": "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql",
+      "requirements": [
+        "B74-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java",
+      "requirements": [
+        "B74-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/ledger-service/src/main/java/com/elmpay/ledger/FeeFxSettlementService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+        "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql"
+      ],
+      "verified_by": [
+        "services/ledger-service/src/test/java/com/elmpay/ledger/LedgerRulesTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B74/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B74/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B74/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B74/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

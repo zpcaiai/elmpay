@@ -1,0 +1,16 @@
+[
+  "tools/runtime/elmpay_runtime/infrastructure.py",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/KafkaOutboxPublisher.java",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/KafkaLedgerConsumer.java",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/events/JdbcEventDeliveryStore.java",
+  "tools/platform_control.py",
+  "services/worker-scheduler/src/main/java/com/elmpay/scheduler/WorkerSchedulerApplication.java",
+  "platform/kubernetes/data-plane-policy.json",
+  "services/worker-scheduler/worker-scheduler.env.schema.json",
+  "services/worker-scheduler/src/main/resources/db/migration/V012__event_delivery_runtime.sql",
+  "testing/test_b89_b95_infrastructure.py",
+  "services/worker-scheduler/src/test/java/com/elmpay/scheduler/events/KafkaOutboxPublisherTest.java",
+  "services/worker-scheduler/src/test/java/com/elmpay/scheduler/events/KafkaLedgerConsumerTest.java",
+  "services/worker-scheduler/src/test/java/com/elmpay/scheduler/WorkerSchedulerRuntimeTest.java",
+  "evidence/B91/traceability.json"
+]

@@ -1,0 +1,7 @@
+[
+  "tools/runtime/elmpay_runtime/assurance.py",
+  "tools/platform_control.py",
+  "platform/compliance/regional-boundaries.json",
+  "testing/test_b104_b111_assurance.py",
+  "evidence/B105/traceability.json"
+]

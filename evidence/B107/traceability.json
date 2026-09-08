@@ -1,0 +1,69 @@
+{
+  "batch_id": "B107",
+  "requirements": [
+    {
+      "id": "B107-GOAL",
+      "statement": "把身份核验和制裁能力作为持牌 PSP/专业服务集成，禁止无牌资金中介功能。",
+      "source": ".payment-platform/skill-package/batches/B107.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/assurance.py",
+      "requirements": [
+        "B107-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B107-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/aml-boundary.json",
+      "requirements": [
+        "B107-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b104_b111_assurance.py",
+      "requirements": [
+        "B107-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/assurance.py",
+        "tools/platform_control.py",
+        "platform/compliance/aml-boundary.json"
+      ],
+      "verified_by": [
+        "testing/test_b104_b111_assurance.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B107/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B107/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B107/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B107/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

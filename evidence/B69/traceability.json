@@ -1,0 +1,76 @@
+{
+  "batch_id": "B69",
+  "requirements": [
+    {
+      "id": "B69-GOAL",
+      "statement": "实现风险感知重试、通知节奏、宽限期、暂停和 PSP 更新能力。",
+      "source": ".payment-platform/skill-package/batches/B69.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+      "requirements": [
+        "B69-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/BillingLifecycleJob.java",
+      "requirements": [
+        "B69-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+      "requirements": [
+        "B69-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
+      "requirements": [
+        "B69-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/BillingLifecycleJobTest.java",
+      "requirements": [
+        "B69-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/BillingLifecycleJob.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+        "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql"
+      ],
+      "verified_by": [
+        "services/worker-scheduler/src/test/java/com/elmpay/scheduler/BillingLifecycleJobTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B69/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B69/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B69/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B69/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

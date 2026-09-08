@@ -1,0 +1,8 @@
+[
+  "services/risk-engine/src/main/java/com/elmpay/risk/runtime/JdbcRiskControlPlane.java",
+  "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskHttpApi.java",
+  "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskRuntimeConfig.java",
+  "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql",
+  "services/risk-engine/src/test/java/com/elmpay/risk/runtime/RiskRuntimeContractTest.java",
+  "evidence/B82/traceability.json"
+]

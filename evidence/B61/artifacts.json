@@ -1,0 +1,15 @@
+[
+  "sdks/server/node/elmpay-client.mjs",
+  "sdks/server/python/elmpay_client.py",
+  "sdks/server/go/client.go",
+  "sdks/server/java/src/main/java/com/elmpay/sdk/ElmpayClient.java",
+  "sdks/server/dotnet/ElmPayClient.cs",
+  "scripts/sdk-contract-smoke.py",
+  "sdks/server/dotnet/ElmPay.csproj",
+  "sdks/server/node/elmpay-client.test.mjs",
+  "sdks/server/python/test_elmpay_client.py",
+  "sdks/server/go/client_test.go",
+  "sdks/server/java/src/test/java/com/elmpay/sdk/ElmpayClientTest.java",
+  "sdks/server/dotnet/tests/Program.cs",
+  "evidence/B61/traceability.json"
+]

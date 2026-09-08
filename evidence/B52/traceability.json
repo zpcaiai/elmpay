@@ -1,0 +1,69 @@
+{
+  "batch_id": "B52",
+  "requirements": [
+    {
+      "id": "B52-GOAL",
+      "statement": "实现 webhook 验证、退款、争议、订阅生命周期和重复事件幂等处理。",
+      "source": ".payment-platform/skill-package/batches/B52.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/paypal/src/main/java/com/elmpay/connectors/paypal/PayPalAdapter.java",
+      "requirements": [
+        "B52-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/PayPalAccountAdapterFactory.java",
+      "requirements": [
+        "B52-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B52-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "connectors/paypal/src/test/java/com/elmpay/connectors/paypal/PayPalAdapterTest.java",
+      "requirements": [
+        "B52-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/paypal/src/main/java/com/elmpay/connectors/paypal/PayPalAdapter.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/PayPalAccountAdapterFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "connectors/paypal/src/test/java/com/elmpay/connectors/paypal/PayPalAdapterTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B52/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B52/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B52/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B52/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

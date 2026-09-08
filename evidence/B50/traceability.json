@@ -1,0 +1,76 @@
+{
+  "batch_id": "B50",
+  "requirements": [
+    {
+      "id": "B50-GOAL",
+      "statement": "实现计划、价格、试用、按量计费、发票、税务接口边界、客户门户和 webhook 驱动状态。",
+      "source": ".payment-platform/skill-package/batches/B50.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/stripe/src/main/java/com/elmpay/connectors/stripe/StripeAdapter.java",
+      "requirements": [
+        "B50-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/StripeAccountAdapterFactory.java",
+      "requirements": [
+        "B50-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B50-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b40_b55_provider_contract_matrix.py",
+      "requirements": [
+        "B50-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/provider/ProductionProviderAccountFactoriesTest.java",
+      "requirements": [
+        "B50-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/stripe/src/main/java/com/elmpay/connectors/stripe/StripeAdapter.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/StripeAccountAdapterFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "testing/test_b40_b55_provider_contract_matrix.py",
+        "services/payment-core/src/test/java/com/elmpay/payment/provider/ProductionProviderAccountFactoriesTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B50/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B50/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B50/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B50/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

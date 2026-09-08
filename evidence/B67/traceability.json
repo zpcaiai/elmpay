@@ -1,0 +1,76 @@
+{
+  "batch_id": "B67",
+  "requirements": [
+    {
+      "id": "B67-GOAL",
+      "statement": "实现计划、价格、试用、周期、用量、续费、升级降级和支付方法授权。",
+      "source": ".payment-platform/skill-package/batches/B67.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+      "requirements": [
+        "B67-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java",
+      "requirements": [
+        "B67-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+      "requirements": [
+        "B67-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
+      "requirements": [
+        "B67-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/billing/BillingLifecycleTest.java",
+      "requirements": [
+        "B67-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceHttpHandler.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+        "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql"
+      ],
+      "verified_by": [
+        "services/payment-core/src/test/java/com/elmpay/payment/billing/BillingLifecycleTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B67/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B67/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B67/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B67/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

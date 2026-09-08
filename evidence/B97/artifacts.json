@@ -1,0 +1,7 @@
+[
+  "tools/runtime/elmpay_runtime/operations.py",
+  "tools/platform_control.py",
+  "platform/observability/slos.json",
+  "testing/test_b96_b103_operations.py",
+  "evidence/B97/traceability.json"
+]

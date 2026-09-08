@@ -1,0 +1,11 @@
+[
+  "tools/runtime/elmpay_runtime/browser_integrity.py",
+  "tools/b85_browser_integrity.py",
+  "tools/b85_browser_report.py",
+  "apps/checkout-web/src/server.mjs",
+  "apps/checkout-web/security/script-allowlist.json",
+  "tools/runtime/migrations/V084_086__security_controls.sql",
+  "apps/checkout-web/test/browser-security.test.mjs",
+  "testing/test_b84_b86_security.py",
+  "evidence/B85/traceability.json"
+]

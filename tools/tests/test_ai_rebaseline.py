@@ -264,6 +264,13 @@ class RangeAndParserTests(RebaselineFixture):
         self.assertEqual(parsed.launch_window_seconds, 12.5)
         self.assertTrue(parsed.dry_run)
 
+        scaffold = parser.parse_args(
+            ["scaffold", "--from", "B36", "--to", "B127", "--dry-run"]
+        )
+        self.assertEqual(scaffold.batch_from, "B36")
+        self.assertEqual(scaffold.batch_to, "B127")
+        self.assertTrue(scaffold.dry_run)
+
     def test_status_and_reset_dry_run_do_not_destroy_state(self):
         state = rebaseline.new_state(self.binding())
         rebaseline.save_state(self.root, state)
@@ -435,6 +442,45 @@ class MigrationTests(RebaselineFixture):
         self.assertEqual(result["phase"], "ready-to-finalize-new-batch")
 
 
+class RepositoryScaffoldTests(unittest.TestCase):
+    def test_b36_through_b127_are_deterministically_scaffoldable_without_claims(self):
+        result = rebaseline.scaffold_rebaseline_inputs(
+            REAL_ROOT,
+            ["B36", "B118", "B127"],
+            dry_run=True,
+            atomic_write=lambda *_: self.fail("dry-run attempted a write"),
+        )
+        self.assertEqual(result["batch_count"], 3)
+        self.assertEqual(
+            12,
+            sum(len(batch["files"]) for batch in result["results"]),
+        )
+        self.assertLessEqual(result["created_file_count"], 12)
+        self.assertFalse(result["forbidden_outputs_created"])
+        paths = {
+            item["path"]
+            for batch in result["results"]
+            for item in batch["files"]
+        }
+        self.assertFalse(any(path.endswith("review.json") for path in paths))
+        self.assertFalse(any("completion/" in path for path in paths))
+        self.assertFalse(any(path.endswith("commands.ndjson") for path in paths))
+
+        load_sources = rebaseline.scaffold_rebaseline_inputs.__globals__["load_sources"]
+        render_batch = rebaseline.scaffold_rebaseline_inputs.__globals__["render_batch"]
+        sources = load_sources(REAL_ROOT)
+        b36 = render_batch(REAL_ROOT, sources["B36"])
+        b118 = render_batch(REAL_ROOT, sources["B118"])
+        self.assertNotIn(
+            b"external_batch_gate.py",
+            b36["evidence/B36/commands.spec.json"],
+        )
+        self.assertIn(
+            b"external_batch_gate.py B118",
+            b118["evidence/B118/commands.spec.json"],
+        )
+
+
 class ResumeAndReviewTests(RebaselineFixture):
     def test_dry_run_uses_command_level_finish_ranges_without_writing_state(self):
         batches = ["B00"]
@@ -514,10 +560,12 @@ class ResumeAndReviewTests(RebaselineFixture):
         before = trace.read_bytes()
         with mock.patch.object(rebaseline, "git_head", return_value="a" * 40), \
                 mock.patch.object(rebaseline, "live_validate", return_value=False):
-            with self.assertRaises(rebaseline.ReviewBlocked):
+            with self.assertRaises(rebaseline.ReviewBlocked) as blocked:
                 rebaseline.resume_range(
                     self.root, [batch], launch_window_seconds=10, dry_run=False
                 )
+        self.assertEqual(blocked.exception.expected["reviewer"], "Independent Human")
+        self.assertEqual(blocked.exception.expected["executor"], "implementation-agent")
         self.assertEqual(trace.read_bytes(), before)
         self.assertFalse((self.root / f"evidence/completion/{batch}.json").exists())
         saved = json.loads(rebaseline.state_path(self.root).read_text(encoding="utf-8"))

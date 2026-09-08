@@ -1,0 +1,10 @@
+[
+  "connectors/apple-pay/src/main/java/com/elmpay/connectors/applepay/DataSourceApplePayLifecycle.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/provider/ApplePayAccountAdapterFactory.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+  "contracts/provider/local-simulator-matrix.json",
+  "connectors/apple-pay/src/main/resources/db/migration/V054__apple_pay_lifecycle.sql",
+  "connectors/apple-pay/src/test/java/com/elmpay/connectors/applepay/ApplePayAdapterTest.java",
+  "services/payment-core/src/test/java/com/elmpay/payment/provider/ProductionProviderAccountFactoriesTest.java",
+  "evidence/B54/traceability.json"
+]

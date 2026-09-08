@@ -1,0 +1,9 @@
+[
+  "services/reconciliation-service/src/main/java/com/elmpay/reconciliation/StatementIngestionService.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialHttpHandler.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/FinancialRuntimeFactory.java",
+  "services/reconciliation-service/src/main/resources/db/migration/V076__reconciliation.sql",
+  "services/reconciliation-service/src/main/resources/db/migration/V079_1__reconciliation_snapshot_scheduler.sql",
+  "services/reconciliation-service/src/test/java/com/elmpay/reconciliation/ReconciliationTest.java",
+  "evidence/B76/traceability.json"
+]

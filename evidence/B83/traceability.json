@@ -1,0 +1,76 @@
+{
+  "batch_id": "B83",
+  "requirements": [
+    {
+      "id": "B83-GOAL",
+      "statement": "定义在线特征、离线训练、模型签名、漂移、降级和人工可覆盖边界。",
+      "source": ".payment-platform/skill-package/batches/B83.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/HttpsRiskDependencies.java",
+      "requirements": [
+        "B83-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+      "requirements": [
+        "B83-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/workload-policy.json",
+      "requirements": [
+        "B83-GOAL"
+      ]
+    },
+    {
+      "ref": "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql",
+      "requirements": [
+        "B83-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/risk-engine/src/test/java/com/elmpay/risk/RiskEngineTest.java",
+      "requirements": [
+        "B83-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/HttpsRiskDependencies.java",
+        "services/risk-engine/src/main/java/com/elmpay/risk/runtime/RiskEngineApplication.java",
+        "platform/kubernetes/workload-policy.json",
+        "services/risk-engine/src/main/resources/db/migration/V102__risk_engine_runtime.sql"
+      ],
+      "verified_by": [
+        "services/risk-engine/src/test/java/com/elmpay/risk/RiskEngineTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B83/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B83/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B83/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B83/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

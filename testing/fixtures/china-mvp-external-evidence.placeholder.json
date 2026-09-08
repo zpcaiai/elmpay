@@ -297,6 +297,80 @@
         "externalAuthority": null,
         "reference": "PENDING_MARKET_REFERENCE"
       }
+    },
+    {
+      "category": "post_launch_reconciliation",
+      "evidenceId": "TEMP-post-launch-reconciliation",
+      "verifier": "PENDING_PRODUCTION_FINANCE_OBSERVER",
+      "role": "external_verifier",
+      "source": "PRODUCTION_FINANCE_OBSERVER",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "environment": "PENDING_EXTERNAL",
+        "tenantId": "PENDING_TENANT_ID",
+        "targetDigest": "PENDING_TARGET_DIGEST",
+        "daysObserved": null,
+        "transactionsReconciled": null,
+        "unexplainedDifferenceMinor": null,
+        "openCriticalIncidents": null,
+        "financeSignoff": null
+      }
+    },
+    {
+      "category": "commercial_sla",
+      "evidenceId": "TEMP-commercial-sla",
+      "verifier": "PENDING_COMMERCIAL_APPROVER",
+      "role": "external_verifier",
+      "source": "COMMERCIAL_APPROVER",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "pricingVersion": "PENDING_PRICING_VERSION",
+        "slaVersion": "PENDING_SLA_VERSION",
+        "supportOwner": "PENDING_SUPPORT_OWNER",
+        "usageBillingReconciled": null,
+        "decision": "PENDING_EXTERNAL",
+        "approverId": "PENDING_COMMERCIAL_APPROVER"
+      }
+    },
+    {
+      "category": "go_no_go",
+      "evidenceId": "TEMP-go-no-go",
+      "verifier": "PENDING_GO_NO_GO_BOARD",
+      "role": "external_verifier",
+      "source": "GO_NO_GO_BOARD",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "decisionId": "PENDING_GO_NO_GO_ID",
+        "decision": "PENDING_EXTERNAL",
+        "releaseManagerId": "PENDING_RELEASE_MANAGER",
+        "securityApproverId": "PENDING_SECURITY_APPROVER",
+        "targetDigest": "PENDING_TARGET_DIGEST",
+        "openCriticalFindings": null,
+        "rollbackReady": null
+      }
+    },
+    {
+      "category": "final_release_signoff",
+      "evidenceId": "TEMP-final-release-signoff",
+      "verifier": "PENDING_RELEASE_AUTHORITY",
+      "role": "external_verifier",
+      "source": "RELEASE_AUTHORITY",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "releaseId": "PENDING_RELEASE_ID",
+        "decision": "PENDING_EXTERNAL",
+        "releaseManagerId": "PENDING_RELEASE_MANAGER",
+        "securityApproverId": "PENDING_SECURITY_APPROVER",
+        "targetDigest": "PENDING_TARGET_DIGEST"
+      }
     }
   ]
 }

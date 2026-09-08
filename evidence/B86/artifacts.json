@@ -1,0 +1,8 @@
+[
+  "tools/runtime/elmpay_runtime/abuse_protection.py",
+  "tools/b86_abuse_control.py",
+  "platform/security/abuse-protection-policy.json",
+  "tools/runtime/migrations/V084_086__security_controls.sql",
+  "testing/test_b84_b86_security.py",
+  "evidence/B86/traceability.json"
+]

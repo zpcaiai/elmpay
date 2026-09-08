@@ -1,0 +1,8 @@
+[
+  "services/payment-core/src/main/java/com/elmpay/payment/refund/SynchronousRiskRefundPolicy.java",
+  "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+  "platform/risk/runtime-policy.json",
+  "services/payment-core/src/main/resources/db/migration/V034__durable_refund_runtime.sql",
+  "services/payment-core/src/test/java/com/elmpay/payment/refund/SynchronousRiskRefundPolicyTest.java",
+  "evidence/B65/traceability.json"
+]

@@ -1,0 +1,125 @@
+{
+  "batch_id": "B61",
+  "requirements": [
+    {
+      "id": "B61-GOAL",
+      "statement": "提供强类型客户端、幂等默认值、重试边界、签名验证和版本兼容测试。",
+      "source": ".payment-platform/skill-package/batches/B61.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "sdks/server/node/elmpay-client.mjs",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/server/python/elmpay_client.py",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/server/go/client.go",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/server/java/src/main/java/com/elmpay/sdk/ElmpayClient.java",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/server/dotnet/ElmPayClient.cs",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    },
+    {
+      "ref": "scripts/sdk-contract-smoke.py",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/server/dotnet/ElmPay.csproj",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "sdks/server/node/elmpay-client.test.mjs",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/server/python/test_elmpay_client.py",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/server/go/client_test.go",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/server/java/src/test/java/com/elmpay/sdk/ElmpayClientTest.java",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    },
+    {
+      "ref": "sdks/server/dotnet/tests/Program.cs",
+      "requirements": [
+        "B61-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "sdks/server/node/elmpay-client.mjs",
+        "sdks/server/python/elmpay_client.py",
+        "sdks/server/go/client.go",
+        "sdks/server/java/src/main/java/com/elmpay/sdk/ElmpayClient.java",
+        "sdks/server/dotnet/ElmPayClient.cs",
+        "scripts/sdk-contract-smoke.py",
+        "sdks/server/dotnet/ElmPay.csproj"
+      ],
+      "verified_by": [
+        "sdks/server/node/elmpay-client.test.mjs",
+        "sdks/server/python/test_elmpay_client.py",
+        "sdks/server/go/client_test.go",
+        "sdks/server/java/src/test/java/com/elmpay/sdk/ElmpayClientTest.java",
+        "sdks/server/dotnet/tests/Program.cs"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B61/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B61/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B61/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B61/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

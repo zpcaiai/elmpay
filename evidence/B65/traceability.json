@@ -1,0 +1,76 @@
+{
+  "batch_id": "B65",
+  "requirements": [
+    {
+      "id": "B65-GOAL",
+      "statement": "按金额、时间、角色、设备、异常行为和商户规则决定自动、人工或拒绝。",
+      "source": ".payment-platform/skill-package/batches/B65.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/refund/SynchronousRiskRefundPolicy.java",
+      "requirements": [
+        "B65-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+      "requirements": [
+        "B65-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/risk/runtime-policy.json",
+      "requirements": [
+        "B65-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/db/migration/V034__durable_refund_runtime.sql",
+      "requirements": [
+        "B65-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/refund/SynchronousRiskRefundPolicyTest.java",
+      "requirements": [
+        "B65-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/refund/SynchronousRiskRefundPolicy.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+        "platform/risk/runtime-policy.json",
+        "services/payment-core/src/main/resources/db/migration/V034__durable_refund_runtime.sql"
+      ],
+      "verified_by": [
+        "services/payment-core/src/test/java/com/elmpay/payment/refund/SynchronousRiskRefundPolicyTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B65/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B65/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B65/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B65/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

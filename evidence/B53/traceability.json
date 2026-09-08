@@ -1,0 +1,90 @@
+{
+  "batch_id": "B53",
+  "requirements": [
+    {
+      "id": "B53-GOAL",
+      "statement": "默认经 Stripe 等 PSP 处理令牌，支持网页和原生支付表、能力检测、商户标识与安全回传。",
+      "source": ".payment-platform/skill-package/batches/B53.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/apple-pay/src/main/java/com/elmpay/connectors/applepay/ApplePayAdapter.java",
+      "requirements": [
+        "B53-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/HttpsApplePayPspTokenProcessor.java",
+      "requirements": [
+        "B53-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/ApplePayAccountAdapterFactory.java",
+      "requirements": [
+        "B53-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+      "requirements": [
+        "B53-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B53-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "connectors/apple-pay/src/test/java/com/elmpay/connectors/applepay/ApplePayAdapterTest.java",
+      "requirements": [
+        "B53-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/provider/HttpsApplePayPspTokenProcessorTest.java",
+      "requirements": [
+        "B53-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/apple-pay/src/main/java/com/elmpay/connectors/applepay/ApplePayAdapter.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/HttpsApplePayPspTokenProcessor.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/ApplePayAccountAdapterFactory.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "connectors/apple-pay/src/test/java/com/elmpay/connectors/applepay/ApplePayAdapterTest.java",
+        "services/payment-core/src/test/java/com/elmpay/payment/provider/HttpsApplePayPspTokenProcessorTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B53/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B53/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B53/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B53/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

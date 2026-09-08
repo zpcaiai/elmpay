@@ -1,0 +1,8 @@
+[
+  "tools/runtime/elmpay_runtime/postlaunch.py",
+  "tools/runtime/postlaunch_worker.py",
+  "platform/compliance/required-release-gates.json",
+  "tools/runtime/migrations/V120_127__release_control.sql",
+  "testing/test_b118_b127_controls.py",
+  "evidence/B125/traceability.json"
+]

@@ -1,0 +1,69 @@
+{
+  "batch_id": "B111",
+  "requirements": [
+    {
+      "id": "B111-GOAL",
+      "statement": "评估 PSP、云、短信、邮件、风控、监控和开源依赖的责任与退出方案。",
+      "source": ".payment-platform/skill-package/batches/B111.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/compliance.py",
+      "requirements": [
+        "B111-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/control.py",
+      "requirements": [
+        "B111-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/vendor-policy.json",
+      "requirements": [
+        "B111-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_runtime_controls.py",
+      "requirements": [
+        "B111-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/compliance.py",
+        "tools/runtime/control.py",
+        "platform/compliance/vendor-policy.json"
+      ],
+      "verified_by": [
+        "testing/test_runtime_controls.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B111/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B111/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B111/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B111/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

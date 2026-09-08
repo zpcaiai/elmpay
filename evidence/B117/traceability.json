@@ -1,0 +1,69 @@
+{
+  "batch_id": "B117",
+  "requirements": [
+    {
+      "id": "B117-GOAL",
+      "statement": "验证峰值、突发、长稳、队列堆积、数据库故障、渠道降级和恢复。",
+      "source": ".payment-platform/skill-package/batches/B117.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/quality.py",
+      "requirements": [
+        "B117-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/quality_gate.py",
+      "requirements": [
+        "B117-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test-matrix.json",
+      "requirements": [
+        "B117-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b117_http_load_profile.py",
+      "requirements": [
+        "B117-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/quality.py",
+        "tools/quality_gate.py",
+        "testing/test-matrix.json"
+      ],
+      "verified_by": [
+        "testing/test_b117_http_load_profile.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B117/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B117/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B117/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B117/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

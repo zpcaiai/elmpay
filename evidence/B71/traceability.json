@@ -1,0 +1,76 @@
+{
+  "batch_id": "B71",
+  "requirements": [
+    {
+      "id": "B71-GOAL",
+      "statement": "覆盖跨日、跨币种、部分退款、重复回调、失败续费、争议和账本一致性。",
+      "source": ".payment-platform/skill-package/batches/B71.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+      "requirements": [
+        "B71-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/BillingLifecycleJob.java",
+      "requirements": [
+        "B71-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+      "requirements": [
+        "B71-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
+      "requirements": [
+        "B71-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/BillingLifecycleJobTest.java",
+      "requirements": [
+        "B71-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/commerce/JdbcCommerceService.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/BillingLifecycleJob.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/CommerceRuntimeFactory.java",
+        "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql"
+      ],
+      "verified_by": [
+        "services/worker-scheduler/src/test/java/com/elmpay/scheduler/BillingLifecycleJobTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B71/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B71/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B71/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B71/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

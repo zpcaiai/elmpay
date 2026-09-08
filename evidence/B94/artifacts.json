@@ -1,0 +1,9 @@
+[
+  "tools/runtime/elmpay_runtime/infrastructure.py",
+  "tools/platform_control.py",
+  "platform/dr/plan.json",
+  "platform/policies/data-residency.json",
+  "tools/runtime/migrations/V088_117__platform_controls.sql",
+  "testing/test_b89_b95_infrastructure.py",
+  "evidence/B94/traceability.json"
+]

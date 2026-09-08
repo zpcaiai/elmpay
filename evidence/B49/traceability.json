@@ -1,0 +1,69 @@
+{
+  "batch_id": "B49",
+  "requirements": [
+    {
+      "id": "B49-GOAL",
+      "statement": "验证签名、处理重复/乱序事件、退款、争议、证据提交和最终状态同步。",
+      "source": ".payment-platform/skill-package/batches/B49.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/stripe/src/main/java/com/elmpay/connectors/stripe/StripeAdapter.java",
+      "requirements": [
+        "B49-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/StripeAccountAdapterFactory.java",
+      "requirements": [
+        "B49-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B49-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "connectors/stripe/src/test/java/com/elmpay/connectors/stripe/StripeAdapterTest.java",
+      "requirements": [
+        "B49-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/stripe/src/main/java/com/elmpay/connectors/stripe/StripeAdapter.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/StripeAccountAdapterFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "connectors/stripe/src/test/java/com/elmpay/connectors/stripe/StripeAdapterTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B49/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B49/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B49/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B49/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

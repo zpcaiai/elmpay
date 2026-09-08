@@ -1,0 +1,83 @@
+{
+  "batch_id": "B39",
+  "requirements": [
+    {
+      "id": "B39-GOAL",
+      "statement": "构建一致的读模型、时间线、渠道详情、风险结果和面向业务项目的状态查询。",
+      "source": ".payment-platform/skill-package/batches/B39.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/readmodel/JdbcPaymentTimeline.java",
+      "requirements": [
+        "B39-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/PaymentTimelineProjectionJob.java",
+      "requirements": [
+        "B39-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/main/java/com/elmpay/scheduler/PaymentTimelineProjectionSettings.java",
+      "requirements": [
+        "B39-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/db/migration/V039__payment_timeline_read_model.sql",
+      "requirements": [
+        "B39-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/readmodel/JdbcPaymentTimelineTest.java",
+      "requirements": [
+        "B39-GOAL"
+      ]
+    },
+    {
+      "ref": "services/worker-scheduler/src/test/java/com/elmpay/scheduler/PaymentTimelineProjectionSettingsTest.java",
+      "requirements": [
+        "B39-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/readmodel/JdbcPaymentTimeline.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/PaymentTimelineProjectionJob.java",
+        "services/worker-scheduler/src/main/java/com/elmpay/scheduler/PaymentTimelineProjectionSettings.java",
+        "services/payment-core/src/main/resources/db/migration/V039__payment_timeline_read_model.sql"
+      ],
+      "verified_by": [
+        "services/payment-core/src/test/java/com/elmpay/payment/readmodel/JdbcPaymentTimelineTest.java",
+        "services/worker-scheduler/src/test/java/com/elmpay/scheduler/PaymentTimelineProjectionSettingsTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B39/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B39/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B39/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B39/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

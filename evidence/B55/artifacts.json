@@ -1,0 +1,7 @@
+[
+  "tools/simulator/provider_sim.py",
+  "scripts/provider-contract-matrix.py",
+  "contracts/provider/local-simulator-matrix.json",
+  "testing/test_b40_b55_provider_contract_matrix.py",
+  "evidence/B55/traceability.json"
+]

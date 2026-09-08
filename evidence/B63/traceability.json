@@ -1,0 +1,76 @@
+{
+  "batch_id": "B63",
+  "requirements": [
+    {
+      "id": "B63-GOAL",
+      "statement": "覆盖语言、时区、金额格式、RTL、屏幕阅读器、键盘操作和支付品牌规范。",
+      "source": ".payment-platform/skill-package/batches/B63.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/checkout/CheckoutLocalization.java",
+      "requirements": [
+        "B63-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java",
+      "requirements": [
+        "B63-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/resources/checkout/catalog-v1.properties",
+      "requirements": [
+        "B63-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/checkout/CheckoutLocalizationCatalogTest.java",
+      "requirements": [
+        "B63-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/checkout-web/test/checkout.test.mjs",
+      "requirements": [
+        "B63-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/payment-core/src/main/java/com/elmpay/payment/checkout/CheckoutLocalization.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java",
+        "services/payment-core/src/main/resources/checkout/catalog-v1.properties"
+      ],
+      "verified_by": [
+        "services/payment-core/src/test/java/com/elmpay/payment/checkout/CheckoutLocalizationCatalogTest.java",
+        "apps/checkout-web/test/checkout.test.mjs"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B63/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B63/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B63/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B63/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

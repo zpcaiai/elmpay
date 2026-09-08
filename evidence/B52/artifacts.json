@@ -1,0 +1,7 @@
+[
+  "connectors/paypal/src/main/java/com/elmpay/connectors/paypal/PayPalAdapter.java",
+  "services/payment-core/src/main/java/com/elmpay/payment/provider/PayPalAccountAdapterFactory.java",
+  "contracts/provider/local-simulator-matrix.json",
+  "connectors/paypal/src/test/java/com/elmpay/connectors/paypal/PayPalAdapterTest.java",
+  "evidence/B52/traceability.json"
+]

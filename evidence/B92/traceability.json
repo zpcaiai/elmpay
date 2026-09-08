@@ -1,0 +1,83 @@
+{
+  "batch_id": "B92",
+  "requirements": [
+    {
+      "id": "B92-GOAL",
+      "statement": "限制 Redis 为可重建状态，锁带 fencing token，禁止以缓存作为支付真相。",
+      "source": ".payment-platform/skill-package/batches/B92.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/infrastructure.py",
+      "requirements": [
+        "B92-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B92-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/data-plane-policy.json",
+      "requirements": [
+        "B92-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/policies/cache-resilience.json",
+      "requirements": [
+        "B92-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V088_117__platform_controls.sql",
+      "requirements": [
+        "B92-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b89_b95_infrastructure.py",
+      "requirements": [
+        "B92-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/infrastructure.py",
+        "tools/platform_control.py",
+        "platform/kubernetes/data-plane-policy.json",
+        "platform/policies/cache-resilience.json",
+        "tools/runtime/migrations/V088_117__platform_controls.sql"
+      ],
+      "verified_by": [
+        "testing/test_b89_b95_infrastructure.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B92/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B92/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B92/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B92/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

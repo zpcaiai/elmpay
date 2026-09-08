@@ -1,0 +1,76 @@
+{
+  "batch_id": "B44",
+  "requirements": [
+    {
+      "id": "B44-GOAL",
+      "statement": "优先使用官方 SDK 和证书模式，严格校验支付宝公钥证书、应用证书和根证书。",
+      "source": ".payment-platform/skill-package/batches/B44.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayAdapter.java",
+      "requirements": [
+        "B44-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java",
+      "requirements": [
+        "B44-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+      "requirements": [
+        "B44-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B44-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java",
+      "requirements": [
+        "B44-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayAdapter.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/RuntimeFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B44/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B44/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B44/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B44/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

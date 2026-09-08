@@ -529,7 +529,8 @@ class DurableControlsTest(unittest.TestCase):
             item["expiresAt"] = "2026-08-26T00:30:00Z"
             if item["category"] in {
                 "uat_acceptance", "shadow_rollout", "canary_rollout",
-                "merchant_acceptance",
+                "merchant_acceptance", "post_launch_reconciliation",
+                "go_no_go", "final_release_signoff",
             }:
                 item["attestation"]["tenantId"] = "tenant-a"
             if item["category"] == "production_kubernetes":
@@ -541,7 +542,8 @@ class DurableControlsTest(unittest.TestCase):
                 })
             if item["category"] in {
                 "uat_acceptance", "shadow_rollout", "canary_rollout",
-                "merchant_acceptance",
+                "merchant_acceptance", "post_launch_reconciliation",
+                "go_no_go", "final_release_signoff",
             }:
                 item["attestation"]["targetDigest"] = target_digest
             external._resign(item, external._key_id(item))

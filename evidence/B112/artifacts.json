@@ -1,0 +1,7 @@
+[
+  "tools/runtime/elmpay_runtime/quality.py",
+  "tools/quality_gate.py",
+  "testing/test-matrix.json",
+  "testing/test_b112_b117_quality.py",
+  "evidence/B112/traceability.json"
+]

@@ -1,0 +1,69 @@
+{
+  "batch_id": "B90",
+  "requirements": [
+    {
+      "id": "B90-GOAL",
+      "statement": "实现多可用区、加密、故障转移、PITR、恢复演练和迁移安全。",
+      "source": ".payment-platform/skill-package/batches/B90.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/infrastructure.py",
+      "requirements": [
+        "B90-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B90-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/kubernetes/data-plane-policy.json",
+      "requirements": [
+        "B90-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b89_b95_infrastructure.py",
+      "requirements": [
+        "B90-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/infrastructure.py",
+        "tools/platform_control.py",
+        "platform/kubernetes/data-plane-policy.json"
+      ],
+      "verified_by": [
+        "testing/test_b89_b95_infrastructure.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B90/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B90/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B90/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B90/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

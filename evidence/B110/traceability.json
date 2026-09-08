@@ -1,0 +1,83 @@
+{
+  "batch_id": "B110",
+  "requirements": [
+    {
+      "id": "B110-GOAL",
+      "statement": "定义扫描频率、严重度 SLA、例外、复测、外部渗透和支付专项红队。",
+      "source": ".payment-platform/skill-package/batches/B110.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/compliance.py",
+      "requirements": [
+        "B110-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/elmpay_runtime/assurance.py",
+      "requirements": [
+        "B110-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/control.py",
+      "requirements": [
+        "B110-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/vulnerability-policy.json",
+      "requirements": [
+        "B110-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_runtime_controls.py",
+      "requirements": [
+        "B110-GOAL"
+      ]
+    },
+    {
+      "ref": "testing/test_b104_b111_assurance.py",
+      "requirements": [
+        "B110-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/compliance.py",
+        "tools/runtime/elmpay_runtime/assurance.py",
+        "tools/runtime/control.py",
+        "platform/compliance/vulnerability-policy.json"
+      ],
+      "verified_by": [
+        "testing/test_runtime_controls.py",
+        "testing/test_b104_b111_assurance.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B110/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B110/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B110/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B110/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

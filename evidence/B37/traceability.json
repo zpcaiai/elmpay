@@ -1,0 +1,146 @@
+{
+  "batch_id": "B37",
+  "requirements": [
+    {
+      "id": "B37-GOAL",
+      "statement": "先验证来源与签名，再持久化原始事件摘要，随后快速应答并异步执行业务效果。",
+      "source": ".payment-platform/skill-package/batches/B37.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/DataSourceWebhookInbox.java",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookInboxProcessor.java",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/PaymentCoreWebhookEffectAdapter.java",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/ProviderWebhookEffectService.java",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookIngressHttpHandler.java",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookIngressRuntime.java",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookProcessorApplication.java",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/security/provider-webhook-ingress-policy.json",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-ingress/src/main/resources/db/migration/V037__provider_webhook_inbox.sql",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-ingress/src/main/resources/db/migration/V037_1__provider_webhook_processing.sql",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-ingress/src/main/resources/db/migration/V037_2__provider_webhook_processor_runtime.sql",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "services/webhook-ingress/src/test/java/com/elmpay/webhook/ingress/WebhookIngressServiceTest.java",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-ingress/src/test/java/com/elmpay/webhook/ingress/WebhookInboxProcessorTest.java",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/ProviderWebhookEffectServiceTest.java",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    },
+    {
+      "ref": "services/webhook-ingress/src/test/java/com/elmpay/webhook/ingress/WebhookProcessorRuntimeTest.java",
+      "requirements": [
+        "B37-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/DataSourceWebhookInbox.java",
+        "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookInboxProcessor.java",
+        "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/PaymentCoreWebhookEffectAdapter.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/ProviderWebhookEffectService.java",
+        "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookIngressHttpHandler.java",
+        "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookIngressRuntime.java",
+        "services/webhook-ingress/src/main/java/com/elmpay/webhook/ingress/WebhookProcessorApplication.java",
+        "platform/security/provider-webhook-ingress-policy.json",
+        "services/webhook-ingress/src/main/resources/db/migration/V037__provider_webhook_inbox.sql",
+        "services/webhook-ingress/src/main/resources/db/migration/V037_1__provider_webhook_processing.sql",
+        "services/webhook-ingress/src/main/resources/db/migration/V037_2__provider_webhook_processor_runtime.sql"
+      ],
+      "verified_by": [
+        "services/webhook-ingress/src/test/java/com/elmpay/webhook/ingress/WebhookIngressServiceTest.java",
+        "services/webhook-ingress/src/test/java/com/elmpay/webhook/ingress/WebhookInboxProcessorTest.java",
+        "services/payment-core/src/test/java/com/elmpay/payment/ProviderWebhookEffectServiceTest.java",
+        "services/webhook-ingress/src/test/java/com/elmpay/webhook/ingress/WebhookProcessorRuntimeTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B37/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B37/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B37/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B37/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

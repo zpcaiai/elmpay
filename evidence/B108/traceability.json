@@ -1,0 +1,76 @@
+{
+  "batch_id": "B108",
+  "requirements": [
+    {
+      "id": "B108-GOAL",
+      "statement": "建立字段级分类、最少化、用途限制、保留计划、法律保留和可证明删除。",
+      "source": ".payment-platform/skill-package/batches/B108.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/assurance.py",
+      "requirements": [
+        "B108-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/platform_control.py",
+      "requirements": [
+        "B108-GOAL"
+      ]
+    },
+    {
+      "ref": "platform/compliance/data-lifecycle.json",
+      "requirements": [
+        "B108-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V088_117__platform_controls.sql",
+      "requirements": [
+        "B108-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b98_b117_runtime_entrypoints.py",
+      "requirements": [
+        "B108-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/assurance.py",
+        "tools/platform_control.py",
+        "platform/compliance/data-lifecycle.json",
+        "tools/runtime/migrations/V088_117__platform_controls.sql"
+      ],
+      "verified_by": [
+        "testing/test_b98_b117_runtime_entrypoints.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B108/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B108/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B108/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B108/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

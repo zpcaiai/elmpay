@@ -1,0 +1,83 @@
+{
+  "batch_id": "B62",
+  "requirements": [
+    {
+      "id": "B62-GOAL",
+      "statement": "按设备、浏览器、地区、币种、钱包配置和渠道健康选择可用支付方法。",
+      "source": ".payment-platform/skill-package/batches/B62.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/JdbcCheckoutCapabilitySource.java",
+      "requirements": [
+        "B62-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java",
+      "requirements": [
+        "B62-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/java/com/elmpay/gateway/CheckoutRuntimeFactory.java",
+      "requirements": [
+        "B62-GOAL"
+      ]
+    },
+    {
+      "ref": "apps/edge-gateway/src/main/resources/db/migration/V062__checkout_capability_health.sql",
+      "requirements": [
+        "B62-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "apps/edge-gateway/src/test/java/com/elmpay/gateway/CheckoutCapabilityLocalizationTest.java",
+      "requirements": [
+        "B62-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/test/java/com/elmpay/payment/checkout/CapabilityResolverTest.java",
+      "requirements": [
+        "B62-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/JdbcCheckoutCapabilitySource.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/checkout/HostedCheckoutService.java",
+        "apps/edge-gateway/src/main/java/com/elmpay/gateway/CheckoutRuntimeFactory.java",
+        "apps/edge-gateway/src/main/resources/db/migration/V062__checkout_capability_health.sql"
+      ],
+      "verified_by": [
+        "apps/edge-gateway/src/test/java/com/elmpay/gateway/CheckoutCapabilityLocalizationTest.java",
+        "services/payment-core/src/test/java/com/elmpay/payment/checkout/CapabilityResolverTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B62/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B62/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B62/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B62/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

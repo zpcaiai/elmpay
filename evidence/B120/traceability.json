@@ -1,0 +1,69 @@
+{
+  "batch_id": "B120",
+  "requirements": [
+    {
+      "id": "B120-GOAL",
+      "statement": "为每个旧项目实现订单映射、签名、幂等、Webhook 消费和回滚。",
+      "source": ".payment-platform/skill-package/batches/B120.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "tools/runtime/elmpay_runtime/migration_pipeline.py",
+      "requirements": [
+        "B120-GOAL"
+      ]
+    },
+    {
+      "ref": "governance/migration-plan.json",
+      "requirements": [
+        "B120-GOAL"
+      ]
+    },
+    {
+      "ref": "tools/runtime/migrations/V120_127__release_control.sql",
+      "requirements": [
+        "B120-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "testing/test_b118_b127_controls.py",
+      "requirements": [
+        "B120-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "tools/runtime/elmpay_runtime/migration_pipeline.py",
+        "governance/migration-plan.json",
+        "tools/runtime/migrations/V120_127__release_control.sql"
+      ],
+      "verified_by": [
+        "testing/test_b118_b127_controls.py"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B120/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B120/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B120/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B120/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "batch_id": "B45",
+  "requirements": [
+    {
+      "id": "B45-GOAL",
+      "statement": "实现网页/WAP/App 下单、同步回跳仅展示、异步通知定责和订单查询补偿。",
+      "source": ".payment-platform/skill-package/batches/B45.md"
+    }
+  ],
+  "code": [
+    {
+      "ref": "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayProviderBridge.java",
+      "requirements": [
+        "B45-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/ApprovedReturnRouteRegistry.java",
+      "requirements": [
+        "B45-GOAL"
+      ]
+    },
+    {
+      "ref": "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java",
+      "requirements": [
+        "B45-GOAL"
+      ]
+    },
+    {
+      "ref": "contracts/provider/local-simulator-matrix.json",
+      "requirements": [
+        "B45-GOAL"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "ref": "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java",
+      "requirements": [
+        "B45-GOAL"
+      ]
+    }
+  ],
+  "controls": [
+    {
+      "id": "NN-12",
+      "implemented_by": [
+        "connectors/alipay/src/main/java/com/elmpay/connectors/alipay/AlipayProviderBridge.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/ApprovedReturnRouteRegistry.java",
+        "services/payment-core/src/main/java/com/elmpay/payment/provider/AlipayAccountAdapterFactory.java",
+        "contracts/provider/local-simulator-matrix.json"
+      ],
+      "verified_by": [
+        "connectors/alipay/src/test/java/com/elmpay/connectors/alipay/AlipayAdapterTest.java"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "path": "evidence/B45/plan.md",
+      "kind": "plan"
+    },
+    {
+      "path": "evidence/B45/commands.spec.json",
+      "kind": "command-spec"
+    },
+    {
+      "path": "evidence/B45/artifacts.json",
+      "kind": "artifact-manifest"
+    },
+    {
+      "path": "evidence/B45/traceability.json",
+      "kind": "traceability"
+    }
+  ]
+}

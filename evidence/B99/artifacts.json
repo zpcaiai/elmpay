@@ -1,0 +1,8 @@
+[
+  "tools/runtime/elmpay_runtime/monitoring_runtime.py",
+  "tools/platform_control.py",
+  "platform/alerts/siem-runtime-policy.json",
+  "platform/alerts/siem-rules.json",
+  "testing/test_b96_b99_monitoring_runtime.py",
+  "evidence/B99/traceability.json"
+]
