@@ -60,6 +60,28 @@ def _discovered() -> tuple:
         for path in sorted(ROOT.glob(pattern)):
             if path.is_file():
                 found.append(path.relative_to(ROOT).as_posix())
+
+    # Validators are allowed to bind governed models to generated outputs and
+    # executable conformance tests outside the broad contracts/libs globs.
+    # A disposable negative-control repository must carry those exact inputs;
+    # otherwise its supposedly clean baseline fails before any corruption is
+    # applied and every rejection scenario becomes meaningless.
+    ssot_registry = ROOT / "governance/ssot-registry.json"
+    if ssot_registry.is_file():
+        registry = json.loads(ssot_registry.read_text(encoding="utf-8"))
+        for entry in registry.get("sources", []):
+            for rel in (entry.get("path"), *(entry.get("generates") or [])):
+                if isinstance(rel, str) and (ROOT / rel).is_file():
+                    found.append(rel)
+
+    capture_model = ROOT / "governance/capture-lifecycle.json"
+    if capture_model.is_file():
+        model = json.loads(capture_model.read_text(encoding="utf-8"))
+        conformance = model.get("conformance")
+        if isinstance(conformance, dict):
+            for rel in conformance.values():
+                if isinstance(rel, str) and (ROOT / rel).is_file():
+                    found.append(rel)
     return tuple(dict.fromkeys(found))
 
 

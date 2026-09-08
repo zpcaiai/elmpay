@@ -4,7 +4,7 @@
 
 # 架构决策记录索引
 
-共 14 条 ADR。新增决策必须新建 ADR，不得原地改写既有决策；
+共 15 条 ADR。新增决策必须新建 ADR，不得原地改写既有决策；
 被取代的 ADR 状态改为 `superseded`，并由取代它的 ADR 在“取代”字段中声明。
 
 | ADR | 标题 | 状态 | 日期 | 批次 | 关联控制 |
@@ -23,3 +23,4 @@
 | [ADR-0012](0012-pinned-toolchain-baseline.md) | 单一版本目录驱动的可重复构建基线 | accepted | 2026-08-18 | B03 | NN-12, CTRL-011, CTRL-018 |
 | [ADR-0013](0013-toolchain-interpreter-floor.md) | 治理工具链的解释器地板固定为 Python 3.10 | superseded | 2026-08-20 | B03 | NN-12, CTRL-011, CTRL-018 |
 | [ADR-0014](0014-exact-python-ci-toolchains.md) | CI 同时固定 Python 参考解释器与兼容地板 | accepted | 2026-08-26 | B05 | NN-12, CTRL-011, CTRL-018 |
+| [ADR-0015](0015-cpu-time-governance-budget.md) | 治理门禁的预算改为进程 CPU 时间，挂钟只作兜底上限 | accepted | 2026-09-01 | B03 | NN-12, CTRL-011, CTRL-018 |

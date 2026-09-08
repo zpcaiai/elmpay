@@ -6,6 +6,7 @@ dependency free so it can run on an offline evidence agent.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from tools.paygov import hygiene
@@ -287,6 +288,25 @@ class NegativeControlSharding(FixtureTestCase):
         for relative in cigen.TARGETS:
             self.assertIn(relative, nc._SNAPSHOT)
             self.assertTrue(nc._SNAPSHOT[relative], relative)
+
+    def test_negative_fixture_carries_every_ssot_generated_target(self):
+        nc = _negative_controls()
+        registry = json.loads(
+            (REAL_ROOT / "governance/ssot-registry.json").read_text(encoding="utf-8"))
+        for source in registry["sources"]:
+            for relative in source.get("generates", []):
+                self.assertIn(relative, nc._SNAPSHOT)
+                self.assertTrue(nc._SNAPSHOT[relative], relative)
+
+    def test_negative_fixture_carries_capture_conformance_bindings(self):
+        nc = _negative_controls()
+        model = json.loads(
+            (REAL_ROOT / "governance/capture-lifecycle.json").read_text(encoding="utf-8"))
+        for relative in model["conformance"].values():
+            path = REAL_ROOT / relative
+            if path.is_file():
+                self.assertIn(relative, nc._SNAPSHOT)
+                self.assertTrue(nc._SNAPSHOT[relative], relative)
 
     def test_offset_keeps_the_second_list_from_piling_onto_one_shard(self):
         nc = _negative_controls()
