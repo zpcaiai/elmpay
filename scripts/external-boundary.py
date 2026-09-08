@@ -85,6 +85,18 @@ BLOCKS: dict[str, list[tuple[str, str]]] = {
         ("B123", "上线准备与 Go/No-Go"),
         ("B127", "最终生产认证与发布签署"),
     ],
+    "post_launch_reconciliation": [
+        ("B125", "上线后监控与日终对账"),
+    ],
+    "commercial_sla": [
+        ("B126", "商业定价、SLA、支持与用量计费"),
+    ],
+    "go_no_go": [
+        ("B123", "上线准备与 Go/No-Go"),
+    ],
+    "final_release_signoff": [
+        ("B127", "最终生产认证与发布签署"),
+    ],
     "independent_human_review": [
         ("B00..B127", "每一个批次的 evidence/<batch>/review.json"),
     ],
