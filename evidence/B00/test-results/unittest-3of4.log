@@ -1,999 +1,875 @@
-===== tools.tests.test_ai_rebaseline.ResumeAndReviewTests =====
-test_attestation_binds_exact_current_inputs (tools.tests.test_ai_rebaseline.ResumeAndReviewTests.test_attestation_binds_exact_current_inputs) ... ok
-test_dry_run_uses_command_level_finish_ranges_without_writing_state (tools.tests.test_ai_rebaseline.ResumeAndReviewTests.test_dry_run_uses_command_level_finish_ranges_without_writing_state) ... ok
-test_interrupted_recording_reconciles_an_exact_transcript_prefix (tools.tests.test_ai_rebaseline.ResumeAndReviewTests.test_interrupted_recording_reconciles_an_exact_transcript_prefix) ... ok
-test_live_valid_completion_without_review_is_still_review_blocked (tools.tests.test_ai_rebaseline.ResumeAndReviewTests.test_live_valid_completion_without_review_is_still_review_blocked) ... ok
-test_live_validator_is_the_only_skip_authority (tools.tests.test_ai_rebaseline.ResumeAndReviewTests.test_live_validator_is_the_only_skip_authority) ... ok
-test_missing_review_blocks_without_touching_trace_or_completion (tools.tests.test_ai_rebaseline.ResumeAndReviewTests.test_missing_review_blocks_without_touching_trace_or_completion) ... ok
-test_symlink_escaped_review_is_review_blocked_without_a_traceback (tools.tests.test_ai_rebaseline.ResumeAndReviewTests.test_symlink_escaped_review_is_review_blocked_without_a_traceback) ... ok
-test_untracked_review_and_finish_failure_leave_trace_unchanged (tools.tests.test_ai_rebaseline.ResumeAndReviewTests.test_untracked_review_and_finish_failure_leave_trace_unchanged) ... ok
+===== tools.tests.test_ai_rebaseline.RepositoryScaffoldTests =====
+test_b36_through_b127_are_deterministically_scaffoldable_without_claims (tools.tests.test_ai_rebaseline.RepositoryScaffoldTests.test_b36_through_b127_are_deterministically_scaffoldable_without_claims) ... ok
 
 ----------------------------------------------------------------------
-Ran 8 tests in 0.756s
+Ran 1 test in 0.024s
 
 OK
 
-===== tools.tests.test_b00_charter.CharterRejects =====
-test_new_registry_rule_must_reach_the_charter (tools.tests.test_b00_charter.CharterRejects.test_new_registry_rule_must_reach_the_charter) ... ok
-test_rejects_missing_document (tools.tests.test_b00_charter.CharterRejects.test_rejects_missing_document) ... ok
-test_rejects_missing_metadata_header (tools.tests.test_b00_charter.CharterRejects.test_rejects_missing_metadata_header) ... ok
-test_rejects_missing_section (tools.tests.test_b00_charter.CharterRejects.test_rejects_missing_section) ... ok
-test_rejects_red_line_dropped_from_charter (tools.tests.test_b00_charter.CharterRejects.test_rejects_red_line_dropped_from_charter) ... ok
-test_rejects_stub_charter (tools.tests.test_b00_charter.CharterRejects.test_rejects_stub_charter) ... ok
+===== tools.tests.test_b00_charter.CharterHappyPath =====
+test_fixture_charter_passes (tools.tests.test_b00_charter.CharterHappyPath.test_fixture_charter_passes) ... ok
+test_real_charter_passes (tools.tests.test_b00_charter.CharterHappyPath.test_real_charter_passes) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.844s
+Ran 2 tests in 0.412s
 
 OK
 
-===== tools.tests.test_b00_cli.CliTimeoutPath =====
-test_exhausted_budget_fails_closed (tools.tests.test_b00_cli.CliTimeoutPath.test_exhausted_budget_fails_closed) ... ok
-test_there_is_no_passed_with_warnings_exit_code (tools.tests.test_b00_cli.CliTimeoutPath.test_there_is_no_passed_with_warnings_exit_code)
-NN-12 — the CLI contract has no 'succeeded with problems' state. ... ok
-test_timeout_is_not_reported_as_success (tools.tests.test_b00_cli.CliTimeoutPath.test_timeout_is_not_reported_as_success) ... ok
+===== tools.tests.test_b00_cli.CliRejectionPath =====
+test_missing_repository_root_exits_three (tools.tests.test_b00_cli.CliRejectionPath.test_missing_repository_root_exits_three) ... ok
+test_policy_violation_exits_two_and_names_the_rule (tools.tests.test_b00_cli.CliRejectionPath.test_policy_violation_exits_two_and_names_the_rule) ... ok
+test_unknown_validator_exits_three (tools.tests.test_b00_cli.CliRejectionPath.test_unknown_validator_exits_three) ... ok
+test_unreadable_input_never_exits_zero (tools.tests.test_b00_cli.CliRejectionPath.test_unreadable_input_never_exits_zero) ... ok
 
 ----------------------------------------------------------------------
-Ran 3 tests in 0.645s
+Ran 4 tests in 0.599s
 
 OK
 
-===== tools.tests.test_b00_nonnegotiables.RegistryHappyPath =====
-test_all_fifteen_policy_statements_are_mirrored (tools.tests.test_b00_nonnegotiables.RegistryHappyPath.test_all_fifteen_policy_statements_are_mirrored) ... ok
-test_real_registry_passes (tools.tests.test_b00_nonnegotiables.RegistryHappyPath.test_real_registry_passes) ... ok
+===== tools.tests.test_b00_module_registry.ModuleRegistryRejects =====
+test_rejects_a_symlinked_module_boundary (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_a_symlinked_module_boundary) ... ok
+test_rejects_business_order_table_ownership (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_business_order_table_ownership) ... ok
+test_rejects_connector_depending_on_a_service (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_connector_depending_on_a_service) ... ok
+test_rejects_connector_owning_tables (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_connector_owning_tables) ... ok
+test_rejects_dependency_cycle (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_dependency_cycle) ... ok
+test_rejects_duplicate_module_name (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_duplicate_module_name) ... ok
+test_rejects_library_depending_on_a_service (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_library_depending_on_a_service) ... ok
+test_rejects_module_directory_that_would_disappear_from_a_git_checkout (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_module_directory_that_would_disappear_from_a_git_checkout) ... ok
+test_rejects_module_with_missing_directory (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_module_with_missing_directory) ... ok
+test_rejects_module_without_owner (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_module_without_owner) ... ok
+test_rejects_module_without_threats (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_module_without_threats) ... ok
+test_rejects_sdk_path_that_does_not_match_the_module_identity (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_sdk_path_that_does_not_match_the_module_identity) ... ok
+test_rejects_self_dependency (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_self_dependency) ... ok
+test_rejects_service_depending_on_an_app (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_service_depending_on_an_app) ... ok
+test_rejects_shared_table_ownership (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_shared_table_ownership) ... ok
+test_rejects_shell_metacharacters_even_when_the_path_is_materialized (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_shell_metacharacters_even_when_the_path_is_materialized) ... ok
+test_rejects_unknown_dependency (tools.tests.test_b00_module_registry.ModuleRegistryRejects.test_rejects_unknown_dependency) ... ok
 
 ----------------------------------------------------------------------
-Ran 2 tests in 0.032s
+Ran 17 tests in 1.936s
 
 OK
 
-===== tools.tests.test_b00_repo_hygiene.HygieneDetects =====
-test_accepts_zipfile_from_the_standard_library (tools.tests.test_b00_repo_hygiene.HygieneDetects.test_accepts_zipfile_from_the_standard_library) ... ok
-test_detects_aws_access_key (tools.tests.test_b00_repo_hygiene.HygieneDetects.test_detects_aws_access_key) ... ok
-test_detects_float_money_field (tools.tests.test_b00_repo_hygiene.HygieneDetects.test_detects_float_money_field) ... ok
-test_detects_float_money_literal (tools.tests.test_b00_repo_hygiene.HygieneDetects.test_detects_float_money_literal) ... ok
-test_detects_generic_secret_assignment (tools.tests.test_b00_repo_hygiene.HygieneDetects.test_detects_generic_secret_assignment) ... ok
-test_detects_live_psp_key (tools.tests.test_b00_repo_hygiene.HygieneDetects.test_detects_live_psp_key) ... ok
-test_detects_private_key_block (tools.tests.test_b00_repo_hygiene.HygieneDetects.test_detects_private_key_block) ... ok
-test_detects_third_party_import_in_toolchain (tools.tests.test_b00_repo_hygiene.HygieneDetects.test_detects_third_party_import_in_toolchain) ... ok
-test_float_outside_money_paths_is_not_flagged (tools.tests.test_b00_repo_hygiene.HygieneDetects.test_float_outside_money_paths_is_not_flagged) ... ok
-test_no_card_number_shaped_value_is_committed (tools.tests.test_b00_repo_hygiene.HygieneDetects.test_no_card_number_shaped_value_is_committed)
-NN-02 — the repository must never contain raw card data. ... ok
+===== tools.tests.test_b00_project_config.ProjectConfigRejects =====
+test_rejects_all_providers_disabled (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_all_providers_disabled) ... ok
+test_rejects_apple_pay_direct_decryption (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_apple_pay_direct_decryption) ... ok
+test_rejects_disabled_four_eyes (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_disabled_four_eyes) ... ok
+test_rejects_enabled_stored_value (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_enabled_stored_value) ... ok
+test_rejects_float_money_representation (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_float_money_representation) ... ok
+test_rejects_fund_pool_and_clearing_together (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_fund_pool_and_clearing_together) ... ok
+test_rejects_invalid_residency_code (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_invalid_residency_code) ... ok
+test_rejects_literal_provider_secret (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_literal_provider_secret) ... ok
+test_rejects_malformed_json (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_malformed_json) ... ok
+test_rejects_missing_section (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_missing_section) ... ok
+test_rejects_non_webauthn_admin_mfa (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_non_webauthn_admin_mfa) ... ok
+test_rejects_out_of_scope_provider_in_china_mainland_mvp (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_out_of_scope_provider_in_china_mainland_mvp) ... ok
+test_rejects_production_evidence_environment (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_production_evidence_environment) ... ok
+test_rejects_raw_card_data_allowed (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_raw_card_data_allowed) ... ok
+test_rejects_same_executor_and_reviewer (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_same_executor_and_reviewer) ... ok
+test_rejects_stripe_raw_card_mode (tools.tests.test_b00_project_config.ProjectConfigRejects.test_rejects_stripe_raw_card_mode) ... ok
 
 ----------------------------------------------------------------------
-Ran 10 tests in 5.486s
+Ran 16 tests in 1.418s
 
 OK
 
-===== tools.tests.test_b00_repo_hygiene.ScanMemoIsContentKeyed =====
-test_a_new_forbidden_import_is_not_masked_by_the_memo (tools.tests.test_b00_repo_hygiene.ScanMemoIsContentKeyed.test_a_new_forbidden_import_is_not_masked_by_the_memo) ... ok
-test_identical_content_at_a_different_path_is_judged_separately (tools.tests.test_b00_repo_hygiene.ScanMemoIsContentKeyed.test_identical_content_at_a_different_path_is_judged_separately) ... ok
-test_the_same_path_with_new_content_is_rescanned (tools.tests.test_b00_repo_hygiene.ScanMemoIsContentKeyed.test_the_same_path_with_new_content_is_rescanned) ... ok
+===== tools.tests.test_b00_repo_hygiene.NegativeControlSharding =====
+test_absent_shard_argument_runs_everything (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_absent_shard_argument_runs_everything) ... ok
+test_help_prints_usage_and_exits_successfully (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_help_prints_usage_and_exits_successfully) ... ok
+test_negative_fixture_carries_capture_conformance_bindings (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_negative_fixture_carries_capture_conformance_bindings) ... ok
+test_negative_fixture_carries_every_generated_ci_target (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_negative_fixture_carries_every_generated_ci_target) ... ok
+test_negative_fixture_carries_every_ssot_generated_target (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_negative_fixture_carries_every_ssot_generated_target) ... ok
+test_negative_fixture_carries_real_module_boundary_content (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_negative_fixture_carries_real_module_boundary_content) ... ok
+test_nonsensical_shard_arguments_are_refused (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_nonsensical_shard_arguments_are_refused) ... ok
+test_offset_keeps_the_second_list_from_piling_onto_one_shard (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_offset_keeps_the_second_list_from_piling_onto_one_shard) ... ok
+test_programmatic_main_still_accepts_an_explicit_argv (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_programmatic_main_still_accepts_an_explicit_argv) ... ok
+test_real_scenario_set_splits_evenly_enough_to_fit_the_window (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_real_scenario_set_splits_evenly_enough_to_fit_the_window) ... ok
+test_shard_option_requires_a_value (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_shard_option_requires_a_value) ... ok
+test_slices_are_disjoint_and_exhaustive (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_slices_are_disjoint_and_exhaustive) ... ok
+test_unknown_arguments_are_refused_by_the_cli_parser (tools.tests.test_b00_repo_hygiene.NegativeControlSharding.test_unknown_arguments_are_refused_by_the_cli_parser) ... ok
 
 ----------------------------------------------------------------------
-Ran 3 tests in 0.703s
+Ran 13 tests in 2.699s
 
 OK
 
-===== tools.tests.test_b01_boundaries.BoundaryRejects =====
-test_rejects_actor_without_prohibitions (tools.tests.test_b01_boundaries.BoundaryRejects.test_rejects_actor_without_prohibitions) ... ok
-test_rejects_capability_owned_by_unknown_module (tools.tests.test_b01_boundaries.BoundaryRejects.test_rejects_capability_owned_by_unknown_module) ... ok
-test_rejects_double_claimed_requirement (tools.tests.test_b01_boundaries.BoundaryRejects.test_rejects_double_claimed_requirement) ... ok
-test_rejects_edge_to_undeclared_actor (tools.tests.test_b01_boundaries.BoundaryRejects.test_rejects_edge_to_undeclared_actor) ... ok
-test_rejects_forbidden_flow_with_unknown_enforcement (tools.tests.test_b01_boundaries.BoundaryRejects.test_rejects_forbidden_flow_with_unknown_enforcement) ... ok
-test_rejects_forbidden_flow_without_enforcement (tools.tests.test_b01_boundaries.BoundaryRejects.test_rejects_forbidden_flow_without_enforcement) ... ok
-test_rejects_reference_to_missing_requirement (tools.tests.test_b01_boundaries.BoundaryRejects.test_rejects_reference_to_missing_requirement) ... ok
-test_rejects_unclaimed_requirement (tools.tests.test_b01_boundaries.BoundaryRejects.test_rejects_unclaimed_requirement) ... ok
+===== tools.tests.test_b01_boundaries.BoundaryHappyPath =====
+test_business_project_owns_the_business_order (tools.tests.test_b01_boundaries.BoundaryHappyPath.test_business_project_owns_the_business_order) ... ok
+test_every_requirement_is_claimed_exactly_once (tools.tests.test_b01_boundaries.BoundaryHappyPath.test_every_requirement_is_claimed_exactly_once) ... ok
+test_forbidden_flows_cover_the_core_abuse_cases (tools.tests.test_b01_boundaries.BoundaryHappyPath.test_forbidden_flows_cover_the_core_abuse_cases) ... ok
+test_real_boundaries_pass (tools.tests.test_b01_boundaries.BoundaryHappyPath.test_real_boundaries_pass) ... ok
 
 ----------------------------------------------------------------------
-Ran 8 tests in 0.946s
+Ran 4 tests in 0.552s
 
 OK
 
-===== tools.tests.test_b01_requirements.BaselineRejects =====
-test_rejects_gap_in_identifiers (tools.tests.test_b01_requirements.BaselineRejects.test_rejects_gap_in_identifiers) ... ok
-test_rejects_invalid_priority (tools.tests.test_b01_requirements.BaselineRejects.test_rejects_invalid_priority) ... ok
-test_rejects_module_left_without_any_requirement (tools.tests.test_b01_requirements.BaselineRejects.test_rejects_module_left_without_any_requirement) ... ok
-test_rejects_requirement_without_control (tools.tests.test_b01_requirements.BaselineRejects.test_rejects_requirement_without_control) ... ok
-test_rejects_requirement_without_verification (tools.tests.test_b01_requirements.BaselineRejects.test_rejects_requirement_without_verification) ... ok
-test_rejects_unknown_category (tools.tests.test_b01_requirements.BaselineRejects.test_rejects_unknown_category) ... ok
-test_rejects_unknown_control_reference (tools.tests.test_b01_requirements.BaselineRejects.test_rejects_unknown_control_reference) ... ok
-test_rejects_unknown_owner_module (tools.tests.test_b01_requirements.BaselineRejects.test_rejects_unknown_owner_module) ... ok
-test_rejects_unknown_verification_batch (tools.tests.test_b01_requirements.BaselineRejects.test_rejects_unknown_verification_batch) ... ok
-test_rejects_untestable_acceptance (tools.tests.test_b01_requirements.BaselineRejects.test_rejects_untestable_acceptance) ... ok
+===== tools.tests.test_b01_requirements.BaselineRegistration =====
+test_b01_validators_are_registered (tools.tests.test_b01_requirements.BaselineRegistration.test_b01_validators_are_registered) ... ok
 
 ----------------------------------------------------------------------
-Ran 10 tests in 0.307s
+Ran 1 test in 0.529s
 
 OK
 
-===== tools.tests.test_b02_threat_model.ThreatModelRejects =====
-test_rejects_abuse_case_with_unknown_adversary (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_abuse_case_with_unknown_adversary) ... ok
-test_rejects_abuse_case_without_mitigating_batch (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_abuse_case_without_mitigating_batch) ... ok
-test_rejects_accepted_abuse_case_without_residual_risk (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_accepted_abuse_case_without_residual_risk) ... ok
-test_rejects_asset_with_unknown_module (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_asset_with_unknown_module) ... ok
-test_rejects_boundary_with_unknown_zone (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_boundary_with_unknown_zone) ... ok
-test_rejects_critical_residual_risk (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_critical_residual_risk) ... ok
-test_rejects_dropped_abuse_case (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_dropped_abuse_case) ... ok
-test_rejects_expired_security_exception (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_expired_security_exception) ... ok
-test_rejects_missing_upstream_threat_model (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_missing_upstream_threat_model) ... ok
-test_rejects_placeholder_owner (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_placeholder_owner) ... ok
-test_rejects_risk_without_compensating_controls (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_risk_without_compensating_controls) ... ok
-test_rejects_unknown_review_batch (tools.tests.test_b02_threat_model.ThreatModelRejects.test_rejects_unknown_review_batch) ... ok
+===== tools.tests.test_b02_threat_model.ThreatModelHappyPath =====
+test_all_twelve_upstream_abuse_cases_are_mirrored (tools.tests.test_b02_threat_model.ThreatModelHappyPath.test_all_twelve_upstream_abuse_cases_are_mirrored) ... ok
+test_every_residual_risk_has_owner_controls_and_deadline (tools.tests.test_b02_threat_model.ThreatModelHappyPath.test_every_residual_risk_has_owner_controls_and_deadline) ... ok
+test_no_residual_risk_is_critical (tools.tests.test_b02_threat_model.ThreatModelHappyPath.test_no_residual_risk_is_critical) ... ok
+test_real_threat_model_passes (tools.tests.test_b02_threat_model.ThreatModelHappyPath.test_real_threat_model_passes) ... ok
+test_single_executor_risk_is_declared_honestly (tools.tests.test_b02_threat_model.ThreatModelHappyPath.test_single_executor_risk_is_declared_honestly) ... ok
 
 ----------------------------------------------------------------------
-Ran 12 tests in 0.988s
+Ran 5 tests in 0.607s
 
 OK
 
-===== tools.tests.test_b03_toolchain.ToolchainRejects =====
-test_accepts_semver_build_metadata (tools.tests.test_b03_toolchain.ToolchainRejects.test_accepts_semver_build_metadata) ... ok
-test_rejects_a_credential_override_on_the_keyless_feed (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_a_credential_override_on_the_keyless_feed) ... ok
-test_rejects_a_datafeed_policy_that_drifts_from_the_reviewed_one (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_a_datafeed_policy_that_drifts_from_the_reviewed_one) ... ok
-test_rejects_a_foreign_nvd_data_feed (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_a_foreign_nvd_data_feed) ... ok
-test_rejects_a_second_nvd_source (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_a_second_nvd_source) ... ok
-test_rejects_container_pinned_by_tag_only (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_container_pinned_by_tag_only) ... ok
-test_rejects_container_without_digest (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_container_without_digest) ... ok
-test_rejects_corrupt_gradle_wrapper_jar (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_corrupt_gradle_wrapper_jar) ... ok
-test_rejects_entry_without_owner (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_entry_without_owner) ... ok
-test_rejects_entry_without_upgrade_policy (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_entry_without_upgrade_policy) ... ok
-test_rejects_gradle_distribution_without_digest (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_gradle_distribution_without_digest) ... ok
-test_rejects_gradle_dynamic_version (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_gradle_dynamic_version) ... ok
-test_rejects_hand_edited_build_file (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_hand_edited_build_file) ... ok
-test_rejects_java_downgrade (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_java_downgrade) ... ok
-test_rejects_latest_tag (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_latest_tag) ... ok
-test_rejects_maven_range (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_maven_range) ... ok
-test_rejects_missing_generated_build_file (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_missing_generated_build_file) ... ok
-test_rejects_missing_gradle_wrapper_launcher (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_missing_gradle_wrapper_launcher) ... ok
-test_rejects_missing_required_category (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_missing_required_category) ... ok
-test_rejects_module_claimed_twice (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_module_claimed_twice) ... ok
-test_rejects_module_without_build_system (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_module_without_build_system) ... ok
-test_rejects_non_executable_gradle_wrapper_launcher (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_non_executable_gradle_wrapper_launcher) ... ok
-test_rejects_snapshot (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_snapshot) ... ok
-test_rejects_unverified_catalogue_without_a_note (tools.tests.test_b03_toolchain.ToolchainRejects.test_rejects_unverified_catalogue_without_a_note) ... ok
+===== tools.tests.test_b03_toolchain.ToolchainHappyPath =====
+test_b03_validator_is_registered (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_b03_validator_is_registered) ... ok
+test_container_images_are_digest_pinned (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_container_images_are_digest_pinned) ... ok
+test_default_version_catalog_is_not_imported_twice (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_default_version_catalog_is_not_imported_twice) ... ok
+test_every_module_has_exactly_one_build_system (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_every_module_has_exactly_one_build_system) ... ok
+test_generated_build_files_carry_the_banner (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_generated_build_files_carry_the_banner) ... ok
+test_generation_is_deterministic (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_generation_is_deterministic) ... ok
+test_gradle_wrapper_is_pinned_and_executable (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_gradle_wrapper_is_pinned_and_executable) ... ok
+test_java_baseline_is_25 (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_java_baseline_is_25) ... ok
+test_only_declared_gradle_leaf_modules_can_emit_jars (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_only_declared_gradle_leaf_modules_can_emit_jars) ... ok
+test_real_catalogue_passes (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_real_catalogue_passes) ... ok
+test_security_build_plugins_are_catalogue_pinned (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_security_build_plugins_are_catalogue_pinned) ... ok
+test_settings_includes_every_gradle_module (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_settings_includes_every_gradle_module) ... ok
+test_spring_boot_baseline_is_4_1 (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_spring_boot_baseline_is_4_1) ... ok
+test_worker_runtime_uses_governed_kafka_and_postgres_dependencies (tools.tests.test_b03_toolchain.ToolchainHappyPath.test_worker_runtime_uses_governed_kafka_and_postgres_dependencies) ... ok
 
 ----------------------------------------------------------------------
-Ran 24 tests in 7.804s
+Ran 14 tests in 10.084s
 
 OK
 
-===== tools.tests.test_b04_simulator.SimulatorRefusesUnsafeConfiguration =====
-test_card_data_guard_accepts_non_card_digits (tools.tests.test_b04_simulator.SimulatorRefusesUnsafeConfiguration.test_card_data_guard_accepts_non_card_digits) ... ok
-test_card_data_guard_rejects_valid_luhn (tools.tests.test_b04_simulator.SimulatorRefusesUnsafeConfiguration.test_card_data_guard_rejects_valid_luhn) ... ok
-test_refuses_non_synthetic_secret (tools.tests.test_b04_simulator.SimulatorRefusesUnsafeConfiguration.test_refuses_non_synthetic_secret) ... ok
-test_refuses_production_marker_in_merchant_id (tools.tests.test_b04_simulator.SimulatorRefusesUnsafeConfiguration.test_refuses_production_marker_in_merchant_id) ... ok
-test_refuses_unknown_provider (tools.tests.test_b04_simulator.SimulatorRefusesUnsafeConfiguration.test_refuses_unknown_provider) ... ok
+===== tools.tests.test_b04_dev_platform.DevPlatformRejects =====
+test_rejects_allowing_real_card_data (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_allowing_real_card_data) ... ok
+test_rejects_hand_edited_compose (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_hand_edited_compose) ... ok
+test_rejects_host_port_conflict (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_host_port_conflict) ... ok
+test_rejects_image_outside_the_version_catalogue (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_image_outside_the_version_catalogue) ... ok
+test_rejects_inline_password (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_inline_password) ... ok
+test_rejects_missing_generated_file (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_missing_generated_file) ... ok
+test_rejects_missing_required_service (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_missing_required_service) ... ok
+test_rejects_missing_simulator_for_enabled_provider (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_missing_simulator_for_enabled_provider) ... ok
+test_rejects_non_synthetic_data_classification (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_non_synthetic_data_classification) ... ok
+test_rejects_production_environment_target (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_production_environment_target) ... ok
+test_rejects_production_marker_in_environment (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_production_marker_in_environment) ... ok
+test_rejects_service_without_healthcheck (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_service_without_healthcheck) ... ok
+test_rejects_simulator_without_build_context (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_simulator_without_build_context) ... ok
+test_rejects_undeclared_secret_variable (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_undeclared_secret_variable) ... ok
+test_rejects_undeclared_volume (tools.tests.test_b04_dev_platform.DevPlatformRejects.test_rejects_undeclared_volume) ... ok
 
 ----------------------------------------------------------------------
-Ran 5 tests in 0.015s
+Ran 15 tests in 1.521s
 
 OK
 
-===== tools.tests.test_b06_evidence.EvidenceHappyPath =====
-test_b06_validator_is_registered (tools.tests.test_b06_evidence.EvidenceHappyPath.test_b06_validator_is_registered) ... ok
-test_every_completed_batch_declares_the_required_command_classes (tools.tests.test_b06_evidence.EvidenceHappyPath.test_every_completed_batch_declares_the_required_command_classes) ... ok
-test_every_completion_uses_distinct_principals (tools.tests.test_b06_evidence.EvidenceHappyPath.test_every_completion_uses_distinct_principals) ... ok
-test_real_evidence_tree_passes (tools.tests.test_b06_evidence.EvidenceHappyPath.test_real_evidence_tree_passes) ... ok
+===== tools.tests.test_b05_ci.PipelineHappyPath =====
+test_all_required_stage_families_are_present (tools.tests.test_b05_ci.PipelineHappyPath.test_all_required_stage_families_are_present) ... ok
+test_b05_validator_is_registered (tools.tests.test_b05_ci.PipelineHappyPath.test_b05_validator_is_registered) ... ok
+test_batch_mandated_blocking_conditions_exist (tools.tests.test_b05_ci.PipelineHappyPath.test_batch_mandated_blocking_conditions_exist) ... ok
+test_dependency_and_sbom_stages_invoke_registered_gradle_tasks (tools.tests.test_b05_ci.PipelineHappyPath.test_dependency_and_sbom_stages_invoke_registered_gradle_tasks) ... ok
+test_every_action_is_pinned_to_a_commit_sha (tools.tests.test_b05_ci.PipelineHappyPath.test_every_action_is_pinned_to_a_commit_sha) ... ok
+test_every_required_stage_is_fail_closed (tools.tests.test_b05_ci.PipelineHappyPath.test_every_required_stage_is_fail_closed) ... ok
+test_failed_dependency_scan_cannot_publish_its_cache (tools.tests.test_b05_ci.PipelineHappyPath.test_failed_dependency_scan_cannot_publish_its_cache) ... ok
+test_generated_step_name_keeps_the_shard_suffix_inside_yaml_quotes (tools.tests.test_b05_ci.PipelineHappyPath.test_generated_step_name_keeps_the_shard_suffix_inside_yaml_quotes) ... ok
+test_generation_is_deterministic (tools.tests.test_b05_ci.PipelineHappyPath.test_generation_is_deterministic) ... ok
+test_governance_verifies_the_skill_package_and_installed_mirrors (tools.tests.test_b05_ci.PipelineHappyPath.test_governance_verifies_the_skill_package_and_installed_mirrors) ... ok
+test_make_verify_covers_the_same_complete_surface (tools.tests.test_b05_ci.PipelineHappyPath.test_make_verify_covers_the_same_complete_surface) ... ok
+test_node24_action_upgrades_are_exactly_pinned (tools.tests.test_b05_ci.PipelineHappyPath.test_node24_action_upgrades_are_exactly_pinned) ... ok
+test_pipeline_distinguishes_source_controls_from_external_image_execution (tools.tests.test_b05_ci.PipelineHappyPath.test_pipeline_distinguishes_source_controls_from_external_image_execution) ... ok
+test_real_pipeline_passes (tools.tests.test_b05_ci.PipelineHappyPath.test_real_pipeline_passes) ... ok
+test_release_gate_is_the_only_secret_expression_boundary (tools.tests.test_b05_ci.PipelineHappyPath.test_release_gate_is_the_only_secret_expression_boundary) ... ok
+test_release_gate_uses_event_aware_environment_inputs (tools.tests.test_b05_ci.PipelineHappyPath.test_release_gate_uses_event_aware_environment_inputs) ... ok
+test_required_stages_emit_the_machine_reports_they_upload (tools.tests.test_b05_ci.PipelineHappyPath.test_required_stages_emit_the_machine_reports_they_upload) ... ok
+test_sign_script_refuses_to_emit_unsigned_artifacts (tools.tests.test_b05_ci.PipelineHappyPath.test_sign_script_refuses_to_emit_unsigned_artifacts) ... ok
+test_signing_waits_for_the_floor_interpreter_gate (tools.tests.test_b05_ci.PipelineHappyPath.test_signing_waits_for_the_floor_interpreter_gate) ... ok
+test_tool_versions_pins_the_reference_python (tools.tests.test_b05_ci.PipelineHappyPath.test_tool_versions_pins_the_reference_python) ... ok
+test_workflow_does_not_use_dangerous_triggers (tools.tests.test_b05_ci.PipelineHappyPath.test_workflow_does_not_use_dangerous_triggers) ... ok
+test_workflow_has_a_terminal_release_gate (tools.tests.test_b05_ci.PipelineHappyPath.test_workflow_has_a_terminal_release_gate) ... ok
+test_workflow_runs_every_product_and_sdk_surface (tools.tests.test_b05_ci.PipelineHappyPath.test_workflow_runs_every_product_and_sdk_surface) ... ok
+test_workflow_runs_exact_reference_and_floor_pythons (tools.tests.test_b05_ci.PipelineHappyPath.test_workflow_runs_exact_reference_and_floor_pythons) ... ok
+test_workflow_uses_the_pinned_java_version (tools.tests.test_b05_ci.PipelineHappyPath.test_workflow_uses_the_pinned_java_version) ... ok
 
 ----------------------------------------------------------------------
-Ran 4 tests in 0.768s
+Ran 25 tests in 2.185s
 
 OK
 
-===== tools.tests.test_b06_orchestration.CommandTranscriptSafety =====
-test_exact_ordered_successful_transcript_is_accepted (tools.tests.test_b06_orchestration.CommandTranscriptSafety.test_exact_ordered_successful_transcript_is_accepted) ... ok
-test_incomplete_and_empty_transcripts_cannot_finalize (tools.tests.test_b06_orchestration.CommandTranscriptSafety.test_incomplete_and_empty_transcripts_cannot_finalize) ... ok
-test_modified_saved_output_is_rejected (tools.tests.test_b06_orchestration.CommandTranscriptSafety.test_modified_saved_output_is_rejected) ... ok
-test_same_command_set_in_the_wrong_order_is_rejected (tools.tests.test_b06_orchestration.CommandTranscriptSafety.test_same_command_set_in_the_wrong_order_is_rejected) ... ok
-test_stale_spec_hash_is_rejected (tools.tests.test_b06_orchestration.CommandTranscriptSafety.test_stale_spec_hash_is_rejected) ... ok
+===== tools.tests.test_b06_evidence.ShardFamilyRejects =====
+test_accepts_different_complete_denominators_for_independent_families (tools.tests.test_b06_evidence.ShardFamilyRejects.test_accepts_different_complete_denominators_for_independent_families) ... ok
+test_rejects_a_malformed_shard_value (tools.tests.test_b06_evidence.ShardFamilyRejects.test_rejects_a_malformed_shard_value) ... ok
+test_rejects_an_out_of_range_index (tools.tests.test_b06_evidence.ShardFamilyRejects.test_rejects_an_out_of_range_index) ... ok
+test_rejects_duplicate_indices_with_no_hole (tools.tests.test_b06_evidence.ShardFamilyRejects.test_rejects_duplicate_indices_with_no_hole) ... ok
+test_rejects_merge_before_the_test_runs (tools.tests.test_b06_evidence.ShardFamilyRejects.test_rejects_merge_before_the_test_runs) ... ok
+test_rejects_merge_with_an_extra_or_reordered_input (tools.tests.test_b06_evidence.ShardFamilyRejects.test_rejects_merge_with_an_extra_or_reordered_input) ... ok
+test_rejects_mixed_unsharded_and_sharded_mode (tools.tests.test_b06_evidence.ShardFamilyRejects.test_rejects_mixed_unsharded_and_sharded_mode) ... ok
+test_rejects_sharded_test_run_without_one_exact_merge (tools.tests.test_b06_evidence.ShardFamilyRejects.test_rejects_sharded_test_run_without_one_exact_merge) ... ok
 
 ----------------------------------------------------------------------
-Ran 5 tests in 0.073s
+Ran 8 tests in 0.732s
 
 OK
 
-===== tools.tests.test_b06_orchestration.FinishBatchPreflightSafety =====
-test_current_summary_output_proof_is_accepted (tools.tests.test_b06_orchestration.FinishBatchPreflightSafety.test_current_summary_output_proof_is_accepted) ... ok
-test_non_record_only_cli_requires_review_attestation (tools.tests.test_b06_orchestration.FinishBatchPreflightSafety.test_non_record_only_cli_requires_review_attestation) ... ok
-test_stale_summary_proof_is_rejected (tools.tests.test_b06_orchestration.FinishBatchPreflightSafety.test_stale_summary_proof_is_rejected) ... ok
-test_wrong_shard_count_is_rejected (tools.tests.test_b06_orchestration.FinishBatchPreflightSafety.test_wrong_shard_count_is_rejected) ... ok
+===== tools.tests.test_b06_orchestration.DifferentialCrosscheck =====
+test_crosscheck_reports_no_mismatch (tools.tests.test_b06_orchestration.DifferentialCrosscheck.test_crosscheck_reports_no_mismatch) ... ok
 
 ----------------------------------------------------------------------
-Ran 4 tests in 0.038s
+Ran 1 test in 24.226s
 
 OK
 
-===== tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety =====
-test_boundary_race_leaves_no_new_completion_when_none_existed (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_boundary_race_leaves_no_new_completion_when_none_existed) ... ok
-test_boundary_race_restores_the_previous_completion (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_boundary_race_restores_the_previous_completion) ... ok
-test_changed_artifact_invalidates_the_review (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_changed_artifact_invalidates_the_review) ... ok
-test_changed_final_trace_invalidates_the_review (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_changed_final_trace_invalidates_the_review) ... ok
-test_completion_payload_exactly_matches_reviewed_head_and_artifacts (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_completion_payload_exactly_matches_reviewed_head_and_artifacts) ... ok
-test_dependency_race_restores_previous_completion (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_dependency_race_restores_previous_completion) ... ok
-test_direct_writer_rejects_blank_review_notes (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_direct_writer_rejects_blank_review_notes) ... ok
-test_direct_writer_rejects_extra_review_schema_key (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_direct_writer_rejects_extra_review_schema_key) ... ok
-test_direct_writer_rejects_naive_review_timestamp (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_direct_writer_rejects_naive_review_timestamp) ... ok
-test_exact_tracked_review_binding_is_accepted (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_exact_tracked_review_binding_is_accepted) ... ok
-test_failed_atomic_replace_preserves_previous_bytes_and_cleans_temp (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_failed_atomic_replace_preserves_previous_bytes_and_cleans_temp) ... ok
-test_preexisting_binding_mismatch_creates_no_completion (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_preexisting_binding_mismatch_creates_no_completion) ... ok
-test_review_edit_race_restores_previous_completion (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_review_edit_race_restores_previous_completion) ... ok
-test_review_notes_must_be_non_empty (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_review_notes_must_be_non_empty) ... ok
-test_review_timestamp_must_have_a_timezone (tools.tests.test_b06_orchestration.MakeCompletionBoundarySafety.test_review_timestamp_must_have_a_timezone) ... ok
+===== tools.tests.test_b06_orchestration.FinishValidationRollbackSafety =====
+test_failed_final_validation_leaves_no_new_marker (tools.tests.test_b06_orchestration.FinishValidationRollbackSafety.test_failed_final_validation_leaves_no_new_marker) ... ok
+test_failed_final_validation_restores_prior_marker (tools.tests.test_b06_orchestration.FinishValidationRollbackSafety.test_failed_final_validation_restores_prior_marker) ... ok
+test_successful_final_validation_keeps_new_marker (tools.tests.test_b06_orchestration.FinishValidationRollbackSafety.test_successful_final_validation_keeps_new_marker) ... ok
 
 ----------------------------------------------------------------------
-Ran 15 tests in 9.330s
+Ran 3 tests in 0.019s
 
 OK
 
-===== tools.tests.test_b07_traceability.TraceHappyPath =====
-test_every_adr_constrains_a_real_requirement (tools.tests.test_b07_traceability.TraceHappyPath.test_every_adr_constrains_a_real_requirement) ... ok
-test_every_batch_with_evidence_claims_known_controls (tools.tests.test_b07_traceability.TraceHappyPath.test_every_batch_with_evidence_claims_known_controls) ... ok
-test_every_control_is_claimed_by_a_requirement (tools.tests.test_b07_traceability.TraceHappyPath.test_every_control_is_claimed_by_a_requirement) ... ok
-test_every_non_negotiable_is_claimed_by_a_requirement (tools.tests.test_b07_traceability.TraceHappyPath.test_every_non_negotiable_is_claimed_by_a_requirement) ... ok
-test_every_requirement_belongs_to_a_capability (tools.tests.test_b07_traceability.TraceHappyPath.test_every_requirement_belongs_to_a_capability) ... ok
-test_graph_construction_is_deterministic (tools.tests.test_b07_traceability.TraceHappyPath.test_graph_construction_is_deterministic) ... ok
-test_matrix_contains_reverse_coverage_section (tools.tests.test_b07_traceability.TraceHappyPath.test_matrix_contains_reverse_coverage_section) ... ok
-test_real_graph_passes (tools.tests.test_b07_traceability.TraceHappyPath.test_real_graph_passes) ... ok
+===== tools.tests.test_b07_ssot.SsotHappyPath =====
+test_b07_validators_are_registered (tools.tests.test_b07_ssot.SsotHappyPath.test_b07_validators_are_registered) ... ok
+test_every_governance_file_is_registered (tools.tests.test_b07_ssot.SsotHappyPath.test_every_governance_file_is_registered) ... ok
+test_every_source_names_an_owner_and_a_validator (tools.tests.test_b07_ssot.SsotHappyPath.test_every_source_names_an_owner_and_a_validator) ... ok
+test_no_generated_file_has_two_generators (tools.tests.test_b07_ssot.SsotHappyPath.test_no_generated_file_has_two_generators) ... ok
+test_real_registry_passes (tools.tests.test_b07_ssot.SsotHappyPath.test_real_registry_passes) ... ok
 
 ----------------------------------------------------------------------
-Ran 8 tests in 0.339s
+Ran 5 tests in 0.598s
 
 OK
 
-===== tools.tests.test_b08_domain.GlossaryRejects =====
-test_rejects_duplicate_term (tools.tests.test_b08_domain.GlossaryRejects.test_rejects_duplicate_term) ... ok
-test_rejects_empty_glossary (tools.tests.test_b08_domain.GlossaryRejects.test_rejects_empty_glossary) ... ok
-test_rejects_term_without_chinese_name (tools.tests.test_b08_domain.GlossaryRejects.test_rejects_term_without_chinese_name) ... ok
-test_rejects_unknown_term_kind (tools.tests.test_b08_domain.GlossaryRejects.test_rejects_unknown_term_kind) ... ok
+===== tools.tests.test_b08_domain.DomainModelHappyPath =====
+test_batch_mandated_entities_are_modelled (tools.tests.test_b08_domain.DomainModelHappyPath.test_batch_mandated_entities_are_modelled) ... ok
+test_entity_tables_match_the_module_registry (tools.tests.test_b08_domain.DomainModelHappyPath.test_entity_tables_match_the_module_registry) ... ok
+test_every_monetary_field_uses_integer_minor_units (tools.tests.test_b08_domain.DomainModelHappyPath.test_every_monetary_field_uses_integer_minor_units) ... ok
+test_every_tenant_scoped_entity_carries_tenant_id (tools.tests.test_b08_domain.DomainModelHappyPath.test_every_tenant_scoped_entity_carries_tenant_id) ... ok
+test_generated_schema_encodes_money_and_tenant_constraints (tools.tests.test_b08_domain.DomainModelHappyPath.test_generated_schema_encodes_money_and_tenant_constraints) ... ok
+test_generated_schema_is_deterministic_and_banner_marked (tools.tests.test_b08_domain.DomainModelHappyPath.test_generated_schema_is_deterministic_and_banner_marked) ... ok
+test_no_floating_point_type_exists_in_the_type_system (tools.tests.test_b08_domain.DomainModelHappyPath.test_no_floating_point_type_exists_in_the_type_system) ... ok
+test_payment_intent_is_bound_to_the_business_order_by_reference_only (tools.tests.test_b08_domain.DomainModelHappyPath.test_payment_intent_is_bound_to_the_business_order_by_reference_only) ... ok
+test_real_model_passes (tools.tests.test_b08_domain.DomainModelHappyPath.test_real_model_passes) ... ok
+test_validator_is_registered (tools.tests.test_b08_domain.DomainModelHappyPath.test_validator_is_registered) ... ok
 
 ----------------------------------------------------------------------
-Ran 4 tests in 0.604s
+Ran 10 tests in 1.134s
 
 OK
 
-===== tools.tests.test_b09_money.FeesAndConversion =====
-test_conversion_respects_both_exponents (tools.tests.test_b09_money.FeesAndConversion.test_conversion_respects_both_exponents) ... ok
-test_negative_rate_or_scale_is_refused (tools.tests.test_b09_money.FeesAndConversion.test_negative_rate_or_scale_is_refused) ... ok
-test_percentage_fee_uses_integer_rational_rate (tools.tests.test_b09_money.FeesAndConversion.test_percentage_fee_uses_integer_rational_rate) ... ok
-test_property_addition_is_associative_and_conserves_value (tools.tests.test_b09_money.FeesAndConversion.test_property_addition_is_associative_and_conserves_value) ... ok
-test_property_conversion_is_sign_preserving_and_monotonic (tools.tests.test_b09_money.FeesAndConversion.test_property_conversion_is_sign_preserving_and_monotonic) ... ok
-test_zero_decimal_fee_stays_integral (tools.tests.test_b09_money.FeesAndConversion.test_zero_decimal_fee_stays_integral) ... ok
+===== tools.tests.test_b09_money.ConformanceVectors =====
+test_every_allocation_vector_sums_to_its_input (tools.tests.test_b09_money.ConformanceVectors.test_every_allocation_vector_sums_to_its_input) ... ok
+test_vectors_cover_the_dangerous_cases (tools.tests.test_b09_money.ConformanceVectors.test_vectors_cover_the_dangerous_cases) ... ok
+test_vectors_match_the_reference_implementation (tools.tests.test_b09_money.ConformanceVectors.test_vectors_match_the_reference_implementation) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.231s
+Ran 3 tests in 0.653s
 
 OK
 
-===== tools.tests.test_b09_money.RoundingIsExplicitAndHalfEven =====
-test_division_by_zero_is_refused (tools.tests.test_b09_money.RoundingIsExplicitAndHalfEven.test_division_by_zero_is_refused) ... ok
-test_down_and_up_truncate_and_raise (tools.tests.test_b09_money.RoundingIsExplicitAndHalfEven.test_down_and_up_truncate_and_raise) ... ok
-test_half_even_does_not_drift_upward (tools.tests.test_b09_money.RoundingIsExplicitAndHalfEven.test_half_even_does_not_drift_upward) ... ok
-test_half_up_differs_from_half_even_exactly_at_the_midpoint (tools.tests.test_b09_money.RoundingIsExplicitAndHalfEven.test_half_up_differs_from_half_even_exactly_at_the_midpoint) ... ok
-test_property_half_even_is_within_one_of_exact_quotient (tools.tests.test_b09_money.RoundingIsExplicitAndHalfEven.test_property_half_even_is_within_one_of_exact_quotient) ... ok
-test_unknown_rounding_mode_is_refused (tools.tests.test_b09_money.RoundingIsExplicitAndHalfEven.test_unknown_rounding_mode_is_refused) ... ok
+===== tools.tests.test_b09_money.MoneyRefusesToGuess =====
+test_amount_must_be_an_integer (tools.tests.test_b09_money.MoneyRefusesToGuess.test_amount_must_be_an_integer) ... ok
+test_cross_currency_arithmetic_raises (tools.tests.test_b09_money.MoneyRefusesToGuess.test_cross_currency_arithmetic_raises) ... ok
+test_currency_must_be_iso_alphabetic (tools.tests.test_b09_money.MoneyRefusesToGuess.test_currency_must_be_iso_alphabetic) ... ok
+test_multiplying_by_a_non_integer_raises (tools.tests.test_b09_money.MoneyRefusesToGuess.test_multiplying_by_a_non_integer_raises) ... ok
+test_totalling_an_empty_collection_raises (tools.tests.test_b09_money.MoneyRefusesToGuess.test_totalling_an_empty_collection_raises) ... ok
+test_unknown_currency_is_refused_by_the_registry (tools.tests.test_b09_money.MoneyRefusesToGuess.test_unknown_currency_is_refused_by_the_registry) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.184s
+Ran 6 tests in 0.869s
 
 OK
 
-===== tools.tests.test_b11_api.ApiContractHappyPath =====
-test_a_provider_timeout_is_retryable_and_never_a_failure (tools.tests.test_b11_api.ApiContractHappyPath.test_a_provider_timeout_is_retryable_and_never_a_failure) ... ok
-test_every_list_operation_is_cursor_paginated (tools.tests.test_b11_api.ApiContractHappyPath.test_every_list_operation_is_cursor_paginated) ... ok
-test_every_write_operation_requires_an_idempotency_key (tools.tests.test_b11_api.ApiContractHappyPath.test_every_write_operation_requires_an_idempotency_key) ... ok
-test_generated_artefacts_carry_a_banner (tools.tests.test_b11_api.ApiContractHappyPath.test_generated_artefacts_carry_a_banner) ... ok
-test_generated_artefacts_match_the_contract (tools.tests.test_b11_api.ApiContractHappyPath.test_generated_artefacts_match_the_contract) ... ok
-test_money_on_the_wire_is_integer_minor_units (tools.tests.test_b11_api.ApiContractHappyPath.test_money_on_the_wire_is_integer_minor_units) ... ok
-test_no_error_message_can_leak_a_credential_or_a_pan (tools.tests.test_b11_api.ApiContractHappyPath.test_no_error_message_can_leak_a_credential_or_a_pan) ... ok
-test_no_merchant_facing_operation_drives_a_provider_transition (tools.tests.test_b11_api.ApiContractHappyPath.test_no_merchant_facing_operation_drives_a_provider_transition)
-The API-side statement of 'the browser is not proof' (NN-03). ... ok
-test_no_read_operation_pretends_to_be_idempotent (tools.tests.test_b11_api.ApiContractHappyPath.test_no_read_operation_pretends_to_be_idempotent) ... ok
-test_only_transport_level_failures_are_marked_retryable (tools.tests.test_b11_api.ApiContractHappyPath.test_only_transport_level_failures_are_marked_retryable) ... ok
-test_openapi_declares_every_operation_and_its_errors (tools.tests.test_b11_api.ApiContractHappyPath.test_openapi_declares_every_operation_and_its_errors) ... ok
-test_operations_agree_with_the_state_machines_they_drive (tools.tests.test_b11_api.ApiContractHappyPath.test_operations_agree_with_the_state_machines_they_drive) ... ok
-test_real_contract_passes (tools.tests.test_b11_api.ApiContractHappyPath.test_real_contract_passes) ... ok
-test_the_baseline_covers_the_current_major (tools.tests.test_b11_api.ApiContractHappyPath.test_the_baseline_covers_the_current_major) ... ok
-test_the_webhook_endpoint_verifies_a_signature_before_anything_else (tools.tests.test_b11_api.ApiContractHappyPath.test_the_webhook_endpoint_verifies_a_signature_before_anything_else) ... ok
-test_validator_is_registered (tools.tests.test_b11_api.ApiContractHappyPath.test_validator_is_registered) ... ok
+===== tools.tests.test_b10_states.StateInterpreter =====
+test_a_card_payment_walks_created_to_captured (tools.tests.test_b10_states.StateInterpreter.test_a_card_payment_walks_created_to_captured) ... ok
+test_a_different_token_for_the_same_event_is_not_a_replay (tools.tests.test_b10_states.StateInterpreter.test_a_different_token_for_the_same_event_is_not_a_replay) ... ok
+test_a_replay_of_the_terminal_event_does_not_raise (tools.tests.test_b10_states.StateInterpreter.test_a_replay_of_the_terminal_event_does_not_raise)
+Providers retry the last webhook too; the answer must stay the same. ... ok
+test_a_replayed_webhook_is_a_no_op (tools.tests.test_b10_states.StateInterpreter.test_a_replayed_webhook_is_a_no_op) ... ok
+test_a_succeeded_refund_cannot_be_walked_back (tools.tests.test_b10_states.StateInterpreter.test_a_succeeded_refund_cannot_be_walked_back) ... ok
+test_a_timeout_lands_in_unknown_and_reconciliation_resolves_it (tools.tests.test_b10_states.StateInterpreter.test_a_timeout_lands_in_unknown_and_reconciliation_resolves_it) ... ok
+test_an_event_not_allowed_in_this_state_is_rejected (tools.tests.test_b10_states.StateInterpreter.test_an_event_not_allowed_in_this_state_is_rejected) ... ok
+test_an_untrusted_actor_cannot_write_success_even_if_the_table_says_so (tools.tests.test_b10_states.StateInterpreter.test_an_untrusted_actor_cannot_write_success_even_if_the_table_says_so)
+Defence in depth against a doctored transition table. ... ok
+test_every_machine_can_reach_a_terminal_state (tools.tests.test_b10_states.StateInterpreter.test_every_machine_can_reach_a_terminal_state) ... ok
+test_the_interpreter_loads_every_machine_in_the_model (tools.tests.test_b10_states.StateInterpreter.test_the_interpreter_loads_every_machine_in_the_model) ... ok
+test_the_merchant_cannot_impersonate_a_provider_event (tools.tests.test_b10_states.StateInterpreter.test_the_merchant_cannot_impersonate_a_provider_event) ... ok
 
 ----------------------------------------------------------------------
-Ran 16 tests in 0.601s
+Ran 11 tests in 1.155s
 
 OK
 
-===== tools.tests.test_b12_events.EventGateRejects =====
-test_fails_closed_when_the_artefacts_cannot_be_generated (tools.tests.test_b12_events.EventGateRejects.test_fails_closed_when_the_artefacts_cannot_be_generated)
-A gate must turn a broken catalogue into a finding, not into a crash. ... ok
-test_rejects_a_backoff_ceiling_below_its_floor (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_backoff_ceiling_below_its_floor) ... ok
-test_rejects_a_bad_event_name (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_bad_event_name) ... ok
-test_rejects_a_bad_field_name (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_bad_field_name) ... ok
-test_rejects_a_consumer_subscribing_to_nothing (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_consumer_subscribing_to_nothing) ... ok
-test_rejects_a_consumer_that_has_not_thought_about_reordering (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_consumer_that_has_not_thought_about_reordering) ... ok
-test_rejects_a_consumer_that_is_not_a_module (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_consumer_that_is_not_a_module) ... ok
-test_rejects_a_consumer_that_is_not_an_object (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_consumer_that_is_not_an_object) ... ok
-test_rejects_a_consumer_without_an_apply_policy (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_consumer_without_an_apply_policy) ... ok
-test_rejects_a_duplicate_consumer (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_duplicate_consumer) ... ok
-test_rejects_a_duplicate_event (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_duplicate_event) ... ok
-test_rejects_a_duplicate_field (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_duplicate_field) ... ok
-test_rejects_a_field_that_is_not_an_object (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_field_that_is_not_an_object) ... ok
-test_rejects_a_fixed_retry_loop (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_fixed_retry_loop) ... ok
-test_rejects_a_floating_point_amount (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_floating_point_amount) ... ok
-test_rejects_a_hand_edited_generated_artefact (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_hand_edited_generated_artefact) ... ok
-test_rejects_a_library_publishing_facts (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_library_publishing_facts) ... ok
-test_rejects_a_pan_in_an_event_payload (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_pan_in_an_event_payload) ... ok
-test_rejects_a_producer_that_is_not_a_module (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_producer_that_is_not_a_module) ... ok
-test_rejects_a_short_event_version_parallel_window (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_short_event_version_parallel_window) ... ok
-test_rejects_a_short_retention (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_short_retention) ... ok
-test_rejects_a_subscription_to_an_unknown_event (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_subscription_to_an_unknown_event) ... ok
-test_rejects_a_success_transition_that_publishes_nothing (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_success_transition_that_publishes_nothing)
-The rule that found two real gaps in the first draft. ... ok
-test_rejects_a_zero_event_version (tools.tests.test_b12_events.EventGateRejects.test_rejects_a_zero_event_version) ... ok
-test_rejects_an_amount_without_a_currency (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_amount_without_a_currency) ... ok
-test_rejects_an_empty_consumer_list (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_empty_consumer_list) ... ok
-test_rejects_an_empty_event_list (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_empty_event_list) ... ok
-test_rejects_an_envelope_without_a_revision (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_envelope_without_a_revision) ... ok
-test_rejects_an_envelope_without_a_tenant (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_envelope_without_a_tenant) ... ok
-test_rejects_an_event_citing_a_transition_that_does_not_exist (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_event_citing_a_transition_that_does_not_exist) ... ok
-test_rejects_an_event_declaring_no_consumers (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_event_declaring_no_consumers) ... ok
-test_rejects_an_event_nobody_consumes (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_event_nobody_consumes) ... ok
-test_rejects_an_event_not_partitioned_by_tenant (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_event_not_partitioned_by_tenant) ... ok
-test_rejects_an_event_that_is_not_an_object (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_event_that_is_not_an_object) ... ok
-test_rejects_an_event_with_no_cause (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_event_with_no_cause) ... ok
-test_rejects_an_event_with_no_fields (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_event_with_no_fields) ... ok
-test_rejects_an_inbox_conflict_with_no_error (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_inbox_conflict_with_no_error) ... ok
-test_rejects_an_inbox_that_does_not_deduplicate (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_inbox_that_does_not_deduplicate) ... ok
-test_rejects_an_inbox_that_forgets_before_the_provider_stops_resending (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_inbox_that_forgets_before_the_provider_stops_resending) ... ok
-test_rejects_an_inbox_without_a_payload_hash (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_inbox_without_a_payload_hash) ... ok
-test_rejects_an_inbox_without_a_table (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_inbox_without_a_table) ... ok
-test_rejects_an_ordering_key_that_is_nowhere (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_ordering_key_that_is_nowhere) ... ok
-test_rejects_an_outbox_without_a_table (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_outbox_without_a_table) ... ok
-test_rejects_an_outbox_without_a_unique_key (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_outbox_without_a_unique_key) ... ok
-test_rejects_an_unbounded_reorder_buffer (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_unbounded_reorder_buffer) ... ok
-test_rejects_an_unclassified_field (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_unclassified_field) ... ok
-test_rejects_an_undeclared_cross_aggregate_emission (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_undeclared_cross_aggregate_emission)
-A run may legitimately create an exception — but not by accident. ... ok
-test_rejects_an_unknown_aggregate (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_unknown_aggregate) ... ok
-test_rejects_an_unwritten_version_policy (tools.tests.test_b12_events.EventGateRejects.test_rejects_an_unwritten_version_policy) ... ok
-test_rejects_bad_schema_version (tools.tests.test_b12_events.EventGateRejects.test_rejects_bad_schema_version) ... ok
-test_rejects_claiming_exactly_once_transport (tools.tests.test_b12_events.EventGateRejects.test_rejects_claiming_exactly_once_transport) ... ok
-test_rejects_dropping_the_dead_letter_destination (tools.tests.test_b12_events.EventGateRejects.test_rejects_dropping_the_dead_letter_destination) ... ok
-test_rejects_dropping_the_effectively_once_business_guarantee (tools.tests.test_b12_events.EventGateRejects.test_rejects_dropping_the_effectively_once_business_guarantee) ... ok
-test_rejects_emptying_the_forbidden_field_list (tools.tests.test_b12_events.EventGateRejects.test_rejects_emptying_the_forbidden_field_list) ... ok
-test_rejects_giving_up_after_one_blip (tools.tests.test_b12_events.EventGateRejects.test_rejects_giving_up_after_one_blip) ... ok
-test_rejects_missing_generated_artefacts (tools.tests.test_b12_events.EventGateRejects.test_rejects_missing_generated_artefacts) ... ok
-test_rejects_ordering_by_timestamp (tools.tests.test_b12_events.EventGateRejects.test_rejects_ordering_by_timestamp) ... ok
-test_rejects_publish_before_commit_dispatch (tools.tests.test_b12_events.EventGateRejects.test_rejects_publish_before_commit_dispatch) ... ok
-test_rejects_publishing_outside_the_state_change_transaction (tools.tests.test_b12_events.EventGateRejects.test_rejects_publishing_outside_the_state_change_transaction)
-The failure the outbox pattern exists to prevent. ... ok
-test_rejects_removing_all_classifications (tools.tests.test_b12_events.EventGateRejects.test_rejects_removing_all_classifications) ... ok
-test_rejects_removing_all_ordering_tolerances (tools.tests.test_b12_events.EventGateRejects.test_rejects_removing_all_ordering_tolerances) ... ok
-test_rejects_unreadable_catalogue (tools.tests.test_b12_events.EventGateRejects.test_rejects_unreadable_catalogue) ... ok
+===== tools.tests.test_b11_api.TransitionVectors =====
+test_a_transition_legal_from_two_states_gets_two_vectors (tools.tests.test_b11_api.TransitionVectors.test_a_transition_legal_from_two_states_gets_two_vectors)
+The collapsing-index bug this file exists to keep fixed. ... ok
+test_every_accepted_vector_lands_on_the_declared_state (tools.tests.test_b11_api.TransitionVectors.test_every_accepted_vector_lands_on_the_declared_state) ... ok
+test_every_accepted_vector_survives_a_replay_unchanged (tools.tests.test_b11_api.TransitionVectors.test_every_accepted_vector_survives_a_replay_unchanged) ... ok
+test_every_rejected_vector_is_rejected_for_the_declared_reason (tools.tests.test_b11_api.TransitionVectors.test_every_rejected_vector_is_rejected_for_the_declared_reason) ... ok
+test_the_vectors_are_not_empty (tools.tests.test_b11_api.TransitionVectors.test_the_vectors_are_not_empty) ... ok
+test_the_vectors_cover_every_operation_that_drives_a_transition (tools.tests.test_b11_api.TransitionVectors.test_the_vectors_cover_every_operation_that_drives_a_transition) ... ok
 
 ----------------------------------------------------------------------
-Ran 62 tests in 3.016s
+Ran 6 tests in 0.734s
 
 OK
 
-===== tools.tests.test_b13_data.TenantIsolationReference =====
-test_a_session_without_a_tenant_is_refused_not_widened (tools.tests.test_b13_data.TenantIsolationReference.test_a_session_without_a_tenant_is_refused_not_widened) ... ok
-test_a_write_for_another_tenant_is_rejected (tools.tests.test_b13_data.TenantIsolationReference.test_a_write_for_another_tenant_is_rejected) ... ok
-test_append_only_tables_refuse_update_and_delete (tools.tests.test_b13_data.TenantIsolationReference.test_append_only_tables_refuse_update_and_delete) ... ok
-test_break_glass_crosses_tenants_which_is_why_it_is_audited (tools.tests.test_b13_data.TenantIsolationReference.test_break_glass_crosses_tenants_which_is_why_it_is_audited) ... ok
-test_mutable_tables_still_only_touch_their_own_tenant (tools.tests.test_b13_data.TenantIsolationReference.test_mutable_tables_still_only_touch_their_own_tenant) ... ok
-test_no_tenant_scoped_table_leaks_across_tenants (tools.tests.test_b13_data.TenantIsolationReference.test_no_tenant_scoped_table_leaks_across_tenants) ... ok
-test_with_force_the_owner_is_confined_like_everyone_else (tools.tests.test_b13_data.TenantIsolationReference.test_with_force_the_owner_is_confined_like_everyone_else) ... ok
-test_without_force_the_owner_sees_every_tenant (tools.tests.test_b13_data.TenantIsolationReference.test_without_force_the_owner_sees_every_tenant)
-Reproduces the leak DATA_RLS_FORCE exists to prevent. ... ok
+===== tools.tests.test_b13_data.DataArchitectureHappyPath =====
+test_every_exemption_from_tenant_isolation_is_justified (tools.tests.test_b13_data.DataArchitectureHappyPath.test_every_exemption_from_tenant_isolation_is_justified) ... ok
+test_every_mutable_ledger_family_table_justifies_itself (tools.tests.test_b13_data.DataArchitectureHappyPath.test_every_mutable_ledger_family_table_justifies_itself) ... ok
+test_every_owned_table_has_an_architecture_entry (tools.tests.test_b13_data.DataArchitectureHappyPath.test_every_owned_table_has_an_architecture_entry) ... ok
+test_every_personal_column_has_a_deletion_strategy (tools.tests.test_b13_data.DataArchitectureHappyPath.test_every_personal_column_has_a_deletion_strategy) ... ok
+test_every_tenant_scoped_table_forces_row_level_security (tools.tests.test_b13_data.DataArchitectureHappyPath.test_every_tenant_scoped_table_forces_row_level_security) ... ok
+test_every_tenant_table_indexes_and_shards_on_tenant_first (tools.tests.test_b13_data.DataArchitectureHappyPath.test_every_tenant_table_indexes_and_shards_on_tenant_first) ... ok
+test_financial_tables_are_retained_for_at_least_seven_years (tools.tests.test_b13_data.DataArchitectureHappyPath.test_financial_tables_are_retained_for_at_least_seven_years) ... ok
+test_generated_artefacts_match_the_architecture (tools.tests.test_b13_data.DataArchitectureHappyPath.test_generated_artefacts_match_the_architecture) ... ok
+test_generated_rls_ddl_forces_the_policy_on_every_tenant_table (tools.tests.test_b13_data.DataArchitectureHappyPath.test_generated_rls_ddl_forces_the_policy_on_every_tenant_table) ... ok
+test_generated_rls_ddl_revokes_writes_on_append_only_tables (tools.tests.test_b13_data.DataArchitectureHappyPath.test_generated_rls_ddl_revokes_writes_on_append_only_tables) ... ok
+test_movement_tables_are_append_only (tools.tests.test_b13_data.DataArchitectureHappyPath.test_movement_tables_are_append_only) ... ok
+test_ownership_agrees_with_the_module_registry (tools.tests.test_b13_data.DataArchitectureHappyPath.test_ownership_agrees_with_the_module_registry) ... ok
+test_real_architecture_passes (tools.tests.test_b13_data.DataArchitectureHappyPath.test_real_architecture_passes) ... ok
+test_retention_tiers_are_non_decreasing (tools.tests.test_b13_data.DataArchitectureHappyPath.test_retention_tiers_are_non_decreasing) ... ok
+test_tenant_scoping_agrees_with_the_domain_model (tools.tests.test_b13_data.DataArchitectureHappyPath.test_tenant_scoping_agrees_with_the_domain_model) ... ok
+test_the_break_glass_path_exists_and_is_constrained (tools.tests.test_b13_data.DataArchitectureHappyPath.test_the_break_glass_path_exists_and_is_constrained) ... ok
+test_the_eventing_tables_really_exist_and_are_owned_as_declared (tools.tests.test_b13_data.DataArchitectureHappyPath.test_the_eventing_tables_really_exist_and_are_owned_as_declared)
+The cross-check that caught B12 naming a table nobody owns. ... ok
+test_validator_is_registered (tools.tests.test_b13_data.DataArchitectureHappyPath.test_validator_is_registered) ... ok
 
 ----------------------------------------------------------------------
-Ran 8 tests in 0.208s
+Ran 18 tests in 1.829s
 
 OK
 
-===== tools.tests.test_b15_migration.MigrationGateRejects =====
-test_fails_closed_when_the_runbook_cannot_be_generated (tools.tests.test_b15_migration.MigrationGateRejects.test_fails_closed_when_the_runbook_cannot_be_generated)
-A gate must turn a broken plan into a finding, not into a crash. ... ok
-test_rejects_a_backfill_that_cannot_resume (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_backfill_that_cannot_resume) ... ok
-test_rejects_a_backfill_that_writes_to_the_legacy_system (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_backfill_that_writes_to_the_legacy_system) ... ok
-test_rejects_a_binding_that_is_not_unique_per_project (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_binding_that_is_not_unique_per_project) ... ok
-test_rejects_a_concept_owned_by_both_systems (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_concept_owned_by_both_systems) ... ok
-test_rejects_a_destructive_rollback (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_destructive_rollback) ... ok
-test_rejects_a_divergence_budget_with_no_abort_rule (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_divergence_budget_with_no_abort_rule) ... ok
-test_rejects_a_global_cutover (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_global_cutover) ... ok
-test_rejects_a_hand_edited_runbook (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_hand_edited_runbook) ... ok
-test_rejects_a_kill_switch_that_takes_a_deploy (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_kill_switch_that_takes_a_deploy) ... ok
-test_rejects_a_kill_switch_with_no_scope (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_kill_switch_with_no_scope) ... ok
-test_rejects_a_legacy_concept_that_became_a_platform_table (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_legacy_concept_that_became_a_platform_table) ... ok
-test_rejects_a_non_idempotent_backfill (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_non_idempotent_backfill) ... ok
-test_rejects_a_phase_that_is_not_an_object (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_phase_that_is_not_an_object) ... ok
-test_rejects_a_phase_with_no_entry_criteria (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_phase_with_no_entry_criteria) ... ok
-test_rejects_a_phase_with_no_exit_criteria (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_phase_with_no_exit_criteria) ... ok
-test_rejects_a_phase_with_no_rollback_action (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_phase_with_no_rollback_action) ... ok
-test_rejects_a_phase_with_no_stated_purpose (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_phase_with_no_stated_purpose) ... ok
-test_rejects_a_plan_that_does_not_start_from_legacy_only (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_plan_that_does_not_start_from_legacy_only) ... ok
-test_rejects_a_plan_that_never_reaches_platform_only (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_plan_that_never_reaches_platform_only) ... ok
-test_rejects_a_platform_concept_with_no_table (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_platform_concept_with_no_table) ... ok
-test_rejects_a_rollback_with_no_justification (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_a_rollback_with_no_justification) ... ok
-test_rejects_advancing_a_phase_without_evidence (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_advancing_a_phase_without_evidence) ... ok
-test_rejects_an_adapter_operation_that_is_not_an_object (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_adapter_operation_that_is_not_an_object) ... ok
-test_rejects_an_adapter_operation_that_is_not_in_the_api (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_adapter_operation_that_is_not_in_the_api) ... ok
-test_rejects_an_adapter_passing_order_line_data (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_adapter_passing_order_line_data) ... ok
-test_rejects_an_adapter_that_invents_its_own_idempotency_key (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_adapter_that_invents_its_own_idempotency_key) ... ok
-test_rejects_an_adapter_with_no_operations (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_adapter_with_no_operations) ... ok
-test_rejects_an_empty_ownership_split (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_empty_ownership_split) ... ok
-test_rejects_an_empty_phase_list (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_empty_phase_list) ... ok
-test_rejects_an_empty_platform_side (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_empty_platform_side) ... ok
-test_rejects_an_ownerless_adapter (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_ownerless_adapter) ... ok
-test_rejects_an_unaudited_kill_switch (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_unaudited_kill_switch) ... ok
-test_rejects_an_unbounded_divergence_budget (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_unbounded_divergence_budget) ... ok
-test_rejects_an_undeclared_authority (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_undeclared_authority) ... ok
-test_rejects_an_unexplained_legacy_access_policy (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_unexplained_legacy_access_policy) ... ok
-test_rejects_an_unknown_write_mode (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_unknown_write_mode) ... ok
-test_rejects_an_unwritten_dual_write_policy (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_an_unwritten_dual_write_policy) ... ok
-test_rejects_bad_schema_version (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_bad_schema_version) ... ok
-test_rejects_binding_by_anything_other_than_the_order_reference (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_binding_by_anything_other_than_the_order_reference) ... ok
-test_rejects_divergence_detection_that_ignores_the_amount (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_divergence_detection_that_ignores_the_amount) ... ok
-test_rejects_dropping_the_principle (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_dropping_the_principle) ... ok
-test_rejects_dual_write_without_divergence_detection (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_dual_write_without_divergence_detection) ... ok
-test_rejects_duplicate_phase_ids (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_duplicate_phase_ids) ... ok
-test_rejects_emptying_the_adapter_forbidden_list (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_emptying_the_adapter_forbidden_list) ... ok
-test_rejects_giving_the_platform_legacy_database_access (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_giving_the_platform_legacy_database_access) ... ok
-test_rejects_missing_generated_artefacts (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_missing_generated_artefacts) ... ok
-test_rejects_moving_the_adapter_into_the_platform_repository (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_moving_the_adapter_into_the_platform_repository) ... ok
-test_rejects_phases_that_go_backwards (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_phases_that_go_backwards) ... ok
-test_rejects_the_legacy_system_staying_authoritative_at_the_end (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_the_legacy_system_staying_authoritative_at_the_end) ... ok
-test_rejects_the_platform_being_authoritative_before_it_writes (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_the_platform_being_authoritative_before_it_writes) ... ok
-test_rejects_two_provider_calls_per_payment (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_two_provider_calls_per_payment)
-The whole point of the batch, stated as a number. ... ok
-test_rejects_unreadable_plan (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_unreadable_plan) ... ok
-test_rejects_verification_by_sampling_alone (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_verification_by_sampling_alone) ... ok
-test_rejects_verification_with_no_tolerance (tools.tests.test_b15_migration.MigrationGateRejects.test_rejects_verification_with_no_tolerance) ... ok
+===== tools.tests.test_b14_topology.TopologyHappyPath =====
+test_every_caller_allows_its_callee_at_least_its_own_budget (tools.tests.test_b14_topology.TopologyHappyPath.test_every_caller_allows_its_callee_at_least_its_own_budget) ... ok
+test_every_caller_budget_covers_its_synchronous_timeouts (tools.tests.test_b14_topology.TopologyHappyPath.test_every_caller_budget_covers_its_synchronous_timeouts) ... ok
+test_every_deployable_module_has_a_topology_entry (tools.tests.test_b14_topology.TopologyHappyPath.test_every_deployable_module_has_a_topology_entry) ... ok
+test_every_synchronous_dependency_is_isolated (tools.tests.test_b14_topology.TopologyHappyPath.test_every_synchronous_dependency_is_isolated) ... ok
+test_generated_artefacts_match_the_topology (tools.tests.test_b14_topology.TopologyHappyPath.test_generated_artefacts_match_the_topology) ... ok
+test_mutating_connector_calls_are_never_retried (tools.tests.test_b14_topology.TopologyHappyPath.test_mutating_connector_calls_are_never_retried) ... ok
+test_no_synchronous_cycle_exists (tools.tests.test_b14_topology.TopologyHappyPath.test_no_synchronous_cycle_exists) ... ok
+test_published_and_consumed_events_agree_with_the_catalogue (tools.tests.test_b14_topology.TopologyHappyPath.test_published_and_consumed_events_agree_with_the_catalogue) ... ok
+test_real_topology_passes (tools.tests.test_b14_topology.TopologyHappyPath.test_real_topology_passes) ... ok
+test_the_config_service_is_a_leaf (tools.tests.test_b14_topology.TopologyHappyPath.test_the_config_service_is_a_leaf)
+Its availability multiplies into everyone else's, so it depends on nothing. ... ok
+test_the_generated_schema_has_no_cross_module_foreign_key (tools.tests.test_b14_topology.TopologyHappyPath.test_the_generated_schema_has_no_cross_module_foreign_key)
+B13 left this open; the DDL is where it actually matters. ... ok
+test_the_generated_schema_still_creates_intra_module_foreign_keys (tools.tests.test_b14_topology.TopologyHappyPath.test_the_generated_schema_still_creates_intra_module_foreign_keys)
+Dropping the cross-module ones must not have dropped them all. ... ok
+test_the_ledger_is_never_on_the_synchronous_payment_path (tools.tests.test_b14_topology.TopologyHappyPath.test_the_ledger_is_never_on_the_synchronous_payment_path)
+A slow ledger must not be able to become a failed payment. ... ok
+test_tier_one_dependencies_fail_closed_unless_they_are_the_provider (tools.tests.test_b14_topology.TopologyHappyPath.test_tier_one_dependencies_fail_closed_unless_they_are_the_provider) ... ok
+test_validator_is_registered (tools.tests.test_b14_topology.TopologyHappyPath.test_validator_is_registered) ... ok
 
 ----------------------------------------------------------------------
-Ran 55 tests in 2.561s
+Ran 15 tests in 1.846s
 
 OK
 
-===== tools.tests.test_b16_zerotrust.ZeroTrustHappyPath =====
-test_administrative_access_is_phishing_resistant (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_administrative_access_is_phishing_resistant) ... ok
-test_every_boundary_crossing_is_audited (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_every_boundary_crossing_is_audited) ... ok
-test_every_decision_and_every_allow_is_audited (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_every_decision_and_every_allow_is_audited) ... ok
-test_every_decision_requires_identity_policy_and_audit (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_every_decision_requires_identity_policy_and_audit) ... ok
-test_every_trust_boundary_has_a_rule (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_every_trust_boundary_has_a_rule) ... ok
-test_generated_artefacts_match_the_policy (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_generated_artefacts_match_the_policy) ... ok
-test_high_risk_actions_require_four_eyes_and_step_up (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_high_risk_actions_require_four_eyes_and_step_up) ... ok
-test_human_credentials_do_not_outlast_the_session_limit (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_human_credentials_do_not_outlast_the_session_limit) ... ok
-test_internal_to_internal_boundaries_still_require_mutual_tls (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_internal_to_internal_boundaries_still_require_mutual_tls) ... ok
-test_network_location_grants_nothing (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_network_location_grants_nothing) ... ok
-test_no_static_long_lived_credentials (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_no_static_long_lived_credentials) ... ok
-test_real_policy_passes (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_real_policy_passes) ... ok
-test_tenant_scoped_access_binds_the_tenant_to_the_credential (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_tenant_scoped_access_binds_the_tenant_to_the_credential) ... ok
-test_the_break_glass_role_declared_in_b13_is_governed_here (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_the_break_glass_role_declared_in_b13_is_governed_here) ... ok
-test_validator_is_registered (tools.tests.test_b16_zerotrust.ZeroTrustHappyPath.test_validator_is_registered) ... ok
+===== tools.tests.test_b16_zerotrust.PolicyDecisionPointReference =====
+test_a_four_eyes_action_cannot_be_self_approved (tools.tests.test_b16_zerotrust.PolicyDecisionPointReference.test_a_four_eyes_action_cannot_be_self_approved) ... ok
+test_a_step_up_action_is_denied_without_step_up (tools.tests.test_b16_zerotrust.PolicyDecisionPointReference.test_a_step_up_action_is_denied_without_step_up) ... ok
+test_allows_and_denies_are_both_logged (tools.tests.test_b16_zerotrust.PolicyDecisionPointReference.test_allows_and_denies_are_both_logged) ... ok
+test_an_expired_session_is_denied_even_with_every_factor (tools.tests.test_b16_zerotrust.PolicyDecisionPointReference.test_an_expired_session_is_denied_even_with_every_factor) ... ok
+test_an_unmatched_request_is_denied_by_default (tools.tests.test_b16_zerotrust.PolicyDecisionPointReference.test_an_unmatched_request_is_denied_by_default) ... ok
+test_every_declared_decision_permits_its_own_happy_path (tools.tests.test_b16_zerotrust.PolicyDecisionPointReference.test_every_declared_decision_permits_its_own_happy_path) ... ok
+test_every_required_factor_is_load_bearing (tools.tests.test_b16_zerotrust.PolicyDecisionPointReference.test_every_required_factor_is_load_bearing) ... ok
+test_every_verdict_carries_a_complete_audit_record (tools.tests.test_b16_zerotrust.PolicyDecisionPointReference.test_every_verdict_carries_a_complete_audit_record) ... ok
+test_network_location_changes_nothing (tools.tests.test_b16_zerotrust.PolicyDecisionPointReference.test_network_location_changes_nothing)
+The whole architecture, in one assertion. ... ok
 
 ----------------------------------------------------------------------
-Ran 15 tests in 0.706s
+Ran 9 tests in 0.956s
 
 OK
 
-===== tools.tests.test_b18_mfa.MfaGateRejects =====
-test_fails_closed_when_the_matrix_cannot_be_generated (tools.tests.test_b18_mfa.MfaGateRejects.test_fails_closed_when_the_matrix_cannot_be_generated)
-A gate must turn a broken policy into a finding, not into a crash. ... ok
-test_rejects_a_bad_authenticator_id (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_bad_authenticator_id) ... ok
-test_rejects_a_downgrading_fallback (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_downgrading_fallback)
-'Use SMS if your key is not to hand' makes SMS the real security level. ... ok
-test_rejects_a_duplicate_authenticator (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_duplicate_authenticator) ... ok
-test_rejects_a_duplicate_role (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_duplicate_role) ... ok
-test_rejects_a_hand_edited_generated_artefact (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_hand_edited_generated_artefact) ... ok
-test_rejects_a_lockout_of_zero (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_lockout_of_zero) ... ok
-test_rejects_a_long_lived_challenge (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_long_lived_challenge) ... ok
-test_rejects_a_plaintext_origin (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_plaintext_origin) ... ok
-test_rejects_a_privileged_role_with_no_step_up_actions (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_privileged_role_with_no_step_up_actions) ... ok
-test_rejects_a_privileged_role_with_one_authenticator (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_privileged_role_with_one_authenticator) ... ok
-test_rejects_a_recovery_path_that_bypasses_this_policy (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_recovery_path_that_bypasses_this_policy)
-Recovery is how MFA gets bypassed, so B17's paths are checked here too. ... ok
-test_rejects_a_reference_to_an_unknown_authenticator (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_reference_to_an_unknown_authenticator) ... ok
-test_rejects_a_requirement_that_is_not_an_object (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_requirement_that_is_not_an_object) ... ok
-test_rejects_a_reusable_challenge (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_reusable_challenge) ... ok
-test_rejects_a_role_that_cannot_authenticate_at_all (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_role_that_cannot_authenticate_at_all) ... ok
-test_rejects_a_role_with_no_rationale (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_role_with_no_rationale) ... ok
-test_rejects_a_short_challenge (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_short_challenge) ... ok
-test_rejects_a_step_up_that_is_not_bound_to_the_operation (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_step_up_that_is_not_bound_to_the_operation) ... ok
-test_rejects_a_webauthn_authenticator_that_is_not_origin_bound (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_a_webauthn_authenticator_that_is_not_origin_bound) ... ok
-test_rejects_activating_an_unverified_authenticator (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_activating_an_unverified_authenticator) ... ok
-test_rejects_an_all_day_step_up (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_an_all_day_step_up) ... ok
-test_rejects_an_authenticator_both_allowed_and_forbidden (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_an_authenticator_both_allowed_and_forbidden) ... ok
-test_rejects_an_authenticator_that_is_not_an_object (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_an_authenticator_that_is_not_an_object) ... ok
-test_rejects_an_authenticator_with_no_explanation (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_an_authenticator_with_no_explanation) ... ok
-test_rejects_an_empty_authenticator_list (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_an_empty_authenticator_list) ... ok
-test_rejects_an_empty_requirement_list (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_an_empty_requirement_list) ... ok
-test_rejects_an_unaccepted_algorithm (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_an_unaccepted_algorithm) ... ok
-test_rejects_an_undeclared_phishing_classification (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_an_undeclared_phishing_classification) ... ok
-test_rejects_an_unknown_authenticator_kind (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_an_unknown_authenticator_kind) ... ok
-test_rejects_an_unwritten_fallback_policy (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_an_unwritten_fallback_policy) ... ok
-test_rejects_bad_schema_version (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_bad_schema_version) ... ok
-test_rejects_calling_otp_phishing_resistant (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_calling_otp_phishing_resistant)
-The one edit that would make every other rule here decorative. ... ok
-test_rejects_claiming_an_otp_is_origin_bound (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_claiming_an_otp_is_origin_bound) ... ok
-test_rejects_disabling_attestation (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_disabling_attestation) ... ok
-test_rejects_downgrading_a_privileged_role (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_downgrading_a_privileged_role) ... ok
-test_rejects_dropping_step_up_for_high_risk (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_dropping_step_up_for_high_risk) ... ok
-test_rejects_dropping_the_principle (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_dropping_the_principle) ... ok
-test_rejects_dropping_the_relying_party_id (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_dropping_the_relying_party_id) ... ok
-test_rejects_ignoring_push_fatigue (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_ignoring_push_fatigue) ... ok
-test_rejects_ignoring_the_signature_counter (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_ignoring_the_signature_counter) ... ok
-test_rejects_leaving_a_privileged_role_ungoverned (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_leaving_a_privileged_role_ungoverned) ... ok
-test_rejects_letting_an_operator_use_sms (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_letting_an_operator_use_sms) ... ok
-test_rejects_letting_an_otp_stand_alone (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_letting_an_otp_stand_alone) ... ok
-test_rejects_making_user_verification_optional (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_making_user_verification_optional) ... ok
-test_rejects_marking_sms_as_phishing_resistant (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_marking_sms_as_phishing_resistant) ... ok
-test_rejects_missing_generated_artefacts (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_missing_generated_artefacts) ... ok
-test_rejects_privileged_enrolment_with_a_single_authenticator (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_privileged_enrolment_with_a_single_authenticator) ... ok
-test_rejects_removing_the_allowed_origins (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_removing_the_allowed_origins) ... ok
-test_rejects_removing_the_zero_trust_factor_this_policy_backs (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_removing_the_zero_trust_factor_this_policy_backs) ... ok
-test_rejects_silent_enrolment (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_silent_enrolment) ... ok
-test_rejects_unlimited_attempts (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_unlimited_attempts) ... ok
-test_rejects_unreadable_policy (tools.tests.test_b18_mfa.MfaGateRejects.test_rejects_unreadable_policy) ... ok
+===== tools.tests.test_b17_identity.IdentityHappyPath =====
+test_every_token_audience_belongs_to_its_provider (tools.tests.test_b17_identity.IdentityHappyPath.test_every_token_audience_belongs_to_its_provider) ... ok
+test_every_token_expires_and_can_be_revoked (tools.tests.test_b17_identity.IdentityHappyPath.test_every_token_expires_and_can_be_revoked) ... ok
+test_every_zero_trust_principal_has_an_identity (tools.tests.test_b17_identity.IdentityHappyPath.test_every_zero_trust_principal_has_an_identity) ... ok
+test_generated_artefacts_match_the_model (tools.tests.test_b17_identity.IdentityHappyPath.test_generated_artefacts_match_the_model) ... ok
+test_high_privilege_recovery_has_a_cooling_off_period (tools.tests.test_b17_identity.IdentityHappyPath.test_high_privilege_recovery_has_a_cooling_off_period) ... ok
+test_human_tokens_do_not_outlive_the_zero_trust_session (tools.tests.test_b17_identity.IdentityHappyPath.test_human_tokens_do_not_outlive_the_zero_trust_session) ... ok
+test_machine_oauth_is_mtls_bound_client_credentials_without_static_secret (tools.tests.test_b17_identity.IdentityHappyPath.test_machine_oauth_is_mtls_bound_client_credentials_without_static_secret) ... ok
+test_no_provider_accepts_none_or_symmetric_algorithms (tools.tests.test_b17_identity.IdentityHappyPath.test_no_provider_accepts_none_or_symmetric_algorithms) ... ok
+test_no_recovery_path_is_sms_only_or_a_downgrade (tools.tests.test_b17_identity.IdentityHappyPath.test_no_recovery_path_is_sms_only_or_a_downgrade) ... ok
+test_no_service_account_may_hold_a_static_secret (tools.tests.test_b17_identity.IdentityHappyPath.test_no_service_account_may_hold_a_static_secret) ... ok
+test_only_authorization_code_with_pkce_is_allowed (tools.tests.test_b17_identity.IdentityHappyPath.test_only_authorization_code_with_pkce_is_allowed) ... ok
+test_real_identity_model_passes (tools.tests.test_b17_identity.IdentityHappyPath.test_real_identity_model_passes) ... ok
+test_redirect_uris_match_exactly (tools.tests.test_b17_identity.IdentityHappyPath.test_redirect_uris_match_exactly) ... ok
+test_revocation_is_checked_on_every_request (tools.tests.test_b17_identity.IdentityHappyPath.test_revocation_is_checked_on_every_request) ... ok
+test_unbound_bearer_tokens_are_forbidden (tools.tests.test_b17_identity.IdentityHappyPath.test_unbound_bearer_tokens_are_forbidden) ... ok
+test_validator_is_registered (tools.tests.test_b17_identity.IdentityHappyPath.test_validator_is_registered) ... ok
 
 ----------------------------------------------------------------------
-Ran 53 tests in 2.318s
+Ran 16 tests in 2.121s
 
 OK
 
-===== tools.tests.test_b19_authz.AuthzGateRejects =====
-test_budget_exhaustion_is_reraised (tools.tests.test_b19_authz.AuthzGateRejects.test_budget_exhaustion_is_reraised) ... ok
-test_missing_cross_check_inputs_do_not_crash_the_gate (tools.tests.test_b19_authz.AuthzGateRejects.test_missing_cross_check_inputs_do_not_crash_the_gate) ... ok
-test_rejects_a_model_with_no_privileged_role (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_a_model_with_no_privileged_role) ... ok
-test_rejects_a_role_being_allowed_to_read_pan (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_a_role_being_allowed_to_read_pan) ... ok
-test_rejects_a_role_holding_both_sides (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_a_role_holding_both_sides) ... ok
-test_rejects_all_day_elevation (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_all_day_elevation) ... ok
-test_rejects_allow_by_default (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_allow_by_default) ... ok
-test_rejects_an_elevatable_auditor (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_an_elevatable_auditor) ... ok
-test_rejects_approvals_that_never_expire (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_approvals_that_never_expire) ... ok
-test_rejects_audit_without_rule_version (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_audit_without_rule_version) ... ok
-test_rejects_bad_field_name (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_bad_field_name) ... ok
-test_rejects_bad_permission_id (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_bad_permission_id) ... ok
-test_rejects_bad_role_id (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_bad_role_id) ... ok
-test_rejects_bad_schema_version (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_bad_schema_version) ... ok
-test_rejects_bad_sod_id (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_bad_sod_id) ... ok
-test_rejects_break_glass_outlasting_ordinary_elevation (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_break_glass_outlasting_ordinary_elevation) ... ok
-test_rejects_dropping_a_separation_rule (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_dropping_a_separation_rule) ... ok
-test_rejects_duplicate_field_rule (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_duplicate_field_rule) ... ok
-test_rejects_duplicate_permission (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_duplicate_permission) ... ok
-test_rejects_duplicate_role (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_duplicate_role) ... ok
-test_rejects_duplicate_sod_rule (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_duplicate_sod_rule) ... ok
-test_rejects_elevation_only_permission_held_standing (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_elevation_only_permission_held_standing) ... ok
-test_rejects_elevation_that_is_not_auto_revoked (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_elevation_that_is_not_auto_revoked) ... ok
-test_rejects_elevation_without_a_ticket (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_elevation_without_a_ticket) ... ok
-test_rejects_field_without_classification (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_field_without_classification) ... ok
-test_rejects_field_without_notes (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_field_without_notes) ... ok
-test_rejects_grant_of_unknown_permission (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_grant_of_unknown_permission) ... ok
-test_rejects_implicit_privilege_flag (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_implicit_privilege_flag) ... ok
-test_rejects_missing_principle (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_missing_principle) ... ok
-test_rejects_money_permission_without_dual_control (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_money_permission_without_dual_control) ... ok
-test_rejects_mutable_audit_trail (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_mutable_audit_trail) ... ok
-test_rejects_non_object_model (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_non_object_model) ... ok
-test_rejects_permission_nobody_can_hold (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_permission_nobody_can_hold) ... ok
-test_rejects_permission_without_notes (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_permission_without_notes) ... ok
-test_rejects_privileged_role_with_no_mfa_requirement_at_all (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_privileged_role_with_no_mfa_requirement_at_all) ... ok
-test_rejects_privileged_role_without_a_recovery_path (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_privileged_role_without_a_recovery_path) ... ok
-test_rejects_privileged_role_without_phishing_resistant_mfa (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_privileged_role_without_phishing_resistant_mfa) ... ok
-test_rejects_quiet_break_glass (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_quiet_break_glass) ... ok
-test_rejects_readable_card_pan (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_readable_card_pan) ... ok
-test_rejects_role_without_a_zero_trust_principal (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_role_without_a_zero_trust_principal) ... ok
-test_rejects_role_without_notes (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_role_without_notes) ... ok
-test_rejects_self_approval (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_self_approval) ... ok
-test_rejects_self_approved_elevation (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_self_approved_elevation) ... ok
-test_rejects_sod_rule_naming_unknown_permission (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_sod_rule_naming_unknown_permission) ... ok
-test_rejects_sod_rule_without_notes (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_sod_rule_without_notes) ... ok
-test_rejects_standing_privileged_access (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_standing_privileged_access) ... ok
-test_rejects_unapproved_elevation (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unapproved_elevation) ... ok
-test_rejects_unbound_approvals (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unbound_approvals) ... ok
-test_rejects_ungoverned_card_data (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_ungoverned_card_data) ... ok
-test_rejects_unknown_elevatable_permission (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unknown_elevatable_permission) ... ok
-test_rejects_unknown_field_reader (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unknown_field_reader) ... ok
-test_rejects_unknown_non_elevatable_role (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unknown_non_elevatable_role) ... ok
-test_rejects_unknown_permission_scope (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unknown_permission_scope) ... ok
-test_rejects_unknown_role_kind (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unknown_role_kind) ... ok
-test_rejects_unknown_role_scope (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unknown_role_scope) ... ok
-test_rejects_unknown_sensitivity (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unknown_sensitivity) ... ok
-test_rejects_unlogged_decisions (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unlogged_decisions) ... ok
-test_rejects_unlogged_denials (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unlogged_denials) ... ok
-test_rejects_unmasked_pii (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unmasked_pii) ... ok
-test_rejects_unreadable_model (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unreadable_model) ... ok
-test_rejects_unreviewed_break_glass (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_unreviewed_break_glass) ... ok
-test_rejects_zero_approvals (tools.tests.test_b19_authz.AuthzGateRejects.test_rejects_zero_approvals) ... ok
+===== tools.tests.test_b18_mfa.WebAuthnCeremonyReference =====
+test_a_bad_signature_is_rejected (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_a_bad_signature_is_rejected) ... ok
+test_a_challenge_we_never_issued_is_rejected (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_a_challenge_we_never_issued_is_rejected) ... ok
+test_a_legitimate_assertion_is_accepted (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_a_legitimate_assertion_is_accepted) ... ok
+test_a_missing_user_verification_flag_is_rejected (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_a_missing_user_verification_flag_is_rejected) ... ok
+test_a_phishing_origin_is_rejected (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_a_phishing_origin_is_rejected)
+The test this entire batch exists for. ... ok
+test_a_regressing_signature_counter_means_a_clone (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_a_regressing_signature_counter_means_a_clone) ... ok
+test_a_replayed_assertion_is_rejected (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_a_replayed_assertion_is_rejected) ... ok
+test_a_step_up_bound_to_another_operation_is_rejected (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_a_step_up_bound_to_another_operation_is_rejected) ... ok
+test_a_step_up_bound_to_this_operation_is_accepted (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_a_step_up_bound_to_this_operation_is_accepted) ... ok
+test_a_wrong_relying_party_id_is_rejected (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_a_wrong_relying_party_id_is_rejected) ... ok
+test_an_advancing_signature_counter_is_accepted (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_an_advancing_signature_counter_is_accepted) ... ok
+test_an_expired_challenge_is_rejected (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_an_expired_challenge_is_rejected) ... ok
+test_an_unaccepted_algorithm_is_rejected (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_an_unaccepted_algorithm_is_rejected) ... ok
+test_an_unregistered_credential_is_rejected (tools.tests.test_b18_mfa.WebAuthnCeremonyReference.test_an_unregistered_credential_is_rejected) ... ok
 
 ----------------------------------------------------------------------
-Ran 62 tests in 2.855s
+Ran 14 tests in 1.354s
 
 OK
 
-===== tools.tests.test_b20_keys.KeyGateRejects =====
-test_a_new_sensitive_field_must_be_encrypted (tools.tests.test_b20_keys.KeyGateRejects.test_a_new_sensitive_field_must_be_encrypted) ... ok
-test_budget_exhaustion_is_reraised (tools.tests.test_b20_keys.KeyGateRejects.test_budget_exhaustion_is_reraised) ... ok
-test_missing_cross_check_inputs_do_not_crash_the_gate (tools.tests.test_b20_keys.KeyGateRejects.test_missing_cross_check_inputs_do_not_crash_the_gate) ... ok
-test_rejects_a_channel_with_no_managed_key (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_a_channel_with_no_managed_key) ... ok
-test_rejects_a_hierarchy_with_no_kek (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_a_hierarchy_with_no_kek) ... ok
-test_rejects_a_key_using_a_banned_algorithm (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_a_key_using_a_banned_algorithm) ... ok
-test_rejects_aad_that_omits_the_tenant (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_aad_that_omits_the_tenant) ... ok
-test_rejects_allowing_hardcoded_keys (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_allowing_hardcoded_keys) ... ok
-test_rejects_an_identity_provider_with_no_managed_key (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_an_identity_provider_with_no_managed_key) ... ok
-test_rejects_an_unencrypted_sensitive_field (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_an_unencrypted_sensitive_field) ... ok
-test_rejects_application_holding_key_material (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_application_holding_key_material) ... ok
-test_rejects_audit_without_key_version (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_audit_without_key_version) ... ok
-test_rejects_bad_key_id (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_bad_key_id) ... ok
-test_rejects_bad_schema_version (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_bad_schema_version) ... ok
-test_rejects_bypassing_the_broker (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_bypassing_the_broker) ... ok
-test_rejects_data_key_stored_outside_the_envelope (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_data_key_stored_outside_the_envelope) ... ok
-test_rejects_data_key_with_no_wrapper (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_data_key_with_no_wrapper) ... ok
-test_rejects_data_key_wrapping_another_data_key (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_data_key_wrapping_another_data_key) ... ok
-test_rejects_dropping_aad (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_dropping_aad) ... ok
-test_rejects_dropping_crypto_shredding (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_dropping_crypto_shredding) ... ok
-test_rejects_duplicate_key (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_duplicate_key) ... ok
-test_rejects_duplicate_provider (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_duplicate_provider) ... ok
-test_rejects_encrypting_a_field_we_promised_never_to_store (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_encrypting_a_field_we_promised_never_to_store) ... ok
-test_rejects_exportable_key (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_exportable_key) ... ok
-test_rejects_exportable_root_key (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_exportable_root_key) ... ok
-test_rejects_full_re_encryption_strategy (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_full_re_encryption_strategy) ... ok
-test_rejects_key_that_never_rotates (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_key_that_never_rotates) ... ok
-test_rejects_key_without_notes (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_key_without_notes) ... ok
-test_rejects_keys_in_logs (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_keys_in_logs) ... ok
-test_rejects_long_lived_plaintext_data_key (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_long_lived_plaintext_data_key) ... ok
-test_rejects_low_fips_level (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_low_fips_level) ... ok
-test_rejects_missing_principle (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_missing_principle) ... ok
-test_rejects_non_aead_data_key_algorithm (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_non_aead_data_key_algorithm) ... ok
-test_rejects_non_object_policy (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_non_object_policy) ... ok
-test_rejects_one_data_key_for_a_whole_table (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_one_data_key_for_a_whole_table) ... ok
-test_rejects_permitted_nonce_reuse (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_permitted_nonce_reuse) ... ok
-test_rejects_provider_pointing_at_an_unknown_key (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_provider_pointing_at_an_unknown_key) ... ok
-test_rejects_provider_without_notes (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_provider_without_notes) ... ok
-test_rejects_recoverable_destruction (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_recoverable_destruction) ... ok
-test_rejects_root_key_encrypting_data_directly (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_root_key_encrypting_data_directly) ... ok
-test_rejects_root_key_outside_the_hsm (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_root_key_outside_the_hsm) ... ok
-test_rejects_root_key_without_dual_control (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_root_key_without_dual_control) ... ok
-test_rejects_rotation_without_overlap (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_rotation_without_overlap) ... ok
-test_rejects_short_nonce (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_short_nonce) ... ok
-test_rejects_single_person_root_access (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_single_person_root_access) ... ok
-test_rejects_single_person_root_operations (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_single_person_root_operations) ... ok
-test_rejects_slow_emergency_rotation (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_slow_emergency_rotation) ... ok
-test_rejects_small_rsa_floor (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_small_rsa_floor) ... ok
-test_rejects_software_root_key (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_software_root_key) ... ok
-test_rejects_storing_the_unwrapped_data_key (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_storing_the_unwrapped_data_key) ... ok
-test_rejects_unattested_hsm (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_unattested_hsm) ... ok
-test_rejects_unaudited_key_use (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_unaudited_key_use) ... ok
-test_rejects_unbanning_broken_primitives (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_unbanning_broken_primitives) ... ok
-test_rejects_unknown_key_class (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_unknown_key_class) ... ok
-test_rejects_unknown_provider_material (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_unknown_provider_material) ... ok
-test_rejects_unknown_storage (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_unknown_storage) ... ok
-test_rejects_unknown_wrapper (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_unknown_wrapper) ... ok
-test_rejects_unreadable_policy (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_unreadable_policy) ... ok
-test_rejects_upside_down_rotation (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_upside_down_rotation) ... ok
-test_rejects_weak_provider_signing_algorithm (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_weak_provider_signing_algorithm) ... ok
-test_rejects_yearly_plus_kek_rotation (tools.tests.test_b20_keys.KeyGateRejects.test_rejects_yearly_plus_kek_rotation) ... ok
+===== tools.tests.test_b19_authz.AuthzModelHappyPath =====
+test_audit_records_allow_and_deny (tools.tests.test_b19_authz.AuthzModelHappyPath.test_audit_records_allow_and_deny) ... ok
+test_auditor_cannot_be_elevated (tools.tests.test_b19_authz.AuthzModelHappyPath.test_auditor_cannot_be_elevated) ... ok
+test_break_glass_is_shorter_and_reviewed (tools.tests.test_b19_authz.AuthzModelHappyPath.test_break_glass_is_shorter_and_reviewed) ... ok
+test_card_data_is_readable_by_nobody (tools.tests.test_b19_authz.AuthzModelHappyPath.test_card_data_is_readable_by_nobody) ... ok
+test_default_decision_is_deny (tools.tests.test_b19_authz.AuthzModelHappyPath.test_default_decision_is_deny) ... ok
+test_every_dual_control_money_permission_appears_in_a_sod_rule (tools.tests.test_b19_authz.AuthzModelHappyPath.test_every_dual_control_money_permission_appears_in_a_sod_rule) ... ok
+test_every_money_permission_requires_two_people (tools.tests.test_b19_authz.AuthzModelHappyPath.test_every_money_permission_requires_two_people) ... ok
+test_no_role_holds_both_sides_of_a_separation_rule (tools.tests.test_b19_authz.AuthzModelHappyPath.test_no_role_holds_both_sides_of_a_separation_rule) ... ok
+test_no_standing_privileged_access (tools.tests.test_b19_authz.AuthzModelHappyPath.test_no_standing_privileged_access) ... ok
+test_privileged_roles_are_backed_everywhere (tools.tests.test_b19_authz.AuthzModelHappyPath.test_privileged_roles_are_backed_everywhere) ... ok
+test_real_model_passes (tools.tests.test_b19_authz.AuthzModelHappyPath.test_real_model_passes) ... ok
+test_validator_is_registered (tools.tests.test_b19_authz.AuthzModelHappyPath.test_validator_is_registered) ... ok
 
 ----------------------------------------------------------------------
-Ran 61 tests in 2.787s
+Ran 12 tests in 1.845s
 
 OK
 
-===== tools.tests.test_b21_certs.CertificateGeneratedArtefacts =====
-test_document_names_every_material (tools.tests.test_b21_certs.CertificateGeneratedArtefacts.test_document_names_every_material) ... ok
-test_drift_is_reported (tools.tests.test_b21_certs.CertificateGeneratedArtefacts.test_drift_is_reported) ... ok
-test_generated_artefacts_match_the_model (tools.tests.test_b21_certs.CertificateGeneratedArtefacts.test_generated_artefacts_match_the_model) ... ok
-test_inventory_lists_every_material_and_domain (tools.tests.test_b21_certs.CertificateGeneratedArtefacts.test_inventory_lists_every_material_and_domain) ... ok
-test_missing_generated_artefact_is_reported (tools.tests.test_b21_certs.CertificateGeneratedArtefacts.test_missing_generated_artefact_is_reported) ... ok
-test_unrenderable_model_fails_closed (tools.tests.test_b21_certs.CertificateGeneratedArtefacts.test_unrenderable_model_fails_closed) ... ok
+===== tools.tests.test_b20_keys.KeyPolicyHappyPath =====
+test_broken_primitives_are_banned (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_broken_primitives_are_banned) ... ok
+test_crypto_shredding_is_the_deletion_story (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_crypto_shredding_is_the_deletion_story) ... ok
+test_every_data_key_is_wrapped_by_a_kek (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_every_data_key_is_wrapped_by_a_kek) ... ok
+test_every_provider_key_is_accounted_for (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_every_provider_key_is_accounted_for) ... ok
+test_every_sensitive_field_has_a_key (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_every_sensitive_field_has_a_key) ... ok
+test_real_policy_passes (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_real_policy_passes) ... ok
+test_root_key_never_leaves_the_hsm (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_root_key_never_leaves_the_hsm) ... ok
+test_root_operations_need_a_quorum (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_root_operations_need_a_quorum) ... ok
+test_rotation_rewraps_rather_than_rewrites (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_rotation_rewraps_rather_than_rewrites) ... ok
+test_the_application_never_holds_key_material (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_the_application_never_holds_key_material) ... ok
+test_the_envelope_binds_tenant_purpose_and_version (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_the_envelope_binds_tenant_purpose_and_version) ... ok
+test_validator_is_registered (tools.tests.test_b20_keys.KeyPolicyHappyPath.test_validator_is_registered) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.171s
+Ran 12 tests in 1.326s
 
 OK
 
-===== tools.tests.test_b22_baseline.BaselineGeneratedArtefacts =====
-test_document_lists_every_requirement_and_gap (tools.tests.test_b22_baseline.BaselineGeneratedArtefacts.test_document_lists_every_requirement_and_gap) ... ok
-test_drift_is_reported (tools.tests.test_b22_baseline.BaselineGeneratedArtefacts.test_drift_is_reported) ... ok
-test_generated_artefacts_match_the_model (tools.tests.test_b22_baseline.BaselineGeneratedArtefacts.test_generated_artefacts_match_the_model) ... ok
-test_matrix_reports_real_coverage_numbers (tools.tests.test_b22_baseline.BaselineGeneratedArtefacts.test_matrix_reports_real_coverage_numbers) ... ok
-test_missing_generated_artefact_is_reported (tools.tests.test_b22_baseline.BaselineGeneratedArtefacts.test_missing_generated_artefact_is_reported) ... ok
-test_unrenderable_model_fails_closed (tools.tests.test_b22_baseline.BaselineGeneratedArtefacts.test_unrenderable_model_fails_closed) ... ok
+===== tools.tests.test_b21_certs.LifecycleReference =====
+test_a_fresh_material_is_ok_then_due_then_expired (tools.tests.test_b21_certs.LifecycleReference.test_a_fresh_material_is_ok_then_due_then_expired) ... ok
+test_a_material_that_was_never_issued_has_no_current_version (tools.tests.test_b21_certs.LifecycleReference.test_a_material_that_was_never_issued_has_no_current_version) ... ok
+test_a_version_is_not_accepted_before_it_is_issued (tools.tests.test_b21_certs.LifecycleReference.test_a_version_is_not_accepted_before_it_is_issued) ... ok
+test_an_overlap_never_outlives_the_material_itself (tools.tests.test_b21_certs.LifecycleReference.test_an_overlap_never_outlives_the_material_itself) ... ok
+test_an_unauthorised_issuer_is_refused_for_the_internal_domain (tools.tests.test_b21_certs.LifecycleReference.test_an_unauthorised_issuer_is_refused_for_the_internal_domain) ... ok
+test_an_unknown_domain_is_refused (tools.tests.test_b21_certs.LifecycleReference.test_an_unknown_domain_is_refused) ... ok
+test_an_unrehearsed_recovery_path_is_refused (tools.tests.test_b21_certs.LifecycleReference.test_an_unrehearsed_recovery_path_is_refused) ... ok
+test_both_versions_verify_during_the_overlap (tools.tests.test_b21_certs.LifecycleReference.test_both_versions_verify_during_the_overlap) ... ok
+test_domain_status_tracks_its_own_expiry (tools.tests.test_b21_certs.LifecycleReference.test_domain_status_tracks_its_own_expiry) ... ok
+test_recovery_requires_a_quorum (tools.tests.test_b21_certs.LifecycleReference.test_recovery_requires_a_quorum) ... ok
+test_renewal_failures_escalate_and_reset (tools.tests.test_b21_certs.LifecycleReference.test_renewal_failures_escalate_and_reset) ... ok
+test_revocation_beats_the_overlap_window (tools.tests.test_b21_certs.LifecycleReference.test_revocation_beats_the_overlap_window) ... ok
+test_revocation_is_scoped_to_one_version (tools.tests.test_b21_certs.LifecycleReference.test_revocation_is_scoped_to_one_version) ... ok
+test_revoking_an_unknown_version_is_refused (tools.tests.test_b21_certs.LifecycleReference.test_revoking_an_unknown_version_is_refused) ... ok
+test_rotation_can_be_repeated_without_reviving_older_versions (tools.tests.test_b21_certs.LifecycleReference.test_rotation_can_be_repeated_without_reviving_older_versions) ... ok
+test_the_authorised_issuer_is_accepted (tools.tests.test_b21_certs.LifecycleReference.test_the_authorised_issuer_is_accepted) ... ok
+test_the_due_list_names_what_needs_attention (tools.tests.test_b21_certs.LifecycleReference.test_the_due_list_names_what_needs_attention) ... ok
+test_the_old_version_stops_when_the_overlap_ends (tools.tests.test_b21_certs.LifecycleReference.test_the_old_version_stops_when_the_overlap_ends) ... ok
+test_verifying_an_unissued_serial_is_refused (tools.tests.test_b21_certs.LifecycleReference.test_verifying_an_unissued_serial_is_refused) ... ok
+test_verifying_an_unknown_material_is_refused (tools.tests.test_b21_certs.LifecycleReference.test_verifying_an_unknown_material_is_refused) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 1.367s
+Ran 20 tests in 1.793s
 
 OK
 
-===== tools.tests.test_b23_audit.AuditGeneratedArtefacts =====
-test_contract_lists_every_event_class (tools.tests.test_b23_audit.AuditGeneratedArtefacts.test_contract_lists_every_event_class) ... ok
-test_document_states_the_deniable_window (tools.tests.test_b23_audit.AuditGeneratedArtefacts.test_document_states_the_deniable_window) ... ok
-test_drift_is_reported (tools.tests.test_b23_audit.AuditGeneratedArtefacts.test_drift_is_reported) ... ok
-test_generated_artefacts_match_the_policy (tools.tests.test_b23_audit.AuditGeneratedArtefacts.test_generated_artefacts_match_the_policy) ... ok
-test_missing_generated_artefact_is_reported (tools.tests.test_b23_audit.AuditGeneratedArtefacts.test_missing_generated_artefact_is_reported) ... ok
-test_unrenderable_policy_fails_closed (tools.tests.test_b23_audit.AuditGeneratedArtefacts.test_unrenderable_policy_fails_closed) ... ok
+===== tools.tests.test_b22_baseline.HardeningReference =====
+test_a_complete_header_set_passes (tools.tests.test_b22_baseline.HardeningReference.test_a_complete_header_set_passes) ... ok
+test_a_complete_mutating_request_passes (tools.tests.test_b22_baseline.HardeningReference.test_a_complete_mutating_request_passes) ... ok
+test_a_mutating_request_needs_an_idempotency_key (tools.tests.test_b22_baseline.HardeningReference.test_a_mutating_request_needs_an_idempotency_key) ... ok
+test_amount_parsing_accepts_integers_and_integer_strings (tools.tests.test_b22_baseline.HardeningReference.test_amount_parsing_accepts_integers_and_integer_strings) ... ok
+test_amount_parsing_refuses_impossible_currency_exponents (tools.tests.test_b22_baseline.HardeningReference.test_amount_parsing_refuses_impossible_currency_exponents) ... ok
+test_amount_parsing_refuses_negative_and_oversized_values (tools.tests.test_b22_baseline.HardeningReference.test_amount_parsing_refuses_negative_and_oversized_values) ... ok
+test_amount_parsing_rejects_floats_and_junk (tools.tests.test_b22_baseline.HardeningReference.test_amount_parsing_rejects_floats_and_junk) ... ok
+test_an_unauthenticated_request_is_reported (tools.tests.test_b22_baseline.HardeningReference.test_an_unauthenticated_request_is_reported) ... ok
+test_an_unexpected_content_type_is_reported (tools.tests.test_b22_baseline.HardeningReference.test_an_unexpected_content_type_is_reported) ... ok
+test_disabled_hsts_and_stack_advertising_are_reported (tools.tests.test_b22_baseline.HardeningReference.test_disabled_hsts_and_stack_advertising_are_reported) ... ok
+test_luhn_distinguishes_a_card_from_a_long_id (tools.tests.test_b22_baseline.HardeningReference.test_luhn_distinguishes_a_card_from_a_long_id) ... ok
+test_missing_security_headers_are_reported (tools.tests.test_b22_baseline.HardeningReference.test_missing_security_headers_are_reported) ... ok
+test_null_origin_is_rejected (tools.tests.test_b22_baseline.HardeningReference.test_null_origin_is_rejected) ... ok
+test_redaction_leaves_ordinary_numbers_alone (tools.tests.test_b22_baseline.HardeningReference.test_redaction_leaves_ordinary_numbers_alone) ... ok
+test_redaction_strips_card_numbers_and_credentials (tools.tests.test_b22_baseline.HardeningReference.test_redaction_strips_card_numbers_and_credentials) ... ok
+test_wildcard_cors_with_credentials_is_rejected (tools.tests.test_b22_baseline.HardeningReference.test_wildcard_cors_with_credentials_is_rejected) ... ok
+test_wildcard_cors_without_credentials_is_allowed (tools.tests.test_b22_baseline.HardeningReference.test_wildcard_cors_without_credentials_is_allowed) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.248s
+Ran 17 tests in 1.565s
 
 OK
 
-===== tools.tests.test_b24_tenants.TenantGateRejects =====
-test_budget_exhaustion_is_reraised (tools.tests.test_b24_tenants.TenantGateRejects.test_budget_exhaustion_is_reraised) ... ok
-test_missing_cross_check_inputs_do_not_crash_the_gate (tools.tests.test_b24_tenants.TenantGateRejects.test_missing_cross_check_inputs_do_not_crash_the_gate) ... ok
-test_rejects_a_capability_row_without_notes (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_capability_row_without_notes) ... ok
-test_rejects_a_ceiling_below_the_default (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_ceiling_below_the_default) ... ok
-test_rejects_a_closed_tenant_that_can_still_read (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_closed_tenant_that_can_still_read) ... ok
-test_rejects_a_draft_tenant_that_takes_payments (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_draft_tenant_that_takes_payments) ... ok
-test_rejects_a_duplicate_id_prefix (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_duplicate_id_prefix) ... ok
-test_rejects_a_duplicate_quota (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_duplicate_quota) ... ok
-test_rejects_a_duplicate_transition (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_duplicate_transition) ... ok
-test_rejects_a_kek_b20_does_not_manage (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_kek_b20_does_not_manage) ... ok
-test_rejects_a_kek_that_is_not_tenant_scoped (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_kek_that_is_not_tenant_scoped) ... ok
-test_rejects_a_level_without_notes (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_level_without_notes) ... ok
-test_rejects_a_missing_capability_row (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_missing_capability_row) ... ok
-test_rejects_a_quota_with_an_unknown_scope (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_quota_with_an_unknown_scope) ... ok
-test_rejects_a_quota_without_a_default (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_quota_without_a_default) ... ok
-test_rejects_a_quota_without_notes (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_quota_without_notes) ... ok
-test_rejects_a_reordered_hierarchy (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_reordered_hierarchy) ... ok
-test_rejects_a_suspended_tenant_that_cannot_refund (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_suspended_tenant_that_cannot_refund) ... ok
-test_rejects_a_suspended_tenant_that_ignores_callbacks (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_suspended_tenant_that_ignores_callbacks) ... ok
-test_rejects_a_suspended_tenant_that_still_takes_payments (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_suspended_tenant_that_still_takes_payments) ... ok
-test_rejects_a_transition_to_an_unknown_state (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_transition_to_an_unknown_state) ... ok
-test_rejects_a_transition_without_notes (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_a_transition_without_notes) ... ok
-test_rejects_activation_without_kyb (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_activation_without_kyb) ... ok
-test_rejects_allowing_cross_tenant_references (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_allowing_cross_tenant_references) ... ok
-test_rejects_an_audit_class_b23_does_not_define (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_an_audit_class_b23_does_not_define) ... ok
-test_rejects_an_identifier_pattern_that_does_not_compile (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_an_identifier_pattern_that_does_not_compile) ... ok
-test_rejects_an_undecided_capability (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_an_undecided_capability) ... ok
-test_rejects_an_unguarded_transition (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_an_unguarded_transition) ... ok
-test_rejects_an_unreachable_state (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_an_unreachable_state) ... ok
-test_rejects_b21_allowing_shared_environment_keys (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_b21_allowing_shared_environment_keys) ... ok
-test_rejects_bad_schema_version (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_bad_schema_version) ... ok
-test_rejects_changing_the_state_set (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_changing_the_state_set) ... ok
-test_rejects_closing_before_settlement (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_closing_before_settlement) ... ok
-test_rejects_closing_without_destroying_the_key (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_closing_without_destroying_the_key) ... ok
-test_rejects_destruction_without_a_grace_period (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_destruction_without_a_grace_period) ... ok
-test_rejects_dropping_row_level_security (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_dropping_row_level_security) ... ok
-test_rejects_environments_sharing_data (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_environments_sharing_data) ... ok
-test_rejects_environments_sharing_keys (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_environments_sharing_keys) ... ok
-test_rejects_missing_principle (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_missing_principle) ... ok
-test_rejects_more_than_one_terminal_state (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_more_than_one_terminal_state) ... ok
-test_rejects_mutable_identifiers (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_mutable_identifiers) ... ok
-test_rejects_non_object_registry (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_non_object_registry) ... ok
-test_rejects_offboarding_that_forgets_the_audit_trail (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_offboarding_that_forgets_the_audit_trail) ... ok
-test_rejects_offboarding_that_forgets_the_ledger (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_offboarding_that_forgets_the_ledger) ... ok
-test_rejects_readable_identifiers (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_readable_identifiers) ... ok
-test_rejects_removing_all_quotas (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_removing_all_quotas) ... ok
-test_rejects_removing_the_capability_matrix (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_removing_the_capability_matrix) ... ok
-test_rejects_single_person_reinstatement (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_single_person_reinstatement) ... ok
-test_rejects_starting_active (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_starting_active) ... ok
-test_rejects_two_environments_handling_real_money (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_two_environments_handling_real_money) ... ok
-test_rejects_unreadable_registry (tools.tests.test_b24_tenants.TenantGateRejects.test_rejects_unreadable_registry) ... ok
+===== tools.tests.test_b23_audit.ChainReference =====
+test_a_backwards_clock_is_refused (tools.tests.test_b23_audit.ChainReference.test_a_backwards_clock_is_refused) ... ok
+test_a_clean_chain_verifies (tools.tests.test_b23_audit.ChainReference.test_a_clean_chain_verifies) ... ok
+test_a_forged_anchor_is_detected (tools.tests.test_b23_audit.ChainReference.test_a_forged_anchor_is_detected) ... ok
+test_a_forger_who_recomputes_one_hash_still_breaks_the_next_link (tools.tests.test_b23_audit.ChainReference.test_a_forger_who_recomputes_one_hash_still_breaks_the_next_link) ... ok
+test_a_proof_for_an_unknown_record_is_refused (tools.tests.test_b23_audit.ChainReference.test_a_proof_for_an_unknown_record_is_refused) ... ok
+test_a_record_proof_states_whether_it_is_anchored (tools.tests.test_b23_audit.ChainReference.test_a_record_proof_states_whether_it_is_anchored) ... ok
+test_an_anchor_makes_tail_truncation_detectable (tools.tests.test_b23_audit.ChainReference.test_an_anchor_makes_tail_truncation_detectable) ... ok
+test_an_anchor_over_a_modified_head_is_detected (tools.tests.test_b23_audit.ChainReference.test_an_anchor_over_a_modified_head_is_detected) ... ok
+test_an_empty_ledger_verifies_and_can_be_anchored (tools.tests.test_b23_audit.ChainReference.test_an_empty_ledger_verifies_and_can_be_anchored) ... ok
+test_canonical_serialisation_is_key_order_independent (tools.tests.test_b23_audit.ChainReference.test_canonical_serialisation_is_key_order_independent) ... ok
+test_chains_of_different_tenants_are_independent (tools.tests.test_b23_audit.ChainReference.test_chains_of_different_tenants_are_independent) ... ok
+test_deleting_a_record_is_detected (tools.tests.test_b23_audit.ChainReference.test_deleting_a_record_is_detected) ... ok
+test_editing_a_header_field_is_detected (tools.tests.test_b23_audit.ChainReference.test_editing_a_header_field_is_detected) ... ok
+test_editing_a_payload_is_detected (tools.tests.test_b23_audit.ChainReference.test_editing_a_payload_is_detected) ... ok
+test_forbidden_fields_are_refused_at_write_time (tools.tests.test_b23_audit.ChainReference.test_forbidden_fields_are_refused_at_write_time) ... ok
+test_reordering_records_is_detected (tools.tests.test_b23_audit.ChainReference.test_reordering_records_is_detected) ... ok
+test_shredding_an_unknown_record_is_refused (tools.tests.test_b23_audit.ChainReference.test_shredding_an_unknown_record_is_refused) ... ok
+test_shredding_keeps_the_record_and_the_proof (tools.tests.test_b23_audit.ChainReference.test_shredding_keeps_the_record_and_the_proof) ... ok
+test_tail_truncation_is_undetectable_without_an_anchor (tools.tests.test_b23_audit.ChainReference.test_tail_truncation_is_undetectable_without_an_anchor) ... ok
+test_the_deniable_window_is_reported_honestly (tools.tests.test_b23_audit.ChainReference.test_the_deniable_window_is_reported_honestly) ... ok
+test_the_same_instant_is_allowed (tools.tests.test_b23_audit.ChainReference.test_the_same_instant_is_allowed) ... ok
 
 ----------------------------------------------------------------------
-Ran 51 tests in 2.277s
+Ran 21 tests in 2.402s
 
 OK
 
-===== tools.tests.test_b25_merchant.MerchantGeneratedArtefacts =====
-test_contract_carries_every_document (tools.tests.test_b25_merchant.MerchantGeneratedArtefacts.test_contract_carries_every_document) ... ok
-test_document_shows_every_material_change (tools.tests.test_b25_merchant.MerchantGeneratedArtefacts.test_document_shows_every_material_change) ... ok
-test_drift_is_reported (tools.tests.test_b25_merchant.MerchantGeneratedArtefacts.test_drift_is_reported) ... ok
-test_generated_artefacts_match_the_model (tools.tests.test_b25_merchant.MerchantGeneratedArtefacts.test_generated_artefacts_match_the_model) ... ok
-test_missing_generated_artefact_is_reported (tools.tests.test_b25_merchant.MerchantGeneratedArtefacts.test_missing_generated_artefact_is_reported) ... ok
-test_unrenderable_model_fails_closed (tools.tests.test_b25_merchant.MerchantGeneratedArtefacts.test_unrenderable_model_fails_closed) ... ok
+===== tools.tests.test_b24_tenants.TenantRegistryHappyPath =====
+test_a_closed_tenant_can_do_nothing (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_a_closed_tenant_can_do_nothing) ... ok
+test_a_tenant_starts_in_draft_and_ends_closed (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_a_tenant_starts_in_draft_and_ends_closed) ... ok
+test_activation_requires_kyb (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_activation_requires_kyb) ... ok
+test_b21_also_forbids_sharing_keys_across_environments (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_b21_also_forbids_sharing_keys_across_environments) ... ok
+test_closing_requires_settlement_then_destruction (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_closing_requires_settlement_then_destruction) ... ok
+test_environments_share_nothing (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_environments_share_nothing) ... ok
+test_identifiers_are_opaque_and_immutable (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_identifiers_are_opaque_and_immutable) ... ok
+test_isolation_rests_on_three_things (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_isolation_rests_on_three_things) ... ok
+test_lifecycle_changes_map_to_a_real_audit_class (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_lifecycle_changes_map_to_a_real_audit_class) ... ok
+test_offboarding_keeps_the_platforms_own_record (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_offboarding_keeps_the_platforms_own_record) ... ok
+test_quotas_have_defaults_and_ceilings (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_quotas_have_defaults_and_ceilings) ... ok
+test_real_registry_passes (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_real_registry_passes) ... ok
+test_reinstating_a_suspended_tenant_needs_two_people (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_reinstating_a_suspended_tenant_needs_two_people) ... ok
+test_suspension_keeps_money_in_flight_moving (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_suspension_keeps_money_in_flight_moving) ... ok
+test_the_hierarchy_is_four_levels_in_order (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_the_hierarchy_is_four_levels_in_order) ... ok
+test_validator_is_registered (tools.tests.test_b24_tenants.TenantRegistryHappyPath.test_validator_is_registered) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.368s
+Ran 16 tests in 1.552s
 
 OK
 
-===== tools.tests.test_b26_accounts.ProviderAccountGeneratedArtefacts =====
-test_contract_carries_every_provider (tools.tests.test_b26_accounts.ProviderAccountGeneratedArtefacts.test_contract_carries_every_provider) ... ok
-test_document_shows_every_state (tools.tests.test_b26_accounts.ProviderAccountGeneratedArtefacts.test_document_shows_every_state) ... ok
-test_drift_is_reported (tools.tests.test_b26_accounts.ProviderAccountGeneratedArtefacts.test_drift_is_reported) ... ok
-test_generated_artefacts_match_the_model (tools.tests.test_b26_accounts.ProviderAccountGeneratedArtefacts.test_generated_artefacts_match_the_model) ... ok
-test_missing_generated_artefact_is_reported (tools.tests.test_b26_accounts.ProviderAccountGeneratedArtefacts.test_missing_generated_artefact_is_reported) ... ok
-test_unrenderable_model_fails_closed (tools.tests.test_b26_accounts.ProviderAccountGeneratedArtefacts.test_unrenderable_model_fails_closed) ... ok
+===== tools.tests.test_b25_merchant.MerchantReferenceModel =====
+test_a_change_needs_its_permission (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_change_needs_its_permission) ... ok
+test_a_change_that_does_not_hold_settlement_does_not_hold_settlement (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_change_that_does_not_hold_settlement_does_not_hold_settlement) ... ok
+test_a_clean_screen_leaves_the_status_alone (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_clean_screen_leaves_the_status_alone) ... ok
+test_a_company_with_nobody_above_the_threshold_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_company_with_nobody_above_the_threshold_is_refused) ... ok
+test_a_complete_authority_record_verifies (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_complete_authority_record_verifies) ... ok
+test_a_complete_file_can_be_submitted (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_complete_file_can_be_submitted) ... ok
+test_a_decider_cannot_be_their_own_approver (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_decider_cannot_be_their_own_approver) ... ok
+test_a_decision_without_an_authority_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_decision_without_an_authority_is_refused) ... ok
+test_a_payout_account_change_holds_settlement_without_stopping_payments (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_payout_account_change_holds_settlement_without_stopping_payments) ... ok
+test_a_prohibited_category_cannot_be_registered (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_prohibited_category_cannot_be_registered) ... ok
+test_a_region_only_settles_its_own_currencies (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_region_only_settles_its_own_currencies) ... ok
+test_a_rejection_must_state_reasons (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_rejection_must_state_reasons) ... ok
+test_a_screening_hit_blocks_approval (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_screening_hit_blocks_approval) ... ok
+test_a_screening_hit_parks_the_file_for_a_human (tools.tests.test_b25_merchant.MerchantReferenceModel.test_a_screening_hit_parks_the_file_for_a_human) ... ok
+test_an_appeal_cannot_be_reviewed_by_the_decider (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_appeal_cannot_be_reviewed_by_the_decider) ... ok
+test_an_authority_record_that_lasts_too_long_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_authority_record_that_lasts_too_long_is_refused) ... ok
+test_an_expired_account_proof_is_no_evidence_at_all (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_expired_account_proof_is_no_evidence_at_all) ... ok
+test_an_expired_authority_record_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_expired_authority_record_is_refused) ... ok
+test_an_incomplete_authority_record_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_incomplete_authority_record_is_refused) ... ok
+test_an_incomplete_file_cannot_be_submitted (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_incomplete_file_cannot_be_submitted) ... ok
+test_an_individual_needs_no_cap_table (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_individual_needs_no_cap_table) ... ok
+test_an_unidentified_beneficial_owner_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_unidentified_beneficial_owner_is_refused) ... ok
+test_an_unknown_document_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_unknown_document_is_refused) ... ok
+test_an_unknown_entity_kind_region_or_risk_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_unknown_entity_kind_region_or_risk_is_refused) ... ok
+test_an_unknown_merchant_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_unknown_merchant_is_refused) ... ok
+test_an_unverified_merchant_cannot_take_money (tools.tests.test_b25_merchant.MerchantReferenceModel.test_an_unverified_merchant_cannot_take_money) ... ok
+test_high_risk_needs_two_approvers (tools.tests.test_b25_merchant.MerchantReferenceModel.test_high_risk_needs_two_approvers) ... ok
+test_limits_are_enforced_per_transaction_and_per_day (tools.tests.test_b25_merchant.MerchantReferenceModel.test_limits_are_enforced_per_transaction_and_per_day) ... ok
+test_missing_and_stale_documents_are_reported_separately (tools.tests.test_b25_merchant.MerchantReferenceModel.test_missing_and_stale_documents_are_reported_separately) ... ok
+test_only_display_fields_may_be_self_attested (tools.tests.test_b25_merchant.MerchantReferenceModel.test_only_display_fields_may_be_self_attested) ... ok
+test_ownership_deeper_than_the_model_allows_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_ownership_deeper_than_the_model_allows_is_refused) ... ok
+test_reverification_lifts_the_hold (tools.tests.test_b25_merchant.MerchantReferenceModel.test_reverification_lifts_the_hold) ... ok
+test_screening_older_than_the_interval_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_screening_older_than_the_interval_is_refused) ... ok
+test_screening_that_was_never_run_is_refused (tools.tests.test_b25_merchant.MerchantReferenceModel.test_screening_that_was_never_run_is_refused) ... ok
+test_settlement_stops_when_the_authority_record_expires (tools.tests.test_b25_merchant.MerchantReferenceModel.test_settlement_stops_when_the_authority_record_expires) ... ok
+test_the_platform_cannot_mark_itself_verified (tools.tests.test_b25_merchant.MerchantReferenceModel.test_the_platform_cannot_mark_itself_verified) ... ok
+test_the_purge_day_follows_the_retention_period (tools.tests.test_b25_merchant.MerchantReferenceModel.test_the_purge_day_follows_the_retention_period) ... ok
+test_the_requester_cannot_lift_their_own_hold (tools.tests.test_b25_merchant.MerchantReferenceModel.test_the_requester_cannot_lift_their_own_hold) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.265s
+Ran 38 tests in 3.139s
 
 OK
 
-===== tools.tests.test_b27_capabilities.CapabilityGeneratedArtefacts =====
-test_contract_carries_every_row (tools.tests.test_b27_capabilities.CapabilityGeneratedArtefacts.test_contract_carries_every_row) ... ok
-test_document_shows_every_region (tools.tests.test_b27_capabilities.CapabilityGeneratedArtefacts.test_document_shows_every_region) ... ok
-test_drift_is_reported (tools.tests.test_b27_capabilities.CapabilityGeneratedArtefacts.test_drift_is_reported) ... ok
-test_generated_artefacts_match_the_model (tools.tests.test_b27_capabilities.CapabilityGeneratedArtefacts.test_generated_artefacts_match_the_model) ... ok
-test_missing_generated_artefact_is_reported (tools.tests.test_b27_capabilities.CapabilityGeneratedArtefacts.test_missing_generated_artefact_is_reported) ... ok
-test_unrenderable_model_fails_closed (tools.tests.test_b27_capabilities.CapabilityGeneratedArtefacts.test_unrenderable_model_fails_closed) ... ok
+===== tools.tests.test_b26_accounts.ProviderAccountsHappyPath =====
+test_a_binding_holds_exactly_one_credential (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_a_binding_holds_exactly_one_credential) ... ok
+test_a_binding_is_scoped_by_four_dimensions (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_a_binding_is_scoped_by_four_dimensions) ... ok
+test_a_callback_is_never_guessed (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_a_callback_is_never_guessed) ... ok
+test_a_decrypted_credential_expires (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_a_decrypted_credential_expires) ... ok
+test_a_revoked_binding_can_do_nothing (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_a_revoked_binding_can_do_nothing) ... ok
+test_a_suspended_binding_keeps_the_money_in_flight_moving (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_a_suspended_binding_keeps_the_money_in_flight_moving) ... ok
+test_activation_needs_a_real_round_trip (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_activation_needs_a_real_round_trip) ... ok
+test_binding_changes_map_to_a_real_audit_class (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_binding_changes_map_to_a_real_audit_class) ... ok
+test_callbacks_are_idempotent_and_time_bounded (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_callbacks_are_idempotent_and_time_bounded) ... ok
+test_credentials_are_never_shared_and_never_plaintext (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_credentials_are_never_shared_and_never_plaintext) ... ok
+test_every_provider_environment_exists_in_the_tenant_registry (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_every_provider_environment_exists_in_the_tenant_registry) ... ok
+test_every_provider_names_a_key_the_key_model_defines (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_every_provider_names_a_key_the_key_model_defines) ... ok
+test_every_provider_says_how_a_callback_is_attributed (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_every_provider_says_how_a_callback_is_attributed) ... ok
+test_every_settlement_currency_exists_in_the_currency_metadata (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_every_settlement_currency_exists_in_the_currency_metadata) ... ok
+test_heuristic_attribution_stays_forbidden (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_heuristic_attribution_stays_forbidden) ... ok
+test_quarantine_alerts_and_never_replays_itself (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_quarantine_alerts_and_never_replays_itself) ... ok
+test_real_model_passes (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_real_model_passes) ... ok
+test_reinstating_a_binding_takes_two_people (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_reinstating_a_binding_takes_two_people) ... ok
+test_revocation_settles_first_then_destroys (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_revocation_settles_first_then_destroys) ... ok
+test_rotation_has_an_overlap_and_is_not_slower_than_its_key (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_rotation_has_an_overlap_and_is_not_slower_than_its_key) ... ok
+test_rotation_is_dual_control_in_b19 (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_rotation_is_dual_control_in_b19) ... ok
+test_validator_is_registered (tools.tests.test_b26_accounts.ProviderAccountsHappyPath.test_validator_is_registered) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.277s
+Ran 22 tests in 2.567s
 
 OK
 
-===== tools.tests.test_b28_routing.RoutingGateRejects =====
-test_rejects_a_backoff_that_shrinks (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_backoff_that_shrinks) ... ok
-test_rejects_a_bad_schema_version (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_bad_schema_version) ... ok
-test_rejects_a_canary_nobody_observes (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_canary_nobody_observes) ... ok
-test_rejects_a_canary_that_is_not_a_canary (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_canary_that_is_not_a_canary) ... ok
-test_rejects_a_duplicate_factor (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_duplicate_factor) ... ok
-test_rejects_a_duplicate_rule (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_duplicate_rule) ... ok
-test_rejects_a_factor_with_no_weight (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_factor_with_no_weight) ... ok
-test_rejects_a_missing_determinism_policy (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_missing_determinism_policy) ... ok
-test_rejects_a_missing_factor (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_missing_factor) ... ok
-test_rejects_a_missing_principle (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_missing_principle) ... ok
-test_rejects_a_missing_simulation_mode (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_missing_simulation_mode) ... ok
-test_rejects_a_missing_tie_break (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_missing_tie_break) ... ok
-test_rejects_a_non_object_canary_block (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_non_object_canary_block) ... ok
-test_rejects_a_non_object_factor (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_non_object_factor) ... ok
-test_rejects_a_non_object_retry_block (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_non_object_retry_block) ... ok
-test_rejects_a_non_object_rollback_block (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_non_object_rollback_block) ... ok
-test_rejects_a_non_object_rule (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_non_object_rule) ... ok
-test_rejects_a_non_object_scoring_block (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_non_object_scoring_block) ... ok
-test_rejects_a_non_object_versioning_block (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_non_object_versioning_block) ... ok
-test_rejects_a_non_snake_case_rule_id (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_non_snake_case_rule_id) ... ok
-test_rejects_a_policy_with_no_rules (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_policy_with_no_rules) ... ok
-test_rejects_a_random_canary_split (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_random_canary_split) ... ok
-test_rejects_a_retry_that_changes_provider (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_retry_that_changes_provider) ... ok
-test_rejects_a_retry_with_a_new_key (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_retry_with_a_new_key) ... ok
-test_rejects_a_rollback_threshold_that_never_fires (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_rollback_threshold_that_never_fires) ... ok
-test_rejects_a_rule_for_a_method_the_matrix_does_not_define (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_rule_for_a_method_the_matrix_does_not_define) ... ok
-test_rejects_a_rule_for_a_region_the_matrix_does_not_define (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_rule_for_a_region_the_matrix_does_not_define) ... ok
-test_rejects_a_rule_listing_a_provider_twice (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_rule_listing_a_provider_twice) ... ok
-test_rejects_a_rule_that_matches_nothing (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_rule_that_matches_nothing) ... ok
-test_rejects_a_rule_that_pins_no_currency (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_rule_that_pins_no_currency) ... ok
-test_rejects_a_rule_that_prefers_nobody (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_rule_that_prefers_nobody) ... ok
-test_rejects_a_rule_with_no_amount_ceiling (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_rule_with_no_amount_ceiling) ... ok
-test_rejects_a_rule_without_a_fallback_list (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_rule_without_a_fallback_list) ... ok
-test_rejects_a_rule_without_a_priority (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_rule_without_a_priority) ... ok
-test_rejects_a_shadow_that_can_move_money (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_shadow_that_can_move_money) ... ok
-test_rejects_a_simulation_against_a_different_configuration (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_simulation_against_a_different_configuration) ... ok
-test_rejects_a_simulation_nobody_compares (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_simulation_nobody_compares) ... ok
-test_rejects_a_slow_rollback (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_slow_rollback) ... ok
-test_rejects_a_target_the_capability_matrix_cannot_serve (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_target_the_capability_matrix_cannot_serve) ... ok
-test_rejects_a_target_with_no_binding (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_a_target_with_no_binding) ... ok
-test_rejects_an_activation_permission_without_dual_control (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_activation_permission_without_dual_control) ... ok
-test_rejects_an_exploration_floor_that_eats_the_policy (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_exploration_floor_that_eats_the_policy) ... ok
-test_rejects_an_unbounded_measurement_window (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unbounded_measurement_window) ... ok
-test_rejects_an_unexplained_canary (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unexplained_canary) ... ok
-test_rejects_an_unexplained_factor (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unexplained_factor) ... ok
-test_rejects_an_unexplained_retry_policy (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unexplained_retry_policy) ... ok
-test_rejects_an_unexplained_rollback (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unexplained_rollback) ... ok
-test_rejects_an_unexplained_rule (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unexplained_rule) ... ok
-test_rejects_an_unexplained_simulation (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unexplained_simulation) ... ok
-test_rejects_an_unknown_activation_permission (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unknown_activation_permission) ... ok
-test_rejects_an_unknown_audit_class (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unknown_audit_class) ... ok
-test_rejects_an_unknown_factor (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unknown_factor) ... ok
-test_rejects_an_unreplayable_decision (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unreplayable_decision) ... ok
-test_rejects_an_unstable_hash (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_an_unstable_hash) ... ok
-test_rejects_automatic_promotion (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_automatic_promotion) ... ok
-test_rejects_decisions_that_do_not_record_their_version (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_decisions_that_do_not_record_their_version) ... ok
-test_rejects_dropping_automatic_rollback (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_dropping_automatic_rollback) ... ok
-test_rejects_dropping_the_starvation_guard (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_dropping_the_starvation_guard) ... ok
-test_rejects_editable_configuration_versions (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_editable_configuration_versions) ... ok
-test_rejects_gating_rollback_behind_an_approval (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_gating_rollback_behind_an_approval) ... ok
-test_rejects_judging_a_provider_on_ten_payments (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_judging_a_provider_on_ten_payments) ... ok
-test_rejects_keeping_too_few_versions_to_roll_back_to (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_keeping_too_few_versions_to_roll_back_to) ... ok
-test_rejects_non_object_model (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_non_object_model) ... ok
-test_rejects_random_selection (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_random_selection) ... ok
-test_rejects_retries_with_no_backoff (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_retries_with_no_backoff) ... ok
-test_rejects_rollback_by_editing_the_configuration_back (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_rollback_by_editing_the_configuration_back) ... ok
-test_rejects_routing_that_may_differ_between_runs (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_routing_that_may_differ_between_runs) ... ok
-test_rejects_routing_with_no_exploration_floor (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_routing_with_no_exploration_floor) ... ok
-test_rejects_scoring_with_no_factors (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_scoring_with_no_factors) ... ok
-test_rejects_single_person_activation (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_single_person_activation) ... ok
-test_rejects_splitting_on_anything_but_the_payment (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_splitting_on_anything_but_the_payment) ... ok
-test_rejects_two_rules_at_the_same_priority (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_two_rules_at_the_same_priority) ... ok
-test_rejects_unapproved_activation (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_unapproved_activation) ... ok
-test_rejects_unbounded_retries (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_unbounded_retries) ... ok
-test_rejects_unexplained_determinism (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_unexplained_determinism) ... ok
-test_rejects_unexplained_scoring (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_unexplained_scoring) ... ok
-test_rejects_unexplained_versioning (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_unexplained_versioning) ... ok
-test_rejects_unreadable_model (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_unreadable_model) ... ok
-test_rejects_weights_that_do_not_sum_to_100 (tools.tests.test_b28_routing.RoutingGateRejects.test_rejects_weights_that_do_not_sum_to_100) ... ok
+===== tools.tests.test_b27_capabilities.CapabilityReferenceModel =====
+test_a_declared_combination_resolves (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_a_declared_combination_resolves) ... ok
+test_a_dispute_opens_inside_its_window_and_sets_an_external_clock (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_a_dispute_opens_inside_its_window_and_sets_an_external_clock) ... ok
+test_a_refund_after_the_window_is_refused_with_a_route_out (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_a_refund_after_the_window_is_refused_with_a_route_out) ... ok
+test_a_refund_inside_the_window_is_allowed (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_a_refund_inside_the_window_is_allowed) ... ok
+test_a_refund_must_return_the_way_it_came (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_a_refund_must_return_the_way_it_came) ... ok
+test_a_region_that_forbids_a_method_wins_over_the_row (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_a_region_that_forbids_a_method_wins_over_the_row) ... ok
+test_a_supported_pair_in_an_unsupported_region_is_refused (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_a_supported_pair_in_an_unsupported_region_is_refused) ... ok
+test_a_wallet_has_no_authorisation_step (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_a_wallet_has_no_authorisation_step) ... ok
+test_an_authorisation_expires_at_the_declared_hour (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_an_authorisation_expires_at_the_declared_hour) ... ok
+test_an_incomplete_evidence_pack_cannot_contest (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_an_incomplete_evidence_pack_cannot_contest) ... ok
+test_an_unavailable_provider_rejects_rather_than_reroutes (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_an_unavailable_provider_rejects_rather_than_reroutes) ... ok
+test_an_undeclared_combination_is_refused_before_the_payer_commits (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_an_undeclared_combination_is_refused_before_the_payer_commits) ... ok
+test_an_unknown_provider_method_or_region_is_refused (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_an_unknown_provider_method_or_region_is_refused) ... ok
+test_capturing_an_expired_authorisation_is_refused (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_capturing_an_expired_authorisation_is_refused) ... ok
+test_capturing_more_than_authorised_is_refused (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_capturing_more_than_authorised_is_refused) ... ok
+test_capturing_twice_is_refused (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_capturing_twice_is_refused) ... ok
+test_conceding_automatically_is_refused_but_a_person_may_concede (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_conceding_automatically_is_refused_but_a_person_may_concede) ... ok
+test_missing_the_deadline_loses_the_case (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_missing_the_deadline_loses_the_case) ... ok
+test_nothing_is_substituted_behind_the_payers_back (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_nothing_is_substituted_behind_the_payers_back) ... ok
+test_partial_capture_follows_the_row (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_partial_capture_follows_the_row) ... ok
+test_reauthorisation_only_happens_after_expiry (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_reauthorisation_only_happens_after_expiry) ... ok
+test_refunding_more_than_was_captured_is_refused (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_refunding_more_than_was_captured_is_refused) ... ok
+test_strong_customer_authentication_follows_the_region (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_strong_customer_authentication_follows_the_region) ... ok
+test_subscriptions_follow_the_row (tools.tests.test_b27_capabilities.CapabilityReferenceModel.test_subscriptions_follow_the_row) ... ok
 
 ----------------------------------------------------------------------
-Ran 79 tests in 2.775s
+Ran 24 tests in 2.087s
 
 OK
 
-===== tools.tests.test_b29_fees.FeeGeneratedArtefacts =====
-test_contract_carries_every_schedule_with_its_basis (tools.tests.test_b29_fees.FeeGeneratedArtefacts.test_contract_carries_every_schedule_with_its_basis) ... ok
-test_document_shows_every_category (tools.tests.test_b29_fees.FeeGeneratedArtefacts.test_document_shows_every_category) ... ok
-test_drift_is_reported (tools.tests.test_b29_fees.FeeGeneratedArtefacts.test_drift_is_reported) ... ok
-test_generated_artefacts_match_the_model (tools.tests.test_b29_fees.FeeGeneratedArtefacts.test_generated_artefacts_match_the_model) ... ok
-test_missing_generated_artefact_is_reported (tools.tests.test_b29_fees.FeeGeneratedArtefacts.test_missing_generated_artefact_is_reported) ... ok
-test_unrenderable_model_fails_closed (tools.tests.test_b29_fees.FeeGeneratedArtefacts.test_unrenderable_model_fails_closed) ... ok
+===== tools.tests.test_b28_routing.RoutingPolicyHappyPath =====
+test_a_retry_keeps_its_key_and_its_provider (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_a_retry_keeps_its_key_and_its_provider) ... ok
+test_activation_takes_two_people_and_a_dual_control_permission (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_activation_takes_two_people_and_a_dual_control_permission) ... ok
+test_configuration_versions_are_immutable_and_recorded (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_configuration_versions_are_immutable_and_recorded) ... ok
+test_every_routing_target_can_actually_serve_the_combination (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_every_routing_target_can_actually_serve_the_combination) ... ok
+test_every_routing_target_has_a_binding (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_every_routing_target_has_a_binding) ... ok
+test_every_rule_has_a_unique_priority (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_every_rule_has_a_unique_priority) ... ok
+test_every_rule_pins_an_amount_ceiling (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_every_rule_pins_an_amount_ceiling) ... ok
+test_promotion_is_manual_and_rollback_is_automatic (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_promotion_is_manual_and_rollback_is_automatic) ... ok
+test_real_model_passes (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_real_model_passes) ... ok
+test_rollback_is_a_switch_not_a_release_and_is_not_gated (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_rollback_is_a_switch_not_a_release_and_is_not_gated) ... ok
+test_routing_changes_map_to_a_real_audit_class (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_routing_changes_map_to_a_real_audit_class) ... ok
+test_routing_is_deterministic_and_replayable (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_routing_is_deterministic_and_replayable) ... ok
+test_scoring_covers_cost_success_and_risk_and_sums_to_100 (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_scoring_covers_cost_success_and_risk_and_sums_to_100) ... ok
+test_success_rate_needs_a_real_sample_and_an_exploration_floor (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_success_rate_needs_a_real_sample_and_an_exploration_floor) ... ok
+test_the_canary_splits_on_the_payment_with_a_stable_hash (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_the_canary_splits_on_the_payment_with_a_stable_hash) ... ok
+test_the_shadow_cannot_move_money (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_the_shadow_cannot_move_money) ... ok
+test_validator_is_registered (tools.tests.test_b28_routing.RoutingPolicyHappyPath.test_validator_is_registered) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.148s
+Ran 17 tests in 1.750s
 
 OK
 
-===== tools.tests.test_b30_onboarding.OnboardingGeneratedArtefacts =====
-test_contract_orders_the_steps (tools.tests.test_b30_onboarding.OnboardingGeneratedArtefacts.test_contract_orders_the_steps) ... ok
-test_document_shows_every_step (tools.tests.test_b30_onboarding.OnboardingGeneratedArtefacts.test_document_shows_every_step) ... ok
-test_drift_is_reported (tools.tests.test_b30_onboarding.OnboardingGeneratedArtefacts.test_drift_is_reported) ... ok
-test_generated_artefacts_match_the_model (tools.tests.test_b30_onboarding.OnboardingGeneratedArtefacts.test_generated_artefacts_match_the_model) ... ok
-test_missing_generated_artefact_is_reported (tools.tests.test_b30_onboarding.OnboardingGeneratedArtefacts.test_missing_generated_artefact_is_reported) ... ok
-test_unrenderable_model_fails_closed (tools.tests.test_b30_onboarding.OnboardingGeneratedArtefacts.test_unrenderable_model_fails_closed) ... ok
+===== tools.tests.test_b29_fees.PricerReferenceModel =====
+test_a_complete_rate_record_converts (tools.tests.test_b29_fees.PricerReferenceModel.test_a_complete_rate_record_converts) ... ok
+test_a_disputed_quote_cannot_be_settled_again_either (tools.tests.test_b29_fees.PricerReferenceModel.test_a_disputed_quote_cannot_be_settled_again_either) ... ok
+test_a_fee_in_another_currency_is_refused (tools.tests.test_b29_fees.PricerReferenceModel.test_a_fee_in_another_currency_is_refused) ... ok
+test_a_float_amount_is_refused_not_rounded (tools.tests.test_b29_fees.PricerReferenceModel.test_a_float_amount_is_refused_not_rounded) ... ok
+test_a_floor_and_a_cap_are_applied (tools.tests.test_b29_fees.PricerReferenceModel.test_a_floor_and_a_cap_are_applied) ... ok
+test_a_negative_amount_is_refused (tools.tests.test_b29_fees.PricerReferenceModel.test_a_negative_amount_is_refused) ... ok
+test_a_negative_settlement_is_refused (tools.tests.test_b29_fees.PricerReferenceModel.test_a_negative_settlement_is_refused) ... ok
+test_a_period_can_be_recomputed_from_the_raw_payments (tools.tests.test_b29_fees.PricerReferenceModel.test_a_period_can_be_recomputed_from_the_raw_payments) ... ok
+test_a_quote_cannot_be_settled_twice (tools.tests.test_b29_fees.PricerReferenceModel.test_a_quote_cannot_be_settled_twice) ... ok
+test_a_quote_is_a_breakdown_not_a_number (tools.tests.test_b29_fees.PricerReferenceModel.test_a_quote_is_a_breakdown_not_a_number) ... ok
+test_a_settlement_that_agrees_closes_the_quote (tools.tests.test_b29_fees.PricerReferenceModel.test_a_settlement_that_agrees_closes_the_quote) ... ok
+test_a_settlement_that_disagrees_does_not_overwrite_the_estimate (tools.tests.test_b29_fees.PricerReferenceModel.test_a_settlement_that_disagrees_does_not_overwrite_the_estimate) ... ok
+test_a_settlement_that_never_arrives_is_escalated (tools.tests.test_b29_fees.PricerReferenceModel.test_a_settlement_that_never_arrives_is_escalated) ... ok
+test_an_incomplete_rate_record_is_refused (tools.tests.test_b29_fees.PricerReferenceModel.test_an_incomplete_rate_record_is_refused) ... ok
+test_an_unknown_rounding_mode_is_refused (tools.tests.test_b29_fees.PricerReferenceModel.test_an_unknown_rounding_mode_is_refused) ... ok
+test_an_unpriced_combination_is_refused_not_defaulted (tools.tests.test_b29_fees.PricerReferenceModel.test_an_unpriced_combination_is_refused_not_defaulted) ... ok
+test_conversion_without_a_rate_record_is_refused (tools.tests.test_b29_fees.PricerReferenceModel.test_conversion_without_a_rate_record_is_refused) ... ok
+test_half_even_rounding_is_available_and_differs (tools.tests.test_b29_fees.PricerReferenceModel.test_half_even_rounding_is_available_and_differs) ... ok
+test_internal_cost_is_not_charged_to_the_merchant (tools.tests.test_b29_fees.PricerReferenceModel.test_internal_cost_is_not_charged_to_the_merchant) ... ok
+test_percentages_are_integer_arithmetic_with_declared_rounding (tools.tests.test_b29_fees.PricerReferenceModel.test_percentages_are_integer_arithmetic_with_declared_rounding) ... ok
+test_revenue_is_only_the_service_fee (tools.tests.test_b29_fees.PricerReferenceModel.test_revenue_is_only_the_service_fee) ... ok
+test_revenue_refuses_a_category_that_is_both_revenue_and_remitted (tools.tests.test_b29_fees.PricerReferenceModel.test_revenue_refuses_a_category_that_is_both_revenue_and_remitted) ... ok
+test_tax_is_levied_on_the_service_fee_not_the_payment (tools.tests.test_b29_fees.PricerReferenceModel.test_tax_is_levied_on_the_service_fee_not_the_payment) ... ok
+test_the_meter_is_idempotent (tools.tests.test_b29_fees.PricerReferenceModel.test_the_meter_is_idempotent) ... ok
+test_the_same_currency_needs_no_rate (tools.tests.test_b29_fees.PricerReferenceModel.test_the_same_currency_needs_no_rate) ... ok
+test_the_split_adds_back_to_the_total_exactly (tools.tests.test_b29_fees.PricerReferenceModel.test_the_split_adds_back_to_the_total_exactly) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.236s
+Ran 26 tests in 2.227s
 
 OK
 
-===== tools.tests.test_b31_isolation.IsolationGeneratedArtefacts =====
-test_contract_carries_every_surface_and_probe (tools.tests.test_b31_isolation.IsolationGeneratedArtefacts.test_contract_carries_every_surface_and_probe) ... ok
-test_document_shows_every_surface (tools.tests.test_b31_isolation.IsolationGeneratedArtefacts.test_document_shows_every_surface) ... ok
-test_drift_is_reported (tools.tests.test_b31_isolation.IsolationGeneratedArtefacts.test_drift_is_reported) ... ok
-test_generated_artefacts_match_the_model (tools.tests.test_b31_isolation.IsolationGeneratedArtefacts.test_generated_artefacts_match_the_model) ... ok
-test_missing_generated_artefact_is_reported (tools.tests.test_b31_isolation.IsolationGeneratedArtefacts.test_missing_generated_artefact_is_reported) ... ok
-test_unrenderable_model_fails_closed (tools.tests.test_b31_isolation.IsolationGeneratedArtefacts.test_unrenderable_model_fails_closed) ... ok
+===== tools.tests.test_b30_onboarding.WorkflowReferenceModel =====
+test_a_callback_must_be_https_and_public (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_a_callback_must_be_https_and_public) ... ok
+test_a_callback_needs_a_verified_round_trip (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_a_callback_needs_a_verified_round_trip) ... ok
+test_a_domain_token_is_single_use_and_expires (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_a_domain_token_is_single_use_and_expires) ... ok
+test_a_half_finished_case_expires (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_a_half_finished_case_expires) ... ok
+test_a_resumed_case_does_not_repeat_a_completed_side_effect (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_a_resumed_case_does_not_repeat_a_completed_side_effect) ... ok
+test_a_step_with_no_evidence_is_refused (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_a_step_with_no_evidence_is_refused) ... ok
+test_a_tampered_payload_is_caught_at_go_live (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_a_tampered_payload_is_caught_at_go_live) ... ok
+test_a_wildcard_domain_proof_is_refused (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_a_wildcard_domain_proof_is_refused) ... ok
+test_an_approval_expires (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_an_approval_expires) ... ok
+test_an_imported_credential_cannot_be_read_back (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_an_imported_credential_cannot_be_read_back) ... ok
+test_an_unrelated_change_keeps_the_approval (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_an_unrelated_change_keeps_the_approval) ... ok
+test_changing_the_payout_account_invalidates_the_approval (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_changing_the_payout_account_invalidates_the_approval) ... ok
+test_empty_limits_are_refused (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_empty_limits_are_refused) ... ok
+test_go_live_needs_every_step_and_a_valid_approval (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_go_live_needs_every_step_and_a_valid_approval) ... ok
+test_reimporting_returns_the_same_reference (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_reimporting_returns_the_same_reference) ... ok
+test_steps_run_in_order (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_steps_run_in_order) ... ok
+test_stopping_takes_one_person_and_restarting_takes_two (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_stopping_takes_one_person_and_restarting_takes_two) ... ok
+test_the_digest_covers_only_the_declared_fields (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_the_digest_covers_only_the_declared_fields) ... ok
+test_the_next_step_is_none_when_everything_is_done (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_the_next_step_is_none_when_everything_is_done) ... ok
+test_the_requester_cannot_approve_and_one_approver_is_not_enough (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_the_requester_cannot_approve_and_one_approver_is_not_enough) ... ok
+test_there_is_no_manual_completion (tools.tests.test_b30_onboarding.WorkflowReferenceModel.test_there_is_no_manual_completion) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.172s
+Ran 21 tests in 2.198s
 
 OK
 
-===== tools.tests.test_b32_intent.IntentGeneratedArtefacts =====
-test_contract_keeps_the_state_order (tools.tests.test_b32_intent.IntentGeneratedArtefacts.test_contract_keeps_the_state_order) ... ok
-test_document_shows_every_state (tools.tests.test_b32_intent.IntentGeneratedArtefacts.test_document_shows_every_state) ... ok
-test_drift_is_reported (tools.tests.test_b32_intent.IntentGeneratedArtefacts.test_drift_is_reported) ... ok
-test_generated_artefacts_match_the_model (tools.tests.test_b32_intent.IntentGeneratedArtefacts.test_generated_artefacts_match_the_model) ... ok
-test_missing_generated_artefact_is_reported (tools.tests.test_b32_intent.IntentGeneratedArtefacts.test_missing_generated_artefact_is_reported) ... ok
-test_unrenderable_model_fails_closed (tools.tests.test_b32_intent.IntentGeneratedArtefacts.test_unrenderable_model_fails_closed) ... ok
+===== tools.tests.test_b31_isolation.IsolationProbesReferenceModel =====
+test_a_background_job_must_be_bound_to_a_tenant (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_a_background_job_must_be_bound_to_a_tenant) ... ok
+test_a_cross_tenant_read_is_refused (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_a_cross_tenant_read_is_refused) ... ok
+test_a_cross_tenant_write_is_refused (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_a_cross_tenant_write_is_refused) ... ok
+test_a_log_line_needs_a_tenant_and_only_its_own_rows (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_a_log_line_needs_a_tenant_and_only_its_own_rows) ... ok
+test_a_message_without_a_tenant_cannot_be_published (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_a_message_without_a_tenant_cannot_be_published) ... ok
+test_a_positive_only_test_passes_while_the_data_leaks (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_a_positive_only_test_passes_while_the_data_leaks) ... ok
+test_a_probe_that_fails_to_deny_is_reported (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_a_probe_that_fails_to_deny_is_reported) ... ok
+test_a_query_with_no_tenant_fails (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_a_query_with_no_tenant_fails) ... ok
+test_a_surface_naming_a_missing_probe_is_refused (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_a_surface_naming_a_missing_probe_is_refused) ... ok
+test_an_export_is_one_tenant_filtered_in_the_query_and_counted (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_an_export_is_one_tenant_filtered_in_the_query_and_counted) ... ok
+test_every_probe_in_the_model_exists_and_denies (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_every_probe_in_the_model_exists_and_denies) ... ok
+test_object_storage_is_prefix_scoped (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_object_storage_is_prefix_scoped) ... ok
+test_the_cache_key_carries_the_tenant (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_the_cache_key_carries_the_tenant) ... ok
+test_the_consumer_checks_the_tenant (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_the_consumer_checks_the_tenant) ... ok
+test_the_cross_tenant_grant_is_the_only_way_to_see_everything (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_the_cross_tenant_grant_is_the_only_way_to_see_everything) ... ok
+test_the_negative_cache_is_scoped_too (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_the_negative_cache_is_scoped_too) ... ok
+test_the_row_count_check_catches_a_filter_in_the_wrong_place (tools.tests.test_b31_isolation.IsolationProbesReferenceModel.test_the_row_count_check_catches_a_filter_in_the_wrong_place) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.164s
+Ran 17 tests in 1.445s
 
 OK
 
-===== tools.tests.test_b33_attempt.AttemptGeneratedArtefacts =====
-test_contract_carries_every_mapping (tools.tests.test_b33_attempt.AttemptGeneratedArtefacts.test_contract_carries_every_mapping) ... ok
-test_document_shows_every_outcome_class (tools.tests.test_b33_attempt.AttemptGeneratedArtefacts.test_document_shows_every_outcome_class) ... ok
-test_drift_is_reported (tools.tests.test_b33_attempt.AttemptGeneratedArtefacts.test_drift_is_reported) ... ok
-test_generated_artefacts_match_the_model (tools.tests.test_b33_attempt.AttemptGeneratedArtefacts.test_generated_artefacts_match_the_model) ... ok
-test_missing_generated_artefact_is_reported (tools.tests.test_b33_attempt.AttemptGeneratedArtefacts.test_missing_generated_artefact_is_reported) ... ok
-test_unrenderable_model_fails_closed (tools.tests.test_b33_attempt.AttemptGeneratedArtefacts.test_unrenderable_model_fails_closed) ... ok
+===== tools.tests.test_b32_intent.PaymentIntentHappyPath =====
+test_confirmation_is_idempotent_and_evidence_based (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_confirmation_is_idempotent_and_evidence_based) ... ok
+test_expiry_is_bounded_recorded_and_not_extendable (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_expiry_is_bounded_recorded_and_not_extendable) ... ok
+test_intent_events_are_money_events (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_intent_events_are_money_events) ... ok
+test_methods_are_frozen_at_creation_and_may_only_narrow (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_methods_are_frozen_at_creation_and_may_only_narrow) ... ok
+test_real_model_passes (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_real_model_passes) ... ok
+test_the_amount_invariants_hold_the_ledger_together (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_the_amount_invariants_hold_the_ledger_together) ... ok
+test_the_amount_snapshot_is_immutable_and_complete (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_the_amount_snapshot_is_immutable_and_complete) ... ok
+test_the_b08_entity_carries_no_order_content (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_the_b08_entity_carries_no_order_content) ... ok
+test_the_business_order_stays_with_the_project (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_the_business_order_stays_with_the_project) ... ok
+test_the_client_reference_carries_no_credential (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_the_client_reference_carries_no_credential) ... ok
+test_the_lifecycle_is_exactly_the_b10_machine (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_the_lifecycle_is_exactly_the_b10_machine) ... ok
+test_the_snapshot_fields_exist_on_the_b08_entity (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_the_snapshot_fields_exist_on_the_b08_entity) ... ok
+test_validator_is_registered (tools.tests.test_b32_intent.PaymentIntentHappyPath.test_validator_is_registered) ... ok
 
 ----------------------------------------------------------------------
-Ran 6 tests in 0.210s
+Ran 13 tests in 1.446s
 
 OK
 
-===== tools.tests.test_nvd_feed.NvdFeedPreflightTests =====
-test_accepts_fresh_strict_metadata (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_accepts_fresh_strict_metadata) ... ok
-test_rejects_a_leading_whitespace_java_canonical_duplicate (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_a_leading_whitespace_java_canonical_duplicate) ... ok
-test_rejects_a_malformed_historical_feed_timestamp (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_a_malformed_historical_feed_timestamp) ... ok
-test_rejects_a_missing_historical_feed_year (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_a_missing_historical_feed_year) ... ok
-test_rejects_an_escaped_cache_properties_key (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_an_escaped_cache_properties_key) ... ok
-test_rejects_cache_properties_that_disagrees_with_modified_metadata (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_cache_properties_that_disagrees_with_modified_metadata) ... ok
-test_rejects_duplicate_metadata_field (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_duplicate_metadata_field) ... ok
-test_rejects_future_metadata (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_future_metadata) ... ok
-test_rejects_invalid_feed_digest (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_invalid_feed_digest) ... ok
-test_rejects_metadata_even_one_millisecond_past_freshness_limit (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_metadata_even_one_millisecond_past_freshness_limit) ... ok
-test_rejects_metadata_even_one_millisecond_past_future_tolerance (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_metadata_even_one_millisecond_past_future_tolerance) ... ok
-test_rejects_missing_metadata_field (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_missing_metadata_field) ... ok
-test_rejects_non_success_http_status (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_non_success_http_status) ... ok
-test_rejects_oversized_http_response (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_oversized_http_response) ... ok
-test_rejects_redirect_before_contacting_same_or_cross_origin_target (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_redirect_before_contacting_same_or_cross_origin_target) ... ok
-test_rejects_relaxed_catalogue_policy (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_relaxed_catalogue_policy) ... ok
-test_rejects_stale_metadata (tools.tests.test_nvd_feed.NvdFeedPreflightTests.test_rejects_stale_metadata) ... ok
+===== tools.tests.test_b33_attempt.AttemptReferenceModel =====
+test_a_declared_system_error_is_unknown (tools.tests.test_b33_attempt.AttemptReferenceModel.test_a_declared_system_error_is_unknown) ... ok
+test_a_definitive_decline_ends_the_request_not_the_intent (tools.tests.test_b33_attempt.AttemptReferenceModel.test_a_definitive_decline_ends_the_request_not_the_intent) ... ok
+test_a_late_contradicting_event_opens_a_break_and_changes_nothing (tools.tests.test_b33_attempt.AttemptReferenceModel.test_a_late_contradicting_event_opens_a_break_and_changes_nothing) ... ok
+test_a_resolution_that_is_still_unknown_does_not_resolve (tools.tests.test_b33_attempt.AttemptReferenceModel.test_a_resolution_that_is_still_unknown_does_not_resolve) ... ok
+test_a_retry_must_carry_the_original_key (tools.tests.test_b33_attempt.AttemptReferenceModel.test_a_retry_must_carry_the_original_key) ... ok
+test_a_retryable_failure_is_not_a_settled_intent (tools.tests.test_b33_attempt.AttemptReferenceModel.test_a_retryable_failure_is_not_a_settled_intent) ... ok
+test_a_successfully_settled_intent_takes_no_further_attempts (tools.tests.test_b33_attempt.AttemptReferenceModel.test_a_successfully_settled_intent_takes_no_further_attempts) ... ok
+test_a_timeout_blocks_the_next_attempt_until_it_is_resolved (tools.tests.test_b33_attempt.AttemptReferenceModel.test_a_timeout_blocks_the_next_attempt_until_it_is_resolved) ... ok
+test_already_paid_is_success_not_an_error (tools.tests.test_b33_attempt.AttemptReferenceModel.test_already_paid_is_success_not_an_error) ... ok
+test_an_illegal_transition_is_refused (tools.tests.test_b33_attempt.AttemptReferenceModel.test_an_illegal_transition_is_refused) ... ok
+test_an_unknown_provider_is_refused (tools.tests.test_b33_attempt.AttemptReferenceModel.test_an_unknown_provider_is_refused) ... ok
+test_an_unmapped_code_is_unknown (tools.tests.test_b33_attempt.AttemptReferenceModel.test_an_unmapped_code_is_unknown) ... ok
+test_b32_replacement_confirmation_is_an_explicit_integration_gap (tools.tests.test_b33_attempt.AttemptReferenceModel.test_b32_replacement_confirmation_is_an_explicit_integration_gap) ... ok
+test_concurrent_duplicate_starts_create_exactly_one_attempt (tools.tests.test_b33_attempt.AttemptReferenceModel.test_concurrent_duplicate_starts_create_exactly_one_attempt) ... ok
+test_direct_assignment_cannot_rewrite_a_final_attempt (tools.tests.test_b33_attempt.AttemptReferenceModel.test_direct_assignment_cannot_rewrite_a_final_attempt) ... ok
+test_only_an_unknown_can_be_resolved (tools.tests.test_b33_attempt.AttemptReferenceModel.test_only_an_unknown_can_be_resolved) ... ok
+test_paypal_instrument_declined_allows_a_new_instrument (tools.tests.test_b33_attempt.AttemptReferenceModel.test_paypal_instrument_declined_allows_a_new_instrument) ... ok
+test_provider_request_ids_are_present_and_unique (tools.tests.test_b33_attempt.AttemptReferenceModel.test_provider_request_ids_are_present_and_unique) ... ok
+test_provider_transaction_ids_are_unique_when_present (tools.tests.test_b33_attempt.AttemptReferenceModel.test_provider_transaction_ids_are_unique_when_present) ... ok
+test_resolution_needs_a_declared_method_and_a_deadline (tools.tests.test_b33_attempt.AttemptReferenceModel.test_resolution_needs_a_declared_method_and_a_deadline) ... ok
+test_retries_are_bounded (tools.tests.test_b33_attempt.AttemptReferenceModel.test_retries_are_bounded) ... ok
+test_tenant_id_is_required_and_equal_intent_ids_are_isolated (tools.tests.test_b33_attempt.AttemptReferenceModel.test_tenant_id_is_required_and_equal_intent_ids_are_isolated) ... ok
+test_the_digest_excludes_the_redacted_fields (tools.tests.test_b33_attempt.AttemptReferenceModel.test_the_digest_excludes_the_redacted_fields) ... ok
+test_the_payload_cannot_be_read_back (tools.tests.test_b33_attempt.AttemptReferenceModel.test_the_payload_cannot_be_read_back) ... ok
+test_the_response_is_a_safe_summary_with_a_digest (tools.tests.test_b33_attempt.AttemptReferenceModel.test_the_response_is_a_safe_summary_with_a_digest) ... ok
 
 ----------------------------------------------------------------------
-Ran 17 tests in 3.461s
+Ran 25 tests in 2.067s
 
 OK
 
-===== tools.tests.test_rule_coverage.RuleCoverageGate =====
-test_every_emitted_rule_is_reachable (tools.tests.test_rule_coverage.RuleCoverageGate.test_every_emitted_rule_is_reachable) ... ok
-test_gate_detects_an_unreachable_rule (tools.tests.test_rule_coverage.RuleCoverageGate.test_gate_detects_an_unreachable_rule) ... ok
-test_gate_is_registered (tools.tests.test_rule_coverage.RuleCoverageGate.test_gate_is_registered) ... ok
+===== tools.tests.test_cli_reports.CliReports =====
+test_failing_validation_is_still_recorded (tools.tests.test_cli_reports.CliReports.test_failing_validation_is_still_recorded) ... ok
+test_list_validators_rejects_json_report_option (tools.tests.test_cli_reports.CliReports.test_list_validators_rejects_json_report_option) ... ok
+test_report_must_remain_inside_repository (tools.tests.test_cli_reports.CliReports.test_report_must_remain_inside_repository) ... ok
+test_report_refuses_symlink_target (tools.tests.test_cli_reports.CliReports.test_report_refuses_symlink_target) ... ok
+test_verify_writes_the_exact_stdout_json_atomically (tools.tests.test_cli_reports.CliReports.test_verify_writes_the_exact_stdout_json_atomically) ... ok
 
 ----------------------------------------------------------------------
-Ran 3 tests in 0.713s
+Ran 5 tests in 3.709s
+
+OK
+
+===== tools.tests.test_rule_coverage.EvidenceFrameworkRules =====
+test_reports_an_empty_evidence_tree (tools.tests.test_rule_coverage.EvidenceFrameworkRules.test_reports_an_empty_evidence_tree) ... ok
+test_reports_removal_of_a_mandatory_command_class (tools.tests.test_rule_coverage.EvidenceFrameworkRules.test_reports_removal_of_a_mandatory_command_class) ... ok
+test_reports_unreadable_command_log (tools.tests.test_rule_coverage.EvidenceFrameworkRules.test_reports_unreadable_command_log) ... ok
+test_reports_unreadable_command_spec (tools.tests.test_rule_coverage.EvidenceFrameworkRules.test_reports_unreadable_command_spec) ... ok
+test_reports_unreadable_traceability (tools.tests.test_rule_coverage.EvidenceFrameworkRules.test_reports_unreadable_traceability) ... ok
+test_synthetic_tree_is_accepted (tools.tests.test_rule_coverage.EvidenceFrameworkRules.test_synthetic_tree_is_accepted) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 3.474s
+
+OK
+
+===== tools.tests.test_rule_coverage.ToolchainAndCliFailClosed =====
+test_a_crashing_validator_fails_closed (tools.tests.test_rule_coverage.ToolchainAndCliFailClosed.test_a_crashing_validator_fails_closed) ... ok
+test_reports_a_toolchain_file_that_does_not_parse (tools.tests.test_rule_coverage.ToolchainAndCliFailClosed.test_reports_a_toolchain_file_that_does_not_parse) ... ok
+test_rule_coverage_gate_flags_an_unreachable_new_rule (tools.tests.test_rule_coverage.ToolchainAndCliFailClosed.test_rule_coverage_gate_flags_an_unreachable_new_rule) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 2.613s
 
 OK
 
@@ -1012,7 +888,7 @@ test_rejects_supply_chain_stage_detached_from_build (tools.tests.test_security_g
 test_rejects_wrong_cyclonedx_json_artifact (tools.tests.test_security_gradle_gates.SupplyChainPipelineRejects.test_rejects_wrong_cyclonedx_json_artifact) ... ok
 
 ----------------------------------------------------------------------
-Ran 12 tests in 0.488s
+Ran 12 tests in 1.958s
 
 OK
 
@@ -1026,6 +902,6 @@ test_rejects_required_stage_and_signing_chain_bypasses (tools.tests.test_signing
 test_rejects_terminal_context_or_expression_in_shell_source (tools.tests.test_signing_pipeline.SigningGovernanceRejects.test_rejects_terminal_context_or_expression_in_shell_source) ... ok
 
 ----------------------------------------------------------------------
-Ran 7 tests in 1.232s
+Ran 7 tests in 1.680s
 
 OK

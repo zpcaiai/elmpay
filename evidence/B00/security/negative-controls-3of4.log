@@ -79,6 +79,19 @@
 [OK ] B33 provider code namespaces are conflated: exit=2 expected=2 code=ATTEMPT_CODE_NAMESPACE
 [OK ] B33 the intent outcome is set independently: exit=2 expected=2 code=ATTEMPT_INTENT_UNLINKED
 [OK ] B33 attempt events are recorded as configuration changes: exit=2 expected=2 code=ATTEMPT_AUDIT_CLASS_TOO_WEAK
+[OK ] B34 partial capture stops requiring a close: exit=2 expected=2 code=CAPTURE_NO_EXPLICIT_CLOSE
+[OK ] B34 a void stops releasing the whole authorisation: exit=2 expected=2 code=CAPTURE_VOID_AFTER_CAPTURE
+[OK ] B34 a query settles success: exit=2 expected=2 code=CAPTURE_UNKNOWN_IS_SUCCESS
+[OK ] B34 the authorisation window gets a second source: exit=2 expected=2 code=CAPTURE_CAPABILITY_SOURCE
+[OK ] B34 an operation is dropped from the lifecycle: exit=2 expected=2 code=CAPTURE_OPERATION_MISSING
+[OK ] B34 the principle is emptied: exit=2 expected=2 code=CAPTURE_PRINCIPLE
+[OK ] B35 cvv2 drops out of the CVV aliases: exit=2 expected=2 code=PMETHOD_ALIAS_GAP
+[OK ] B35 the platform claims to hold the PAN: exit=2 expected=2 code=PMETHOD_CUSTODY_CLAIMED
+[OK ] B35 the token stops being opaque: exit=2 expected=2 code=PMETHOD_TOKEN_SCHEME
+[OK ] B35 the fingerprint stops being one-way: exit=2 expected=2 code=PMETHOD_FINGERPRINT_REVERSIBLE
+[OK ] B35 the display allowlist is emptied: exit=2 expected=2 code=PMETHOD_DISPLAY_FIELD_UNSAFE
+[OK ] B35 the fingerprint lookup drops the tenant: exit=2 expected=2 code=PMETHOD_TENANT_UNSCOPED
+[OK ] B35 the principle is emptied: exit=2 expected=2 code=PMETHOD_PRINCIPLE
 [OK ] NN-07 literal provider secret: exit=2 expected=2 code=CONFIG_CREDENTIAL_REF
 [OK ] red line silently removed: exit=2 expected=2 code=NONNEG_COUNT
 [OK ] B01 forbidden flow loses its enforcement: exit=2 expected=2 code=BOUNDARY_FLOW
@@ -96,37 +109,38 @@
 [OK ] B10 transition loses its idempotency key: exit=2 expected=2 code=STATE_IDEMPOTENCY
 [OK ] B11 write operation loses its idempotency key: exit=2 expected=2 code=API_MUTATION_NOT_IDEMPOTENT
 [OK ] B11 error message echoes card data: exit=2 expected=2 code=API_ERROR_LEAK
-[OK ] B12 inbox stops recording a payload hash: exit=2 expected=2 code=INBOX_PAYLOAD_HASH
-[OK ] B12 card number added to an event payload: exit=2 expected=2 code=EVENT_FORBIDDEN_FIELD
-[OK ] B13 row level security no longer forced for the owner: exit=2 expected=2 code=DATA_RLS_FORCE
-[OK ] B13 table ownership contradicts the module registry: exit=2 expected=2 code=DATA_OWNER
-[OK ] B14 caller budget no longer covers its timeouts: exit=2 expected=2 code=TOPO_BUDGET_EXCEEDED
-[OK ] B14 ledger moved onto the synchronous payment path: exit=2 expected=2 code=TOPO_TIMEOUT_TOO_TIGHT
-[OK ] B15 platform granted legacy database access: exit=2 expected=2 code=MIG_LEGACY_DB_ACCESS
-[OK ] B15 backfill allowed to write to the legacy system: exit=2 expected=2 code=MIG_BACKFILL_WRITES
-[OK ] B16 policy switched to allow by default: exit=2 expected=2 code=ZT_DENY_BY_DEFAULT
-[OK ] B16 admin access drops phishing-resistant MFA: exit=2 expected=2 code=ZT_ADMIN_MFA
-[OK ] B17 unbound bearer tokens allowed again: exit=2 expected=2 code=ID_BEARER_TOKEN
-[OK ] B17 redirect URI matching relaxed to prefix: exit=2 expected=2 code=ID_REDIRECT_MATCH
-[OK ] B17 static service account secrets allowed: exit=2 expected=2 code=ID_STATIC_SERVICE_ACCOUNT
-[OK ] B18 operators allowed to fall back to TOTP: exit=2 expected=2 code=MFA_WEAK_FOR_PRIVILEGED
-[OK ] B18 WebAuthn challenge becomes reusable: exit=2 expected=2 code=MFA_CHALLENGE_REPLAY
-[OK ] B18 merchant-admin requirement removed entirely: exit=2 expected=2 code=MFA_ROLE_UNCOVERED
-[OK ] B19 payout approval loses its second person: exit=2 expected=2 code=AUTHZ_MONEY_NO_DUAL_CONTROL
-[OK ] B19 the separation rule protecting payouts is deleted: exit=2 expected=2 code=AUTHZ_SOD_MISSING
-[OK ] B19 elevation no longer auto-revoked: exit=2 expected=2 code=AUTHZ_ELEVATION_AUTO_REVOKE
-[OK ] B19 customer contact details stop being masked: exit=2 expected=2 code=AUTHZ_FIELD_MASK
-[OK ] B20 the root key becomes exportable: exit=2 expected=2 code=KEY_EXPORTABLE_ROOT
-[OK ] B20 nonce reuse permitted: exit=2 expected=2 code=KEY_NONCE_REUSE
-[OK ] B20 the application is allowed to hold key material: exit=2 expected=2 code=KEY_APP_HOLDS_MATERIAL
-[OK ] B20 rotation loses its overlap window: exit=2 expected=2 code=KEY_ROTATION_OVERLAP
-[OK ] hygiene an SSOT entry lies about which batch owns it: exit=2 expected=2 code=SSOT_BATCH_MISMATCH
-[OK ] B24 tenant registry document hand-edited: exit=2 expected=2 code=TENANT_GENERATED_DRIFT
-[OK ] B28 routing document hand-edited: exit=2 expected=2 code=ROUTE_GENERATED_DRIFT
-[OK ] B32 intent document hand-edited: exit=2 expected=2 code=INTENT_GENERATED_DRIFT
+[OK ] B12 outbox write moved outside the state transaction: exit=2 expected=2 code=OUTBOX_NOT_TRANSACTIONAL
+[OK ] B12 transport claims exactly-once delivery: exit=2 expected=2 code=EVENT_DELIVERY
+[OK ] B13 row level security turned off on a tenant table: exit=2 expected=2 code=DATA_RLS_MISSING
+[OK ] B13 financial retention cut to a quarter: exit=2 expected=2 code=DATA_RETENTION_FLOOR
+[OK ] B14 synchronous dependency cycle introduced: exit=2 expected=2 code=TOPO_SYNC_CYCLE
+[OK ] B14 tier-1 dependency switched to fail open: exit=2 expected=2 code=TOPO_FAIL_OPEN
+[OK ] B15 dual write turned into two provider calls: exit=2 expected=2 code=MIG_DOUBLE_CHARGE
+[OK ] B15 rollback stops preserving payment facts: exit=2 expected=2 code=MIG_ROLLBACK_DESTRUCTIVE
+[OK ] B16 a network range granted implicit trust: exit=2 expected=2 code=ZT_NETWORK_TRUST
+[OK ] B16 audit reduced to denials only: exit=2 expected=2 code=ZT_AUDIT_ALLOW_ONLY
+[OK ] B16 mutual TLS dropped between internal zones: exit=2 expected=2 code=ZT_INTERNAL_TRUST
+[OK ] B17 implicit flow re-enabled: exit=2 expected=2 code=ID_FLOW
+[OK ] B17 operator recovery downgraded to SMS: exit=2 expected=2 code=ID_RECOVERY_SMS
+[OK ] B17 a zero-trust principal loses its identity: exit=2 expected=2 code=ID_PRINCIPAL_UNBACKED
+[OK ] B18 break-glass drops to a single registered key: exit=2 expected=2 code=MFA_SINGLE_AUTHENTICATOR
+[OK ] B18 signature counter regression no longer means cloning: exit=2 expected=2 code=MFA_SIGN_COUNT
+[OK ] B18 operator recovery accepts a weaker factor: exit=2 expected=2 code=MFA_RECOVERY_BYPASS
+[OK ] B19 approvals stop being bound to the request: exit=2 expected=2 code=AUTHZ_DUAL_BINDING
+[OK ] B19 standing privileged access re-enabled: exit=2 expected=2 code=AUTHZ_STANDING_PRIVILEGE
+[OK ] B19 the auditor becomes elevatable: exit=2 expected=2 code=AUTHZ_AUDITOR_ELEVATABLE
+[OK ] B19 authorisation becomes allow-by-default: exit=2 expected=2 code=AUTHZ_DEFAULT_DECISION
+[OK ] B20 root key operations no longer need a quorum: exit=2 expected=2 code=KEY_QUORUM
+[OK ] B20 the unwrapped data key may be stored: exit=2 expected=2 code=KEY_UNWRAPPED_STORED
+[OK ] B20 key use stops being audited: exit=2 expected=2 code=KEY_USE_UNAUDITED
+[OK ] B20 a broken primitive is un-banned: exit=2 expected=2 code=KEY_WEAK_ALGORITHM_ALLOWED
+[OK ] B21 certificate document hand-edited: exit=2 expected=2 code=CERT_GENERATED_DRIFT
+[OK ] B25 merchant profile document hand-edited: exit=2 expected=2 code=MERCHANT_GENERATED_DRIFT
+[OK ] B29 fee document hand-edited: exit=2 expected=2 code=FEE_GENERATED_DRIFT
+[OK ] B33 attempt document hand-edited: exit=2 expected=2 code=ATTEMPT_GENERATED_DRIFT
 [OK ] B03 Gradle wrapper launcher is corrupted: exit=2 expected=2 code=TOOLCHAIN_WRAPPER
 [OK ] B09 conformance vectors quietly edited: exit=2 expected=2 code=MONEY_VECTORS_DRIFT
 [OK ] B13 generated RLS ddl hand-edited: exit=2 expected=2 code=DATA_GENERATED_DRIFT
 [OK ] B17 identity document hand-edited: exit=2 expected=2 code=ID_GENERATED_DRIFT
 
-shard=3/4 scenarios=130 rejection_scenarios=129 baseline_timeout_and_subprocess=1 failures=0
+shard=3/4 scenarios=144 rejection_scenarios=143 baseline_timeout_and_subprocess=1 failures=0

@@ -2,6 +2,7 @@ B02	adr
 B11	api-contract
 B23	audit-log
 B19	authz
+B34	capture-lifecycle
 B21	certificates
 B00	charter
 B05	ci-pipeline
@@ -23,6 +24,7 @@ B00	non-negotiables
 B30	onboarding-workflow
 B33	payment-attempt
 B32	payment-intent
+B35	payment-method
 B00	project-config
 B26	provider-accounts
 B27	provider-capabilities
