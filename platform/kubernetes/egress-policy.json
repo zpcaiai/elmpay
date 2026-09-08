@@ -141,22 +141,6 @@
       "host": "openapi.alipay.com",
       "port": 443,
       "protocol": "TLS"
-    },
-    {
-      "id": "stripe-api",
-      "category": "PSP",
-      "type": "fqdn",
-      "host": "api.stripe.com",
-      "port": 443,
-      "protocol": "TLS"
-    },
-    {
-      "id": "paypal-api",
-      "category": "PSP",
-      "type": "fqdn",
-      "host": "api-m.paypal.com",
-      "port": 443,
-      "protocol": "TLS"
     }
   ],
   "workloads": {
@@ -176,8 +160,6 @@
       "otel-collector",
       "wechat-api",
       "alipay-api",
-      "stripe-api",
-      "paypal-api",
       "risk-engine-internal"
     ],
     "risk-engine": [

@@ -23,6 +23,19 @@ class ProjectConfigHappyPath(FixtureTestCase):
         second = config.validate(self.fixture.root, Budget().start())
         self.assertEqual(first, second)
 
+    def test_china_mainland_mvp_enables_only_wechat_and_alipay(self):
+        document = self.fixture.read("governance/project-config.json")
+        self.assertEqual("china-mainland-mvp", document["project"]["profile"])
+        self.assertEqual(["CN"], document["project"]["data_residency"])
+        self.assertEqual(
+            {"wechat", "alipay"},
+            {
+                name
+                for name, provider in document["providers"].items()
+                if provider["enabled"]
+            },
+        )
+
 
 class ProjectConfigRejects(FixtureTestCase):
     REL = "governance/project-config.json"
@@ -111,3 +124,12 @@ class ProjectConfigRejects(FixtureTestCase):
                 provider["enabled"] = False
         self.fixture.mutate(self.REL, disable)
         self.assertIn("CONFIG_PROVIDER", self.codes(self._validate()))
+
+    def test_rejects_out_of_scope_provider_in_china_mainland_mvp(self):
+        def enable_stripe(document):
+            document["providers"]["stripe"].update(
+                {"enabled": True, "credentials": "vault://elmpay/stripe/test-only"}
+            )
+
+        self.fixture.mutate(self.REL, enable_stripe)
+        self.assertIn("CONFIG_PROVIDER_SCOPE", self.codes(self._validate()))

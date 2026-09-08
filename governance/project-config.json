@@ -3,9 +3,9 @@
   "batch": "B00",
   "project": {
     "name": "elmpay",
-    "profile": "full-multi-project",
-    "primary_region": "cn-east",
-    "data_residency": ["CN", "EU"]
+    "profile": "china-mainland-mvp",
+    "primary_region": "cn-east-1",
+    "data_residency": ["CN"]
   },
   "providers": {
     "wechat": {
@@ -22,24 +22,21 @@
       "credentials": "kms://elmpay/alipay/app/main"
     },
     "stripe": {
-      "enabled": true,
-      "priority": 3,
+      "enabled": false,
+      "reason": "OUT_OF_SCOPE_CHINA_MVP",
       "card_data_mode": "hosted_fields_only",
-      "apple_pay": true,
-      "credentials": "vault://elmpay/stripe/live"
+      "apple_pay": false
     },
     "paypal": {
-      "enabled": true,
-      "priority": 4,
-      "orders_v2": true,
-      "credentials": "vault://elmpay/paypal/live"
+      "enabled": false,
+      "reason": "OUT_OF_SCOPE_CHINA_MVP",
+      "orders_v2": true
     },
     "apple_pay": {
-      "enabled": true,
-      "priority": 5,
+      "enabled": false,
+      "reason": "OUT_OF_SCOPE_CHINA_MVP",
       "processing": "via_stripe",
-      "direct_token_decryption": false,
-      "credentials": "vault://elmpay/apple-pay/merchant-id"
+      "direct_token_decryption": false
     }
   },
   "security": {

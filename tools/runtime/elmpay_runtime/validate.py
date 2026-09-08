@@ -93,6 +93,7 @@ def validate_repository(root: Path) -> GateReport:
         return GateReport.from_reasons(reasons, checks)
 
     semantic_checks = (
+        _validate_deployment_profile,
         _validate_static_kubernetes,
         _validate_workload_policy,
         _validate_product_images,
@@ -123,6 +124,96 @@ def validate_repository(root: Path) -> GateReport:
         else:
             checks.append(f"runbook:{relative}")
     return GateReport.from_reasons(reasons, checks)
+
+
+def _validate_deployment_profile(
+    root: Path, documents: Mapping[str, Any]
+) -> None:
+    """Keep the production-enabled provider scope consistent across SSOTs.
+
+    The repository retains global connector implementations, but the China
+    mainland MVP must not accidentally route, reconcile, request external
+    certification for, or open network egress to a provider outside its
+    explicitly approved production scope.
+    """
+
+    expected = {"wechat", "alipay"}
+    config = require_mapping(
+        read_json(root / "governance/project-config.json"), "project config"
+    )
+    project = require_mapping(config.get("project"), "project config.project")
+    if project.get("profile") != "china-mainland-mvp":
+        raise ValidationError("deployment profile must be china-mainland-mvp")
+    if project.get("primary_region") != "cn-east-1" \
+            or project.get("data_residency") != ["CN"]:
+        raise ValidationError("China MVP region and residency must be cn-east-1/CN")
+    providers = require_mapping(config.get("providers"), "project config.providers")
+    enabled = {
+        name
+        for name, raw in providers.items()
+        if require_mapping(raw, f"project config.providers.{name}").get("enabled") is True
+    }
+    if enabled != expected:
+        raise ValidationError("China MVP must enable exactly wechat and alipay")
+    for name, raw in providers.items():
+        provider = require_mapping(raw, f"project config.providers.{name}")
+        if name not in expected and "credentials" in provider:
+            raise ValidationError(f"disabled provider retains credential reference: {name}")
+
+    external = require_mapping(
+        documents["platform/compliance/external-evidence-policy.json"],
+        "external evidence policy",
+    )
+    if external.get("deploymentProfile") != "china-mainland-mvp":
+        raise ValidationError("external evidence policy profile does not match China MVP")
+    provider_matrix = require_mapping(
+        external.get("requiredProviderCapabilities"),
+        "external evidence requiredProviderCapabilities",
+    )
+    if set(provider_matrix) != expected:
+        raise ValidationError("external provider certification scope must match China MVP")
+    if provider_matrix.get("wechat") != ["wechat_pay"] \
+            or provider_matrix.get("alipay") != ["alipay"]:
+        raise ValidationError("China MVP provider capability scope is invalid")
+
+    egress = require_mapping(
+        documents["platform/kubernetes/egress-policy.json"], "egress policy"
+    )
+    destinations = [
+        require_mapping(item, "egress destination")
+        for item in require_list(egress.get("destinations"), "egress destinations")
+    ]
+    psp_destinations = {
+        str(item.get("id")) for item in destinations if item.get("category") == "PSP"
+    }
+    expected_psp_destinations = {"wechat-api", "alipay-api"}
+    if psp_destinations != expected_psp_destinations:
+        raise ValidationError("PSP network egress scope must match China MVP")
+    workload_egress = require_mapping(egress.get("workloads"), "egress workloads")
+    edge_destinations = set(require_list(
+        workload_egress.get("edge-gateway"), "edge-gateway egress destinations"
+    ))
+    if edge_destinations & psp_destinations != expected_psp_destinations:
+        raise ValidationError("edge gateway is missing a China MVP provider destination")
+
+    workload = require_mapping(
+        documents["platform/kubernetes/workload-policy.json"], "workload policy"
+    )
+    workers = [
+        require_mapping(item, "workload service")
+        for item in require_list(workload.get("services"), "workload services")
+        if isinstance(item, dict) and item.get("name") == "worker-scheduler"
+    ]
+    if len(workers) != 1:
+        raise ValidationError("worker-scheduler workload must be unique")
+    configuration = require_mapping(
+        workers[0].get("configuration"), "worker-scheduler configuration"
+    )
+    config_map_data = require_mapping(
+        configuration.get("configMapData"), "worker-scheduler configMapData"
+    )
+    if config_map_data.get("ELMPAY_RECONCILIATION_PROVIDERS") != "wechat,alipay":
+        raise ValidationError("reconciliation provider scope must match China MVP")
 
 
 def _validate_static_kubernetes(root: Path, documents: Mapping[str, Any]) -> None:

@@ -1,0 +1,302 @@
+{
+  "schemaVersion": 1,
+  "kind": "EXTERNAL_EVIDENCE_REQUEST_TEMPLATE",
+  "deploymentProfile": "china-mainland-mvp",
+  "testOnly": true,
+  "status": "DRAFT",
+  "certificationStatus": "NOT_CERTIFIED",
+  "releaseBindingDigest": "PENDING_RELEASE_BINDING",
+  "releaseApprovals": [
+    {
+      "role": "release_manager",
+      "actor": "PENDING_RELEASE_MANAGER",
+      "decision": "PENDING_EXTERNAL",
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true
+    },
+    {
+      "role": "security",
+      "actor": "PENDING_SECURITY_APPROVER",
+      "decision": "PENDING_EXTERNAL",
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true
+    }
+  ],
+  "commercialReadiness": {
+    "pricingVersion": "PENDING_PRICING_VERSION",
+    "slaVersion": "PENDING_SLA_VERSION",
+    "supportOwner": "PENDING_SUPPORT_OWNER",
+    "usageBillingReconciliation": "PENDING_EXTERNAL",
+    "status": "PENDING_EXTERNAL",
+    "testOnly": true
+  },
+  "goNoGo": {
+    "decisionId": "PENDING_GO_NO_GO_ID",
+    "decision": "PENDING_EXTERNAL",
+    "releaseManager": "PENDING_RELEASE_MANAGER",
+    "securityApprover": "PENDING_SECURITY_APPROVER",
+    "targetDigest": "PENDING_TARGET_DIGEST",
+    "status": "PENDING_EXTERNAL",
+    "testOnly": true
+  },
+  "finalReleaseSignoff": {
+    "releaseId": "PENDING_RELEASE_ID",
+    "decision": "PENDING_EXTERNAL",
+    "releaseManager": "PENDING_RELEASE_MANAGER",
+    "securityApprover": "PENDING_SECURITY_APPROVER",
+    "status": "PENDING_EXTERNAL",
+    "testOnly": true
+  },
+  "evidence": [
+    {
+      "category": "independent_human_review",
+      "evidenceId": "TEMP-independent-human-review",
+      "verifier": "PENDING_INDEPENDENT_REVIEWER",
+      "role": "external_verifier",
+      "source": "INDEPENDENT_REVIEWER",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "reviewerId": "PENDING_INDEPENDENT_REVIEWER",
+        "implementerId": "PENDING_IMPLEMENTER",
+        "scope": "PENDING_REVIEW_SCOPE",
+        "decision": "PENDING_EXTERNAL",
+        "openFindings": null,
+        "phishingResistantAuth": null
+      }
+    },
+    {
+      "category": "provider_certification",
+      "evidenceId": "TEMP-provider-wechat",
+      "verifier": "PENDING_WECHAT_OFFICIAL",
+      "role": "external_verifier",
+      "source": "PROVIDER_OFFICIAL",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "providerId": "wechat",
+        "officialCertificationId": "PENDING_WECHAT_CERTIFICATION_ID",
+        "environment": "PENDING_EXTERNAL",
+        "official": null,
+        "sandboxValidated": null,
+        "capabilities": ["wechat_pay"],
+        "observedTransactionReference": "PENDING_WECHAT_TRANSACTION_REFERENCE"
+      }
+    },
+    {
+      "category": "provider_certification",
+      "evidenceId": "TEMP-provider-alipay",
+      "verifier": "PENDING_ALIPAY_OFFICIAL",
+      "role": "external_verifier",
+      "source": "PROVIDER_OFFICIAL",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "providerId": "alipay",
+        "officialCertificationId": "PENDING_ALIPAY_CERTIFICATION_ID",
+        "environment": "PENDING_EXTERNAL",
+        "official": null,
+        "sandboxValidated": null,
+        "capabilities": ["alipay"],
+        "observedTransactionReference": "PENDING_ALIPAY_TRANSACTION_REFERENCE"
+      }
+    },
+    {
+      "category": "production_kubernetes",
+      "evidenceId": "TEMP-production-kubernetes",
+      "verifier": "PENDING_PRODUCTION_ATTESTOR",
+      "role": "external_verifier",
+      "source": "PRODUCTION_ATTESTATION",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "environment": "PENDING_EXTERNAL",
+        "clusterId": "PENDING_ACK_CLUSTER_ID",
+        "regions": ["cn-east-1", "cn-north-1"],
+        "commitSha": "PENDING_COMMIT_SHA",
+        "artifactDigest": "PENDING_ARTIFACT_DIGEST",
+        "imageDigests": [],
+        "admissionPolicyDigest": "PENDING_ADMISSION_POLICY_DIGEST",
+        "gitopsDriftCount": null,
+        "admissionPolicyPassed": null,
+        "rolloutStage": "PENDING_EXTERNAL"
+      }
+    },
+    {
+      "category": "dr_exercise",
+      "evidenceId": "TEMP-dr-exercise",
+      "verifier": "PENDING_DR_OBSERVER",
+      "role": "external_verifier",
+      "source": "PRODUCTION_DR_EXERCISE",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "exerciseId": "PENDING_DR_EXERCISE_ID",
+        "regions": ["cn-east-1", "cn-north-1"],
+        "measuredRpoSeconds": null,
+        "measuredRtoSeconds": null,
+        "failbackPassed": null,
+        "writeFenceObserved": null,
+        "providerRoutingVerified": null,
+        "dataLossDetected": null
+      }
+    },
+    {
+      "category": "pci_assessor",
+      "evidenceId": "TEMP-pci-assessor",
+      "verifier": "PENDING_PCI_ASSESSOR",
+      "role": "external_verifier",
+      "source": "PCI_ASSESSOR",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "assessorType": "PENDING_ASSESSOR_TYPE",
+        "reportReference": "PENDING_PCI_REPORT_REFERENCE",
+        "scope": "PENDING_PCI_SCOPE",
+        "status": "PENDING_EXTERNAL",
+        "assessorIndependent": null
+      }
+    },
+    {
+      "category": "uat_acceptance",
+      "evidenceId": "TEMP-uat-acceptance",
+      "verifier": "PENDING_UAT_SIGNERS",
+      "role": "external_verifier",
+      "source": "UAT_SIGNOFF",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "environment": "UAT",
+        "tenantId": "PENDING_TENANT_ID",
+        "targetDigest": "PENDING_TARGET_DIGEST",
+        "merchantId": "PENDING_MERCHANT_ID",
+        "suiteDigest": "PENDING_SUITE_DIGEST",
+        "resultDigest": "PENDING_RESULT_DIGEST",
+        "scenariosTotal": null,
+        "scenariosPassed": null,
+        "financeSignoff": null,
+        "operationsSignoff": null,
+        "merchantSignoff": null
+      }
+    },
+    {
+      "category": "penetration_test",
+      "evidenceId": "TEMP-penetration-test",
+      "verifier": "PENDING_INDEPENDENT_PEN_TESTER",
+      "role": "external_verifier",
+      "source": "INDEPENDENT_PEN_TESTER",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "testerId": "PENDING_TESTER_ID",
+        "testerIndependent": null,
+        "scope": "PENDING_PEN_TEST_SCOPE",
+        "methodology": "PENDING_METHODOLOGY",
+        "reportReference": "PENDING_PEN_TEST_REPORT",
+        "findings": null
+      }
+    },
+    {
+      "category": "shadow_rollout",
+      "evidenceId": "TEMP-shadow-rollout",
+      "verifier": "PENDING_PRODUCTION_ROLLOUT_OBSERVER",
+      "role": "external_verifier",
+      "source": "PRODUCTION_ROLLOUT_OBSERVER",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "stage": "SHADOW",
+        "tenantId": "PENDING_TENANT_ID",
+        "targetDigest": "PENDING_TARGET_DIGEST",
+        "datasetDigest": "PENDING_DATASET_DIGEST",
+        "resultDigest": "PENDING_RESULT_DIGEST",
+        "sampleCount": null,
+        "mismatchCount": null,
+        "candidateSideEffects": null
+      }
+    },
+    {
+      "category": "canary_rollout",
+      "evidenceId": "TEMP-canary-rollout",
+      "verifier": "PENDING_PRODUCTION_ROLLOUT_OBSERVER",
+      "role": "external_verifier",
+      "source": "PRODUCTION_ROLLOUT_OBSERVER",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "stage": "CANARY",
+        "tenantId": "PENDING_TENANT_ID",
+        "targetDigest": "PENDING_TARGET_DIGEST",
+        "trafficPercent": null,
+        "windowMinutes": null,
+        "errorRateDelta": null,
+        "latencyP99DeltaMs": null,
+        "authorizationRateDrop": null,
+        "autoStopTriggered": null,
+        "duplicateSideEffectCount": null,
+        "securityCriticalCount": null
+      }
+    },
+    {
+      "category": "merchant_acceptance",
+      "evidenceId": "TEMP-merchant-acceptance",
+      "verifier": "PENDING_MERCHANT_SIGNER",
+      "role": "external_verifier",
+      "source": "MERCHANT_SIGNOFF",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "merchantId": "PENDING_MERCHANT_ID",
+        "tenantId": "PENDING_TENANT_ID",
+        "targetDigest": "PENDING_TARGET_DIGEST",
+        "acceptanceId": "PENDING_ACCEPTANCE_ID",
+        "accepted": null,
+        "merchantSignoff": null,
+        "scenarioDigest": "PENDING_SCENARIO_DIGEST"
+      }
+    },
+    {
+      "category": "legal_compliance",
+      "evidenceId": "TEMP-legal-compliance",
+      "verifier": "PENDING_EXTERNAL_LEGAL_COUNSEL",
+      "role": "external_verifier",
+      "source": "EXTERNAL_LEGAL_COUNSEL",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "jurisdiction": "CN",
+        "decision": "PENDING_EXTERNAL",
+        "externalAuthority": null,
+        "reference": "PENDING_LEGAL_REFERENCE"
+      }
+    },
+    {
+      "category": "regional_market_approval",
+      "evidenceId": "TEMP-regional-market-approval",
+      "verifier": "PENDING_REGIONAL_MARKET_AUTHORITY",
+      "role": "external_verifier",
+      "source": "REGIONAL_MARKET_AUTHORITY",
+      "externallyVerified": false,
+      "status": "PENDING_EXTERNAL",
+      "testOnly": true,
+      "attestation": {
+        "market": "CN",
+        "decision": "PENDING_EXTERNAL",
+        "externalAuthority": null,
+        "reference": "PENDING_MARKET_REFERENCE"
+      }
+    }
+  ]
+}

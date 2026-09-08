@@ -31,6 +31,187 @@ DIGEST_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$|^[0-9a-f]{64}$")
 
 
+def _contains_positive_external_claim(value: object) -> bool:
+    if value is True:
+        return True
+    if isinstance(value, str):
+        return value.upper() in {"APPROVE", "PASS", "PRODUCTION", "VERIFIED"}
+    if isinstance(value, Mapping):
+        return any(_contains_positive_external_claim(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_contains_positive_external_claim(item) for item in value)
+    return False
+
+
+def validate_test_evidence_template(
+    policy: Mapping[str, Any],
+    release_policy: Mapping[str, Any],
+    template: Mapping[str, Any],
+) -> GateReport:
+    """Validate completeness of a non-certifying external-evidence request.
+
+    This deliberately validates only that every required external party has a
+    place to supply its future evidence.  It rejects positive claims,
+    signatures and verified status so a convenient local template cannot be
+    confused with an attestation or cross the production release gate.
+    """
+
+    reasons: list[str] = []
+    checks: list[str] = []
+    if policy.get("schemaVersion") != 1:
+        reasons.append("test_template_policy_schema_invalid")
+    if template.get("schemaVersion") != 1:
+        reasons.append("test_template_schema_invalid")
+    if template.get("kind") != "EXTERNAL_EVIDENCE_REQUEST_TEMPLATE":
+        reasons.append("test_template_kind_invalid")
+    if template.get("testOnly") is not True:
+        reasons.append("test_template_test_only_marker_missing")
+    if template.get("status") != "DRAFT":
+        reasons.append("test_template_must_remain_draft")
+    if template.get("certificationStatus") != "NOT_CERTIFIED":
+        reasons.append("test_template_certification_status_invalid")
+    if template.get("deploymentProfile") != policy.get("deploymentProfile"):
+        reasons.append("test_template_deployment_profile_mismatch")
+
+    required = policy.get("requiredCategories")
+    if not isinstance(required, dict) or not required:
+        return GateReport.from_reasons(
+            [*reasons, "test_template_policy_categories_missing"], checks
+        )
+    provider_matrix = policy.get("requiredProviderCapabilities")
+    if not isinstance(provider_matrix, dict) or not provider_matrix:
+        return GateReport.from_reasons(
+            [*reasons, "test_template_provider_matrix_missing"], checks
+        )
+    required_roles = release_policy.get("requiredApprovalRoles")
+    if not isinstance(required_roles, list) or not required_roles:
+        return GateReport.from_reasons(
+            [*reasons, "test_template_release_approval_policy_missing"], checks
+        )
+    try:
+        approvals = require_list(
+            template.get("releaseApprovals"), "template.releaseApprovals"
+        )
+    except ValidationError as exc:
+        return GateReport.from_reasons(
+            [*reasons, f"test_template_release_approvals_invalid:{exc}"], checks
+        )
+    approval_roles: list[str] = []
+    for index, raw in enumerate(approvals):
+        prefix = f"test_template.releaseApprovals[{index}]"
+        try:
+            approval = require_mapping(raw, prefix)
+            role = require_text(approval.get("role"), f"{prefix}.role")
+            actor = require_text(approval.get("actor"), f"{prefix}.actor")
+        except ValidationError as exc:
+            reasons.append(f"{prefix}:invalid:{exc}")
+            continue
+        approval_roles.append(role)
+        if approval.get("testOnly") is not True \
+                or approval.get("status") != "PENDING_EXTERNAL" \
+                or approval.get("decision") != "PENDING_EXTERNAL" \
+                or not actor.startswith("PENDING_"):
+            reasons.append(f"{prefix}:must_be_pending_test_only")
+        if "dsse" in approval or "signature" in approval:
+            reasons.append(f"{prefix}:test_template_must_not_be_signed")
+        checks.append(f"test_template:release_approval:{role}")
+    if sorted(approval_roles) != sorted(required_roles):
+        reasons.append("test_template_release_approval_roles_incomplete")
+
+    pending_sections = {
+        "commercialReadiness": {
+            "pricingVersion", "slaVersion", "supportOwner",
+            "usageBillingReconciliation", "status", "testOnly",
+        },
+        "goNoGo": {
+            "decisionId", "decision", "releaseManager", "securityApprover",
+            "targetDigest", "status", "testOnly",
+        },
+        "finalReleaseSignoff": {
+            "releaseId", "decision", "releaseManager", "securityApprover",
+            "status", "testOnly",
+        },
+    }
+    for section_name, required_fields in pending_sections.items():
+        try:
+            section = require_mapping(template.get(section_name), section_name)
+        except ValidationError as exc:
+            reasons.append(f"test_template_{section_name}_invalid:{exc}")
+            continue
+        if any(field not in section for field in required_fields):
+            reasons.append(f"test_template_{section_name}_fields_missing")
+        if section.get("testOnly") is not True \
+                or section.get("status") != "PENDING_EXTERNAL":
+            reasons.append(f"test_template_{section_name}_must_remain_pending")
+        claim_fields = {key: value for key, value in section.items() if key != "testOnly"}
+        if _contains_positive_external_claim(claim_fields):
+            reasons.append(f"test_template_{section_name}_positive_claim_forbidden")
+        if "dsse" in section or "signature" in section:
+            reasons.append(f"test_template_{section_name}_must_not_be_signed")
+        checks.append(f"test_template:{section_name}")
+    try:
+        records = require_list(template.get("evidence"), "template.evidence")
+    except ValidationError as exc:
+        return GateReport.from_reasons(
+            [*reasons, f"test_template_evidence_invalid:{exc}"], checks
+        )
+
+    counts: dict[str, int] = {}
+    template_providers: set[str] = set()
+    for index, raw in enumerate(records):
+        prefix = f"test_template[{index}]"
+        try:
+            record = require_mapping(raw, prefix)
+            category = require_text(record.get("category"), f"{prefix}.category")
+        except ValidationError as exc:
+            reasons.append(f"{prefix}:invalid:{exc}")
+            continue
+        category_policy = required.get(category)
+        if not isinstance(category_policy, dict):
+            reasons.append(f"{prefix}:unknown_category:{category}")
+            continue
+        counts[category] = counts.get(category, 0) + 1
+        if record.get("testOnly") is not True \
+                or record.get("status") != "PENDING_EXTERNAL" \
+                or record.get("externallyVerified") is not False:
+            reasons.append(f"{prefix}:must_be_pending_test_only")
+        if record.get("role") != "external_verifier" \
+                or record.get("source") != category_policy.get("requiredSource"):
+            reasons.append(f"{prefix}:external_owner_contract_mismatch")
+        if "dsse" in record or "attestationDigest" in record:
+            reasons.append(f"{prefix}:test_template_must_not_be_signed")
+        try:
+            attestation = require_mapping(record.get("attestation"), f"{prefix}.attestation")
+        except ValidationError as exc:
+            reasons.append(f"{prefix}:attestation_invalid:{exc}")
+            continue
+        required_fields = category_policy.get("requiredFields")
+        if not isinstance(required_fields, list) or any(
+            field not in attestation for field in required_fields
+        ):
+            reasons.append(f"{prefix}:required_field_placeholders_missing")
+        if _contains_positive_external_claim(attestation):
+            reasons.append(f"{prefix}:positive_external_claim_forbidden")
+        if category == "provider_certification":
+            provider = attestation.get("providerId")
+            capabilities = attestation.get("capabilities")
+            if not isinstance(provider, str) or provider not in provider_matrix:
+                reasons.append(f"{prefix}:provider_outside_launch_scope")
+            else:
+                template_providers.add(provider)
+                if capabilities != provider_matrix[provider]:
+                    reasons.append(f"{prefix}:provider_capability_scope_mismatch")
+        checks.append(f"test_template:{category}:{index}")
+
+    for category in required:
+        expected_count = len(provider_matrix) if category == "provider_certification" else 1
+        if counts.get(category, 0) != expected_count:
+            reasons.append(f"test_template_category_count:{category}")
+    if template_providers != set(provider_matrix):
+        reasons.append("test_template_provider_coverage_incomplete")
+    return GateReport.from_reasons(reasons, checks)
+
+
 def validate_external_evidence(
     policy: Mapping[str, Any],
     bundle: Mapping[str, Any],
@@ -71,6 +252,8 @@ def validate_external_evidence(
         reasons.append("external_evidence_independence_required")
     if bundle.get("schemaVersion") != 1:
         reasons.append("external_evidence_bundle_schema_invalid")
+    if bundle.get("testOnly") is True:
+        reasons.append("external_evidence_test_only_bundle")
     if bundle.get("status") != "VERIFIED":
         reasons.append("external_evidence_bundle_not_verified")
 
@@ -130,6 +313,8 @@ def validate_external_evidence(
         if not isinstance(category_policy, dict):
             reasons.append(f"external_evidence_category_not_allowed:{category}")
             continue
+        if evidence.get("testOnly") is True:
+            reasons.append(f"{category}:test_only_external_evidence_record")
         uniqueness_key = category
         if category == "provider_certification":
             attestation = evidence.get("attestation")

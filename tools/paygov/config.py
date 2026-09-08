@@ -18,6 +18,7 @@ CONFIG_PATH = Path("governance/project-config.json")
 ALLOWED_SECRET_SCHEMES = ("kms://", "vault://")
 REGULATED_FEATURES = ("stored_value", "fund_pool", "cross_merchant_clearing", "unlicensed_payouts")
 KNOWN_PROVIDERS = ("wechat", "alipay", "stripe", "paypal", "apple_pay")
+CHINA_MAINLAND_MVP_PROVIDERS = frozenset(("wechat", "alipay"))
 # Anything that looks like a literal credential rather than a reference.
 LITERAL_SECRET_HINTS = ("sk_live", "sk_test", "-----BEGIN", "AKIA", "mch_key=", "apiv3")
 
@@ -51,7 +52,9 @@ def validate(root: Path, budget: Budget | None = None) -> list[Problem]:
     problems += _security(cfg["security"], where)
     problems += _money(cfg["money"], where)
     problems += _regulated(cfg["regulated_features"], where)
-    problems += _providers(cfg["providers"], where)
+    problems += _providers(
+        cfg["providers"], where, str(cfg["project"].get("profile", ""))
+    )
     problems += _evidence(cfg["evidence"], where)
     return problems
 
@@ -123,12 +126,12 @@ def _regulated(features: Any, where: str) -> list[Problem]:
     return problems
 
 
-def _providers(providers: Any, where: str) -> list[Problem]:
+def _providers(providers: Any, where: str, profile: str) -> list[Problem]:
     scope = where + "#providers"
     if not isinstance(providers, dict) or not providers:
         return [Problem("CONFIG_SHAPE", scope, "providers must be a non-empty object", "NN-12")]
     problems: list[Problem] = []
-    enabled = 0
+    enabled_names: set[str] = set()
     for name, provider in sorted(providers.items()):
         pscope = f"{scope}.{name}"
         problems += expect(name in KNOWN_PROVIDERS, "CONFIG_PROVIDER", pscope,
@@ -136,29 +139,42 @@ def _providers(providers: Any, where: str) -> list[Problem]:
         if not isinstance(provider, dict):
             problems.append(Problem("CONFIG_SHAPE", pscope, "provider must be an object", "NN-12"))
             continue
-        if not provider.get("enabled"):
-            continue
-        enabled += 1
         credentials = provider.get("credentials")
-        problems += expect(isinstance(credentials, str)
-                           and credentials.startswith(ALLOWED_SECRET_SCHEMES),
-                           "CONFIG_CREDENTIAL_REF", pscope,
-                           "enabled provider credentials must be a kms:// or vault:// reference", "NN-07")
+        if credentials is not None:
+            problems += expect(
+                isinstance(credentials, str)
+                and credentials.startswith(ALLOWED_SECRET_SCHEMES),
+                "CONFIG_CREDENTIAL_REF",
+                pscope,
+                "provider credentials must be a kms:// or vault:// reference",
+                "NN-07",
+            )
         if isinstance(credentials, str):
             lowered = credentials.lower()
             for hint in LITERAL_SECRET_HINTS:
                 problems += expect(hint not in lowered, "CONFIG_LITERAL_SECRET", pscope,
                                    "credentials field looks like a literal secret", "NN-07")
-    problems += expect(enabled > 0, "CONFIG_PROVIDER", scope,
+        if not provider.get("enabled"):
+            continue
+        enabled_names.add(name)
+    problems += expect(bool(enabled_names), "CONFIG_PROVIDER", scope,
                        "at least one payment provider must be enabled", "NN-12")
+    if profile == "china-mainland-mvp":
+        problems += expect(
+            enabled_names == CHINA_MAINLAND_MVP_PROVIDERS,
+            "CONFIG_PROVIDER_SCOPE",
+            scope,
+            "china-mainland-mvp must enable exactly wechat and alipay",
+            "NN-12",
+        )
 
     stripe = providers.get("stripe")
-    if isinstance(stripe, dict) and stripe.get("enabled"):
+    if isinstance(stripe, dict):
         problems += expect(stripe.get("card_data_mode") == "hosted_fields_only",
                            "CONFIG_CARD_DATA", scope + ".stripe",
                            "stripe.card_data_mode must be 'hosted_fields_only'", "NN-02")
     apple = providers.get("apple_pay")
-    if isinstance(apple, dict) and apple.get("enabled"):
+    if isinstance(apple, dict):
         problems += expect(apple.get("direct_token_decryption") is False,
                            "CONFIG_CARD_DATA", scope + ".apple_pay",
                            "direct Apple Pay token decryption expands PCI scope and is not allowed "

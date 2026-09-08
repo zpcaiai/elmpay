@@ -12,7 +12,10 @@ from elmpay_runtime.billing import calculate_invoice
 from elmpay_runtime.capacity import evaluate_capacity
 from elmpay_runtime.common import GateReport, ValidationError, read_json
 from elmpay_runtime.compliance import evaluate_vendor, evaluate_vulnerability_report
-from elmpay_runtime.external_evidence import validate_external_evidence
+from elmpay_runtime.external_evidence import (
+    validate_external_evidence,
+    validate_test_evidence_template,
+)
 from elmpay_runtime.kubernetes import render_workloads, validate_workload_sources
 from elmpay_runtime.release import verify_release
 from elmpay_runtime.release import release_binding
@@ -81,6 +84,22 @@ def _parser() -> argparse.ArgumentParser:
         "--manifest",
         type=Path,
         help="optional release manifest used to bind the evidence to a commit/artifact/images tuple",
+    )
+
+    template = subcommands.add_parser(
+        "test-evidence-template",
+        help="validate a complete test-only evidence request without certifying it",
+    )
+    template.add_argument("--template", type=Path, required=True)
+    template.add_argument(
+        "--policy",
+        type=Path,
+        default=REPOSITORY_ROOT / "platform/compliance/external-evidence-policy.json",
+    )
+    template.add_argument(
+        "--release-policy",
+        type=Path,
+        default=REPOSITORY_ROOT / "platform/compliance/required-release-gates.json",
     )
 
     bill = subcommands.add_parser("bill", help="calculate a deduplicated tenant usage invoice")
@@ -208,6 +227,22 @@ def main(argv: list[str] | None = None) -> int:
                 expected_binding=expected_binding,
             )
             return _report(report)
+        if args.command == "test-evidence-template":
+            report = validate_test_evidence_template(
+                read_json(args.policy),
+                read_json(args.release_policy),
+                read_json(args.template),
+            )
+            _emit(
+                {
+                    "localTemplateValid": report.allowed,
+                    "productionReleaseAllowed": False,
+                    "certificationStatus": "NOT_CERTIFIED",
+                    "reasons": list(report.reasons),
+                    "checks": list(report.checks),
+                }
+            )
+            return 0 if report.allowed else 2
         if args.command == "bill":
             invoice = calculate_invoice(
                 read_json(args.policy),

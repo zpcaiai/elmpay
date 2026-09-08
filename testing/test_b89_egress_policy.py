@@ -60,7 +60,7 @@ class B89EgressPolicyTest(unittest.TestCase):
         self.assertEqual(service_count,
                          sum(item["kind"] == "CiliumNetworkPolicy" for item in items))
         self.assertEqual(service_count, sum(item["kind"] == "Sidecar" for item in items))
-        self.assertEqual(4, sum(item["kind"] == "ServiceEntry" for item in items))
+        self.assertEqual(2, sum(item["kind"] == "ServiceEntry" for item in items))
 
         default_deny = next(item for item in items
                             if item["metadata"]["name"] == "egress-default-deny")
@@ -80,8 +80,7 @@ class B89EgressPolicyTest(unittest.TestCase):
         cilium = next(item for item in items
                       if item["metadata"]["name"] == "fqdn-egress-edge-gateway")
         fqdn_rules = [rule for rule in cilium["spec"]["egress"] if "toFQDNs" in rule]
-        self.assertEqual({"api.mch.weixin.qq.com", "openapi.alipay.com",
-                          "api.stripe.com", "api-m.paypal.com"},
+        self.assertEqual({"api.mch.weixin.qq.com", "openapi.alipay.com"},
                          {rule["toFQDNs"][0]["matchName"] for rule in fqdn_rules})
         self.assertFalse(any("matchPattern" in rule["toFQDNs"][0] for rule in fqdn_rules))
 
