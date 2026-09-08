@@ -18,6 +18,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import time
@@ -28,6 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / ".payment-platform/skill-package/manifest.json"
 MODULES = ROOT / "governance/module-registry.json"
 INVENTORY = ROOT / ".ai/implementation_inventory.json"
+VERSION_CATALOG = ROOT / "governance/version-catalog.json"
 REQUIRED_ROLES = ("executable", "runtime_entrypoint", "config", "migrations", "tests")
 
 
@@ -435,13 +437,24 @@ def audit(*, run_checks: bool = False, timeout_seconds: int = 900) -> dict[str, 
 def verify_commands(timeout_seconds: int) -> list[dict[str, Any]]:
     if timeout_seconds < 1:
         raise ValueError("timeout_seconds must be positive")
+    try:
+        environment = verification_environment()
+    except RuntimeError as exception:
+        return [{
+            "name": "toolchain-preflight",
+            "command": [],
+            "exit_code": 127,
+            "timed_out": False,
+            "duration_seconds": 0.0,
+            "output_tail": str(exception),
+        }]
     results: list[dict[str, Any]] = []
     for name, command in VERIFY_COMMANDS:
         started = time.monotonic()
         try:
             completed = subprocess.run(
                 command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, timeout=timeout_seconds, check=False,
+                text=True, timeout=timeout_seconds, check=False, env=environment,
             )
             output = completed.stdout[-16_384:]
             exit_code = completed.returncode
@@ -461,6 +474,100 @@ def verify_commands(timeout_seconds: int) -> list[dict[str, Any]]:
         if exit_code != 0:
             break
     return results
+
+
+def governed_jdk_identity() -> tuple[str, str]:
+    """Return the exact JDK name/version pinned by the B03 version catalogue."""
+
+    document = load_json(VERSION_CATALOG)
+    entries = document.get("entries", []) if isinstance(document, dict) else []
+    matches = [
+        entry for entry in entries
+        if isinstance(entry, dict) and entry.get("id") == "jdk"
+    ]
+    if len(matches) != 1:
+        raise RuntimeError("toolchain preflight: version catalogue must define one jdk entry")
+    name = matches[0].get("name")
+    version = matches[0].get("version")
+    if not isinstance(name, str) or not name or not isinstance(version, str) or not version:
+        raise RuntimeError("toolchain preflight: governed jdk identity is incomplete")
+    return name, version
+
+
+def candidate_java_homes(environment: dict[str, str]) -> tuple[Path, ...]:
+    """Discover local JDK homes without changing the user's global Java selection."""
+
+    candidates: list[Path] = []
+    configured = environment.get("JAVA_HOME")
+    if configured:
+        candidates.append(Path(configured))
+    java = shutil.which("java", path=environment.get("PATH", ""))
+    if java:
+        candidates.append(Path(java).resolve().parent.parent)
+    sdkman = Path.home() / ".sdkman" / "candidates" / "java"
+    if sdkman.is_dir():
+        candidates.extend(sorted(path for path in sdkman.iterdir() if path.is_dir()))
+    candidates.extend((
+        Path("/opt/homebrew/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home"),
+        Path("/usr/local/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home"),
+    ))
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(resolved)
+    return tuple(unique)
+
+
+def java_version_output(java_home: Path) -> str:
+    executable = java_home / "bin" / "java"
+    if not executable.is_file():
+        return ""
+    try:
+        completed = subprocess.run(
+            [str(executable), "-version"], cwd=ROOT, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, text=True, timeout=10, check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return completed.stdout
+
+
+def select_governed_java_home(
+    candidates: tuple[Path, ...], *, name: str, version: str,
+) -> Path | None:
+    """Select only the exact Temurin build pinned by governance."""
+
+    runtime_marker = f"Temurin-{version}"
+    feature_marker = f'openjdk version "{version.split("+", 1)[0]}"'
+    if "Temurin" not in name:
+        raise RuntimeError(f"toolchain preflight: unsupported governed JDK vendor {name}")
+    for candidate in candidates:
+        output = java_version_output(candidate)
+        if runtime_marker in output and feature_marker in output:
+            return candidate
+    return None
+
+
+def verification_environment() -> dict[str, str]:
+    """Build a child-only environment bound to the exact governed JDK."""
+
+    environment = dict(os.environ)
+    name, version = governed_jdk_identity()
+    selected = select_governed_java_home(
+        candidate_java_homes(environment), name=name, version=version,
+    )
+    if selected is None:
+        raise RuntimeError(
+            f"toolchain preflight: exact {name} {version} is unavailable; "
+            "install it or set JAVA_HOME without downgrading the repository baseline"
+        )
+    environment["JAVA_HOME"] = str(selected)
+    current_path = environment.get("PATH", "")
+    environment["PATH"] = f"{selected / 'bin'}{os.pathsep}{current_path}"
+    return environment
 
 
 def git_head() -> str:

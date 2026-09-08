@@ -112,6 +112,10 @@ class MatrixRunnerTest(unittest.TestCase):
             "testing.test_b89_egress_policy",
             code_suites.SUITES["platform"].test_modules,
         )
+        self.assertIn(
+            "testing.test_china_mvp_launch_profile",
+            code_suites.SUITES["assurance"].test_modules,
+        )
         operations = [
             token for command in code_suites.SUITES["operations"].commands for token in command
         ]

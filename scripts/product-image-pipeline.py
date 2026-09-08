@@ -200,24 +200,31 @@ def _run(
     errors = bytearray()
     overflow = threading.Event()
     termination_denied = threading.Event()
+    group_terminated = threading.Event()
+    termination_lock = threading.Lock()
     threads: list[threading.Thread] = []
 
     def terminate_group() -> None:
-        if process is None:
+        if process is None or group_terminated.is_set():
             return
-        try:
-            # The group can outlive its leader when a child inherited one of
-            # the capture pipes.  Killing only while Popen.poll() is None would
-            # leak that child and leave a collector blocked forever.
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        except PermissionError:
-            # A fast-exiting group leader can race with PID/process-group reuse
-            # under heavy host load.  Never leak the raw OS exception and,
-            # more importantly, never report the tool as successful when its
-            # descendants could not be proven stopped.
-            termination_denied.set()
+        with termination_lock:
+            if group_terminated.is_set():
+                return
+            try:
+                # The group can outlive its leader when a child inherited one of
+                # the capture pipes.  Killing only while Popen.poll() is None would
+                # leak that child and leave a collector blocked forever.
+                os.killpg(process.pid, signal.SIGKILL)
+                group_terminated.set()
+            except ProcessLookupError:
+                # ESRCH proves that this process group no longer exists.  Record
+                # that terminal observation so later finally/collector cleanup
+                # cannot target a rapidly reused process-group id.
+                group_terminated.set()
+            except PermissionError:
+                # Never report success when the original cleanup attempt was
+                # denied.  The event is sticky even if a later caller retries.
+                termination_denied.set()
 
     def collect(stream: Any, destination: bytearray) -> None:
         try:

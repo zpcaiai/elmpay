@@ -361,6 +361,18 @@ class ProductOciEvidenceDocumentTest(unittest.TestCase):
                     [sys.executable, "-c", "raise SystemExit(0)"], timeout=5
                 )
 
+    def test_successful_group_termination_is_not_retried_after_pid_reuse(self) -> None:
+        with mock.patch.object(
+            PIPELINE.os,
+            "killpg",
+            side_effect=[None, PermissionError(1, "reused process group")],
+        ) as killpg:
+            completed = PIPELINE._run(
+                [sys.executable, "-c", "raise SystemExit(0)"], timeout=5
+            )
+        self.assertEqual(0, completed.returncode)
+        self.assertEqual(1, killpg.call_count)
+
     def test_partial_publication_resume_recopies_only_a_missing_exact_tag(self) -> None:
         expected = "a" * 64
         self.assertEqual(

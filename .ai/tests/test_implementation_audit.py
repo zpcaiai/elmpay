@@ -109,6 +109,37 @@ class ImplementationAuditTest(unittest.TestCase):
         self.assertIn("checkout-web", commands)
         self.assertIn("admin-web", commands)
 
+    def test_verification_environment_selects_exact_governed_temurin(self) -> None:
+        exact = Path("/jdk/temurin-25")
+        wrong_vendor = Path("/jdk/openjdk-25")
+        wrong_version = Path("/jdk/temurin-21")
+        outputs = {
+            wrong_vendor: 'openjdk version "25.0.4"\nOpenJDK Runtime Environment\n',
+            wrong_version: 'openjdk version "21.0.11"\nTemurin-21.0.11+9\n',
+            exact: 'openjdk version "25.0.4"\nTemurin-25.0.4+7\n',
+        }
+        with mock.patch.object(
+            AUDIT, "java_version_output", side_effect=lambda path: outputs[path]
+        ):
+            selected = AUDIT.select_governed_java_home(
+                (wrong_vendor, wrong_version, exact),
+                name="Eclipse Temurin JDK",
+                version="25.0.4+7",
+            )
+        self.assertEqual(exact, selected)
+
+    def test_missing_governed_jdk_fails_verification_preflight(self) -> None:
+        with mock.patch.object(AUDIT, "candidate_java_homes", return_value=()), \
+                mock.patch.object(
+                    AUDIT, "governed_jdk_identity",
+                    return_value=("Eclipse Temurin JDK", "25.0.4+7"),
+                ):
+            checks = AUDIT.verify_commands(30)
+        self.assertEqual(1, len(checks))
+        self.assertEqual("toolchain-preflight", checks[0]["name"])
+        self.assertEqual(127, checks[0]["exit_code"])
+        self.assertIn("exact Eclipse Temurin JDK 25.0.4+7 is unavailable", checks[0]["output_tail"])
+
     def test_marker_complete_inventory_cannot_override_a_semantic_failure(self) -> None:
         failed = [{
             "name": "semantic-regression", "command": ["false"], "exit_code": 9,
