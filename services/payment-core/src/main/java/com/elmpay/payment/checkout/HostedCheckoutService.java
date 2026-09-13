@@ -532,10 +532,10 @@ public final class HostedCheckoutService {
         };
     }
 
-    private static URI validatePublicBase(URI value) {
+    static URI validatePublicBase(URI value) {
         Objects.requireNonNull(value, "publicBaseUri");
         if (!value.isAbsolute() || value.getHost() == null || value.getUserInfo() != null
-                || value.getFragment() != null
+                || value.getQuery() != null || value.getFragment() != null
                 || !("https".equalsIgnoreCase(value.getScheme())
                 || ("http".equalsIgnoreCase(value.getScheme())
                 && ("127.0.0.1".equals(value.getHost()) || "localhost".equals(value.getHost()))))) {

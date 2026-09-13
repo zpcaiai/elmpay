@@ -28,7 +28,8 @@ configuration, business-order and capability digests. The OAuth form of the rout
 Production startup fails closed unless the database settings and these checkout values exist:
 `ELMPAY_CHECKOUT_SIGNING_KEY_ID`, `ELMPAY_CHECKOUT_SIGNING_KEY_FILE`,
 `ELMPAY_CHECKOUT_RETURN_ROUTES`, `ELMPAY_CHECKOUT_DEFAULT_RETURN_ROUTE_ID`,
-`ELMPAY_CHECKOUT_ALLOWED_METHODS`, `ELMPAY_CHECKOUT_PUBLIC_BASE_URL`, and
+`ELMPAY_CHECKOUT_ALLOWED_METHODS`, `ELMPAY_CHECKOUT_PUBLIC_BASE_URL` (absolute HTTPS in
+production, with no credentials, query, or fragment), and
 `ELMPAY_CHECKOUT_REGION`. Production confirmation also requires a PSP/wallet-issued external
 payment-method reference; the synthetic reference is local-sandbox-only.
 
