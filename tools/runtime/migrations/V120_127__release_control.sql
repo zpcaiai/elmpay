@@ -849,3 +849,168 @@ CREATE TABLE IF NOT EXISTS treasury_transfer_journal (
 );
 CREATE INDEX IF NOT EXISTS idx_treasury_journal_tenant_pool ON treasury_transfer_journal(tenant_id, pool_id);
 
+CREATE TABLE IF NOT EXISTS fx_rate_matrix (
+  matrix_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  base_currency TEXT NOT NULL CHECK(length(base_currency)=3),
+  target_currency TEXT NOT NULL CHECK(length(target_currency)=3),
+  spot_rate_units INTEGER NOT NULL CHECK(spot_rate_units > 0),
+  spread_basis_points INTEGER NOT NULL DEFAULT 50 CHECK(spread_basis_points >= 0),
+  effective_at TEXT NOT NULL,
+  UNIQUE(tenant_id, base_currency, target_currency)
+);
+CREATE INDEX IF NOT EXISTS idx_fx_matrix_tenant_cur ON fx_rate_matrix(tenant_id, base_currency, target_currency);
+
+CREATE TABLE IF NOT EXISTS fx_quote_lock (
+  quote_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  base_currency TEXT NOT NULL CHECK(length(base_currency)=3),
+  target_currency TEXT NOT NULL CHECK(length(target_currency)=3),
+  source_amount_minor INTEGER NOT NULL CHECK(source_amount_minor > 0),
+  target_amount_minor INTEGER NOT NULL CHECK(target_amount_minor > 0),
+  spot_rate_units INTEGER NOT NULL CHECK(spot_rate_units > 0),
+  spread_basis_points INTEGER NOT NULL CHECK(spread_basis_points >= 0),
+  effective_rate_units INTEGER NOT NULL CHECK(effective_rate_units > 0),
+  status TEXT NOT NULL CHECK(status IN ('LOCKED', 'REDEEMED', 'EXPIRED', 'CANCELLED')),
+  expires_at TEXT NOT NULL,
+  redeemed_at TEXT,
+  payment_intent_id TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_fx_quote_tenant_status ON fx_quote_lock(tenant_id, status);
+
+CREATE TABLE IF NOT EXISTS fx_conversion_journal (
+  conversion_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  quote_id TEXT NOT NULL REFERENCES fx_quote_lock(quote_id),
+  payment_intent_id TEXT NOT NULL,
+  base_currency TEXT NOT NULL CHECK(length(base_currency)=3),
+  target_currency TEXT NOT NULL CHECK(length(target_currency)=3),
+  source_amount_minor INTEGER NOT NULL CHECK(source_amount_minor > 0),
+  target_amount_minor INTEGER NOT NULL CHECK(target_amount_minor > 0),
+  executed_rate_units INTEGER NOT NULL CHECK(executed_rate_units > 0),
+  hedged INTEGER NOT NULL DEFAULT 0 CHECK(hedged IN (0, 1)),
+  executed_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_fx_journal_tenant_pi ON fx_conversion_journal(tenant_id, payment_intent_id);
+
+CREATE TABLE IF NOT EXISTS b2b_credit_facility (
+  facility_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  buyer_id TEXT NOT NULL,
+  buyer_name TEXT NOT NULL,
+  credit_limit_minor INTEGER NOT NULL CHECK(credit_limit_minor > 0),
+  drawn_balance_minor INTEGER NOT NULL DEFAULT 0 CHECK(drawn_balance_minor >= 0),
+  currency TEXT NOT NULL DEFAULT 'CNY' CHECK(length(currency)=3),
+  credit_tier TEXT NOT NULL CHECK(credit_tier IN ('STANDARD', 'PRIME', 'ENTERPRISE')),
+  status TEXT NOT NULL CHECK(status IN ('ACTIVE', 'FROZEN', 'CLOSED')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(tenant_id, buyer_id)
+);
+CREATE INDEX IF NOT EXISTS idx_b2b_facility_tenant_buyer ON b2b_credit_facility(tenant_id, buyer_id);
+
+CREATE TABLE IF NOT EXISTS b2b_purchase_order (
+  po_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  facility_id TEXT NOT NULL REFERENCES b2b_credit_facility(facility_id),
+  po_number TEXT NOT NULL,
+  buyer_id TEXT NOT NULL,
+  seller_name TEXT NOT NULL,
+  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
+  payment_terms TEXT NOT NULL CHECK(payment_terms IN ('DUE_ON_RECEIPT', 'NET_15', 'NET_30', 'NET_60', 'NET_90')),
+  issue_date TEXT NOT NULL,
+  due_date TEXT NOT NULL,
+  settled_amount_minor INTEGER NOT NULL DEFAULT 0 CHECK(settled_amount_minor >= 0),
+  status TEXT NOT NULL CHECK(status IN ('ISSUED', 'PARTIALLY_SETTLED', 'SETTLED', 'CANCELLED', 'OVERDUE')),
+  created_at TEXT NOT NULL,
+  UNIQUE(tenant_id, po_number)
+);
+CREATE INDEX IF NOT EXISTS idx_b2b_po_tenant_buyer ON b2b_purchase_order(tenant_id, buyer_id);
+CREATE INDEX IF NOT EXISTS idx_b2b_po_tenant_status ON b2b_purchase_order(tenant_id, status);
+
+CREATE TABLE IF NOT EXISTS b2b_credit_drawdown_ledger (
+  entry_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  facility_id TEXT NOT NULL REFERENCES b2b_credit_facility(facility_id),
+  po_id TEXT REFERENCES b2b_purchase_order(po_id),
+  action TEXT NOT NULL CHECK(action IN ('DRAWDOWN', 'REPAYMENT', 'LIMIT_ADJUSTMENT', 'PENALTY_ACCRUED')),
+  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
+  balance_after_minor INTEGER NOT NULL CHECK(balance_after_minor >= 0),
+  notes TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_b2b_ledger_facility ON b2b_credit_drawdown_ledger(facility_id);
+
+CREATE TABLE IF NOT EXISTS mass_payout_batch (
+  batch_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  batch_name TEXT NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'CNY' CHECK(length(currency)=3),
+  total_count INTEGER NOT NULL CHECK(total_count > 0),
+  total_amount_minor INTEGER NOT NULL CHECK(total_amount_minor > 0),
+  total_fee_minor INTEGER NOT NULL DEFAULT 0 CHECK(total_fee_minor >= 0),
+  status TEXT NOT NULL CHECK(status IN ('DRAFT', 'SUBMITTED', 'APPROVED', 'PROCESSING', 'COMPLETED', 'PARTIALLY_FAILED', 'REJECTED')),
+  maker_id TEXT NOT NULL,
+  checker_id TEXT,
+  approved_at TEXT,
+  batch_digest TEXT NOT NULL CHECK(length(batch_digest)=64),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_payout_batch_tenant_status ON mass_payout_batch(tenant_id, status);
+
+CREATE TABLE IF NOT EXISTS mass_payout_item (
+  item_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  batch_id TEXT NOT NULL REFERENCES mass_payout_batch(batch_id),
+  recipient_id TEXT NOT NULL,
+  recipient_name TEXT NOT NULL,
+  channel TEXT NOT NULL CHECK(channel IN ('BANK_WIRE', 'ALIPAY', 'WECHAT_PAY', 'PAYPAL', 'SEPA')),
+  account_identifier TEXT NOT NULL,
+  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
+  fee_minor INTEGER NOT NULL DEFAULT 0 CHECK(fee_minor >= 0),
+  status TEXT NOT NULL CHECK(status IN ('PENDING', 'PROCESSING', 'SUCCESS', 'FAILED', 'REVERSED')),
+  failure_reason TEXT,
+  channel_reference TEXT,
+  executed_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_payout_item_batch ON mass_payout_item(batch_id);
+
+CREATE TABLE IF NOT EXISTS card_vault (
+  vault_token TEXT PRIMARY KEY,
+  network_token TEXT UNIQUE,
+  tenant_id TEXT NOT NULL,
+  customer_id TEXT NOT NULL,
+  card_brand TEXT NOT NULL CHECK(card_brand IN ('VISA', 'MASTERCARD', 'AMEX', 'UNIONPAY', 'JCB', 'DISCOVER')),
+  bin_first6 TEXT NOT NULL CHECK(length(bin_first6)=6),
+  last4 TEXT NOT NULL CHECK(length(last4)=4),
+  exp_month INTEGER NOT NULL CHECK(exp_month BETWEEN 1 AND 12),
+  exp_year INTEGER NOT NULL CHECK(exp_year >= 2024),
+  cardholder_name TEXT NOT NULL,
+  fingerprint TEXT NOT NULL CHECK(length(fingerprint)=64),
+  encrypted_pan_envelope TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('ACTIVE', 'SUSPENDED', 'REVOKED', 'EXPIRED')),
+  token_requester_id TEXT NOT NULL DEFAULT 'TRID_ELMPAY_400',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(tenant_id, customer_id, fingerprint)
+);
+CREATE INDEX IF NOT EXISTS idx_card_vault_tenant_cust ON card_vault(tenant_id, customer_id);
+
+CREATE TABLE IF NOT EXISTS card_updater_event (
+  event_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  vault_token TEXT NOT NULL REFERENCES card_vault(vault_token),
+  event_type TEXT NOT NULL CHECK(event_type IN ('EXPIRY_UPDATE', 'CARD_REPLACED', 'ACCOUNT_CLOSED', 'CONTACT_CARDHOLDER')),
+  old_exp_month INTEGER,
+  old_exp_year INTEGER,
+  new_exp_month INTEGER,
+  new_exp_year INTEGER,
+  new_last4 TEXT,
+  processed_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_card_updater_token ON card_updater_event(vault_token);
+
+

@@ -29,6 +29,10 @@ from .customs_declaration import (
     render_customs_179_xml,
 )
 from .treasury_pool import TreasuryPoolManager
+from .fx_engine import FXQuoteLockManager, RATE_SCALE
+from .b2b_credit import B2BCreditManager, TERM_DAYS
+from .mass_payout import MassPayoutManager, SUPPORTED_CHANNELS
+from .card_vault import CardVaultManager
 
 __all__ = [
     "GateReport",
@@ -56,5 +60,12 @@ __all__ = [
     "CustomsPaymentDeclarationManager",
     "render_customs_179_xml",
     "TreasuryPoolManager",
+    "FXQuoteLockManager",
+    "RATE_SCALE",
+    "B2BCreditManager",
+    "TERM_DAYS",
+    "MassPayoutManager",
+    "SUPPORTED_CHANNELS",
+    "CardVaultManager",
 ]
 

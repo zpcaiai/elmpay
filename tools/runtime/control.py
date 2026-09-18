@@ -30,6 +30,11 @@ from elmpay_runtime.tax_withholding import (
 )
 from elmpay_runtime.customs_declaration import CustomsPaymentDeclarationManager
 from elmpay_runtime.treasury_pool import TreasuryPoolManager
+from elmpay_runtime.fx_engine import FXQuoteLockManager
+from elmpay_runtime.b2b_credit import B2BCreditManager
+from elmpay_runtime.mass_payout import MassPayoutManager
+from elmpay_runtime.card_vault import CardVaultManager
+from elmpay_runtime.durable import DurableStore
 from elmpay_runtime.external_evidence import (
     validate_external_evidence,
     validate_test_evidence_template,
@@ -523,6 +528,132 @@ def _parser() -> argparse.ArgumentParser:
     tr_st.add_argument("--database", type=Path, required=True)
     tr_st.add_argument("--tenant", required=True)
     tr_st.add_argument("--pool-id", required=True)
+
+    # FX & DCC
+    fx_rs = subcommands.add_parser("fx-rate-set", help="set FX spot rate and spread basis points")
+    fx_rs.add_argument("--database", type=Path, required=True)
+    fx_rs.add_argument("--tenant", required=True)
+    fx_rs.add_argument("--base", required=True)
+    fx_rs.add_argument("--target", required=True)
+    fx_rs.add_argument("--spot-rate-units", type=int, required=True)
+    fx_rs.add_argument("--spread-bp", type=int, default=50)
+
+    fx_ql = subcommands.add_parser("fx-quote-lock", help="create guaranteed FX rate quote lock")
+    fx_ql.add_argument("--database", type=Path, required=True)
+    fx_ql.add_argument("--tenant", required=True)
+    fx_ql.add_argument("--base", required=True)
+    fx_ql.add_argument("--target", required=True)
+    fx_ql.add_argument("--amount-minor", type=int, required=True)
+    fx_ql.add_argument("--ttl-sec", type=int, default=900)
+
+    fx_qr = subcommands.add_parser("fx-quote-redeem", help="redeem active FX quote lock for payment")
+    fx_qr.add_argument("--database", type=Path, required=True)
+    fx_qr.add_argument("--tenant", required=True)
+    fx_qr.add_argument("--quote-id", required=True)
+    fx_qr.add_argument("--payment-intent", required=True)
+
+    fx_dc = subcommands.add_parser("fx-dcc-evaluate", help="evaluate Dynamic Currency Conversion offer")
+    fx_dc.add_argument("--database", type=Path, required=True)
+    fx_dc.add_argument("--tenant", required=True)
+    fx_dc.add_argument("--card-currency", required=True)
+    fx_dc.add_argument("--merchant-currency", required=True)
+    fx_dc.add_argument("--amount-minor", type=int, required=True)
+
+    # B2B Trade Credit
+    b2b_cc = subcommands.add_parser("b2b-credit-create", help="create B2B trade credit facility")
+    b2b_cc.add_argument("--database", type=Path, required=True)
+    b2b_cc.add_argument("--tenant", required=True)
+    b2b_cc.add_argument("--buyer-id", required=True)
+    b2b_cc.add_argument("--buyer-name", required=True)
+    b2b_cc.add_argument("--limit-minor", type=int, required=True)
+    b2b_cc.add_argument("--currency", default="CNY")
+    b2b_cc.add_argument("--tier", default="STANDARD")
+
+    b2b_pi = subcommands.add_parser("b2b-po-issue", help="issue B2B purchase order with Net terms")
+    b2b_pi.add_argument("--database", type=Path, required=True)
+    b2b_pi.add_argument("--tenant", required=True)
+    b2b_pi.add_argument("--buyer-id", required=True)
+    b2b_pi.add_argument("--po-number", required=True)
+    b2b_pi.add_argument("--seller-name", required=True)
+    b2b_pi.add_argument("--amount-minor", type=int, required=True)
+    b2b_pi.add_argument("--terms", default="NET_30")
+    b2b_pi.add_argument("--issue-date")
+
+    b2b_pr = subcommands.add_parser("b2b-po-repay", help="repay B2B purchase order and replenish credit")
+    b2b_pr.add_argument("--database", type=Path, required=True)
+    b2b_pr.add_argument("--tenant", required=True)
+    b2b_pr.add_argument("--po-number", required=True)
+    b2b_pr.add_argument("--amount-minor", type=int, required=True)
+
+    b2b_ar = subcommands.add_parser("b2b-aging-report", help="calculate B2B overdue aging and late penalties")
+    b2b_ar.add_argument("--database", type=Path, required=True)
+    b2b_ar.add_argument("--tenant", required=True)
+    b2b_ar.add_argument("--buyer-id", required=True)
+    b2b_ar.add_argument("--as-of-date")
+    b2b_ar.add_argument("--penalty-rate-bp", type=int, default=500)
+
+    # Mass Payout
+    po_bc = subcommands.add_parser("payout-batch-create", help="create bulk payout batch")
+    po_bc.add_argument("--database", type=Path, required=True)
+    po_bc.add_argument("--tenant", required=True)
+    po_bc.add_argument("--batch-name", required=True)
+    po_bc.add_argument("--currency", default="CNY")
+    po_bc.add_argument("--maker", required=True)
+    po_bc.add_argument("--items", type=Path, required=True)
+
+    po_ba = subcommands.add_parser("payout-batch-approve", help="four-eyes approval of bulk payout batch")
+    po_ba.add_argument("--database", type=Path, required=True)
+    po_ba.add_argument("--tenant", required=True)
+    po_ba.add_argument("--batch-id", required=True)
+    po_ba.add_argument("--checker", required=True)
+
+    po_be = subcommands.add_parser("payout-batch-execute", help="execute bulk payout batch items")
+    po_be.add_argument("--database", type=Path, required=True)
+    po_be.add_argument("--tenant", required=True)
+    po_be.add_argument("--batch-id", required=True)
+    po_be.add_argument("--executor", required=True)
+
+    po_xi = subcommands.add_parser("payout-export-iso20022", help="export ISO 20022 pain.001 XML")
+    po_xi.add_argument("--database", type=Path, required=True)
+    po_xi.add_argument("--tenant", required=True)
+    po_xi.add_argument("--batch-id", required=True)
+    po_xi.add_argument("--out", type=Path)
+
+    po_xc = subcommands.add_parser("payout-export-csv", help="export payout batch items to CSV")
+    po_xc.add_argument("--database", type=Path, required=True)
+    po_xc.add_argument("--tenant", required=True)
+    po_xc.add_argument("--batch-id", required=True)
+    po_xc.add_argument("--out", type=Path)
+
+    # Card Vault & Network Tokenization
+    vt_tk = subcommands.add_parser("vault-tokenize", help="tokenize card into vault and network token")
+    vt_tk.add_argument("--database", type=Path, required=True)
+    vt_tk.add_argument("--tenant", required=True)
+    vt_tk.add_argument("--customer-id", required=True)
+    vt_tk.add_argument("--pan", required=True)
+    vt_tk.add_argument("--exp-month", type=int, required=True)
+    vt_tk.add_argument("--exp-year", type=int, required=True)
+    vt_tk.add_argument("--name", required=True)
+
+    vt_cg = subcommands.add_parser("vault-cryptogram", help="generate EMVCo 3DS network token cryptogram")
+    vt_cg.add_argument("--database", type=Path, required=True)
+    vt_cg.add_argument("--tenant", required=True)
+    vt_cg.add_argument("--vault-token", required=True)
+
+    vt_au = subcommands.add_parser("vault-account-updater", help="apply card account updater event")
+    vt_au.add_argument("--database", type=Path, required=True)
+    vt_au.add_argument("--tenant", required=True)
+    vt_au.add_argument("--vault-token", required=True)
+    vt_au.add_argument("--event-type", required=True)
+    vt_au.add_argument("--new-exp-month", type=int)
+    vt_au.add_argument("--new-exp-year", type=int)
+    vt_au.add_argument("--new-last4")
+
+    vt_pg = subcommands.add_parser("vault-purge", help="purge expired card tokens under PCI DSS 4.0")
+    vt_pg.add_argument("--database", type=Path, required=True)
+    vt_pg.add_argument("--tenant", required=True)
+    vt_pg.add_argument("--year", type=int, required=True)
+    vt_pg.add_argument("--month", type=int, required=True)
 
     stl_cfg = subcommands.add_parser("settlement-config", help="configure merchant settlement rules")
     stl_cfg.add_argument("--database", type=Path, required=True)
@@ -1308,6 +1439,200 @@ def main(argv: list[str] | None = None) -> int:
             mgr = TreasuryPoolManager(str(args.database))
             res = mgr.get_pool_status(args.tenant, args.pool_id)
             _emit(res)
+            return 0
+
+        # FX & DCC Handlers
+        if args.command == "fx-rate-set":
+            store = DurableStore(str(args.database))
+            mgr = FXQuoteLockManager(store)
+            res = mgr.set_rate_matrix(
+                tenant_id=args.tenant,
+                base_currency=args.base,
+                target_currency=args.target,
+                spot_rate_units=args.spot_rate_units,
+                spread_basis_points=args.spread_bp,
+            )
+            _emit(res)
+            return 0
+        if args.command == "fx-quote-lock":
+            store = DurableStore(str(args.database))
+            mgr = FXQuoteLockManager(store)
+            res = mgr.create_quote_lock(
+                tenant_id=args.tenant,
+                base_currency=args.base,
+                target_currency=args.target,
+                source_amount_minor=args.amount_minor,
+                ttl_seconds=args.ttl_sec,
+            )
+            _emit(res)
+            return 0
+        if args.command == "fx-quote-redeem":
+            store = DurableStore(str(args.database))
+            mgr = FXQuoteLockManager(store)
+            res = mgr.redeem_quote_lock(
+                tenant_id=args.tenant,
+                quote_id=args.quote_id,
+                payment_intent_id=args.payment_intent,
+            )
+            _emit(res)
+            return 0
+        if args.command == "fx-dcc-evaluate":
+            store = DurableStore(str(args.database))
+            mgr = FXQuoteLockManager(store)
+            res = mgr.evaluate_dcc_offer(
+                tenant_id=args.tenant,
+                card_currency=args.card_currency,
+                merchant_currency=args.merchant_currency,
+                transaction_amount_minor=args.amount_minor,
+            )
+            _emit(res)
+            return 0
+
+        # B2B Trade Credit Handlers
+        if args.command == "b2b-credit-create":
+            store = DurableStore(str(args.database))
+            mgr = B2BCreditManager(store)
+            res = mgr.create_credit_facility(
+                tenant_id=args.tenant,
+                buyer_id=args.buyer_id,
+                buyer_name=args.buyer_name,
+                credit_limit_minor=args.limit_minor,
+                currency=args.currency,
+                credit_tier=args.tier,
+            )
+            _emit(res)
+            return 0
+        if args.command == "b2b-po-issue":
+            store = DurableStore(str(args.database))
+            mgr = B2BCreditManager(store)
+            res = mgr.issue_purchase_order(
+                tenant_id=args.tenant,
+                buyer_id=args.buyer_id,
+                po_number=args.po_number,
+                seller_name=args.seller_name,
+                amount_minor=args.amount_minor,
+                payment_terms=args.terms,
+                issue_date=args.issue_date,
+            )
+            _emit(res)
+            return 0
+        if args.command == "b2b-po-repay":
+            store = DurableStore(str(args.database))
+            mgr = B2BCreditManager(store)
+            res = mgr.repay_purchase_order(
+                tenant_id=args.tenant,
+                po_number=args.po_number,
+                repayment_amount_minor=args.amount_minor,
+            )
+            _emit(res)
+            return 0
+        if args.command == "b2b-aging-report":
+            store = DurableStore(str(args.database))
+            mgr = B2BCreditManager(store)
+            res = mgr.calculate_aging_and_penalties(
+                tenant_id=args.tenant,
+                buyer_id=args.buyer_id,
+                as_of_date=args.as_of_date,
+                annual_penalty_rate_bps=args.penalty_rate_bp,
+            )
+            _emit(res)
+            return 0
+
+        # Mass Payout Handlers
+        if args.command == "payout-batch-create":
+            store = DurableStore(str(args.database))
+            mgr = MassPayoutManager(store)
+            items_data = read_json(args.items)
+            if isinstance(items_data, dict) and "items" in items_data:
+                items_data = items_data["items"]
+            res = mgr.create_batch(
+                tenant_id=args.tenant,
+                batch_name=args.batch_name,
+                currency=args.currency,
+                maker_id=args.maker,
+                items=items_data,
+            )
+            _emit(res)
+            return 0
+        if args.command == "payout-batch-approve":
+            store = DurableStore(str(args.database))
+            mgr = MassPayoutManager(store)
+            res = mgr.approve_batch(
+                tenant_id=args.tenant,
+                batch_id=args.batch_id,
+                checker_id=args.checker,
+            )
+            _emit(res)
+            return 0
+        if args.command == "payout-batch-execute":
+            store = DurableStore(str(args.database))
+            mgr = MassPayoutManager(store)
+            res = mgr.execute_batch(
+                tenant_id=args.tenant,
+                batch_id=args.batch_id,
+                executor_id=args.executor,
+            )
+            _emit(res)
+            return 0
+        if args.command == "payout-export-iso20022":
+            store = DurableStore(str(args.database))
+            mgr = MassPayoutManager(store)
+            xml_content = mgr.export_iso20022_pain001(args.tenant, args.batch_id)
+            if args.out:
+                args.out.write_text(xml_content, encoding="utf-8")
+                _emit({"tenantId": args.tenant, "batchId": args.batch_id, "format": "pain.001.001.03", "outPath": str(args.out)})
+            else:
+                print(xml_content)
+            return 0
+        if args.command == "payout-export-csv":
+            store = DurableStore(str(args.database))
+            mgr = MassPayoutManager(store)
+            csv_content = mgr.export_payout_csv(args.tenant, args.batch_id)
+            if args.out:
+                args.out.write_text(csv_content, encoding="utf-8")
+                _emit({"tenantId": args.tenant, "batchId": args.batch_id, "format": "csv", "outPath": str(args.out)})
+            else:
+                print(csv_content)
+            return 0
+
+        # Card Vault Handlers
+        if args.command == "vault-tokenize":
+            store = DurableStore(str(args.database))
+            mgr = CardVaultManager(store)
+            res = mgr.tokenize_card(
+                tenant_id=args.tenant,
+                customer_id=args.customer_id,
+                raw_pan=args.pan,
+                exp_month=args.exp_month,
+                exp_year=args.exp_year,
+                cardholder_name=args.name,
+            )
+            _emit(res)
+            return 0
+        if args.command == "vault-cryptogram":
+            store = DurableStore(str(args.database))
+            mgr = CardVaultManager(store)
+            res = mgr.generate_network_token_cryptogram(args.tenant, args.vault_token)
+            _emit(res)
+            return 0
+        if args.command == "vault-account-updater":
+            store = DurableStore(str(args.database))
+            mgr = CardVaultManager(store)
+            res = mgr.apply_account_updater_event(
+                tenant_id=args.tenant,
+                vault_token=args.vault_token,
+                event_type=args.event_type,
+                new_exp_month=args.new_exp_month,
+                new_exp_year=args.new_exp_year,
+                new_last4=args.new_last4,
+            )
+            _emit(res)
+            return 0
+        if args.command == "vault-purge":
+            store = DurableStore(str(args.database))
+            mgr = CardVaultManager(store)
+            count = mgr.purge_expired_tokens(args.tenant, args.year, args.month)
+            _emit({"tenantId": args.tenant, "purgedCount": count, "year": args.year, "month": args.month})
             return 0
         if args.command == "settlement-config":
             ledger = SettlementLedger(str(args.database))
