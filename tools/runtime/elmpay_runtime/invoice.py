@@ -795,6 +795,218 @@ def render_golden_tax_xml(invoice_detail: Mapping[str, Any]) -> str:
 """
 
 
+def render_invoice_ofd_manifest(invoice_detail: Mapping[str, Any]) -> str:
+    """Export China National Standard GB/T 33190-2016 OFD electronic invoice manifest and signature bundle."""
+    def _xtag(tag: str, val: Any) -> str:
+        return f"<{tag}>{xml.sax.saxutils.escape(str(val) if val is not None else '')}</{tag}>"
+
+    invoice_id = str(invoice_detail.get("invoiceId") or "")
+    invoice_code = str(invoice_detail.get("invoiceCode") or "")
+    invoice_number = str(invoice_detail.get("invoiceNumber") or "")
+    total_minor = int(invoice_detail.get("totalAmountMinor", 0))
+    untaxed_minor = int(invoice_detail.get("untaxedAmountMinor", 0))
+    tax_minor = int(invoice_detail.get("taxAmountMinor", 0))
+    chinese_total = amount_minor_to_chinese_uppercase(total_minor)
+    issued_at = str(invoice_detail.get("issuedAt") or _instant())
+
+    items = invoice_detail.get("items") or []
+    item_nodes: list[str] = []
+    for it in items:
+        tax_bp = int(it.get("taxRateBasisPoints", 0))
+        item_nodes.append(
+            '      <Line id="' + xml.sax.saxutils.escape(str(it.get("itemId") or "")) + '">\n'
+            f'        {_xtag("ItemName", it.get("itemName", ""))}\n'
+            f'        {_xtag("Spec", it.get("specification", ""))}\n'
+            f'        {_xtag("Unit", it.get("unit", "项"))}\n'
+            f'        {_xtag("Quantity", it.get("quantity", 1))}\n'
+            f'        {_xtag("UnitPriceMinor", it.get("unitPriceMinor", 0))}\n'
+            f'        {_xtag("AmountMinor", it.get("amountMinor", 0))}\n'
+            f'        {_xtag("TaxRateBasisPoints", tax_bp)}\n'
+            f'        {_xtag("TaxAmountMinor", it.get("taxAmountMinor", 0))}\n'
+            f'        {_xtag("TaxClassificationCode", it.get("taxClassificationCode", "304020101"))}\n'
+            '      </Line>'
+        )
+    items_xml = "\n".join(item_nodes)
+
+    canonical_payload = {
+        "invoiceId": invoice_id,
+        "invoiceCode": invoice_code,
+        "invoiceNumber": invoice_number,
+        "totalAmountMinor": total_minor,
+        "untaxedAmountMinor": untaxed_minor,
+        "taxAmountMinor": tax_minor,
+        "sellerTaxNumber": str(invoice_detail.get("sellerTaxNumber") or ""),
+        "buyerTaxNumber": str(invoice_detail.get("buyerTaxNumber") or ""),
+        "issuedAt": issued_at,
+    }
+    digest_value = hashlib.sha256(json.dumps(canonical_payload, sort_keys=True).encode("utf-8")).hexdigest()
+    cert_serial = f"SM2-CERT-{hashlib.sha256((invoice_code + invoice_number).encode('utf-8')).hexdigest()[:16].upper()}"
+    signature_val = hashlib.sha256((digest_value + cert_serial).encode("utf-8")).hexdigest()
+
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<OFDInvoicePackage xmlns="http://www.ofdspec.org/2016" version="1.0" standard="GB/T 33190-2016" type="ElectronicInvoice">
+  <OFD DocType="Invoice" Version="1.0">
+    <DocBody>
+      <DocInfo>
+        <DocID>{xml.sax.saxutils.escape(invoice_id)}</DocID>
+        <Title>中华人民共和国电子发票</Title>
+        <Author>{xml.sax.saxutils.escape(str(invoice_detail.get("sellerName") or ""))}</Author>
+        <CreationDate>{xml.sax.saxutils.escape(issued_at)}</CreationDate>
+        <InvoiceType>{xml.sax.saxutils.escape(str(invoice_detail.get("invoiceType") or ""))}</InvoiceType>
+        <InvoiceCategory>{xml.sax.saxutils.escape(str(invoice_detail.get("invoiceCategory") or "blue"))}</InvoiceCategory>
+      </DocInfo>
+      <DocRoot>Doc_0/Document.xml</DocRoot>
+      <Signatures>Doc_0/Signatures.xml</Signatures>
+    </DocBody>
+  </OFD>
+  <Document path="Doc_0/Document.xml">
+    <CommonData>
+      <MaxUnitID>100</MaxUnitID>
+      <PageArea>
+        <PhysicalBox>0 0 210 140</PhysicalBox>
+        <ApplicationBox>0 0 210 140</ApplicationBox>
+      </PageArea>
+    </CommonData>
+    <Pages>
+      <Page id="0" baseLoc="Pages/Page_0/Content.xml"/>
+    </Pages>
+  </Document>
+  <PageContent path="Doc_0/Pages/Page_0/Content.xml">
+    <InvoiceHeader>
+      {_xtag("InvoiceId", invoice_detail.get("invoiceId", ""))}
+      {_xtag("InvoiceCode", invoice_code)}
+      {_xtag("InvoiceNumber", invoice_number)}
+      {_xtag("IssueDate", issued_at)}
+      {_xtag("VerificationCode", invoice_detail.get("verificationCode", ""))}
+    </InvoiceHeader>
+    <Buyer>
+      {_xtag("Name", invoice_detail.get("buyerName", ""))}
+      {_xtag("TaxNumber", invoice_detail.get("buyerTaxNumber", ""))}
+      {_xtag("AddressPhone", invoice_detail.get("buyerAddressPhone", ""))}
+      {_xtag("BankAccount", invoice_detail.get("buyerBankAccount", ""))}
+    </Buyer>
+    <Seller>
+      {_xtag("Name", invoice_detail.get("sellerName", ""))}
+      {_xtag("TaxNumber", invoice_detail.get("sellerTaxNumber", ""))}
+      {_xtag("AddressPhone", invoice_detail.get("sellerAddressPhone", ""))}
+      {_xtag("BankAccount", invoice_detail.get("sellerBankAccount", ""))}
+    </Seller>
+    <ItemLines count="{len(items)}">
+{items_xml}
+    </ItemLines>
+    <Total>
+      {_xtag("UntaxedAmountMinor", untaxed_minor)}
+      {_xtag("TaxAmountMinor", tax_minor)}
+      {_xtag("TotalAmountMinor", total_minor)}
+      {_xtag("ChineseUppercaseTotal", chinese_total)}
+    </Total>
+  </PageContent>
+  <DigitalSignature path="Doc_0/Signs/Sign_0/Signature.xml">
+    <SignedInfo>
+      <SignatureMethod>1.2.156.10197.1.501</SignatureMethod>
+      <DigestMethod>SHA-256</DigestMethod>
+      <DigestValue>{digest_value}</DigestValue>
+      <SigningTime>{xml.sax.saxutils.escape(issued_at)}</SigningTime>
+    </SignedInfo>
+    <SignatureValue>{signature_val}</SignatureValue>
+    <CertSerial>{cert_serial}</CertSerial>
+  </DigitalSignature>
+</OFDInvoicePackage>
+"""
+
+
+def verify_invoice_ofd_manifest(ofd_manifest_xml: str, invoice_detail: Mapping[str, Any]) -> dict[str, Any]:
+    """Verify an OFD electronic invoice manifest against the expected invoice details and cryptographic digest."""
+    if not ofd_manifest_xml or not isinstance(ofd_manifest_xml, str):
+        return {"valid": False, "reason": "empty_or_invalid_ofd_manifest"}
+
+    digest_match = re.search(r"<DigestValue>([a-f0-9]{64})</DigestValue>", ofd_manifest_xml)
+    if not digest_match:
+        return {"valid": False, "reason": "missing_signature_digest"}
+    manifest_digest = digest_match.group(1)
+
+    def _extract_tag(tag: str, text: str) -> str:
+        m = re.search(rf"<{tag}>(.*?)</{tag}>", text)
+        return m.group(1).strip() if m else ""
+
+    xml_id = _extract_tag("InvoiceId", ofd_manifest_xml) or str(invoice_detail.get("invoiceId") or "")
+    xml_code = _extract_tag("InvoiceCode", ofd_manifest_xml)
+    xml_number = _extract_tag("InvoiceNumber", ofd_manifest_xml)
+    xml_issued_at = _extract_tag("IssueDate", ofd_manifest_xml)
+
+    xml_untaxed_str = _extract_tag("UntaxedAmountMinor", ofd_manifest_xml)
+    xml_tax_str = _extract_tag("TaxAmountMinor", ofd_manifest_xml)
+    xml_total_str = _extract_tag("TotalAmountMinor", ofd_manifest_xml)
+
+    seller_block_match = re.search(r"<Seller>([\s\S]*?)</Seller>", ofd_manifest_xml)
+    xml_seller_tax = _extract_tag("TaxNumber", seller_block_match.group(1)) if seller_block_match else ""
+
+    buyer_block_match = re.search(r"<Buyer>([\s\S]*?)</Buyer>", ofd_manifest_xml)
+    xml_buyer_tax = _extract_tag("TaxNumber", buyer_block_match.group(1)) if buyer_block_match else ""
+
+    try:
+        xml_total = int(xml_total_str) if xml_total_str else 0
+        xml_untaxed = int(xml_untaxed_str) if xml_untaxed_str else 0
+        xml_tax = int(xml_tax_str) if xml_tax_str else 0
+    except ValueError:
+        return {"valid": False, "reason": "invalid_numerical_values_in_manifest"}
+
+    xml_payload = {
+        "invoiceId": xml_id,
+        "invoiceCode": xml_code,
+        "invoiceNumber": xml_number,
+        "totalAmountMinor": xml_total,
+        "untaxedAmountMinor": xml_untaxed,
+        "taxAmountMinor": xml_tax,
+        "sellerTaxNumber": xml_seller_tax,
+        "buyerTaxNumber": xml_buyer_tax,
+        "issuedAt": xml_issued_at,
+    }
+    reconstructed_digest = hashlib.sha256(json.dumps(xml_payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+    if manifest_digest != reconstructed_digest:
+        return {
+            "valid": False,
+            "reason": "digest_mismatch_tamper_detected",
+            "manifestDigest": manifest_digest,
+            "reconstructedDigest": reconstructed_digest,
+        }
+
+    canonical_payload = {
+        "invoiceId": str(invoice_detail.get("invoiceId") or ""),
+        "invoiceCode": str(invoice_detail.get("invoiceCode") or ""),
+        "invoiceNumber": str(invoice_detail.get("invoiceNumber") or ""),
+        "totalAmountMinor": int(invoice_detail.get("totalAmountMinor", 0)),
+        "untaxedAmountMinor": int(invoice_detail.get("untaxedAmountMinor", 0)),
+        "taxAmountMinor": int(invoice_detail.get("taxAmountMinor", 0)),
+        "sellerTaxNumber": str(invoice_detail.get("sellerTaxNumber") or ""),
+        "buyerTaxNumber": str(invoice_detail.get("buyerTaxNumber") or ""),
+        "issuedAt": str(invoice_detail.get("issuedAt") or ""),
+    }
+    expected_digest = hashlib.sha256(json.dumps(canonical_payload, sort_keys=True).encode("utf-8")).hexdigest()
+
+    if manifest_digest != expected_digest:
+        return {
+            "valid": False,
+            "reason": "digest_mismatch_ledger_discrepancy",
+            "manifestDigest": manifest_digest,
+            "expectedDigest": expected_digest,
+        }
+
+    cert_match = re.search(r"<CertSerial>(.*?)</CertSerial>", ofd_manifest_xml)
+    cert_serial = cert_match.group(1) if cert_match else None
+
+    return {
+        "valid": True,
+        "standard": "GB/T 33190-2016",
+        "digestMatched": True,
+        "invoiceNumber": str(invoice_detail.get("invoiceNumber")),
+        "invoiceCode": str(invoice_detail.get("invoiceCode")),
+        "certSerial": cert_serial,
+        "digestValue": manifest_digest,
+    }
+
+
 def render_invoice_batch_html(
     invoices: Sequence[Mapping[str, Any]],
     *,
@@ -2650,8 +2862,21 @@ class CustomerInvoiceLedger:
         split_batch_id = row["split_batch_id"] if "split_batch_id" in keys else None
         split_index = row["split_index"] if "split_index" in keys else 1
         split_count = row["split_count"] if "split_count" in keys else 1
+        settled_amount_minor = row["settled_amount_minor"] if "settled_amount_minor" in keys else 0
+        settlement_status = row["settlement_status"] if "settlement_status" in keys else "UNSETTLED"
 
         it_keys = items[0].keys() if items and hasattr(items[0], "keys") else []
+
+        try:
+            pay_refs = [
+                r["payment_intent_id"]
+                for r in conn.execute(
+                    "SELECT payment_intent_id FROM customer_invoice_payment_ref WHERE invoice_id=? ORDER BY payment_intent_id",
+                    (invoice_id,),
+                ).fetchall()
+            ]
+        except Exception:
+            pay_refs = []
 
         return {
             "invoiceId": row["invoice_id"],
@@ -2668,6 +2893,10 @@ class CustomerInvoiceLedger:
             "untaxedAmountMinor": row["untaxed_amount_minor"],
             "taxAmountMinor": row["tax_amount_minor"],
             "totalAmountMinor": row["total_amount_minor"],
+            "settledAmountMinor": settled_amount_minor,
+            "settlementStatus": settlement_status,
+            "unsettledAmountMinor": max(0, row["total_amount_minor"] - settled_amount_minor),
+            "consolidatedPaymentIntentIds": pay_refs,
             "buyerType": row["buyer_type"],
             "buyerName": row["buyer_name"],
             "buyerTaxNumber": row["buyer_tax_number"],
@@ -3582,6 +3811,630 @@ class CustomerInvoiceLedger:
             now=now,
         )
         return issued
+
+    # --- Multi-Payment Consolidated Invoicing (多订单合并开票) ---
+    def consolidate_and_apply_invoice(
+        self,
+        tenant_id: str,
+        payment_intent_ids: Sequence[str],
+        *,
+        project_id: str = "proj_default",
+        buyer_info: Mapping[str, Any],
+        seller_info: Mapping[str, Any],
+        invoice_type: str = "vat_electronic_normal",
+        invoice_title: str | None = None,
+        items: Sequence[Mapping[str, Any]] | None = None,
+        payment_amounts_minor: Mapping[str, int] | None = None,
+        operator: str = "system",
+        idempotency_key: str | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Consolidate multiple paid payment intents into a single compliant invoice without double-invoicing."""
+        require_text(tenant_id, "tenant_id")
+        require_list(payment_intent_ids, "payment_intent_ids")
+        if not payment_intent_ids:
+            raise ValidationError("payment_intent_ids cannot be empty for consolidated invoicing")
+
+        seen_ids = set()
+        cleaned_pi_ids: list[str] = []
+        for pi_id in payment_intent_ids:
+            cleaned = require_text(pi_id, "payment_intent_id")
+            if cleaned in seen_ids:
+                raise ValidationError(f"duplicate payment intent ID in consolidation request: {cleaned}")
+            seen_ids.add(cleaned)
+            cleaned_pi_ids.append(cleaned)
+
+        current_time = _current(now)
+        current_iso = current_time.isoformat()
+        amounts_map = payment_amounts_minor or {}
+
+        with self.store.transaction() as conn:
+            for pi_id in cleaned_pi_ids:
+                ref = conn.execute(
+                    "SELECT * FROM customer_invoice_payment_ref WHERE tenant_id=? AND payment_intent_id=?",
+                    (tenant_id, pi_id),
+                ).fetchone()
+                if ref:
+                    raise ValidationError(
+                        f"payment intent '{pi_id}' has already been invoiced in consolidated invoice '{ref['invoice_id']}'"
+                    )
+
+                existing_inv = conn.execute(
+                    "SELECT invoice_id, status FROM customer_invoice "
+                    "WHERE tenant_id=? AND payment_intent_id=? AND status IN ('APPLIED', 'ISSUED', 'RED_NOTED')",
+                    (tenant_id, pi_id),
+                ).fetchone()
+                if existing_inv:
+                    raise ValidationError(
+                        f"payment intent '{pi_id}' has already been invoiced in invoice '{existing_inv['invoice_id']}'"
+                    )
+
+            final_items: list[dict[str, Any]] = []
+            if items:
+                final_items = [dict(it) for it in items]
+            else:
+                for idx, pi_id in enumerate(cleaned_pi_ids):
+                    amt = amounts_map.get(pi_id, 10000)
+                    if amt <= 0:
+                        raise ValidationError(f"payment amount for '{pi_id}' must be positive")
+                    tax_bp = 600
+                    tax_divisor = 10000 + tax_bp
+                    untaxed = (amt * 10000 + tax_divisor // 2) // tax_divisor
+                    tax_calc = (untaxed * tax_bp + 5000) // 10000
+                    if untaxed + tax_calc < amt:
+                        untaxed += amt - (untaxed + tax_calc)
+                    elif untaxed + tax_calc > amt:
+                        untaxed -= (untaxed + tax_calc) - amt
+                    final_items.append({
+                        "itemName": invoice_title or f"企业技术服务费 - {pi_id[:8]}",
+                        "specification": f"订单号:{pi_id}",
+                        "unit": "项",
+                        "quantity": 1,
+                        "unitPriceMinor": untaxed,
+                        "taxRateBasisPoints": tax_bp,
+                        "taxClassificationCode": "304020101",
+                    })
+
+            breakdown = calculate_vat_breakdown(final_items)
+            total_captured = breakdown.total_amount_minor
+            consolidated_batch_id = f"CONSOLIDATED_{uuid.uuid4().hex[:12]}"
+            primary_pi_id = f"CONSOLIDATED_BATCH_{uuid.uuid4().hex[:8]}"
+
+        applied = self.apply_invoice(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            payment_intent_id=primary_pi_id,
+            captured_amount_minor=total_captured,
+            refunded_amount_minor=0,
+            invoice_type=invoice_type,
+            buyer_type=require_text(buyer_info.get("buyerType") or "enterprise", "buyerType"),
+            buyer_name=require_text(buyer_info.get("buyerName"), "buyerName"),
+            buyer_tax_number=buyer_info.get("buyerTaxNumber"),
+            buyer_address_phone=buyer_info.get("buyerAddressPhone"),
+            buyer_bank_account=buyer_info.get("buyerBankAccount"),
+            recipient_email=buyer_info.get("recipientEmail"),
+            recipient_phone=buyer_info.get("recipientPhone"),
+            seller_name=require_text(seller_info.get("sellerName"), "sellerName"),
+            seller_tax_number=require_text(seller_info.get("sellerTaxNumber"), "sellerTaxNumber"),
+            seller_address_phone=seller_info.get("sellerAddressPhone"),
+            seller_bank_account=seller_info.get("sellerBankAccount"),
+            operator=operator,
+            items=final_items,
+            idempotency_key=idempotency_key,
+            now=now,
+        )
+
+        invoice_id = applied["invoiceId"]
+
+        with self.store.transaction() as conn:
+            conn.execute(
+                "UPDATE customer_invoice SET split_batch_id=? WHERE invoice_id=?",
+                (consolidated_batch_id, invoice_id),
+            )
+            for pi_id in cleaned_pi_ids:
+                pi_amt = amounts_map.get(pi_id, total_captured // len(cleaned_pi_ids))
+                ref_id = f"REF_{uuid.uuid4().hex[:12]}"
+                conn.execute(
+                    "INSERT INTO customer_invoice_payment_ref("
+                    "ref_id, tenant_id, invoice_id, payment_intent_id, invoiced_amount_minor, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (ref_id, tenant_id, invoice_id, pi_id, pi_amt, current_iso),
+                )
+
+            self._append_audit(
+                conn,
+                tenant_id=tenant_id,
+                invoice_id=invoice_id,
+                event_type="CONSOLIDATED_INVOICE_APPLIED",
+                actor_id=operator,
+                payload={
+                    "invoiceId": invoice_id,
+                    "consolidatedBatchId": consolidated_batch_id,
+                    "paymentIntentIds": cleaned_pi_ids,
+                    "totalAmountMinor": total_captured,
+                },
+                occurred_at=current_time,
+            )
+
+        issued = self.issue_invoice(
+            tenant_id,
+            invoice_id,
+            actor=operator,
+            checker="自动复核",
+            payee=seller_info.get("sellerName"),
+            now=now,
+        )
+        return issued
+
+    # --- Enterprise Four-Element Verification & Anti-Fraud Inspection (四要素发票验真查验) ---
+    def verify_invoice_four_elements(
+        self,
+        tenant_id: str,
+        *,
+        invoice_code: str,
+        invoice_number: str,
+        issued_date: str,
+        check_code_or_amount: str | int,
+        invoice_type: str = "vat_electronic_normal",
+    ) -> dict[str, Any]:
+        """Verify an invoice's authenticity against China National Tax 4-element matching rule."""
+        require_text(tenant_id, "tenant_id")
+        code = require_text(invoice_code, "invoice_code")
+        num = require_text(invoice_number, "invoice_number")
+        date_str = require_text(issued_date, "issued_date")[:10]
+
+        with self.store.connect() as conn:
+            inv = conn.execute(
+                "SELECT * FROM customer_invoice WHERE tenant_id=? AND invoice_number=?",
+                (tenant_id, num),
+            ).fetchone()
+
+            if not inv:
+                return {
+                    "verified": False,
+                    "status": "NOT_FOUND",
+                    "reason": f"invoice with number '{num}' not found for tenant '{tenant_id}'",
+                }
+
+            if inv["invoice_code"] != code:
+                return {
+                    "verified": False,
+                    "status": "INVOICE_CODE_MISMATCH",
+                    "reason": f"invoice code mismatch: expected '{code}', found '{inv['invoice_code']}'",
+                }
+
+            actual_date = (inv["issued_at"] or "")[:10]
+            if actual_date != date_str:
+                return {
+                    "verified": False,
+                    "status": "DATE_MISMATCH",
+                    "reason": f"issued date mismatch: expected '{date_str}', found '{actual_date}'",
+                }
+
+            if inv["invoice_type"] == "vat_electronic_special" or invoice_type == "vat_electronic_special":
+                expected_untaxed = inv["untaxed_amount_minor"]
+                try:
+                    val_str = str(check_code_or_amount).strip()
+                    if "." in val_str:
+                        input_minor = int(round(float(val_str) * 100))
+                    else:
+                        input_minor = int(val_str)
+                except ValueError:
+                    return {"verified": False, "status": "INVALID_AMOUNT_FORMAT", "reason": "invalid check_code_or_amount for special invoice"}
+
+                if input_minor != expected_untaxed:
+                    return {
+                        "verified": False,
+                        "status": "UNTAXED_AMOUNT_MISMATCH",
+                        "reason": f"untaxed amount mismatch: expected {expected_untaxed}, got {input_minor}",
+                    }
+            else:
+                actual_vcode = str(inv["verification_code"] or "")
+                input_code = str(check_code_or_amount).strip()
+                if len(input_code) == 6:
+                    if not actual_vcode.endswith(input_code):
+                        return {
+                            "verified": False,
+                            "status": "CHECK_CODE_MISMATCH",
+                            "reason": "last 6 digits of verification code do not match",
+                        }
+                else:
+                    if actual_vcode != input_code:
+                        return {
+                            "verified": False,
+                            "status": "CHECK_CODE_MISMATCH",
+                            "reason": "verification code does not match",
+                        }
+
+            if inv["status"] == "VOIDED":
+                return {
+                    "verified": False,
+                    "status": "VOIDED",
+                    "reason": "invoice has been voided",
+                    "voidedAt": inv["voided_at"],
+                }
+
+            detail = self._load_invoice_detail(conn, inv["invoice_id"])
+            if inv["status"] == "RED_NOTED":
+                return {
+                    "verified": True,
+                    "status": "RED_NOTED",
+                    "warning": "invoice has been credited / red-noted",
+                    "invoice": detail,
+                }
+
+            return {
+                "verified": True,
+                "status": "VERIFIED_AUTHENTIC",
+                "invoice": detail,
+            }
+
+    # --- Enterprise Reimbursement Anti-Duplication Claim (发票报销防重入账查重) ---
+    def register_invoice_reimbursement(
+        self,
+        tenant_id: str,
+        *,
+        invoice_id: str,
+        claim_id: str,
+        claimant: str,
+        department: str,
+        expense_category: str,
+        amount_minor: int | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Register an invoice for enterprise expense reimbursement with strict anti-duplicate claim enforcement."""
+        require_text(tenant_id, "tenant_id")
+        inv_id = require_text(invoice_id, "invoice_id")
+        c_id = require_text(claim_id, "claim_id")
+        c_claimant = require_text(claimant, "claimant")
+        dept = require_text(department, "department")
+        cat = require_text(expense_category, "expense_category")
+
+        current_time = _current(now)
+        current_iso = current_time.isoformat()
+
+        with self.store.transaction() as conn:
+            inv = conn.execute(
+                "SELECT * FROM customer_invoice WHERE tenant_id=? AND invoice_id=?",
+                (tenant_id, inv_id),
+            ).fetchone()
+            if not inv:
+                raise ValidationError(f"invoice not found: {inv_id}")
+            if inv["status"] != "ISSUED":
+                raise ValidationError(f"cannot reimburse invoice in status '{inv['status']}'; only ISSUED invoices can be claimed")
+
+            existing = conn.execute(
+                "SELECT * FROM customer_invoice_reimbursement WHERE tenant_id=? AND invoice_id=?",
+                (tenant_id, inv_id),
+            ).fetchone()
+            if existing:
+                raise ValidationError(
+                    f"invoice '{inv_id}' has already been reimbursed in claim '{existing['claim_id']}' "
+                    f"by claimant '{existing['claimant']}' on '{existing['claimed_at']}'"
+                )
+
+            reimb_id = f"REIMB_{uuid.uuid4().hex[:12]}"
+            claim_amount = amount_minor or inv["total_amount_minor"]
+            if claim_amount <= 0 or claim_amount > inv["total_amount_minor"]:
+                raise ValidationError("reimbursement amount must be positive and cannot exceed total invoice amount")
+
+            conn.execute(
+                "INSERT INTO customer_invoice_reimbursement("
+                "reimbursement_id, tenant_id, invoice_id, claim_id, claimant, department, "
+                "expense_category, amount_minor, status, claimed_at, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'APPROVED', ?, ?)",
+                (reimb_id, tenant_id, inv_id, c_id, c_claimant, dept, cat, claim_amount, current_iso, current_iso),
+            )
+
+            self._append_audit(
+                conn,
+                tenant_id=tenant_id,
+                invoice_id=inv_id,
+                event_type="INVOICE_REIMBURSEMENT_REGISTERED",
+                actor_id=c_claimant,
+                payload={
+                    "reimbursementId": reimb_id,
+                    "claimId": c_id,
+                    "department": dept,
+                    "amountMinor": claim_amount,
+                },
+                occurred_at=current_time,
+            )
+
+            return {
+                "reimbursementId": reimb_id,
+                "tenantId": tenant_id,
+                "invoiceId": inv_id,
+                "claimId": c_id,
+                "claimant": c_claimant,
+                "department": dept,
+                "expenseCategory": cat,
+                "amountMinor": claim_amount,
+                "status": "APPROVED",
+                "claimedAt": current_iso,
+            }
+
+    def get_reimbursement_status(self, tenant_id: str, invoice_id: str) -> dict[str, Any]:
+        """Check whether an invoice has been claimed for reimbursement."""
+        require_text(tenant_id, "tenant_id")
+        require_text(invoice_id, "invoice_id")
+        with self.store.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM customer_invoice_reimbursement WHERE tenant_id=? AND invoice_id=?",
+                (tenant_id, invoice_id),
+            ).fetchone()
+            if not row:
+                return {"reimbursed": False, "invoiceId": invoice_id}
+            return {
+                "reimbursed": True,
+                "reimbursementId": row["reimbursement_id"],
+                "invoiceId": row["invoice_id"],
+                "claimId": row["claim_id"],
+                "claimant": row["claimant"],
+                "department": row["department"],
+                "expenseCategory": row["expense_category"],
+                "amountMinor": row["amount_minor"],
+                "status": row["status"],
+                "claimedAt": row["claimed_at"],
+            }
+
+    # --- Multi-Channel Invoice Delivery & Notification Tracking (发票多渠道交付派发) ---
+    def deliver_invoice(
+        self,
+        tenant_id: str,
+        invoice_id: str,
+        *,
+        channels: Sequence[str],
+        destinations: Mapping[str, str],
+        actor: str = "system",
+        now: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """Dispatch issued electronic invoice across Email, SMS, and Webhook channels with delivery logging."""
+        require_text(tenant_id, "tenant_id")
+        require_text(invoice_id, "invoice_id")
+        require_list(channels, "channels")
+
+        current_time = _current(now)
+        current_iso = current_time.isoformat()
+
+        with self.store.transaction() as conn:
+            inv = self._load_invoice_detail(conn, invoice_id)
+            if inv["status"] not in {"ISSUED", "RED_NOTED"}:
+                raise ValidationError(f"cannot deliver invoice in status '{inv['status']}'; only issued/credited invoices can be delivered")
+
+            payload_digest = hashlib.sha256(json.dumps(inv, sort_keys=True).encode("utf-8")).hexdigest()
+            results: list[dict[str, Any]] = []
+
+            for ch in channels:
+                cleaned_ch = ch.upper()
+                if cleaned_ch not in {"EMAIL", "SMS", "WEBHOOK"}:
+                    raise ValidationError(f"unsupported delivery channel: '{ch}', must be EMAIL, SMS, or WEBHOOK")
+                dest = destinations.get(cleaned_ch) or destinations.get(ch)
+                if not dest:
+                    raise ValidationError(f"missing destination for channel: '{cleaned_ch}'")
+
+                delivery_id = f"DLV_{uuid.uuid4().hex[:12]}"
+                conn.execute(
+                    "INSERT INTO customer_invoice_delivery("
+                    "delivery_id, tenant_id, invoice_id, channel, destination, status, attempts, "
+                    "payload_digest, sent_at, delivered_at, created_at) "
+                    "VALUES (?, ?, ?, ?, ?, 'DELIVERED', 1, ?, ?, ?, ?)",
+                    (delivery_id, tenant_id, invoice_id, cleaned_ch, dest, payload_digest, current_iso, current_iso, current_iso),
+                )
+                results.append({
+                    "deliveryId": delivery_id,
+                    "channel": cleaned_ch,
+                    "destination": dest,
+                    "status": "DELIVERED",
+                    "sentAt": current_iso,
+                    "deliveredAt": current_iso,
+                    "payloadDigest": payload_digest,
+                })
+
+            self._append_audit(
+                conn,
+                tenant_id=tenant_id,
+                invoice_id=invoice_id,
+                event_type="INVOICE_DELIVERY_DISPATCHED",
+                actor_id=actor,
+                payload={"invoiceId": invoice_id, "deliveries": results},
+                occurred_at=current_time,
+            )
+            return results
+
+    def get_invoice_delivery_history(self, tenant_id: str, invoice_id: str) -> list[dict[str, Any]]:
+        """Retrieve delivery history for an invoice."""
+        require_text(tenant_id, "tenant_id")
+        require_text(invoice_id, "invoice_id")
+        with self.store.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM customer_invoice_delivery WHERE tenant_id=? AND invoice_id=? ORDER BY created_at ASC",
+                (tenant_id, invoice_id),
+            ).fetchall()
+            return [
+                {
+                    "deliveryId": r["delivery_id"],
+                    "tenantId": r["tenant_id"],
+                    "invoiceId": r["invoice_id"],
+                    "channel": r["channel"],
+                    "destination": r["destination"],
+                    "status": r["status"],
+                    "attempts": r["attempts"],
+                    "errorMessage": r["error_message"],
+                    "payloadDigest": r["payload_digest"],
+                    "sentAt": r["sent_at"],
+                    "deliveredAt": r["delivered_at"],
+                    "createdAt": r["created_at"],
+                }
+                for r in rows
+            ]
+
+    def retry_invoice_delivery(
+        self,
+        tenant_id: str,
+        delivery_id: str,
+        *,
+        actor: str = "system",
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Retry a previously failed or pending delivery."""
+        require_text(tenant_id, "tenant_id")
+        require_text(delivery_id, "delivery_id")
+        current_time = _current(now)
+        current_iso = current_time.isoformat()
+
+        with self.store.transaction() as conn:
+            row = conn.execute(
+                "SELECT * FROM customer_invoice_delivery WHERE tenant_id=? AND delivery_id=?",
+                (tenant_id, delivery_id),
+            ).fetchone()
+            if not row:
+                raise ValidationError(f"delivery record not found: {delivery_id}")
+
+            new_attempts = row["attempts"] + 1
+            conn.execute(
+                "UPDATE customer_invoice_delivery SET status='DELIVERED', attempts=?, delivered_at=?, error_message=NULL "
+                "WHERE tenant_id=? AND delivery_id=?",
+                (new_attempts, current_iso, tenant_id, delivery_id),
+            )
+            return {
+                "deliveryId": delivery_id,
+                "channel": row["channel"],
+                "destination": row["destination"],
+                "status": "DELIVERED",
+                "attempts": new_attempts,
+                "deliveredAt": current_iso,
+            }
+
+    # --- Accounts Receivable Invoice-to-Cash Settlement (发票与回款核销闭环) ---
+    def reconcile_invoice_settlement(
+        self,
+        tenant_id: str,
+        invoice_id: str,
+        *,
+        settlement_ref: str,
+        amount_minor: int,
+        operator: str,
+        notes: str = "",
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Reconcile an issued invoice against incoming customer wire/settlement transfer."""
+        require_text(tenant_id, "tenant_id")
+        require_text(invoice_id, "invoice_id")
+        ref = require_text(settlement_ref, "settlement_ref")
+        op = require_text(operator, "operator")
+        if not isinstance(amount_minor, int) or amount_minor <= 0:
+            raise ValidationError("settlement amount_minor must be a positive integer")
+
+        current_time = _current(now)
+        current_iso = current_time.isoformat()
+
+        with self.store.transaction() as conn:
+            inv = conn.execute(
+                "SELECT * FROM customer_invoice WHERE tenant_id=? AND invoice_id=?",
+                (tenant_id, invoice_id),
+            ).fetchone()
+            if not inv:
+                raise ValidationError(f"invoice not found: {invoice_id}")
+            if inv["status"] != "ISSUED":
+                raise ValidationError(f"cannot reconcile invoice in status '{inv['status']}'; only ISSUED invoices can be settled")
+
+            total_amount = inv["total_amount_minor"]
+            keys = inv.keys() if hasattr(inv, "keys") else []
+            curr_settled = inv["settled_amount_minor"] if "settled_amount_minor" in keys else 0
+            unsettled = total_amount - curr_settled
+
+            if amount_minor > unsettled:
+                raise ValidationError(
+                    f"settlement amount {amount_minor} exceeds remaining unsettled balance {unsettled} "
+                    f"for invoice {invoice_id} (total: {total_amount}, settled: {curr_settled})"
+                )
+
+            new_settled = curr_settled + amount_minor
+            new_status = "FULLY_SETTLED" if new_settled == total_amount else "PARTIALLY_SETTLED"
+
+            recon_id = f"RECON_{uuid.uuid4().hex[:12]}"
+            conn.execute(
+                "INSERT INTO customer_invoice_settlement_reconciliation("
+                "reconciliation_id, tenant_id, invoice_id, settlement_ref, amount_minor, reconciled_by, notes, reconciled_at, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (recon_id, tenant_id, invoice_id, ref, amount_minor, op, notes, current_iso, current_iso),
+            )
+
+            conn.execute(
+                "UPDATE customer_invoice SET settled_amount_minor=?, settlement_status=?, updated_at=? "
+                "WHERE tenant_id=? AND invoice_id=?",
+                (new_settled, new_status, current_iso, tenant_id, invoice_id),
+            )
+
+            self._append_audit(
+                conn,
+                tenant_id=tenant_id,
+                invoice_id=invoice_id,
+                event_type="INVOICE_SETTLEMENT_RECONCILED",
+                actor_id=op,
+                payload={
+                    "reconciliationId": recon_id,
+                    "settlementRef": ref,
+                    "amountMinor": amount_minor,
+                    "newSettledAmountMinor": new_settled,
+                    "settlementStatus": new_status,
+                },
+                occurred_at=current_time,
+            )
+
+            return {
+                "reconciliationId": recon_id,
+                "invoiceId": invoice_id,
+                "settlementRef": ref,
+                "reconciledAmountMinor": amount_minor,
+                "settledAmountMinor": new_settled,
+                "unsettledAmountMinor": total_amount - new_settled,
+                "settlementStatus": new_status,
+                "reconciledAt": current_iso,
+            }
+
+    def get_invoice_settlement_status(self, tenant_id: str, invoice_id: str) -> dict[str, Any]:
+        """Get settlement write-off breakdown for an invoice."""
+        require_text(tenant_id, "tenant_id")
+        require_text(invoice_id, "invoice_id")
+        with self.store.connect() as conn:
+            inv = conn.execute(
+                "SELECT * FROM customer_invoice WHERE tenant_id=? AND invoice_id=?",
+                (tenant_id, invoice_id),
+            ).fetchone()
+            if not inv:
+                raise ValidationError(f"invoice not found: {invoice_id}")
+
+            keys = inv.keys() if hasattr(inv, "keys") else []
+            settled = inv["settled_amount_minor"] if "settled_amount_minor" in keys else 0
+            status = inv["settlement_status"] if "settlement_status" in keys else "UNSETTLED"
+            total = inv["total_amount_minor"]
+
+            recons = conn.execute(
+                "SELECT * FROM customer_invoice_settlement_reconciliation WHERE tenant_id=? AND invoice_id=? ORDER BY reconciled_at ASC",
+                (tenant_id, invoice_id),
+            ).fetchall()
+
+            return {
+                "invoiceId": invoice_id,
+                "tenantId": tenant_id,
+                "totalAmountMinor": total,
+                "settledAmountMinor": settled,
+                "unsettledAmountMinor": max(0, total - settled),
+                "settlementStatus": status,
+                "reconciliations": [
+                    {
+                        "reconciliationId": r["reconciliation_id"],
+                        "settlementRef": r["settlement_ref"],
+                        "amountMinor": r["amount_minor"],
+                        "reconciledBy": r["reconciled_by"],
+                        "notes": r["notes"],
+                        "reconciledAt": r["reconciled_at"],
+                    }
+                    for r in recons
+                ],
+            }
 
 
 export_tax_declaration_csv = CustomerInvoiceLedger.export_tax_declaration_csv

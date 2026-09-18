@@ -441,6 +441,8 @@ CREATE TABLE IF NOT EXISTS customer_invoice (
   split_batch_id TEXT,
   split_index INTEGER NOT NULL DEFAULT 1,
   split_count INTEGER NOT NULL DEFAULT 1,
+  settled_amount_minor INTEGER NOT NULL DEFAULT 0,
+  settlement_status TEXT NOT NULL DEFAULT 'UNSETTLED' CHECK(settlement_status IN ('UNSETTLED', 'PARTIALLY_SETTLED', 'FULLY_SETTLED')),
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   UNIQUE(tenant_id, invoice_number)
@@ -630,3 +632,60 @@ CREATE TABLE IF NOT EXISTS customer_invoice_self_service (
 CREATE INDEX IF NOT EXISTS idx_self_service_token ON customer_invoice_self_service(session_token);
 CREATE INDEX IF NOT EXISTS idx_self_service_tenant_pi ON customer_invoice_self_service(tenant_id, payment_intent_id);
 CREATE INDEX IF NOT EXISTS idx_self_service_tenant_status ON customer_invoice_self_service(tenant_id, status);
+
+CREATE TABLE IF NOT EXISTS customer_invoice_payment_ref (
+  ref_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  invoice_id TEXT NOT NULL REFERENCES customer_invoice(invoice_id),
+  payment_intent_id TEXT NOT NULL,
+  invoiced_amount_minor INTEGER NOT NULL CHECK(invoiced_amount_minor >= 0),
+  created_at TEXT NOT NULL,
+  UNIQUE(tenant_id, invoice_id, payment_intent_id)
+);
+CREATE INDEX IF NOT EXISTS idx_inv_pay_ref_tenant_pi ON customer_invoice_payment_ref(tenant_id, payment_intent_id);
+
+CREATE TABLE IF NOT EXISTS customer_invoice_delivery (
+  delivery_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  invoice_id TEXT NOT NULL REFERENCES customer_invoice(invoice_id),
+  channel TEXT NOT NULL CHECK(channel IN ('EMAIL', 'SMS', 'WEBHOOK')),
+  destination TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('PENDING', 'SENT', 'DELIVERED', 'FAILED')),
+  attempts INTEGER NOT NULL DEFAULT 1,
+  error_message TEXT,
+  payload_digest TEXT,
+  sent_at TEXT,
+  delivered_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_inv_delivery_tenant_inv ON customer_invoice_delivery(tenant_id, invoice_id);
+
+CREATE TABLE IF NOT EXISTS customer_invoice_reimbursement (
+  reimbursement_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  invoice_id TEXT NOT NULL REFERENCES customer_invoice(invoice_id),
+  claim_id TEXT NOT NULL,
+  claimant TEXT NOT NULL,
+  department TEXT NOT NULL,
+  expense_category TEXT NOT NULL,
+  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
+  status TEXT NOT NULL CHECK(status IN ('SUBMITTED', 'APPROVED', 'REJECTED')),
+  claimed_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(tenant_id, invoice_id)
+);
+CREATE INDEX IF NOT EXISTS idx_inv_reimb_tenant_claim ON customer_invoice_reimbursement(tenant_id, claim_id);
+
+CREATE TABLE IF NOT EXISTS customer_invoice_settlement_reconciliation (
+  reconciliation_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  invoice_id TEXT NOT NULL REFERENCES customer_invoice(invoice_id),
+  settlement_ref TEXT NOT NULL,
+  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
+  reconciled_by TEXT NOT NULL,
+  notes TEXT,
+  reconciled_at TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_inv_settle_reconcile_tenant_inv ON customer_invoice_settlement_reconciliation(tenant_id, invoice_id);
+

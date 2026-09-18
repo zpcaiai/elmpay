@@ -18,6 +18,8 @@ from elmpay_runtime.invoice import (
     render_golden_tax_xml,
     render_invoice_batch_html,
     render_invoice_html,
+    render_invoice_ofd_manifest,
+    verify_invoice_ofd_manifest,
 )
 from elmpay_runtime.settlement import SettlementLedger, render_settlement_html
 from elmpay_runtime.dispute import DisputeLedger
@@ -335,6 +337,79 @@ def _parser() -> argparse.ArgumentParser:
     inv_sub.add_argument("--operator", required=True)
     inv_sub.add_argument("--tax-rate-bp", type=int, default=600)
     inv_sub.add_argument("--tax-classification-code", default="3040201010000000000")
+
+    inv_con = subcommands.add_parser("invoice-consolidate", help="consolidate multiple payment intents into a single invoice")
+    inv_con.add_argument("--database", type=Path, required=True)
+    inv_con.add_argument("--tenant", required=True)
+    inv_con.add_argument("--project", default="proj_default")
+    inv_con.add_argument("--payment-intents", required=True, help="comma-separated list of payment intent IDs")
+    inv_con.add_argument("--buyer-name", required=True)
+    inv_con.add_argument("--buyer-tax-id")
+    inv_con.add_argument("--buyer-type", default="enterprise")
+    inv_con.add_argument("--seller-name", required=True)
+    inv_con.add_argument("--seller-tax-number", required=True)
+    inv_con.add_argument("--operator", required=True)
+    inv_con.add_argument("--title")
+    inv_con.add_argument("--amounts-json", type=Path, help="optional JSON file mapping payment intent ID to minor amount")
+
+    inv_v4 = subcommands.add_parser("invoice-verify-four-elements", help="verify invoice against China 4-element matching rule")
+    inv_v4.add_argument("--database", type=Path, required=True)
+    inv_v4.add_argument("--tenant", required=True)
+    inv_v4.add_argument("--invoice-code", required=True)
+    inv_v4.add_argument("--invoice-number", required=True)
+    inv_v4.add_argument("--issued-date", required=True)
+    inv_v4.add_argument("--check-code-or-amount", required=True)
+    inv_v4.add_argument("--type", default="vat_electronic_normal")
+
+    inv_rmb = subcommands.add_parser("invoice-reimburse-claim", help="register invoice for expense reimbursement with anti-duplication")
+    inv_rmb.add_argument("--database", type=Path, required=True)
+    inv_rmb.add_argument("--tenant", required=True)
+    inv_rmb.add_argument("--invoice-id", required=True)
+    inv_rmb.add_argument("--claim-id", required=True)
+    inv_rmb.add_argument("--claimant", required=True)
+    inv_rmb.add_argument("--department", required=True)
+    inv_rmb.add_argument("--expense-category", required=True)
+    inv_rmb.add_argument("--amount-minor", type=int)
+
+    inv_rmb_st = subcommands.add_parser("invoice-reimburse-status", help="check reimbursement status of an invoice")
+    inv_rmb_st.add_argument("--database", type=Path, required=True)
+    inv_rmb_st.add_argument("--tenant", required=True)
+    inv_rmb_st.add_argument("--invoice-id", required=True)
+
+    inv_dlv = subcommands.add_parser("invoice-deliver", help="dispatch invoice across Email, SMS, and Webhook channels")
+    inv_dlv.add_argument("--database", type=Path, required=True)
+    inv_dlv.add_argument("--tenant", required=True)
+    inv_dlv.add_argument("--invoice-id", required=True)
+    inv_dlv.add_argument("--channels", required=True, help="comma-separated: EMAIL,SMS,WEBHOOK")
+    inv_dlv.add_argument("--email")
+    inv_dlv.add_argument("--sms")
+    inv_dlv.add_argument("--webhook")
+    inv_dlv.add_argument("--actor", default="system")
+
+    inv_dlv_st = subcommands.add_parser("invoice-deliver-status", help="get delivery history for an invoice")
+    inv_dlv_st.add_argument("--database", type=Path, required=True)
+    inv_dlv_st.add_argument("--tenant", required=True)
+    inv_dlv_st.add_argument("--invoice-id", required=True)
+
+    inv_rec = subcommands.add_parser("invoice-reconcile-settlement", help="reconcile invoice with incoming wire settlement write-off")
+    inv_rec.add_argument("--database", type=Path, required=True)
+    inv_rec.add_argument("--tenant", required=True)
+    inv_rec.add_argument("--invoice-id", required=True)
+    inv_rec.add_argument("--settlement-ref", required=True)
+    inv_rec.add_argument("--amount-minor", type=int, required=True)
+    inv_rec.add_argument("--operator", required=True)
+    inv_rec.add_argument("--notes", default="")
+
+    inv_rec_st = subcommands.add_parser("invoice-settlement-status", help="get invoice settlement reconciliation status")
+    inv_rec_st.add_argument("--database", type=Path, required=True)
+    inv_rec_st.add_argument("--tenant", required=True)
+    inv_rec_st.add_argument("--invoice-id", required=True)
+
+    inv_ofd = subcommands.add_parser("invoice-ofd-render", help="render China national standard GB/T 33190-2016 OFD manifest")
+    inv_ofd.add_argument("--database", type=Path, required=True)
+    inv_ofd.add_argument("--tenant", required=True)
+    inv_ofd.add_argument("--invoice-id", required=True)
+    inv_ofd.add_argument("--out", type=Path)
 
     stl_cfg = subcommands.add_parser("settlement-config", help="configure merchant settlement rules")
     stl_cfg.add_argument("--database", type=Path, required=True)
@@ -884,6 +959,116 @@ def main(argv: list[str] | None = None) -> int:
                 tax_classification_code=args.tax_classification_code,
             )
             _emit(invoice)
+            return 0
+        if args.command == "invoice-consolidate":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            pi_ids = [s.strip() for s in args.payment_intents.split(",") if s.strip()]
+            buyer = {
+                "buyerType": args.buyer_type,
+                "buyerName": args.buyer_name,
+                "buyerTaxNumber": args.buyer_tax_id,
+            }
+            seller = {
+                "sellerName": args.seller_name,
+                "sellerTaxNumber": args.seller_tax_number,
+            }
+            amounts_map = None
+            if args.amounts_json:
+                amounts_map = read_json(args.amounts_json)
+            inv = ledger.consolidate_and_apply_invoice(
+                tenant_id=args.tenant,
+                project_id=args.project,
+                payment_intent_ids=pi_ids,
+                buyer_info=buyer,
+                seller_info=seller,
+                invoice_title=args.title,
+                payment_amounts_minor=amounts_map,
+                operator=args.operator,
+            )
+            _emit(inv)
+            return 0
+        if args.command == "invoice-verify-four-elements":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            res = ledger.verify_invoice_four_elements(
+                tenant_id=args.tenant,
+                invoice_code=args.invoice_code,
+                invoice_number=args.invoice_number,
+                issued_date=args.issued_date,
+                check_code_or_amount=args.check_code_or_amount,
+                invoice_type=args.type,
+            )
+            _emit(res)
+            return 0 if res.get("verified") else 1
+        if args.command == "invoice-reimburse-claim":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            res = ledger.register_invoice_reimbursement(
+                tenant_id=args.tenant,
+                invoice_id=args.invoice_id,
+                claim_id=args.claim_id,
+                claimant=args.claimant,
+                department=args.department,
+                expense_category=args.expense_category,
+                amount_minor=args.amount_minor,
+            )
+            _emit(res)
+            return 0
+        if args.command == "invoice-reimburse-status":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            res = ledger.get_reimbursement_status(args.tenant, args.invoice_id)
+            _emit(res)
+            return 0
+        if args.command == "invoice-deliver":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            ch_list = [s.strip() for s in args.channels.split(",") if s.strip()]
+            dests = {}
+            if args.email:
+                dests["EMAIL"] = args.email
+            if args.sms:
+                dests["SMS"] = args.sms
+            if args.webhook:
+                dests["WEBHOOK"] = args.webhook
+            res = ledger.deliver_invoice(
+                tenant_id=args.tenant,
+                invoice_id=args.invoice_id,
+                channels=ch_list,
+                destinations=dests,
+                actor=args.actor,
+            )
+            _emit({"invoiceId": args.invoice_id, "deliveries": res})
+            return 0
+        if args.command == "invoice-deliver-status":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            res = ledger.get_invoice_delivery_history(args.tenant, args.invoice_id)
+            _emit({"invoiceId": args.invoice_id, "history": res})
+            return 0
+        if args.command == "invoice-reconcile-settlement":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            res = ledger.reconcile_invoice_settlement(
+                tenant_id=args.tenant,
+                invoice_id=args.invoice_id,
+                settlement_ref=args.settlement_ref,
+                amount_minor=args.amount_minor,
+                operator=args.operator,
+                notes=args.notes,
+            )
+            _emit(res)
+            return 0
+        if args.command == "invoice-settlement-status":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            res = ledger.get_invoice_settlement_status(args.tenant, args.invoice_id)
+            _emit(res)
+            return 0
+        if args.command == "invoice-ofd-render":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            inv = ledger.get_invoice(args.tenant, args.invoice_id)
+            if not inv:
+                raise ValidationError(f"invoice not found: {args.invoice_id}")
+            content = render_invoice_ofd_manifest(inv)
+            if args.out:
+                args.out.write_text(content, encoding="utf-8")
+                _emit({"tenantId": args.tenant, "invoiceId": args.invoice_id, "rendered": True, "outPath": str(args.out)})
+            else:
+                print(content)
             return 0
         if args.command == "settlement-config":
             ledger = SettlementLedger(str(args.database))

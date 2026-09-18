@@ -11,8 +11,10 @@ from .invoice import (
     render_golden_tax_xml,
     render_invoice_batch_html,
     render_invoice_html,
+    render_invoice_ofd_manifest,
     validate_buyer_info,
     validate_tax_classification_code,
+    verify_invoice_ofd_manifest,
 )
 from .settlement import SettlementLedger, render_settlement_html
 from .dispute import DisputeLedger
@@ -29,8 +31,10 @@ __all__ = [
     "render_golden_tax_xml",
     "render_invoice_batch_html",
     "render_invoice_html",
+    "render_invoice_ofd_manifest",
     "validate_buyer_info",
     "validate_tax_classification_code",
+    "verify_invoice_ofd_manifest",
     "SettlementLedger",
     "render_settlement_html",
     "DisputeLedger",
