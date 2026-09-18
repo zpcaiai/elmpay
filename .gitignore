@@ -34,3 +34,4 @@ _to_delete/
 *.bundle
 bin/
 .codesight/
+compose.override.yaml

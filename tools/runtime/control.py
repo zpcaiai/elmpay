@@ -41,6 +41,8 @@ from elmpay_runtime.marketplace_escrow import MarketplaceEscrowManager
 from elmpay_runtime.statement_recon import StatementReconciliationEngine
 from elmpay_runtime.mandates_dunning import MandatesDunningEngine
 from elmpay_runtime.aml_sanctions import AmlSanctionsEngine
+from elmpay_runtime.subscription_proration import SubscriptionProrationEngine
+from elmpay_runtime.financial_ledger import FinancialDoubleEntryLedger
 from elmpay_runtime.durable import DurableStore
 from elmpay_runtime.external_evidence import (
     validate_external_evidence,
@@ -835,6 +837,51 @@ def _parser() -> argparse.ArgumentParser:
     am_st.add_argument("--customer-id", required=True)
     am_st.add_argument("--transactions", type=Path, required=True)
     am_st.add_argument("--threshold-minor", type=int, default=5000000)
+
+    # Subscriptions & Proration
+    sub_pc = subcommands.add_parser("subscription-plan-create", help="create recurring subscription plan")
+    sub_pc.add_argument("--database", type=Path, required=True)
+    sub_pc.add_argument("--tenant", required=True)
+    sub_pc.add_argument("--code", required=True)
+    sub_pc.add_argument("--name", required=True)
+    sub_pc.add_argument("--interval", default="MONTHLY", choices=["MONTHLY", "QUARTERLY", "ANNUAL"])
+    sub_pc.add_argument("--amount-minor", type=int, required=True)
+    sub_pc.add_argument("--currency", default="CNY")
+
+    sub_cr = subcommands.add_parser("subscription-create", help="subscribe customer to a plan")
+    sub_cr.add_argument("--database", type=Path, required=True)
+    sub_cr.add_argument("--tenant", required=True)
+    sub_cr.add_argument("--customer-id", required=True)
+    sub_cr.add_argument("--plan-id", required=True)
+    sub_cr.add_argument("--start", required=True)
+    sub_cr.add_argument("--end", required=True)
+
+    sub_cp = subcommands.add_parser("subscription-change-plan", help="prorated upgrade or downgrade of subscription")
+    sub_cp.add_argument("--database", type=Path, required=True)
+    sub_cp.add_argument("--tenant", required=True)
+    sub_cp.add_argument("--subscription-id", required=True)
+    sub_cp.add_argument("--new-plan-id", required=True)
+    sub_cp.add_argument("--effective-at")
+
+    sub_cb = subcommands.add_parser("subscription-credit-balance", help="query customer wallet credit balance")
+    sub_cb.add_argument("--database", type=Path, required=True)
+    sub_cb.add_argument("--tenant", required=True)
+    sub_cb.add_argument("--customer-id", required=True)
+    sub_cb.add_argument("--currency", default="CNY")
+
+    # Double-Entry Ledger
+    led_jp = subcommands.add_parser("ledger-journal-post", help="post balanced double-entry journal entry")
+    led_jp.add_argument("--database", type=Path, required=True)
+    led_jp.add_argument("--tenant", required=True)
+    led_jp.add_argument("--type", required=True)
+    led_jp.add_argument("--source-event", required=True)
+    led_jp.add_argument("--currency", default="CNY")
+    led_jp.add_argument("--legs", type=Path, required=True, help="path to JSON file containing leg items")
+
+    led_ba = subcommands.add_parser("ledger-balance-audit", help="verify ledger hash chain and trial balance")
+    led_ba.add_argument("--database", type=Path, required=True)
+    led_ba.add_argument("--tenant", required=True)
+    led_ba.add_argument("--as-of")
 
     stl_cfg = subcommands.add_parser("settlement-config", help="configure merchant settlement rules")
     stl_cfg.add_argument("--database", type=Path, required=True)
@@ -2099,6 +2146,77 @@ def main(argv: list[str] | None = None) -> int:
             )
             _emit(res)
             return 0
+
+        # Subscriptions & Proration Handlers
+        if args.command == "subscription-plan-create":
+            store = DurableStore(str(args.database))
+            engine = SubscriptionProrationEngine(store)
+            res = engine.create_plan(
+                tenant_id=args.tenant,
+                plan_code=args.code,
+                name=args.name,
+                billing_interval=args.interval,
+                amount_minor=args.amount_minor,
+                currency=args.currency,
+            )
+            _emit(res)
+            return 0
+        if args.command == "subscription-create":
+            store = DurableStore(str(args.database))
+            engine = SubscriptionProrationEngine(store)
+            res = engine.create_subscription(
+                tenant_id=args.tenant,
+                customer_id=args.customer_id,
+                plan_id=args.plan_id,
+                current_period_start=args.start,
+                current_period_end=args.end,
+            )
+            _emit(res)
+            return 0
+        if args.command == "subscription-change-plan":
+            store = DurableStore(str(args.database))
+            engine = SubscriptionProrationEngine(store)
+            res = engine.change_plan(
+                tenant_id=args.tenant,
+                subscription_id=args.subscription_id,
+                new_plan_id=args.new_plan_id,
+                effective_at=args.effective_at,
+            )
+            _emit(res)
+            return 0
+        if args.command == "subscription-credit-balance":
+            store = DurableStore(str(args.database))
+            engine = SubscriptionProrationEngine(store)
+            bal = engine.get_customer_credit_balance(
+                tenant_id=args.tenant,
+                customer_id=args.customer_id,
+                currency=args.currency,
+            )
+            _emit({"tenantId": args.tenant, "customerId": args.customer_id, "currency": args.currency, "balanceMinor": bal})
+            return 0
+
+        # Double-Entry Ledger Handlers
+        if args.command == "ledger-journal-post":
+            store = DurableStore(str(args.database))
+            ledger = FinancialDoubleEntryLedger(store)
+            legs_data = read_json(args.legs)
+            legs_list = legs_data if isinstance(legs_data, list) else legs_data.get("legs", [])
+            res = ledger.post_journal_entry(
+                tenant_id=args.tenant,
+                transaction_type=args.type,
+                source_event_id=args.source_event,
+                currency=args.currency,
+                legs=legs_list,
+            )
+            _emit(res)
+            return 0
+        if args.command == "ledger-balance-audit":
+            store = DurableStore(str(args.database))
+            ledger = FinancialDoubleEntryLedger(store)
+            integrity = ledger.verify_chain_integrity(args.tenant)
+            tb = ledger.generate_trial_balance(args.tenant, as_of=args.as_of)
+            _emit({"tenantId": args.tenant, "integrity": integrity, "trialBalance": tb})
+            return 0 if (integrity["valid"] and tb["isBalanced"]) else 1
 
         if args.command == "settlement-config":
             ledger = SettlementLedger(str(args.database))

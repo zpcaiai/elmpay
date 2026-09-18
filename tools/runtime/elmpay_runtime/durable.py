@@ -920,8 +920,116 @@ class DurableStore:
             "CREATE INDEX IF NOT EXISTS idx_aml_sar_cust ON aml_suspicious_activity_log(tenant_id, customer_id)"
         )
 
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS subscription_plan ("
+            "  plan_id TEXT PRIMARY KEY,"
+            "  tenant_id TEXT NOT NULL,"
+            "  plan_code TEXT NOT NULL,"
+            "  name TEXT NOT NULL,"
+            "  billing_interval TEXT NOT NULL CHECK(billing_interval IN ('MONTHLY', 'QUARTERLY', 'ANNUAL')),"
+            "  amount_minor INTEGER NOT NULL CHECK(amount_minor >= 0),"
+            "  currency TEXT NOT NULL,"
+            "  created_at TEXT NOT NULL,"
+            "  is_active INTEGER NOT NULL DEFAULT 1,"
+            "  UNIQUE(tenant_id, plan_code)"
+            ")"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sub_plan_code ON subscription_plan(tenant_id, plan_code)"
+        )
 
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS customer_subscription ("
+            "  subscription_id TEXT PRIMARY KEY,"
+            "  tenant_id TEXT NOT NULL,"
+            "  customer_id TEXT NOT NULL,"
+            "  plan_id TEXT NOT NULL REFERENCES subscription_plan(plan_id),"
+            "  status TEXT NOT NULL CHECK(status IN ('ACTIVE', 'PAUSED', 'CANCELED')),"
+            "  current_period_start TEXT NOT NULL,"
+            "  current_period_end TEXT NOT NULL,"
+            "  cancel_at_period_end INTEGER NOT NULL DEFAULT 0,"
+            "  created_at TEXT NOT NULL,"
+            "  updated_at TEXT NOT NULL"
+            ")"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_cust_sub ON customer_subscription(tenant_id, customer_id, status)"
+        )
 
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS subscription_proration_adjustment ("
+            "  adjustment_id TEXT PRIMARY KEY,"
+            "  tenant_id TEXT NOT NULL,"
+            "  subscription_id TEXT NOT NULL REFERENCES customer_subscription(subscription_id),"
+            "  old_plan_id TEXT NOT NULL,"
+            "  new_plan_id TEXT NOT NULL,"
+            "  change_type TEXT NOT NULL CHECK(change_type IN ('UPGRADE', 'DOWNGRADE', 'CANCEL_PRORATED')),"
+            "  unused_old_credit_minor INTEGER NOT NULL CHECK(unused_old_credit_minor >= 0),"
+            "  new_plan_charge_minor INTEGER NOT NULL CHECK(new_plan_charge_minor >= 0),"
+            "  net_payable_minor INTEGER NOT NULL,"
+            "  credit_balance_applied_minor INTEGER NOT NULL DEFAULT 0,"
+            "  final_charge_due_minor INTEGER NOT NULL CHECK(final_charge_due_minor >= 0),"
+            "  credit_refunded_to_wallet_minor INTEGER NOT NULL CHECK(credit_refunded_to_wallet_minor >= 0),"
+            "  currency TEXT NOT NULL,"
+            "  adjusted_at TEXT NOT NULL"
+            ")"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_sub_adj ON subscription_proration_adjustment(tenant_id, subscription_id)"
+        )
+
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS customer_credit_ledger ("
+            "  credit_id TEXT PRIMARY KEY,"
+            "  tenant_id TEXT NOT NULL,"
+            "  customer_id TEXT NOT NULL,"
+            "  entry_type TEXT NOT NULL CHECK(entry_type IN ('CREDIT_GRANTED', 'CREDIT_CONSUMED', 'REFUND_TO_ORIGINAL')),"
+            "  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),"
+            "  currency TEXT NOT NULL,"
+            "  reason TEXT NOT NULL,"
+            "  reference_id TEXT,"
+            "  posted_at TEXT NOT NULL"
+            ")"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_cust_credit ON customer_credit_ledger(tenant_id, customer_id, currency)"
+        )
+
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS financial_double_entry_journal ("
+            "  entry_id TEXT PRIMARY KEY,"
+            "  tenant_id TEXT NOT NULL,"
+            "  sequence_num INTEGER NOT NULL CHECK(sequence_num > 0),"
+            "  prev_entry_hash TEXT NOT NULL CHECK(length(prev_entry_hash)=64),"
+            "  entry_hash TEXT NOT NULL CHECK(length(entry_hash)=64),"
+            "  transaction_type TEXT NOT NULL,"
+            "  source_event_id TEXT NOT NULL,"
+            "  currency TEXT NOT NULL,"
+            "  total_amount_minor INTEGER NOT NULL CHECK(total_amount_minor > 0),"
+            "  posted_at TEXT NOT NULL,"
+            "  UNIQUE(tenant_id, sequence_num),"
+            "  UNIQUE(tenant_id, source_event_id)"
+            ")"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_fin_journal_tenant_seq ON financial_double_entry_journal(tenant_id, sequence_num)"
+        )
+
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS financial_journal_leg ("
+            "  leg_id TEXT PRIMARY KEY,"
+            "  entry_id TEXT NOT NULL REFERENCES financial_double_entry_journal(entry_id),"
+            "  account_code TEXT NOT NULL,"
+            "  direction TEXT NOT NULL CHECK(direction IN ('DEBIT', 'CREDIT')),"
+            "  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0)"
+            ")"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_fin_leg_entry ON financial_journal_leg(entry_id)"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_fin_leg_account ON financial_journal_leg(account_code)"
+        )
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(
             self.database,
