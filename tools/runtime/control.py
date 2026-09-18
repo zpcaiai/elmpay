@@ -38,6 +38,9 @@ from elmpay_runtime.smart_routing import SmartRoutingEngine
 from elmpay_runtime.tiered_pricing import TieredPricingEngine
 from elmpay_runtime.webhook_engine import EnterpriseWebhookDispatcher, verify_webhook_signature
 from elmpay_runtime.marketplace_escrow import MarketplaceEscrowManager
+from elmpay_runtime.statement_recon import StatementReconciliationEngine
+from elmpay_runtime.mandates_dunning import MandatesDunningEngine
+from elmpay_runtime.aml_sanctions import AmlSanctionsEngine
 from elmpay_runtime.durable import DurableStore
 from elmpay_runtime.external_evidence import (
     validate_external_evidence,
@@ -754,6 +757,84 @@ def _parser() -> argparse.ArgumentParser:
     mp_sr.add_argument("--tenant", required=True)
     mp_sr.add_argument("--order-id", required=True)
     mp_sr.add_argument("--refund-amount-minor", type=int, required=True)
+
+    # Reconciliation Engine
+    rc_bi = subcommands.add_parser("recon-batch-ingest", help="ingest external channel statement batch")
+    rc_bi.add_argument("--database", type=Path, required=True)
+    rc_bi.add_argument("--tenant", required=True)
+    rc_bi.add_argument("--channel", required=True)
+    rc_bi.add_argument("--date", required=True)
+    rc_bi.add_argument("--file-name", required=True)
+    rc_bi.add_argument("--items", type=Path, required=True)
+    rc_bi.add_argument("--currency", default="CNY")
+
+    rc_tw = subcommands.add_parser("recon-run-three-way", help="execute three-way cross reconciliation")
+    rc_tw.add_argument("--database", type=Path, required=True)
+    rc_tw.add_argument("--tenant", required=True)
+    rc_tw.add_argument("--batch-id", required=True)
+    rc_tw.add_argument("--internal-txns", type=Path, required=True)
+    rc_tw.add_argument("--bank-clearing", type=Path)
+
+    rc_ad = subcommands.add_parser("recon-adjust-discrepancy", help="propose and approve reconciliation discrepancy adjustment")
+    rc_ad.add_argument("--database", type=Path, required=True)
+    rc_ad.add_argument("--tenant", required=True)
+    rc_ad.add_argument("--discrepancy-id", required=True)
+    rc_ad.add_argument("--action", required=True, choices=["WRITE_OFF", "MANUAL_SETTLE", "DISPUTE_CLAIM"])
+    rc_ad.add_argument("--maker-id", required=True)
+    rc_ad.add_argument("--checker-id")
+    rc_ad.add_argument("--notes", default="")
+
+    # Mandates & Dunning
+    mn_cr = subcommands.add_parser("mandate-create", help="register recurring debit mandate agreement")
+    mn_cr.add_argument("--database", type=Path, required=True)
+    mn_cr.add_argument("--tenant", required=True)
+    mn_cr.add_argument("--customer-id", required=True)
+    mn_cr.add_argument("--payment-method", required=True)
+    mn_cr.add_argument("--type", required=True, choices=["SEPA_DIRECT_DEBIT", "BACS_DIRECT_DEBIT", "CHINA_BANK_DEBIT", "CARD_RECURRING_TOKEN"])
+    mn_cr.add_argument("--max-amount", type=int, required=True)
+    mn_cr.add_argument("--currency", default="CNY")
+
+    mn_ch = subcommands.add_parser("mandate-charge", help="execute recurring charge against active customer mandate")
+    mn_ch.add_argument("--database", type=Path, required=True)
+    mn_ch.add_argument("--tenant", required=True)
+    mn_ch.add_argument("--mandate-id", required=True)
+    mn_ch.add_argument("--invoice-id", required=True)
+    mn_ch.add_argument("--amount-minor", type=int, required=True)
+
+    dn_ev = subcommands.add_parser("dunning-evaluate-failure", help="triage soft vs hard decline and schedule dunning")
+    dn_ev.add_argument("--database", type=Path, required=True)
+    dn_ev.add_argument("--tenant", required=True)
+    dn_ev.add_argument("--mandate-id", required=True)
+    dn_ev.add_argument("--invoice-id", required=True)
+    dn_ev.add_argument("--decline-code", required=True)
+
+    dn_rt = subcommands.add_parser("dunning-retry", help="process dunning retry attempt")
+    dn_rt.add_argument("--database", type=Path, required=True)
+    dn_rt.add_argument("--tenant", required=True)
+    dn_rt.add_argument("--dunning-id", required=True)
+    dn_rt.add_argument("--outcome", default="SUCCESS", choices=["SUCCESS", "FAILED"])
+
+    # AML & Sanctions
+    am_sc = subcommands.add_parser("aml-sanctions-screen", help="screen entity against sanctions watchlist")
+    am_sc.add_argument("--database", type=Path, required=True)
+    am_sc.add_argument("--tenant", required=True)
+    am_sc.add_argument("--entity-name", required=True)
+    am_sc.add_argument("--screening-type", default="SANCTIONS", choices=["SANCTIONS", "PEP", "ADVERSE_MEDIA"])
+
+    am_lt = subcommands.add_parser("aml-large-tx-check", help="evaluate transaction against AML reporting thresholds")
+    am_lt.add_argument("--database", type=Path, required=True)
+    am_lt.add_argument("--tenant", required=True)
+    am_lt.add_argument("--txn-id", required=True)
+    am_lt.add_argument("--amount-minor", type=int, required=True)
+    am_lt.add_argument("--customer-name", required=True)
+    am_lt.add_argument("--threshold-minor", type=int, default=5000000)
+
+    am_st = subcommands.add_parser("aml-structuring-detect", help="detect structuring smurfing anomaly patterns")
+    am_st.add_argument("--database", type=Path, required=True)
+    am_st.add_argument("--tenant", required=True)
+    am_st.add_argument("--customer-id", required=True)
+    am_st.add_argument("--transactions", type=Path, required=True)
+    am_st.add_argument("--threshold-minor", type=int, default=5000000)
 
     stl_cfg = subcommands.add_parser("settlement-config", help="configure merchant settlement rules")
     stl_cfg.add_argument("--database", type=Path, required=True)
@@ -1882,6 +1963,143 @@ def main(argv: list[str] | None = None) -> int:
             res = mgr.refund_split_order(args.tenant, args.order_id, args.refund_amount_minor)
             _emit(res)
             return 0
+
+        # Reconciliation Handlers
+        if args.command == "recon-batch-ingest":
+            store = DurableStore(str(args.database))
+            engine = StatementReconciliationEngine(store)
+            items_data = read_json(args.items)
+            items = items_data if isinstance(items_data, list) else items_data.get("items", [])
+            res = engine.ingest_statement(
+                tenant_id=args.tenant,
+                channel_id=args.channel,
+                statement_date=args.date,
+                file_name=args.file_name,
+                items=items,
+                currency=args.currency,
+            )
+            _emit(res)
+            return 0
+        if args.command == "recon-run-three-way":
+            store = DurableStore(str(args.database))
+            engine = StatementReconciliationEngine(store)
+            int_txns = read_json(args.internal_txns)
+            int_list = int_txns if isinstance(int_txns, list) else int_txns.get("transactions", [])
+            bank_clearing = read_json(args.bank_clearing) if args.bank_clearing else None
+            bank_list = (bank_clearing if isinstance(bank_clearing, list) else bank_clearing.get("clearing", [])) if bank_clearing else None
+            res = engine.reconcile_three_way(
+                tenant_id=args.tenant,
+                batch_id=args.batch_id,
+                internal_transactions=int_list,
+                bank_clearing_records=bank_list,
+            )
+            _emit(res)
+            return 0
+        if args.command == "recon-adjust-discrepancy":
+            store = DurableStore(str(args.database))
+            engine = StatementReconciliationEngine(store)
+            p_res = engine.propose_discrepancy_adjustment(
+                tenant_id=args.tenant,
+                discrepancy_id=args.discrepancy_id,
+                proposed_action=args.action,
+                maker_id=args.maker_id,
+                notes=args.notes,
+            )
+            if args.checker_id:
+                res = engine.approve_discrepancy_adjustment(
+                    tenant_id=args.tenant,
+                    discrepancy_id=args.discrepancy_id,
+                    checker_id=args.checker_id,
+                )
+                _emit(res)
+            else:
+                _emit(p_res)
+            return 0
+
+        # Mandates & Dunning Handlers
+        if args.command == "mandate-create":
+            store = DurableStore(str(args.database))
+            engine = MandatesDunningEngine(store)
+            res = engine.register_mandate(
+                tenant_id=args.tenant,
+                customer_id=args.customer_id,
+                payment_method_ref=args.payment_method,
+                mandate_type=args.type,
+                max_amount_per_charge_minor=args.max_amount,
+                currency=args.currency,
+            )
+            _emit(res)
+            return 0
+        if args.command == "mandate-charge":
+            store = DurableStore(str(args.database))
+            engine = MandatesDunningEngine(store)
+            res = engine.execute_mandate_charge(
+                tenant_id=args.tenant,
+                mandate_id=args.mandate_id,
+                invoice_id=args.invoice_id,
+                amount_minor=args.amount_minor,
+            )
+            _emit(res)
+            return 0
+        if args.command == "dunning-evaluate-failure":
+            store = DurableStore(str(args.database))
+            engine = MandatesDunningEngine(store)
+            res = engine.evaluate_charge_failure(
+                tenant_id=args.tenant,
+                mandate_id=args.mandate_id,
+                invoice_id=args.invoice_id,
+                decline_code=args.decline_code,
+            )
+            _emit(res)
+            return 0
+        if args.command == "dunning-retry":
+            store = DurableStore(str(args.database))
+            engine = MandatesDunningEngine(store)
+            res = engine.process_dunning_retry(
+                tenant_id=args.tenant,
+                dunning_id=args.dunning_id,
+                simulate_outcome=args.outcome,
+            )
+            _emit(res)
+            return 0
+
+        # AML & Sanctions Handlers
+        if args.command == "aml-sanctions-screen":
+            store = DurableStore(str(args.database))
+            engine = AmlSanctionsEngine(store)
+            res = engine.screen_entity(
+                tenant_id=args.tenant,
+                entity_name=args.entity_name,
+                screening_type=args.screening_type,
+            )
+            _emit(res)
+            return 0
+        if args.command == "aml-large-tx-check":
+            store = DurableStore(str(args.database))
+            engine = AmlSanctionsEngine(store)
+            res = engine.evaluate_large_transaction(
+                tenant_id=args.tenant,
+                transaction_id=args.txn_id,
+                amount_minor=args.amount_minor,
+                customer_name=args.customer_name,
+                threshold_minor=args.threshold_minor,
+            )
+            _emit(res)
+            return 0
+        if args.command == "aml-structuring-detect":
+            store = DurableStore(str(args.database))
+            engine = AmlSanctionsEngine(store)
+            txns_data = read_json(args.transactions)
+            txns = txns_data if isinstance(txns_data, list) else txns_data.get("transactions", [])
+            res = engine.detect_structuring_activity(
+                tenant_id=args.tenant,
+                customer_id=args.customer_id,
+                transactions=txns,
+                threshold_minor=args.threshold_minor,
+            )
+            _emit(res)
+            return 0
+
         if args.command == "settlement-config":
             ledger = SettlementLedger(str(args.database))
             cfg = ledger.configure_merchant_settlement(

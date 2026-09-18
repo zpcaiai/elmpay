@@ -1141,5 +1141,138 @@ CREATE TABLE IF NOT EXISTS marketplace_split_recipient (
 );
 CREATE INDEX IF NOT EXISTS idx_split_recip_order ON marketplace_split_recipient(order_id);
 
+CREATE TABLE IF NOT EXISTS recon_statement_batch (
+  batch_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  channel_id TEXT NOT NULL,
+  statement_date TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  file_digest TEXT NOT NULL CHECK(length(file_digest)=64),
+  total_records INTEGER NOT NULL DEFAULT 0 CHECK(total_records >= 0),
+  total_amount_minor INTEGER NOT NULL DEFAULT 0,
+  currency TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('INGESTED', 'RECONCILED', 'DISCREPANCY_FOUND')),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_recon_batch_tenant ON recon_statement_batch(tenant_id, channel_id, statement_date);
+
+CREATE TABLE IF NOT EXISTS recon_statement_item (
+  item_id TEXT PRIMARY KEY,
+  batch_id TEXT NOT NULL REFERENCES recon_statement_batch(batch_id),
+  tenant_id TEXT NOT NULL,
+  channel_txn_id TEXT NOT NULL,
+  internal_txn_id TEXT,
+  amount_minor INTEGER NOT NULL,
+  fee_minor INTEGER NOT NULL DEFAULT 0,
+  currency TEXT NOT NULL,
+  txn_type TEXT NOT NULL CHECK(txn_type IN ('PAYMENT', 'REFUND', 'DISPUTE_DEBIT', 'FEE')),
+  settled_at TEXT NOT NULL,
+  recon_status TEXT NOT NULL CHECK(recon_status IN ('UNMATCHED', 'MATCHED', 'DISCREPANCY')),
+  discrepancy_reason TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_recon_item_lookup ON recon_statement_item(tenant_id, channel_txn_id, internal_txn_id);
+
+CREATE TABLE IF NOT EXISTS recon_discrepancy_journal (
+  discrepancy_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  batch_id TEXT NOT NULL,
+  item_id TEXT,
+  internal_txn_id TEXT,
+  channel_txn_id TEXT,
+  discrepancy_type TEXT NOT NULL CHECK(discrepancy_type IN ('UNILATERAL_PLATFORM_MISSING', 'UNILATERAL_CHANNEL_MISSING', 'AMOUNT_MISMATCH', 'FEE_DISCREPANCY')),
+  delta_amount_minor INTEGER NOT NULL,
+  currency TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('OPEN', 'PENDING_APPROVAL', 'RESOLVED', 'WRITTEN_OFF')),
+  proposed_action TEXT,
+  maker_id TEXT,
+  checker_id TEXT,
+  resolution_notes TEXT,
+  created_at TEXT NOT NULL,
+  resolved_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_recon_disc_tenant ON recon_discrepancy_journal(tenant_id, status);
+
+CREATE TABLE IF NOT EXISTS recurring_mandate_agreement (
+  mandate_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  customer_id TEXT NOT NULL,
+  payment_method_ref TEXT NOT NULL,
+  mandate_type TEXT NOT NULL CHECK(mandate_type IN ('SEPA_DIRECT_DEBIT', 'BACS_DIRECT_DEBIT', 'CHINA_BANK_DEBIT', 'CARD_RECURRING_TOKEN')),
+  status TEXT NOT NULL CHECK(status IN ('PENDING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'REVOKED')),
+  max_amount_per_charge_minor INTEGER NOT NULL CHECK(max_amount_per_charge_minor > 0),
+  currency TEXT NOT NULL,
+  signature_digest TEXT NOT NULL CHECK(length(signature_digest)=64),
+  signed_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_mandate_cust ON recurring_mandate_agreement(tenant_id, customer_id);
+
+CREATE TABLE IF NOT EXISTS dunning_process_schedule (
+  dunning_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  mandate_id TEXT NOT NULL REFERENCES recurring_mandate_agreement(mandate_id),
+  invoice_id TEXT NOT NULL,
+  attempt_count INTEGER NOT NULL DEFAULT 1 CHECK(attempt_count >= 1),
+  max_attempts INTEGER NOT NULL DEFAULT 4 CHECK(max_attempts >= 1),
+  decline_type TEXT NOT NULL CHECK(decline_type IN ('SOFT', 'HARD')),
+  decline_code TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('IN_PROGRESS', 'RECOVERED', 'EXHAUSTED')),
+  next_retry_at TEXT,
+  last_notified_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dunning_status ON dunning_process_schedule(tenant_id, status, next_retry_at);
+
+CREATE TABLE IF NOT EXISTS aml_sanctions_watchlist (
+  entry_id TEXT PRIMARY KEY,
+  list_source TEXT NOT NULL CHECK(list_source IN ('OFAC_SDN', 'UN_CONSOLIDATED', 'EU_SANCTIONS', 'MOFCOM_CHINA')),
+  entity_name TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK(entity_type IN ('INDIVIDUAL', 'ORGANIZATION', 'VESSEL')),
+  country_iso TEXT NOT NULL,
+  aliases_csv TEXT,
+  added_at TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1
+);
+CREATE INDEX IF NOT EXISTS idx_aml_watchlist_name ON aml_sanctions_watchlist(entity_name);
+
+CREATE TABLE IF NOT EXISTS aml_screening_log (
+  screening_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  entity_name TEXT NOT NULL,
+  screening_type TEXT NOT NULL CHECK(screening_type IN ('SANCTIONS', 'PEP', 'ADVERSE_MEDIA')),
+  match_confidence INTEGER NOT NULL CHECK(match_confidence >= 0 AND match_confidence <= 100),
+  matched_entry_id TEXT,
+  decision TEXT NOT NULL CHECK(decision IN ('CLEAR', 'POTENTIAL_MATCH', 'CONFIRMED_BLOCK')),
+  screened_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_aml_screen_tenant ON aml_screening_log(tenant_id, decision);
+
+CREATE TABLE IF NOT EXISTS aml_large_transaction_report (
+  report_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  transaction_id TEXT NOT NULL,
+  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
+  currency TEXT NOT NULL,
+  customer_name TEXT NOT NULL,
+  threshold_minor INTEGER NOT NULL,
+  report_status TEXT NOT NULL CHECK(report_status IN ('RECORDED', 'FILED', 'EXEMPT')),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_aml_large_tx ON aml_large_transaction_report(tenant_id, transaction_id);
+
+CREATE TABLE IF NOT EXISTS aml_suspicious_activity_log (
+  sar_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  customer_id TEXT NOT NULL,
+  indicator TEXT NOT NULL CHECK(indicator IN ('STRUCTURING_SMURFING', 'RAPID_VELOCITY', 'HIGH_RISK_GEO')),
+  details_json TEXT NOT NULL,
+  flagged_at TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('FLAGGED', 'INVESTIGATING', 'CLEARED', 'REPORTED_FIU'))
+);
+CREATE INDEX IF NOT EXISTS idx_aml_sar_cust ON aml_suspicious_activity_log(tenant_id, customer_id);
+
+
 
 
