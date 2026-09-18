@@ -402,3 +402,92 @@ CREATE TABLE IF NOT EXISTS commercial_audit_export (
   created_at TEXT NOT NULL,
   UNIQUE(tenant_id, period_start, period_end, manifest_digest)
 );
+
+CREATE TABLE IF NOT EXISTS customer_invoice (
+  invoice_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  payment_intent_id TEXT NOT NULL,
+  invoice_number TEXT NOT NULL,
+  invoice_code TEXT NOT NULL,
+  invoice_type TEXT NOT NULL CHECK(invoice_type IN ('vat_electronic_normal', 'vat_electronic_special', 'commercial_receipt')),
+  invoice_category TEXT NOT NULL CHECK(invoice_category IN ('blue', 'red')),
+  original_invoice_id TEXT REFERENCES customer_invoice(invoice_id),
+  status TEXT NOT NULL CHECK(status IN ('DRAFT', 'APPLIED', 'ISSUED', 'RED_NOTED', 'VOIDED', 'REJECTED')),
+  currency TEXT NOT NULL CHECK(length(currency) = 3),
+  untaxed_amount_minor INTEGER NOT NULL,
+  tax_amount_minor INTEGER NOT NULL,
+  total_amount_minor INTEGER NOT NULL,
+  buyer_type TEXT NOT NULL CHECK(buyer_type IN ('enterprise', 'individual', 'government')),
+  buyer_name TEXT NOT NULL,
+  buyer_tax_number TEXT,
+  buyer_address_phone TEXT,
+  buyer_bank_account TEXT,
+  recipient_email TEXT,
+  recipient_phone TEXT,
+  seller_name TEXT NOT NULL,
+  seller_tax_number TEXT NOT NULL,
+  seller_address_phone TEXT,
+  seller_bank_account TEXT,
+  operator TEXT NOT NULL,
+  checker TEXT,
+  payee TEXT,
+  issued_at TEXT,
+  voided_at TEXT,
+  verification_code TEXT,
+  download_url TEXT,
+  idempotency_key TEXT,
+  idempotency_payload_digest TEXT CHECK(idempotency_payload_digest IS NULL OR length(idempotency_payload_digest) = 64),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(tenant_id, invoice_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_customer_invoice_tenant_pi ON customer_invoice(tenant_id, payment_intent_id);
+CREATE INDEX IF NOT EXISTS idx_customer_invoice_tenant_status ON customer_invoice(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_customer_invoice_tenant_idempotency ON customer_invoice(tenant_id, idempotency_key);
+
+CREATE TABLE IF NOT EXISTS customer_invoice_item (
+  item_id TEXT PRIMARY KEY,
+  invoice_id TEXT NOT NULL REFERENCES customer_invoice(invoice_id),
+  item_name TEXT NOT NULL,
+  specification TEXT,
+  unit TEXT,
+  quantity INTEGER NOT NULL,
+  unit_price_minor INTEGER NOT NULL,
+  amount_minor INTEGER NOT NULL,
+  tax_rate_basis_points INTEGER NOT NULL CHECK(tax_rate_basis_points >= 0),
+  tax_amount_minor INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS customer_buyer_title (
+  title_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  buyer_type TEXT NOT NULL CHECK(buyer_type IN ('enterprise', 'individual', 'government')),
+  buyer_name TEXT NOT NULL,
+  buyer_tax_number TEXT,
+  buyer_address_phone TEXT,
+  buyer_bank_account TEXT,
+  recipient_email TEXT,
+  recipient_phone TEXT,
+  is_default INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS customer_invoice_audit (
+  audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id TEXT NOT NULL,
+  invoice_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  actor_id TEXT NOT NULL,
+  occurred_at TEXT NOT NULL,
+  payload_digest TEXT NOT NULL CHECK(length(payload_digest) = 64),
+  previous_digest TEXT CHECK(previous_digest IS NULL OR length(previous_digest) = 64),
+  event_digest TEXT NOT NULL CHECK(length(event_digest) = 64),
+  payload_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_customer_invoice_audit_tenant_inv ON customer_invoice_audit(tenant_id, invoice_id);
+
+

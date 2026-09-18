@@ -12,6 +12,7 @@ from elmpay_runtime.billing import calculate_invoice
 from elmpay_runtime.capacity import evaluate_capacity
 from elmpay_runtime.common import GateReport, ValidationError, read_json
 from elmpay_runtime.compliance import evaluate_vendor, evaluate_vulnerability_report
+from elmpay_runtime.invoice import CustomerInvoiceLedger
 from elmpay_runtime.external_evidence import (
     validate_external_evidence,
     validate_test_evidence_template,
@@ -149,7 +150,68 @@ def _parser() -> argparse.ArgumentParser:
     go_no_go.add_argument("--rollout-policy", type=Path, default=REPOSITORY_ROOT / "platform/rollout/policy.json")
     go_no_go.add_argument("--release-policy", type=Path, default=REPOSITORY_ROOT / "platform/compliance/required-release-gates.json")
     go_no_go.add_argument("--capacity-policy", type=Path, default=REPOSITORY_ROOT / "platform/observability/capacity.json")
+
+    inv_bal = subcommands.add_parser("invoice-balance", help="check remaining invoicable balance for a payment intent")
+    inv_bal.add_argument("--database", type=Path, required=True)
+    inv_bal.add_argument("--tenant", required=True)
+    inv_bal.add_argument("--payment-intent", required=True)
+    inv_bal.add_argument("--captured-minor", type=int, required=True)
+    inv_bal.add_argument("--refunded-minor", type=int, default=0)
+
+    inv_apply = subcommands.add_parser("invoice-apply", help="apply for an enterprise customer invoice")
+    inv_apply.add_argument("--database", type=Path, required=True)
+    inv_apply.add_argument("--request", type=Path, required=True)
+
+    inv_issue = subcommands.add_parser("invoice-issue", help="approve and issue an applied invoice")
+    inv_issue.add_argument("--database", type=Path, required=True)
+    inv_issue.add_argument("--tenant", required=True)
+    inv_issue.add_argument("--invoice-id", required=True)
+    inv_issue.add_argument("--actor", required=True)
+    inv_issue.add_argument("--checker")
+    inv_issue.add_argument("--payee")
+
+    inv_reject = subcommands.add_parser("invoice-reject", help="reject an applied invoice")
+    inv_reject.add_argument("--database", type=Path, required=True)
+    inv_reject.add_argument("--tenant", required=True)
+    inv_reject.add_argument("--invoice-id", required=True)
+    inv_reject.add_argument("--checker", required=True)
+    inv_reject.add_argument("--reason", required=True)
+
+    inv_red = subcommands.add_parser("invoice-red-note", help="issue a red note to reverse an issued invoice")
+    inv_red.add_argument("--database", type=Path, required=True)
+    inv_red.add_argument("--tenant", required=True)
+    inv_red.add_argument("--original-invoice-id", required=True)
+    inv_red.add_argument("--reason", required=True)
+    inv_red.add_argument("--operator", required=True)
+    inv_red.add_argument("--red-amount-minor", type=int)
+    inv_red.add_argument("--idempotency-key")
+
+    inv_void = subcommands.add_parser("invoice-void", help="void an unfiled or draft/applied invoice")
+    inv_void.add_argument("--database", type=Path, required=True)
+    inv_void.add_argument("--tenant", required=True)
+    inv_void.add_argument("--invoice-id", required=True)
+    inv_void.add_argument("--reason", required=True)
+    inv_void.add_argument("--operator", required=True)
+
+    inv_verify = subcommands.add_parser("invoice-verify", help="verify an issued invoice with fiscal code")
+    inv_verify.add_argument("--database", type=Path, required=True)
+    inv_verify.add_argument("--tenant", required=True)
+    inv_verify.add_argument("--invoice-id", required=True)
+    inv_verify.add_argument("--verification-code", required=True)
+
+    inv_export = subcommands.add_parser("invoice-export", help="export structured invoice ledger for tax/accounting")
+    inv_export.add_argument("--database", type=Path, required=True)
+    inv_export.add_argument("--tenant", required=True)
+    inv_export.add_argument("--start")
+    inv_export.add_argument("--end")
+    inv_export.add_argument("--status")
+    inv_export.add_argument("--limit", type=int, default=1000)
+
+    inv_audit = subcommands.add_parser("invoice-audit-verify", help="verify cryptographic audit chain of customer invoices")
+    inv_audit.add_argument("--database", type=Path, required=True)
+    inv_audit.add_argument("--tenant", required=True)
     return parser
+
 
 
 def _emit(value: Any) -> None:
@@ -319,7 +381,99 @@ def main(argv: list[str] | None = None) -> int:
                 rollout_policy,
                 external_report,
             ))
+        if args.command == "invoice-balance":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            balance = ledger.calculate_invoicable_balance(
+                args.tenant, args.payment_intent, args.captured_minor, args.refunded_minor
+            )
+            _emit({
+                "tenantId": args.tenant,
+                "paymentIntentId": args.payment_intent,
+                "invoicableBalanceMinor": balance,
+            })
+            return 0
+        if args.command == "invoice-apply":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            req = read_json(args.request)
+            invoice = ledger.apply_invoice(
+                tenant_id=req["tenantId"],
+                project_id=req["projectId"],
+                payment_intent_id=req["paymentIntentId"],
+                captured_amount_minor=req["capturedAmountMinor"],
+                refunded_amount_minor=req.get("refundedAmountMinor", 0),
+                invoice_type=req["invoiceType"],
+                buyer_type=req["buyerType"],
+                buyer_name=req["buyerName"],
+                buyer_tax_number=req.get("buyerTaxNumber"),
+                buyer_address_phone=req.get("buyerAddressPhone"),
+                buyer_bank_account=req.get("buyerBankAccount"),
+                recipient_email=req.get("recipientEmail"),
+                recipient_phone=req.get("recipientPhone"),
+                seller_name=req["sellerName"],
+                seller_tax_number=req["sellerTaxNumber"],
+                seller_address_phone=req.get("sellerAddressPhone"),
+                seller_bank_account=req.get("sellerBankAccount"),
+                operator=req["operator"],
+                items=req["items"],
+                idempotency_key=req.get("idempotencyKey"),
+                currency=req.get("currency", "CNY"),
+            )
+            _emit(invoice)
+            return 0
+        if args.command == "invoice-issue":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            invoice = ledger.issue_invoice(
+                args.tenant, args.invoice_id, actor=args.actor, checker=args.checker, payee=args.payee
+            )
+            _emit(invoice)
+            return 0
+        if args.command == "invoice-reject":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            invoice = ledger.reject_invoice(
+                args.tenant, args.invoice_id, reason=args.reason, checker=args.checker
+            )
+            _emit(invoice)
+            return 0
+        if args.command == "invoice-red-note":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            invoice = ledger.issue_red_note(
+                args.tenant,
+                args.original_invoice_id,
+                reason=args.reason,
+                operator=args.operator,
+                red_amount_minor=args.red_amount_minor,
+                idempotency_key=args.idempotency_key,
+            )
+            _emit(invoice)
+            return 0
+        if args.command == "invoice-void":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            invoice = ledger.void_invoice(
+                args.tenant, args.invoice_id, reason=args.reason, operator=args.operator
+            )
+            _emit(invoice)
+            return 0
+        if args.command == "invoice-verify":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            result = ledger.verify_invoice(args.tenant, args.invoice_id, args.verification_code)
+            _emit(result)
+            return 0 if result.get("valid") else 2
+        if args.command == "invoice-export":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            start = datetime.fromisoformat(args.start.replace("Z", "+00:00")) if args.start else None
+            end = datetime.fromisoformat(args.end.replace("Z", "+00:00")) if args.end else None
+            export = ledger.export_invoice_ledger(
+                args.tenant, start_time=start, end_time=end, status=args.status, limit=args.limit
+            )
+            _emit(export)
+            return 0
+        if args.command == "invoice-audit-verify":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            valid = ledger.verify_invoice_audit_chain(args.tenant)
+            _emit({"tenantId": args.tenant, "auditChainValid": valid})
+            return 0 if valid else 2
         raise ValidationError(f"unsupported command: {args.command}")
+
     except (ValidationError, KeyError, TypeError, ValueError) as exc:
         _emit({"allowed": False, "reasons": [f"input_invalid:{exc}"], "checks": []})
         return 2

@@ -32,3 +32,5 @@ _to_delete/
 .ai/.state/
 # offline git history export (see docs/REPO_HISTORY.md)
 *.bundle
+bin/
+.codesight/

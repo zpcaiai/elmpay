@@ -205,6 +205,7 @@ SUITES: dict[str, SuiteSpec] = {
                 "testing.test_b118_b127_controls",
                 "testing.test_china_mvp_launch_profile",
                 "testing.test_ci_release_evidence_gate",
+                "testing.test_customer_invoice_e3_e4",
                 "testing.test_external_boundary",
                 "testing.test_external_evidence",
             ),
@@ -214,10 +215,12 @@ SUITES: dict[str, SuiteSpec] = {
             "testing.test_b118_b127_controls",
             "testing.test_china_mvp_launch_profile",
             "testing.test_ci_release_evidence_gate",
+            "testing.test_customer_invoice_e3_e4",
             "testing.test_external_boundary",
             "testing.test_external_evidence",
         ),
     ),
+
     "quality-core": SuiteSpec(
         commands=(
             _unittest(

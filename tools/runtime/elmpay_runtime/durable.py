@@ -76,6 +76,16 @@ class DurableStore:
             connection.execute(
                 "ALTER TABLE reconciliation_source_receipt ADD COLUMN receipt_json TEXT"
             )
+        invoice_columns = {
+            str(row["name"])
+            for row in connection.execute(
+                "PRAGMA table_info(customer_invoice)"
+            ).fetchall()
+        }
+        if invoice_columns and "idempotency_payload_digest" not in invoice_columns:
+            connection.execute(
+                "ALTER TABLE customer_invoice ADD COLUMN idempotency_payload_digest TEXT"
+            )
 
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(
