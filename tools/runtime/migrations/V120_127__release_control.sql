@@ -689,3 +689,163 @@ CREATE TABLE IF NOT EXISTS customer_invoice_settlement_reconciliation (
 );
 CREATE INDEX IF NOT EXISTS idx_inv_settle_reconcile_tenant_inv ON customer_invoice_settlement_reconciliation(tenant_id, invoice_id);
 
+CREATE TABLE IF NOT EXISTS commercial_contract (
+  contract_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  buyer_name TEXT NOT NULL,
+  buyer_tax_number TEXT,
+  seller_name TEXT NOT NULL,
+  seller_tax_number TEXT NOT NULL,
+  total_amount_minor INTEGER NOT NULL CHECK(total_amount_minor > 0),
+  currency TEXT NOT NULL DEFAULT 'CNY',
+  status TEXT NOT NULL CHECK(status IN ('ACTIVE', 'COMPLETED', 'TERMINATED')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_contract_tenant ON commercial_contract(tenant_id);
+
+CREATE TABLE IF NOT EXISTS contract_milestone (
+  milestone_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  contract_id TEXT NOT NULL REFERENCES commercial_contract(contract_id),
+  seq_order INTEGER NOT NULL CHECK(seq_order >= 1),
+  name TEXT NOT NULL,
+  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
+  invoiced_amount_minor INTEGER NOT NULL DEFAULT 0 CHECK(invoiced_amount_minor >= 0),
+  status TEXT NOT NULL CHECK(status IN ('PENDING', 'PARTIALLY_INVOICED', 'FULLY_INVOICED', 'SETTLED')),
+  due_date TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE(tenant_id, contract_id, seq_order)
+);
+CREATE INDEX IF NOT EXISTS idx_contract_milestone_cid ON contract_milestone(tenant_id, contract_id);
+
+CREATE TABLE IF NOT EXISTS contract_fulfillment_ledger (
+  entry_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  contract_id TEXT NOT NULL REFERENCES commercial_contract(contract_id),
+  milestone_id TEXT REFERENCES contract_milestone(milestone_id),
+  invoice_id TEXT,
+  entry_type TEXT NOT NULL CHECK(entry_type IN ('MILESTONE_INVOICED', 'PAYMENT_APPLIED', 'ADJUSTMENT')),
+  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
+  actor_id TEXT NOT NULL,
+  notes TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_contract_ledger_cid ON contract_fulfillment_ledger(tenant_id, contract_id);
+
+CREATE TABLE IF NOT EXISTS tax_withholding_certificate (
+  certificate_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  certificate_number TEXT NOT NULL UNIQUE,
+  payee_type TEXT NOT NULL CHECK(payee_type IN ('INDIVIDUAL', 'ENTERPRISE_NON_RESIDENT')),
+  payee_name TEXT NOT NULL,
+  payee_id_type TEXT NOT NULL DEFAULT 'RESIDENT_ID',
+  payee_id_number TEXT NOT NULL,
+  income_type TEXT NOT NULL CHECK(income_type IN ('LABOR_SERVICE', 'ROYALTY', 'PROPERTY_LEASING', 'NON_RESIDENT_WHT')),
+  gross_amount_minor INTEGER NOT NULL CHECK(gross_amount_minor > 0),
+  statutory_deduction_minor INTEGER NOT NULL CHECK(statutory_deduction_minor >= 0),
+  taxable_income_minor INTEGER NOT NULL CHECK(taxable_income_minor >= 0),
+  tax_rate_basis_points INTEGER NOT NULL CHECK(tax_rate_basis_points >= 0),
+  quick_deduction_minor INTEGER NOT NULL CHECK(quick_deduction_minor >= 0),
+  tax_withheld_minor INTEGER NOT NULL CHECK(tax_withheld_minor >= 0),
+  net_payout_minor INTEGER NOT NULL CHECK(net_payout_minor >= 0),
+  filing_status TEXT NOT NULL CHECK(filing_status IN ('RECORDED', 'SUBMITTED', 'REMITTED')),
+  digest TEXT NOT NULL,
+  issued_at TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tax_withhold_tenant ON tax_withholding_certificate(tenant_id, filing_status);
+
+CREATE TABLE IF NOT EXISTS tax_remittance_batch (
+  batch_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  tax_period TEXT NOT NULL,
+  item_count INTEGER NOT NULL CHECK(item_count > 0),
+  total_gross_minor INTEGER NOT NULL CHECK(total_gross_minor >= 0),
+  total_tax_withheld_minor INTEGER NOT NULL CHECK(total_tax_withheld_minor >= 0),
+  batch_digest TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('PREPARED', 'DECLARED', 'ACCEPTED')),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_tax_remit_tenant_period ON tax_remittance_batch(tenant_id, tax_period);
+
+CREATE TABLE IF NOT EXISTS customs_payment_declaration (
+  declaration_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  customs_code TEXT NOT NULL,
+  ebp_code TEXT NOT NULL,
+  ebc_code TEXT NOT NULL,
+  order_no TEXT NOT NULL,
+  payment_intent_id TEXT NOT NULL,
+  payer_name TEXT NOT NULL,
+  payer_id_type TEXT NOT NULL DEFAULT '1',
+  payer_id_number TEXT NOT NULL,
+  payer_phone TEXT NOT NULL,
+  currency TEXT NOT NULL DEFAULT '142',
+  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
+  status TEXT NOT NULL CHECK(status IN ('PENDING', 'REPORTED', 'CUSTOMS_ACCEPTED', 'CUSTOMS_REJECTED')),
+  customs_receipt_code TEXT,
+  customs_receipt_message TEXT,
+  signature_digest TEXT NOT NULL,
+  declared_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(tenant_id, order_no, payment_intent_id)
+);
+CREATE INDEX IF NOT EXISTS idx_customs_decl_tenant_order ON customs_payment_declaration(tenant_id, order_no);
+
+CREATE TABLE IF NOT EXISTS customs_declaration_log (
+  log_id TEXT PRIMARY KEY,
+  declaration_id TEXT NOT NULL REFERENCES customs_payment_declaration(declaration_id),
+  action TEXT NOT NULL,
+  request_payload TEXT NOT NULL,
+  response_payload TEXT,
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_customs_log_decl ON customs_declaration_log(declaration_id);
+
+CREATE TABLE IF NOT EXISTS treasury_pool (
+  pool_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL UNIQUE,
+  pool_name TEXT NOT NULL,
+  master_account_id TEXT NOT NULL,
+  master_balance_minor INTEGER NOT NULL DEFAULT 0 CHECK(master_balance_minor >= 0),
+  currency TEXT NOT NULL DEFAULT 'CNY',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_treasury_pool_tenant ON treasury_pool(tenant_id);
+
+CREATE TABLE IF NOT EXISTS treasury_virtual_account (
+  va_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  pool_id TEXT NOT NULL REFERENCES treasury_pool(pool_id),
+  account_number TEXT NOT NULL UNIQUE,
+  account_name TEXT NOT NULL,
+  entity_type TEXT NOT NULL CHECK(entity_type IN ('STORE', 'BRANCH', 'DISTRIBUTOR', 'MERCHANT')),
+  balance_minor INTEGER NOT NULL DEFAULT 0 CHECK(balance_minor >= 0),
+  sweep_policy TEXT NOT NULL CHECK(sweep_policy IN ('ZERO_BALANCE', 'TARGET_BALANCE', 'MANUAL')),
+  target_balance_minor INTEGER NOT NULL DEFAULT 0 CHECK(target_balance_minor >= 0),
+  status TEXT NOT NULL CHECK(status IN ('ACTIVE', 'FROZEN', 'CLOSED')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_treasury_va_tenant_pool ON treasury_virtual_account(tenant_id, pool_id);
+
+CREATE TABLE IF NOT EXISTS treasury_transfer_journal (
+  journal_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  pool_id TEXT NOT NULL REFERENCES treasury_pool(pool_id),
+  source_account_id TEXT NOT NULL,
+  dest_account_id TEXT NOT NULL,
+  transfer_type TEXT NOT NULL CHECK(transfer_type IN ('SWEEP', 'ALLOCATE', 'DEPOSIT', 'WITHDRAWAL')),
+  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
+  source_balance_after_minor INTEGER NOT NULL CHECK(source_balance_after_minor >= 0),
+  dest_balance_after_minor INTEGER NOT NULL CHECK(dest_balance_after_minor >= 0),
+  actor_id TEXT NOT NULL,
+  notes TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_treasury_journal_tenant_pool ON treasury_transfer_journal(tenant_id, pool_id);
+

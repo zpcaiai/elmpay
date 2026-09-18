@@ -23,6 +23,13 @@ from elmpay_runtime.invoice import (
 )
 from elmpay_runtime.settlement import SettlementLedger, render_settlement_html
 from elmpay_runtime.dispute import DisputeLedger
+from elmpay_runtime.contract_billing import CommercialContractLedger
+from elmpay_runtime.tax_withholding import (
+    TaxWithholdingLedger,
+    calculate_tax_withholding,
+)
+from elmpay_runtime.customs_declaration import CustomsPaymentDeclarationManager
+from elmpay_runtime.treasury_pool import TreasuryPoolManager
 from elmpay_runtime.external_evidence import (
     validate_external_evidence,
     validate_test_evidence_template,
@@ -410,6 +417,112 @@ def _parser() -> argparse.ArgumentParser:
     inv_ofd.add_argument("--tenant", required=True)
     inv_ofd.add_argument("--invoice-id", required=True)
     inv_ofd.add_argument("--out", type=Path)
+
+    # --- Commercial Contract & Milestone Billing ---
+    ctr_create = subcommands.add_parser("contract-create", help="create commercial contract")
+    ctr_create.add_argument("--database", type=Path, required=True)
+    ctr_create.add_argument("--tenant", required=True)
+    ctr_create.add_argument("--title", required=True)
+    ctr_create.add_argument("--buyer-name", required=True)
+    ctr_create.add_argument("--seller-name", required=True)
+    ctr_create.add_argument("--seller-tax-number", required=True)
+    ctr_create.add_argument("--total-amount-minor", type=int, required=True)
+    ctr_create.add_argument("--buyer-tax-number")
+    ctr_create.add_argument("--currency", default="CNY")
+    ctr_create.add_argument("--contract-id")
+
+    ctr_ms = subcommands.add_parser("contract-milestone-add", help="add phased milestones to a contract")
+    ctr_ms.add_argument("--database", type=Path, required=True)
+    ctr_ms.add_argument("--tenant", required=True)
+    ctr_ms.add_argument("--contract-id", required=True)
+    ctr_ms.add_argument("--milestones-json", type=Path, required=True)
+
+    ctr_inv = subcommands.add_parser("contract-milestone-invoice", help="invoice against a contract milestone")
+    ctr_inv.add_argument("--database", type=Path, required=True)
+    ctr_inv.add_argument("--tenant", required=True)
+    ctr_inv.add_argument("--contract-id", required=True)
+    ctr_inv.add_argument("--milestone-seq", type=int, required=True)
+    ctr_inv.add_argument("--invoice-id", required=True)
+    ctr_inv.add_argument("--amount-minor", type=int)
+    ctr_inv.add_argument("--actor", default="billing_system")
+    ctr_inv.add_argument("--notes")
+
+    ctr_st = subcommands.add_parser("contract-status", help="query contract fulfillment status")
+    ctr_st.add_argument("--database", type=Path, required=True)
+    ctr_st.add_argument("--tenant", required=True)
+    ctr_st.add_argument("--contract-id", required=True)
+
+    # --- Tax Withholding & Remittance ---
+    tax_calc = subcommands.add_parser("tax-withhold-calculate", help="calculate China IIT withholding")
+    tax_calc.add_argument("--gross-amount-minor", type=int, required=True)
+    tax_calc.add_argument("--income-type", default="LABOR_SERVICE")
+
+    tax_cert = subcommands.add_parser("tax-withhold-certificate", help="issue withholding tax certificate")
+    tax_cert.add_argument("--database", type=Path, required=True)
+    tax_cert.add_argument("--tenant", required=True)
+    tax_cert.add_argument("--payee-name", required=True)
+    tax_cert.add_argument("--payee-id", required=True)
+    tax_cert.add_argument("--gross-amount-minor", type=int, required=True)
+    tax_cert.add_argument("--income-type", default="LABOR_SERVICE")
+    tax_cert.add_argument("--payee-type", default="INDIVIDUAL")
+
+    tax_exp = subcommands.add_parser("tax-withhold-export", help="export Golden Tax IV withholding CSV")
+    tax_exp.add_argument("--database", type=Path, required=True)
+    tax_exp.add_argument("--tenant", required=True)
+    tax_exp.add_argument("--tax-period")
+    tax_exp.add_argument("--out", type=Path)
+
+    # --- Customs Payment Declaration ---
+    cus_dec = subcommands.add_parser("customs-payment-declare", help="declare cross-border payment to GACC")
+    cus_dec.add_argument("--database", type=Path, required=True)
+    cus_dec.add_argument("--tenant", required=True)
+    cus_dec.add_argument("--customs-code", required=True)
+    cus_dec.add_argument("--ebp-code", required=True)
+    cus_dec.add_argument("--ebc-code", required=True)
+    cus_dec.add_argument("--order-no", required=True)
+    cus_dec.add_argument("--payment-intent-id", required=True)
+    cus_dec.add_argument("--payer-name", required=True)
+    cus_dec.add_argument("--payer-id", required=True)
+    cus_dec.add_argument("--payer-phone", required=True)
+    cus_dec.add_argument("--amount-minor", type=int, required=True)
+    cus_dec.add_argument("--currency", default="142")
+
+    cus_st = subcommands.add_parser("customs-payment-status", help="query customs payment declaration status")
+    cus_st.add_argument("--database", type=Path, required=True)
+    cus_st.add_argument("--tenant", required=True)
+    cus_st.add_argument("--order-no", required=True)
+
+    # --- Treasury Cash Pool & Virtual Accounts ---
+    tr_pool = subcommands.add_parser("treasury-pool-create", help="initialize master corporate treasury pool")
+    tr_pool.add_argument("--database", type=Path, required=True)
+    tr_pool.add_argument("--tenant", required=True)
+    tr_pool.add_argument("--pool-name", required=True)
+    tr_pool.add_argument("--master-acc-id", required=True)
+    tr_pool.add_argument("--initial-balance-minor", type=int, default=0)
+    tr_pool.add_argument("--currency", default="CNY")
+
+    tr_va = subcommands.add_parser("treasury-va-create", help="create virtual sub-account with sweep policy")
+    tr_va.add_argument("--database", type=Path, required=True)
+    tr_va.add_argument("--tenant", required=True)
+    tr_va.add_argument("--pool-id", required=True)
+    tr_va.add_argument("--acc-no", required=True)
+    tr_va.add_argument("--acc-name", required=True)
+    tr_va.add_argument("--entity-type", default="STORE")
+    tr_va.add_argument("--sweep-policy", default="ZERO_BALANCE")
+    tr_va.add_argument("--target-balance-minor", type=int, default=0)
+    tr_va.add_argument("--initial-balance-minor", type=int, default=0)
+
+    tr_swp = subcommands.add_parser("treasury-sweep", help="execute automated sweeping to master pool")
+    tr_swp.add_argument("--database", type=Path, required=True)
+    tr_swp.add_argument("--tenant", required=True)
+    tr_swp.add_argument("--pool-id", required=True)
+    tr_swp.add_argument("--va-id")
+    tr_swp.add_argument("--actor", default="treasury_sweeper")
+
+    tr_st = subcommands.add_parser("treasury-pool-status", help="query treasury pool and virtual accounts")
+    tr_st.add_argument("--database", type=Path, required=True)
+    tr_st.add_argument("--tenant", required=True)
+    tr_st.add_argument("--pool-id", required=True)
 
     stl_cfg = subcommands.add_parser("settlement-config", help="configure merchant settlement rules")
     stl_cfg.add_argument("--database", type=Path, required=True)
@@ -1069,6 +1182,132 @@ def main(argv: list[str] | None = None) -> int:
                 _emit({"tenantId": args.tenant, "invoiceId": args.invoice_id, "rendered": True, "outPath": str(args.out)})
             else:
                 print(content)
+            return 0
+        if args.command == "contract-create":
+            ledger = CommercialContractLedger(str(args.database))
+            res = ledger.create_contract(
+                tenant_id=args.tenant,
+                title=args.title,
+                buyer_name=args.buyer_name,
+                buyer_tax_number=args.buyer_tax_number,
+                seller_name=args.seller_name,
+                seller_tax_number=args.seller_tax_number,
+                total_amount_minor=args.total_amount_minor,
+                currency=args.currency,
+                contract_id=args.contract_id,
+            )
+            _emit(res)
+            return 0
+        if args.command == "contract-milestone-add":
+            ledger = CommercialContractLedger(str(args.database))
+            ms_list = read_json(args.milestones_json)
+            res = ledger.add_milestones(args.tenant, args.contract_id, ms_list)
+            _emit({"contractId": args.contract_id, "milestones": res})
+            return 0
+        if args.command == "contract-milestone-invoice":
+            ledger = CommercialContractLedger(str(args.database))
+            res = ledger.invoice_contract_milestone(
+                tenant_id=args.tenant,
+                contract_id=args.contract_id,
+                milestone_id_or_seq=args.milestone_seq,
+                invoice_id=args.invoice_id,
+                amount_minor=args.amount_minor,
+                actor_id=args.actor,
+                notes=args.notes,
+            )
+            _emit(res)
+            return 0
+        if args.command == "contract-status":
+            ledger = CommercialContractLedger(str(args.database))
+            res = ledger.get_contract_fulfillment_status(args.tenant, args.contract_id)
+            _emit(res)
+            return 0
+        if args.command == "tax-withhold-calculate":
+            res = calculate_tax_withholding(args.gross_amount_minor, args.income_type)
+            _emit(res)
+            return 0
+        if args.command == "tax-withhold-certificate":
+            ledger = TaxWithholdingLedger(str(args.database))
+            res = ledger.issue_certificate(
+                tenant_id=args.tenant,
+                payee_name=args.payee_name,
+                payee_id_number=args.payee_id,
+                gross_amount_minor=args.gross_amount_minor,
+                income_type=args.income_type,
+                payee_type=args.payee_type,
+            )
+            _emit(res)
+            return 0
+        if args.command == "tax-withhold-export":
+            ledger = TaxWithholdingLedger(str(args.database))
+            csv_content = ledger.export_golden_tax_csv(args.tenant, args.tax_period)
+            if args.out:
+                args.out.write_text(csv_content, encoding="utf-8-sig")
+                _emit({"tenantId": args.tenant, "exported": True, "outPath": str(args.out)})
+            else:
+                print(csv_content)
+            return 0
+        if args.command == "customs-payment-declare":
+            mgr = CustomsPaymentDeclarationManager(str(args.database))
+            res = mgr.declare_payment(
+                tenant_id=args.tenant,
+                customs_code=args.customs_code,
+                ebp_code=args.ebp_code,
+                ebc_code=args.ebc_code,
+                order_no=args.order_no,
+                payment_intent_id=args.payment_intent_id,
+                payer_name=args.payer_name,
+                payer_id_number=args.payer_id,
+                payer_phone=args.payer_phone,
+                amount_minor=args.amount_minor,
+                currency=args.currency,
+            )
+            _emit(res)
+            return 0
+        if args.command == "customs-payment-status":
+            mgr = CustomsPaymentDeclarationManager(str(args.database))
+            res = mgr.get_declaration(args.tenant, args.order_no)
+            _emit(res)
+            return 0
+        if args.command == "treasury-pool-create":
+            mgr = TreasuryPoolManager(str(args.database))
+            res = mgr.create_pool(
+                tenant_id=args.tenant,
+                pool_name=args.pool_name,
+                master_account_id=args.master_acc_id,
+                currency=args.currency,
+                initial_master_balance_minor=args.initial_balance_minor,
+            )
+            _emit(res)
+            return 0
+        if args.command == "treasury-va-create":
+            mgr = TreasuryPoolManager(str(args.database))
+            res = mgr.create_virtual_account(
+                tenant_id=args.tenant,
+                pool_id=args.pool_id,
+                account_number=args.acc_no,
+                account_name=args.acc_name,
+                entity_type=args.entity_type,
+                sweep_policy=args.sweep_policy,
+                target_balance_minor=args.target_balance_minor,
+                initial_balance_minor=args.initial_balance_minor,
+            )
+            _emit(res)
+            return 0
+        if args.command == "treasury-sweep":
+            mgr = TreasuryPoolManager(str(args.database))
+            res = mgr.execute_sweep(
+                tenant_id=args.tenant,
+                pool_id=args.pool_id,
+                va_id=args.va_id,
+                actor_id=args.actor,
+            )
+            _emit(res)
+            return 0
+        if args.command == "treasury-pool-status":
+            mgr = TreasuryPoolManager(str(args.database))
+            res = mgr.get_pool_status(args.tenant, args.pool_id)
+            _emit(res)
             return 0
         if args.command == "settlement-config":
             ledger = SettlementLedger(str(args.database))
