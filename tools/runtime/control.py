@@ -43,6 +43,7 @@ from elmpay_runtime.mandates_dunning import MandatesDunningEngine
 from elmpay_runtime.aml_sanctions import AmlSanctionsEngine
 from elmpay_runtime.subscription_proration import SubscriptionProrationEngine
 from elmpay_runtime.financial_ledger import FinancialDoubleEntryLedger
+from elmpay_runtime.financial_reporting import FinancialExceptionManager, FinancialReportingEngine
 from elmpay_runtime.durable import DurableStore
 from elmpay_runtime.external_evidence import (
     validate_external_evidence,
@@ -882,6 +883,55 @@ def _parser() -> argparse.ArgumentParser:
     led_ba.add_argument("--database", type=Path, required=True)
     led_ba.add_argument("--tenant", required=True)
     led_ba.add_argument("--as-of")
+
+    # Financial Exceptions & Dispute Tickets (B78)
+    exc_tc = subcommands.add_parser("exception-ticket-create", help="create financial discrepancy ticket")
+    exc_tc.add_argument("--database", type=Path, required=True)
+    exc_tc.add_argument("--tenant", required=True)
+    exc_tc.add_argument("--category", required=True, choices=["SURPLUS", "DEFICIT", "AMOUNT_MISMATCH", "TIMING_VARIANCE", "DUPLICATE_CHARGE"])
+    exc_tc.add_argument("--reference-id", required=True)
+    exc_tc.add_argument("--amount-minor", type=int, required=True)
+    exc_tc.add_argument("--currency", default="CNY")
+    exc_tc.add_argument("--notes")
+
+    exc_tp = subcommands.add_parser("exception-ticket-propose", help="propose resolution action (Maker step)")
+    exc_tp.add_argument("--database", type=Path, required=True)
+    exc_tp.add_argument("--tenant", required=True)
+    exc_tp.add_argument("--ticket-id", required=True)
+    exc_tp.add_argument("--action", required=True, choices=["MANUAL_POSTING", "WRITE_OFF", "REFUND_TO_CUSTOMER", "CHARGE_BACK_RECOVERY", "NONE"])
+    exc_tp.add_argument("--maker-id", required=True)
+    exc_tp.add_argument("--notes", default="")
+
+    exc_ta = subcommands.add_parser("exception-ticket-approve", help="approve resolution action (Checker step with 4-eyes)")
+    exc_ta.add_argument("--database", type=Path, required=True)
+    exc_ta.add_argument("--tenant", required=True)
+    exc_ta.add_argument("--ticket-id", required=True)
+    exc_ta.add_argument("--checker-id", required=True)
+
+    exc_tl = subcommands.add_parser("exception-ticket-list", help="list financial exception tickets")
+    exc_tl.add_argument("--database", type=Path, required=True)
+    exc_tl.add_argument("--tenant", required=True)
+    exc_tl.add_argument("--status")
+    exc_tl.add_argument("--category")
+
+    # Financial Reporting & Audit Manifest (B79)
+    fin_rg = subcommands.add_parser("financial-report-generate", help="generate multi-dimensional financial KPI report")
+    fin_rg.add_argument("--database", type=Path, required=True)
+    fin_rg.add_argument("--tenant", required=True)
+    fin_rg.add_argument("--start", required=True)
+    fin_rg.add_argument("--end", required=True)
+    fin_rg.add_argument("--currency", default="CNY")
+
+    fin_re = subcommands.add_parser("financial-report-export", help="export tamper-proof signed financial audit manifest")
+    fin_re.add_argument("--database", type=Path, required=True)
+    fin_re.add_argument("--tenant", required=True)
+    fin_re.add_argument("--start", required=True)
+    fin_re.add_argument("--end", required=True)
+    fin_re.add_argument("--currency", default="CNY")
+    fin_re.add_argument("--out", type=Path)
+
+    fin_rv = subcommands.add_parser("financial-report-verify", help="verify cryptographic seal of financial audit manifest")
+    fin_rv.add_argument("--manifest", type=Path, required=True)
 
     stl_cfg = subcommands.add_parser("settlement-config", help="configure merchant settlement rules")
     stl_cfg.add_argument("--database", type=Path, required=True)
@@ -2217,6 +2267,86 @@ def main(argv: list[str] | None = None) -> int:
             tb = ledger.generate_trial_balance(args.tenant, as_of=args.as_of)
             _emit({"tenantId": args.tenant, "integrity": integrity, "trialBalance": tb})
             return 0 if (integrity["valid"] and tb["isBalanced"]) else 1
+
+        # Financial Exceptions & Resolution Handlers (B78)
+        if args.command == "exception-ticket-create":
+            store = DurableStore(str(args.database))
+            mgr = FinancialExceptionManager(store)
+            res = mgr.create_ticket(
+                tenant_id=args.tenant,
+                category=args.category,
+                reference_id=args.reference_id,
+                amount_minor=args.amount_minor,
+                currency=args.currency,
+                notes=args.notes,
+            )
+            _emit(res)
+            return 0
+        if args.command == "exception-ticket-propose":
+            store = DurableStore(str(args.database))
+            mgr = FinancialExceptionManager(store)
+            res = mgr.propose_resolution(
+                tenant_id=args.tenant,
+                ticket_id=args.ticket_id,
+                action=args.action,
+                maker_id=args.maker_id,
+                notes=args.notes,
+            )
+            _emit(res)
+            return 0
+        if args.command == "exception-ticket-approve":
+            store = DurableStore(str(args.database))
+            mgr = FinancialExceptionManager(store)
+            res = mgr.approve_resolution(
+                tenant_id=args.tenant,
+                ticket_id=args.ticket_id,
+                checker_id=args.checker_id,
+            )
+            _emit(res)
+            return 0
+        if args.command == "exception-ticket-list":
+            store = DurableStore(str(args.database))
+            mgr = FinancialExceptionManager(store)
+            res = mgr.list_tickets(
+                tenant_id=args.tenant,
+                status=args.status,
+                category=args.category,
+            )
+            _emit({"tenantId": args.tenant, "count": len(res), "tickets": res})
+            return 0
+
+        # Financial Reporting & Audit Manifest Handlers (B79)
+        if args.command == "financial-report-generate":
+            store = DurableStore(str(args.database))
+            engine = FinancialReportingEngine(store)
+            rep = engine.generate_period_report(
+                tenant_id=args.tenant,
+                period_start=args.start,
+                period_end=args.end,
+                currency=args.currency,
+            )
+            _emit(rep)
+            return 0
+        if args.command == "financial-report-export":
+            store = DurableStore(str(args.database))
+            engine = FinancialReportingEngine(store)
+            manifest = engine.export_financial_audit_manifest(
+                tenant_id=args.tenant,
+                period_start=args.start,
+                period_end=args.end,
+                currency=args.currency,
+            )
+            if args.out:
+                args.out.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+                _emit({"tenantId": args.tenant, "manifestId": manifest["manifestId"], "manifestDigest": manifest["manifestDigest"], "outPath": str(args.out)})
+            else:
+                _emit(manifest)
+            return 0
+        if args.command == "financial-report-verify":
+            manifest_data = read_json(args.manifest)
+            ver = FinancialReportingEngine.verify_financial_audit_manifest(manifest_data)
+            _emit(ver)
+            return 0 if ver.get("valid") else 1
 
         if args.command == "settlement-config":
             ledger = SettlementLedger(str(args.database))

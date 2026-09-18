@@ -42,6 +42,7 @@ from .mandates_dunning import MandatesDunningEngine
 from .aml_sanctions import AmlSanctionsEngine
 from .subscription_proration import SubscriptionProrationEngine
 from .financial_ledger import FinancialDoubleEntryLedger, STANDARD_CHART_OF_ACCOUNTS
+from .financial_reporting import FinancialExceptionManager, FinancialReportingEngine
 
 __all__ = [
     "GateReport",
@@ -88,6 +89,8 @@ __all__ = [
     "SubscriptionProrationEngine",
     "FinancialDoubleEntryLedger",
     "STANDARD_CHART_OF_ACCOUNTS",
+    "FinancialExceptionManager",
+    "FinancialReportingEngine",
 ]
 
 

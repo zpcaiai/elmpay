@@ -1030,6 +1030,48 @@ class DurableStore:
         connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_fin_leg_account ON financial_journal_leg(account_code)"
         )
+
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS financial_exception_ticket ("
+            "  ticket_id TEXT PRIMARY KEY,"
+            "  tenant_id TEXT NOT NULL,"
+            "  category TEXT NOT NULL CHECK(category IN ('SURPLUS', 'DEFICIT', 'AMOUNT_MISMATCH', 'TIMING_VARIANCE', 'DUPLICATE_CHARGE')),"
+            "  reference_id TEXT NOT NULL,"
+            "  amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),"
+            "  currency TEXT NOT NULL,"
+            "  status TEXT NOT NULL CHECK(status IN ('OPEN', 'PENDING_CHECKER', 'APPROVED', 'REJECTED', 'CLOSED_NO_ACTION')),"
+            "  maker_id TEXT,"
+            "  checker_id TEXT,"
+            "  proposed_action TEXT CHECK(proposed_action IS NULL OR proposed_action IN ('MANUAL_POSTING', 'WRITE_OFF', 'REFUND_TO_CUSTOMER', 'CHARGE_BACK_RECOVERY', 'NONE')),"
+            "  notes TEXT,"
+            "  journal_entry_id TEXT,"
+            "  created_at TEXT NOT NULL,"
+            "  updated_at TEXT NOT NULL"
+            ")"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_fin_ticket_tenant ON financial_exception_ticket(tenant_id, status)"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_fin_ticket_ref ON financial_exception_ticket(tenant_id, reference_id)"
+        )
+
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS financial_report_manifest ("
+            "  manifest_id TEXT PRIMARY KEY,"
+            "  tenant_id TEXT NOT NULL,"
+            "  period_start TEXT NOT NULL,"
+            "  period_end TEXT NOT NULL,"
+            "  currency TEXT NOT NULL,"
+            "  metrics_json TEXT NOT NULL,"
+            "  manifest_digest TEXT NOT NULL CHECK(length(manifest_digest)=64), "
+            "  exported_at TEXT NOT NULL"
+            ")"
+        )
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_fin_report_tenant ON financial_report_manifest(tenant_id, period_start, period_end)"
+        )
+
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(
             self.database,

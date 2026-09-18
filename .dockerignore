@@ -51,3 +51,5 @@
 !services/webhook-ingress/build/install/
 !services/webhook-ingress/build/install/webhook-ingress/
 !services/webhook-ingress/build/install/webhook-ingress/**
+!tools/simulator/
+!tools/simulator/**
