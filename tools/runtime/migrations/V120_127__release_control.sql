@@ -438,6 +438,9 @@ CREATE TABLE IF NOT EXISTS customer_invoice (
   download_url TEXT,
   idempotency_key TEXT,
   idempotency_payload_digest TEXT CHECK(idempotency_payload_digest IS NULL OR length(idempotency_payload_digest) = 64),
+  split_batch_id TEXT,
+  split_index INTEGER NOT NULL DEFAULT 1,
+  split_count INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   UNIQUE(tenant_id, invoice_number)
@@ -446,6 +449,7 @@ CREATE TABLE IF NOT EXISTS customer_invoice (
 CREATE INDEX IF NOT EXISTS idx_customer_invoice_tenant_pi ON customer_invoice(tenant_id, payment_intent_id);
 CREATE INDEX IF NOT EXISTS idx_customer_invoice_tenant_status ON customer_invoice(tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_customer_invoice_tenant_idempotency ON customer_invoice(tenant_id, idempotency_key);
+CREATE INDEX IF NOT EXISTS idx_customer_invoice_tenant_split ON customer_invoice(tenant_id, split_batch_id);
 
 CREATE TABLE IF NOT EXISTS customer_invoice_item (
   item_id TEXT PRIMARY KEY,
@@ -457,7 +461,8 @@ CREATE TABLE IF NOT EXISTS customer_invoice_item (
   unit_price_minor INTEGER NOT NULL,
   amount_minor INTEGER NOT NULL,
   tax_rate_basis_points INTEGER NOT NULL CHECK(tax_rate_basis_points >= 0),
-  tax_amount_minor INTEGER NOT NULL
+  tax_amount_minor INTEGER NOT NULL,
+  tax_classification_code TEXT
 );
 
 CREATE TABLE IF NOT EXISTS customer_buyer_title (
@@ -591,5 +596,37 @@ CREATE TABLE IF NOT EXISTS merchant_dispute_audit (
 
 CREATE INDEX IF NOT EXISTS idx_dispute_audit_tenant_disp ON merchant_dispute_audit(tenant_id, dispute_id);
 
+CREATE TABLE IF NOT EXISTS customer_invoice_quota (
+  tenant_id TEXT PRIMARY KEY,
+  monthly_tax_quota_minor INTEGER NOT NULL CHECK(monthly_tax_quota_minor > 0),
+  single_invoice_limit_minor INTEGER NOT NULL CHECK(single_invoice_limit_minor > 0),
+  quota_version TEXT NOT NULL CHECK(quota_version IN ('WAN', 'SHI_WAN', 'BAI_WAN', 'QIAN_WAN', 'UNLIMITED')),
+  auto_split_enabled INTEGER NOT NULL DEFAULT 1 CHECK(auto_split_enabled IN (0, 1)),
+  alarm_threshold_pct INTEGER NOT NULL DEFAULT 85 CHECK(alarm_threshold_pct BETWEEN 1 AND 100),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
 
+CREATE TABLE IF NOT EXISTS customer_invoice_self_service (
+  session_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  payment_intent_id TEXT NOT NULL,
+  captured_amount_minor INTEGER NOT NULL CHECK(captured_amount_minor > 0),
+  currency TEXT NOT NULL CHECK(length(currency) = 3),
+  seller_name TEXT NOT NULL,
+  seller_tax_number TEXT NOT NULL,
+  session_token TEXT NOT NULL UNIQUE,
+  session_token_digest TEXT NOT NULL CHECK(length(session_token_digest) = 64),
+  qr_code_url TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('ACTIVE', 'REDEEMED', 'EXPIRED', 'CANCELLED')),
+  redeemed_invoice_id TEXT,
+  redeemed_at TEXT,
+  created_at TEXT NOT NULL,
+  UNIQUE(tenant_id, payment_intent_id)
+);
 
+CREATE INDEX IF NOT EXISTS idx_self_service_token ON customer_invoice_self_service(session_token);
+CREATE INDEX IF NOT EXISTS idx_self_service_tenant_pi ON customer_invoice_self_service(tenant_id, payment_intent_id);
+CREATE INDEX IF NOT EXISTS idx_self_service_tenant_status ON customer_invoice_self_service(tenant_id, status);

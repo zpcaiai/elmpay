@@ -14,6 +14,7 @@ from elmpay_runtime.common import GateReport, ValidationError, read_json
 from elmpay_runtime.compliance import evaluate_vendor, evaluate_vulnerability_report
 from elmpay_runtime.invoice import (
     CustomerInvoiceLedger,
+    export_tax_declaration_csv,
     render_golden_tax_xml,
     render_invoice_batch_html,
     render_invoice_html,
@@ -274,6 +275,66 @@ def _parser() -> argparse.ArgumentParser:
     inv_b_render.add_argument("--invoices", type=Path)
     inv_b_render.add_argument("--out", type=Path)
     inv_b_render.add_argument("--title", default="企业电子发票批量装订归档册")
+
+    inv_qc = subcommands.add_parser("invoice-quota-config", help="configure monthly tax invoice quota and single limit")
+    inv_qc.add_argument("--database", type=Path, required=True)
+    inv_qc.add_argument("--tenant", required=True)
+    inv_qc.add_argument("--monthly-quota-minor", type=int, required=True)
+    inv_qc.add_argument("--single-limit-minor", type=int, required=True)
+    inv_qc.add_argument("--alarm-threshold-pct", type=int, default=85)
+    inv_qc.add_argument("--operator", required=True)
+
+    inv_qs = subcommands.add_parser("invoice-quota-status", help="check monthly tax quota and remaining balance")
+    inv_qs.add_argument("--database", type=Path, required=True)
+    inv_qs.add_argument("--tenant", required=True)
+    inv_qs.add_argument("--tax-period")
+
+    inv_sa = subcommands.add_parser("invoice-split-apply", help="apply for an invoice with automatic splitting if over limit")
+    inv_sa.add_argument("--database", type=Path, required=True)
+    inv_sa.add_argument("--request", type=Path, required=True)
+    inv_sa.add_argument("--actor", required=True)
+    inv_sa.add_argument("--idempotency-key")
+
+    inv_ssc = subcommands.add_parser("invoice-self-service-create", help="create a time-limited self-service invoice QR session")
+    inv_ssc.add_argument("--database", type=Path, required=True)
+    inv_ssc.add_argument("--tenant", required=True)
+    inv_ssc.add_argument("--payment-intent", required=True)
+    inv_ssc.add_argument("--amount-minor", type=int, required=True)
+    inv_ssc.add_argument("--created-by", required=True)
+    inv_ssc.add_argument("--ttl-hours", type=int, default=72)
+    inv_ssc.add_argument("--currency", default="CNY")
+
+    inv_ssr = subcommands.add_parser("invoice-self-service-redeem", help="redeem a self-service session to issue an invoice")
+    inv_ssr.add_argument("--database", type=Path, required=True)
+    inv_ssr.add_argument("--token", required=True)
+    inv_ssr.add_argument("--buyer-name", required=True)
+    inv_ssr.add_argument("--buyer-tax-id")
+    inv_ssr.add_argument("--buyer-email")
+    inv_ssr.add_argument("--buyer-phone")
+    inv_ssr.add_argument("--buyer-address-phone")
+    inv_ssr.add_argument("--buyer-bank-account")
+    inv_ssr.add_argument("--invoice-type", default="VAT_ORDINARY_ELECTRONIC")
+
+    inv_td = subcommands.add_parser("invoice-tax-declaration", help="generate VAT tax declaration auxiliary summary report")
+    inv_td.add_argument("--database", type=Path, required=True)
+    inv_td.add_argument("--tenant", required=True)
+    inv_td.add_argument("--tax-period", required=True)
+    inv_td.add_argument("--format", choices=["json", "csv"], default="json")
+    inv_td.add_argument("--out", type=Path)
+
+    inv_sub = subcommands.add_parser("invoice-subscription-auto", help="auto-invoice recurring subscription billing")
+    inv_sub.add_argument("--database", type=Path, required=True)
+    inv_sub.add_argument("--tenant", required=True)
+    inv_sub.add_argument("--subscription-id", required=True)
+    inv_sub.add_argument("--billing-cycle", required=True)
+    inv_sub.add_argument("--amount-minor", type=int, required=True)
+    inv_sub.add_argument("--plan-name", required=True)
+    inv_sub.add_argument("--buyer-name", required=True)
+    inv_sub.add_argument("--buyer-tax-id")
+    inv_sub.add_argument("--buyer-email")
+    inv_sub.add_argument("--operator", required=True)
+    inv_sub.add_argument("--tax-rate-bp", type=int, default=600)
+    inv_sub.add_argument("--tax-classification-code", default="3040201010000000000")
 
     stl_cfg = subcommands.add_parser("settlement-config", help="configure merchant settlement rules")
     stl_cfg.add_argument("--database", type=Path, required=True)
@@ -720,6 +781,109 @@ def main(argv: list[str] | None = None) -> int:
                 _emit({"tenantId": args.tenant, "invoiceCount": len(invoices), "rendered": True, "outPath": str(args.out)})
             else:
                 print(content)
+            return 0
+        if args.command == "invoice-quota-config":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            res = ledger.configure_tax_quota(
+                tenant_id=args.tenant,
+                monthly_tax_quota_minor=args.monthly_quota_minor,
+                single_invoice_limit_minor=args.single_limit_minor,
+                alarm_threshold_pct=args.alarm_threshold_pct,
+                operator=args.operator,
+            )
+            _emit(res)
+            return 0
+        if args.command == "invoice-quota-status":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            res = ledger.get_tax_quota_status(args.tenant, tax_period=args.tax_period)
+            _emit(res)
+            return 0
+        if args.command == "invoice-split-apply":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            req = read_json(args.request)
+            invoices = ledger.split_and_apply_invoice(
+                tenant_id=req["tenantId"],
+                payment_intent_id=req["paymentIntentId"],
+                invoice_type=req["invoiceType"],
+                buyer_info=req["buyerInfo"],
+                seller_info=req["sellerInfo"],
+                items=req["items"],
+                actor_id=args.actor,
+                idempotency_key=args.idempotency_key,
+            )
+            _emit({"tenantId": req["tenantId"], "splitCount": len(invoices), "invoices": invoices})
+            return 0
+        if args.command == "invoice-self-service-create":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            session = ledger.create_self_service_session(
+                tenant_id=args.tenant,
+                payment_intent_id=args.payment_intent,
+                invoicable_amount_minor=args.amount_minor,
+                created_by=args.created_by,
+                ttl_hours=args.ttl_hours,
+                currency=args.currency,
+            )
+            _emit(session)
+            return 0
+        if args.command == "invoice-self-service-redeem":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            buyer_info = {"name": args.buyer_name}
+            if args.buyer_tax_id:
+                buyer_info["taxId"] = args.buyer_tax_id
+            if args.buyer_email:
+                buyer_info["email"] = args.buyer_email
+            if args.buyer_phone:
+                buyer_info["phone"] = args.buyer_phone
+            if args.buyer_address_phone:
+                buyer_info["addressPhone"] = args.buyer_address_phone
+            if args.buyer_bank_account:
+                buyer_info["bankAccount"] = args.buyer_bank_account
+            invoice = ledger.redeem_self_service_session(
+                session_token=args.token,
+                buyer_info=buyer_info,
+                invoice_type=args.invoice_type,
+            )
+            _emit(invoice)
+            return 0
+        if args.command == "invoice-tax-declaration":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            summary = ledger.generate_tax_declaration_summary(
+                tenant_id=args.tenant,
+                tax_period=args.tax_period,
+            )
+            if args.format == "csv":
+                csv_content = export_tax_declaration_csv(summary)
+                if args.out:
+                    args.out.write_text(csv_content, encoding="utf-8")
+                    _emit({"tenantId": args.tenant, "taxPeriod": args.tax_period, "exported": True, "outPath": str(args.out)})
+                else:
+                    print(csv_content)
+            else:
+                if args.out:
+                    args.out.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+                    _emit({"tenantId": args.tenant, "taxPeriod": args.tax_period, "exported": True, "outPath": str(args.out)})
+                else:
+                    _emit(summary)
+            return 0
+        if args.command == "invoice-subscription-auto":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            buyer_info = {"name": args.buyer_name}
+            if args.buyer_tax_id:
+                buyer_info["taxId"] = args.buyer_tax_id
+            if args.buyer_email:
+                buyer_info["email"] = args.buyer_email
+            invoice = ledger.auto_invoice_subscription_billing(
+                tenant_id=args.tenant,
+                subscription_id=args.subscription_id,
+                billing_cycle=args.billing_cycle,
+                amount_minor=args.amount_minor,
+                plan_name=args.plan_name,
+                buyer_info=buyer_info,
+                operator=args.operator,
+                tax_rate_basis_points=args.tax_rate_bp,
+                tax_classification_code=args.tax_classification_code,
+            )
+            _emit(invoice)
             return 0
         if args.command == "settlement-config":
             ledger = SettlementLedger(str(args.database))

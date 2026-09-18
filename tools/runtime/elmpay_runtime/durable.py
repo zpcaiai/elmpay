@@ -82,9 +82,42 @@ class DurableStore:
                 "PRAGMA table_info(customer_invoice)"
             ).fetchall()
         }
-        if invoice_columns and "idempotency_payload_digest" not in invoice_columns:
+        if invoice_columns:
+            if "idempotency_payload_digest" not in invoice_columns:
+                connection.execute(
+                    "ALTER TABLE customer_invoice ADD COLUMN idempotency_payload_digest TEXT"
+                )
+            if "split_batch_id" not in invoice_columns:
+                connection.execute(
+                    "ALTER TABLE customer_invoice ADD COLUMN split_batch_id TEXT"
+                )
+            if "split_index" not in invoice_columns:
+                connection.execute(
+                    "ALTER TABLE customer_invoice ADD COLUMN split_index INTEGER NOT NULL DEFAULT 1"
+                )
+            if "split_count" not in invoice_columns:
+                connection.execute(
+                    "ALTER TABLE customer_invoice ADD COLUMN split_count INTEGER NOT NULL DEFAULT 1"
+                )
+        item_columns = {
+            str(row["name"])
+            for row in connection.execute(
+                "PRAGMA table_info(customer_invoice_item)"
+            ).fetchall()
+        }
+        if item_columns and "tax_classification_code" not in item_columns:
             connection.execute(
-                "ALTER TABLE customer_invoice ADD COLUMN idempotency_payload_digest TEXT"
+                "ALTER TABLE customer_invoice_item ADD COLUMN tax_classification_code TEXT"
+            )
+        quota_columns = {
+            str(row["name"])
+            for row in connection.execute(
+                "PRAGMA table_info(customer_invoice_quota)"
+            ).fetchall()
+        }
+        if quota_columns and "alarm_threshold_pct" not in quota_columns:
+            connection.execute(
+                "ALTER TABLE customer_invoice_quota ADD COLUMN alarm_threshold_pct INTEGER NOT NULL DEFAULT 85"
             )
 
     def connect(self) -> sqlite3.Connection:

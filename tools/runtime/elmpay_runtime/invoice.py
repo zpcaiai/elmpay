@@ -1,9 +1,11 @@
 """Enterprise payment invoicing service, VAT calculation and anti-over-invoicing engine."""
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
+import io
 import json
 import re
 from typing import Any, Mapping, Sequence
@@ -23,6 +25,31 @@ from .durable import DurableStore
 
 USCC_REGEX = re.compile(r"^[0-9A-HJ-NPQRTUWXY]{2}[0-9]{6}[0-9A-HJ-NPQRTUWXY]{10}$")
 TAX_NUMBER_REGEX = re.compile(r"^[0-9A-Z]{15,20}$")
+
+COMMON_TAX_CLASSIFICATIONS: dict[str, str] = {
+    "304020101": "信息技术服务*技术服务",
+    "3040201010000000000": "信息技术服务*软件服务",
+    "107010101": "计算机软件产品*软件开发",
+    "1070101010000000000": "计算机软件产品*基础软件",
+    "304020102": "信息系统增值服务*运营维护",
+    "3040201020000000000": "信息系统增值服务*运营维护服务",
+    "307010100": "企业管理服务*业务咨询",
+    "3070101000000000000": "企业管理服务*咨询管理",
+    "301010102": "电信与增值电信服务*互联网接入",
+    "3010101020000000000": "电信与增值电信服务*互联网接入",
+    "601000000": "商业零售*现代商业服务",
+    "6010000000000000000": "商业零售*现代商业服务",
+}
+
+
+def validate_tax_classification_code(code: str) -> str:
+    """Validate standard China tax classification service code."""
+    if not code or not isinstance(code, str):
+        raise ValidationError("taxClassificationCode must be a non-empty string")
+    cleaned = code.strip()
+    if not (cleaned.isdigit() and len(cleaned) in {9, 19}):
+        raise ValidationError(f"invalid taxClassificationCode: '{code}', must be 9 or 19 digits")
+    return cleaned
 
 
 def _current(value: datetime | None = None) -> datetime:
@@ -46,6 +73,7 @@ class CalculatedLine:
     amount_minor: int
     tax_rate_basis_points: int
     tax_amount_minor: int
+    tax_classification_code: str = "304020101"
 
 
 @dataclass(frozen=True)
@@ -80,6 +108,9 @@ def calculate_vat_breakdown(items: Sequence[Mapping[str, Any]]) -> VatBreakdown:
         if not isinstance(tax_rate_bp, int) or tax_rate_bp < 0 or tax_rate_bp > 10000:
             raise ValidationError(f"item[{idx}].taxRateBasisPoints must be between 0 and 10000 (0% - 100%)")
 
+        tax_class = str(item.get("taxClassificationCode") or "304020101")
+        validate_tax_classification_code(tax_class)
+
         line_amount = qty * unit_price
         # Integer division with half-up / standard fiscal rounding
         line_tax = (line_amount * tax_rate_bp + 5000) // 10000 if line_amount >= 0 else -((-line_amount * tax_rate_bp + 5000) // 10000)
@@ -97,6 +128,7 @@ def calculate_vat_breakdown(items: Sequence[Mapping[str, Any]]) -> VatBreakdown:
                 amount_minor=line_amount,
                 tax_rate_basis_points=tax_rate_bp,
                 tax_amount_minor=line_tax,
+                tax_classification_code=tax_class,
             )
         )
 
@@ -702,6 +734,7 @@ def render_golden_tax_xml(invoice_detail: Mapping[str, Any]) -> str:
             f'      {_xtag("AmountYuan", f"{amt_minor / 100:.2f}")}\\n'
             f'      {_xtag("TaxRateBasisPoints", tax_bp)}\\n'
             f'      {_xtag("TaxRatePercentage", pct_str)}\\n'
+            f'      {_xtag("TaxClassificationCode", it.get("taxClassificationCode", "304020101"))}\\n'
             f'      {_xtag("TaxAmountMinor", tax_amt_minor)}\\n'
             f'      {_xtag("TaxAmountYuan", f"{tax_amt_minor / 100:.2f}")}\\n'
             '    </Item>'
@@ -1182,6 +1215,9 @@ class CustomerInvoiceLedger:
         operator: str,
         items: Sequence[Mapping[str, Any]],
         idempotency_key: str | None = None,
+        split_batch_id: str | None = None,
+        split_index: int = 1,
+        split_count: int = 1,
         currency: str = "CNY",
         now: datetime | None = None,
     ) -> dict[str, Any]:
@@ -1197,11 +1233,11 @@ class CustomerInvoiceLedger:
             raise ValidationError(f"invalid currency code: {currency}")
 
         norm_type = str(invoice_type).lower()
-        if norm_type in {"vat_electronic_normal", "electronic_normal"}:
+        if norm_type in {"vat_electronic_normal", "electronic_normal", "vat_ordinary_electronic", "ordinary_electronic"}:
             invoice_type = "vat_electronic_normal"
-        elif norm_type in {"vat_electronic_special", "electronic_special"}:
+        elif norm_type in {"vat_electronic_special", "electronic_special", "vat_special_electronic", "special_electronic"}:
             invoice_type = "vat_electronic_special"
-        elif norm_type in {"commercial_receipt"}:
+        elif norm_type in {"commercial_receipt", "receipt"}:
             invoice_type = "commercial_receipt"
         else:
             raise ValidationError(f"unsupported invoice_type: {invoice_type}")
@@ -1269,71 +1305,151 @@ class CustomerInvoiceLedger:
                     f"requested invoice amount ({breakdown.total_amount_minor}) exceeds invoicable balance ({invoicable})"
                 )
 
+            # Check tenant tax quota limits
+            quota_cfg = self.get_tax_quota(tenant_id)
+            if quota_cfg:
+                if breakdown.total_amount_minor > quota_cfg["singleInvoiceLimitMinor"] and split_count == 1:
+                    raise ValidationError(
+                        f"requested amount ({breakdown.total_amount_minor}) exceeds tenant single invoice limit ({quota_cfg['singleInvoiceLimitMinor']}), please use split_and_apply_invoice"
+                    )
+                status = self.get_tax_quota_status(tenant_id, current_time.year, current_time.month, connection=conn)
+                if status["consumedMinor"] + breakdown.total_amount_minor > status["quotaLimitMinor"]:
+                    raise ValidationError(
+                        f"exceeds tenant monthly invoice quota: consumed={status['consumedMinor']}, requested={breakdown.total_amount_minor}, limit={status['quotaLimitMinor']}"
+                    )
+
             invoice_id = str(uuid.uuid4())
             date_prefix = current_time.strftime("%Y%m%d")
             rand_suffix = invoice_id.replace("-", "")[:8].upper()
             invoice_number = f"INV-{date_prefix}-{rand_suffix}"
             invoice_code = f"0{current_time.year % 100}{rand_suffix[:6]}"
 
-            conn.execute(
-                "INSERT INTO customer_invoice("
-                "invoice_id, tenant_id, project_id, payment_intent_id, invoice_number, invoice_code, "
-                "invoice_type, invoice_category, status, currency, untaxed_amount_minor, tax_amount_minor, "
-                "total_amount_minor, buyer_type, buyer_name, buyer_tax_number, buyer_address_phone, "
-                "buyer_bank_account, recipient_email, recipient_phone, seller_name, seller_tax_number, "
-                "seller_address_phone, seller_bank_account, operator, idempotency_key, idempotency_payload_digest, "
-                "created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, 'blue', 'APPLIED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    invoice_id,
-                    tenant_id,
-                    project_id,
-                    payment_intent_id,
-                    invoice_number,
-                    invoice_code,
-                    invoice_type,
-                    currency,
-                    breakdown.untaxed_amount_minor,
-                    breakdown.tax_amount_minor,
-                    breakdown.total_amount_minor,
-                    buyer_type,
-                    buyer_name,
-                    buyer_tax_number,
-                    buyer_address_phone,
-                    buyer_bank_account,
-                    recipient_email,
-                    recipient_phone,
-                    seller_name,
-                    seller_tax_number,
-                    seller_address_phone,
-                    seller_bank_account,
-                    operator,
-                    idempotency_key,
-                    payload_digest,
-                    current_iso,
-                    current_iso,
-                ),
-            )
-
-            for line in breakdown.lines:
+            inv_cols = {str(r["name"]) for r in conn.execute("PRAGMA table_info(customer_invoice)").fetchall()}
+            if "split_batch_id" in inv_cols:
                 conn.execute(
-                    "INSERT INTO customer_invoice_item("
-                    "item_id, invoice_id, item_name, specification, unit, quantity, "
-                    "unit_price_minor, amount_minor, tax_rate_basis_points, tax_amount_minor) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO customer_invoice("
+                    "invoice_id, tenant_id, project_id, payment_intent_id, invoice_number, invoice_code, "
+                    "invoice_type, invoice_category, status, currency, untaxed_amount_minor, tax_amount_minor, "
+                    "total_amount_minor, buyer_type, buyer_name, buyer_tax_number, buyer_address_phone, "
+                    "buyer_bank_account, recipient_email, recipient_phone, seller_name, seller_tax_number, "
+                    "seller_address_phone, seller_bank_account, operator, idempotency_key, idempotency_payload_digest, "
+                    "split_batch_id, split_index, split_count, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'blue', 'APPLIED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
-                        str(uuid.uuid4()),
                         invoice_id,
-                        line.item_name,
-                        line.specification,
-                        line.unit,
-                        line.quantity,
-                        line.unit_price_minor,
-                        line.amount_minor,
-                        line.tax_rate_basis_points,
-                        line.tax_amount_minor,
+                        tenant_id,
+                        project_id,
+                        payment_intent_id,
+                        invoice_number,
+                        invoice_code,
+                        invoice_type,
+                        currency,
+                        breakdown.untaxed_amount_minor,
+                        breakdown.tax_amount_minor,
+                        breakdown.total_amount_minor,
+                        buyer_type,
+                        buyer_name,
+                        buyer_tax_number,
+                        buyer_address_phone,
+                        buyer_bank_account,
+                        recipient_email,
+                        recipient_phone,
+                        seller_name,
+                        seller_tax_number,
+                        seller_address_phone,
+                        seller_bank_account,
+                        operator,
+                        idempotency_key,
+                        payload_digest,
+                        split_batch_id,
+                        split_index,
+                        split_count,
+                        current_iso,
+                        current_iso,
                     ),
                 )
+            else:
+                conn.execute(
+                    "INSERT INTO customer_invoice("
+                    "invoice_id, tenant_id, project_id, payment_intent_id, invoice_number, invoice_code, "
+                    "invoice_type, invoice_category, status, currency, untaxed_amount_minor, tax_amount_minor, "
+                    "total_amount_minor, buyer_type, buyer_name, buyer_tax_number, buyer_address_phone, "
+                    "buyer_bank_account, recipient_email, recipient_phone, seller_name, seller_tax_number, "
+                    "seller_address_phone, seller_bank_account, operator, idempotency_key, idempotency_payload_digest, "
+                    "created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'blue', 'APPLIED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        invoice_id,
+                        tenant_id,
+                        project_id,
+                        payment_intent_id,
+                        invoice_number,
+                        invoice_code,
+                        invoice_type,
+                        currency,
+                        breakdown.untaxed_amount_minor,
+                        breakdown.tax_amount_minor,
+                        breakdown.total_amount_minor,
+                        buyer_type,
+                        buyer_name,
+                        buyer_tax_number,
+                        buyer_address_phone,
+                        buyer_bank_account,
+                        recipient_email,
+                        recipient_phone,
+                        seller_name,
+                        seller_tax_number,
+                        seller_address_phone,
+                        seller_bank_account,
+                        operator,
+                        idempotency_key,
+                        payload_digest,
+                        current_iso,
+                        current_iso,
+                    ),
+                )
+
+            item_cols = {str(r["name"]) for r in conn.execute("PRAGMA table_info(customer_invoice_item)").fetchall()}
+            for line in breakdown.lines:
+                if "tax_classification_code" in item_cols:
+                    conn.execute(
+                        "INSERT INTO customer_invoice_item("
+                        "item_id, invoice_id, item_name, specification, unit, quantity, "
+                        "unit_price_minor, amount_minor, tax_rate_basis_points, tax_amount_minor, tax_classification_code) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            str(uuid.uuid4()),
+                            invoice_id,
+                            line.item_name,
+                            line.specification,
+                            line.unit,
+                            line.quantity,
+                            line.unit_price_minor,
+                            line.amount_minor,
+                            line.tax_rate_basis_points,
+                            line.tax_amount_minor,
+                            line.tax_classification_code,
+                        ),
+                    )
+                else:
+                    conn.execute(
+                        "INSERT INTO customer_invoice_item("
+                        "item_id, invoice_id, item_name, specification, unit, quantity, "
+                        "unit_price_minor, amount_minor, tax_rate_basis_points, tax_amount_minor) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            str(uuid.uuid4()),
+                            invoice_id,
+                            line.item_name,
+                            line.specification,
+                            line.unit,
+                            line.quantity,
+                            line.unit_price_minor,
+                            line.amount_minor,
+                            line.tax_rate_basis_points,
+                            line.tax_amount_minor,
+                        ),
+                    )
 
             self._append_audit(
                 conn,
@@ -1466,6 +1582,9 @@ class CustomerInvoiceLedger:
         reason: str,
         operator: str,
         red_amount_minor: int | None = None,
+        red_items: list[dict[str, Any]] | None = None,
+        actor: str | None = None,
+        checker: str | None = None,
         idempotency_key: str | None = None,
         now: datetime | None = None,
     ) -> dict[str, Any]:
@@ -1513,7 +1632,30 @@ class CustomerInvoiceLedger:
             if remaining_reversable <= 0:
                 raise ValidationError("original invoice has already been fully reversed by red notes")
 
-            target_reverse = red_amount_minor if red_amount_minor is not None else remaining_reversable
+            if red_items:
+                breakdown = calculate_vat_breakdown(red_items)
+                target_reverse = breakdown.total_amount_minor
+                red_untaxed = -breakdown.untaxed_amount_minor
+                red_tax = -breakdown.tax_amount_minor
+                red_total = -breakdown.total_amount_minor
+            else:
+                target_reverse = red_amount_minor if red_amount_minor is not None else remaining_reversable
+                if target_reverse <= 0 or target_reverse > remaining_reversable:
+                    raise ValidationError(
+                        f"invalid red amount ({target_reverse}), maximum reversable is {remaining_reversable}"
+                    )
+
+                # Proportional calculation for partial reversal or exact negative for full
+                if target_reverse == orig["total_amount_minor"]:
+                    red_untaxed = -orig["untaxed_amount_minor"]
+                    red_tax = -orig["tax_amount_minor"]
+                    red_total = -orig["total_amount_minor"]
+                else:
+                    ratio = target_reverse / orig["total_amount_minor"]
+                    red_untaxed = -round(orig["untaxed_amount_minor"] * ratio)
+                    red_total = -target_reverse
+                    red_tax = red_total - red_untaxed
+
             if target_reverse <= 0 or target_reverse > remaining_reversable:
                 raise ValidationError(
                     f"invalid red amount ({target_reverse}), maximum reversable is {remaining_reversable}"
@@ -1525,17 +1667,6 @@ class CustomerInvoiceLedger:
             rand_suffix = red_invoice_id.replace("-", "")[:8].upper()
             red_invoice_number = f"RED-{date_prefix}-{rand_suffix}"
             red_invoice_code = f"9{current_time.year % 100}{rand_suffix[:6]}"
-
-            # Proportional calculation for partial reversal or exact negative for full
-            if target_reverse == orig["total_amount_minor"]:
-                red_untaxed = -orig["untaxed_amount_minor"]
-                red_tax = -orig["tax_amount_minor"]
-                red_total = -orig["total_amount_minor"]
-            else:
-                ratio = target_reverse / orig["total_amount_minor"]
-                red_untaxed = -round(orig["untaxed_amount_minor"] * ratio)
-                red_total = -target_reverse
-                red_tax = red_total - red_untaxed
 
             v_code = generate_verification_code(red_invoice_id, tenant_id, red_total)
             download_url = f"/v1/invoices/{red_invoice_id}/download?token={v_code[:8]}"
@@ -1584,28 +1715,71 @@ class CustomerInvoiceLedger:
             )
 
             # Insert negative lines
-            for it in orig_items:
-                neg_qty = -it["quantity"]
-                neg_amt = -it["amount_minor"]
-                neg_tax = -it["tax_amount_minor"]
-                conn.execute(
-                    "INSERT INTO customer_invoice_item("
-                    "item_id, invoice_id, item_name, specification, unit, quantity, "
-                    "unit_price_minor, amount_minor, tax_rate_basis_points, tax_amount_minor) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        str(uuid.uuid4()),
-                        red_invoice_id,
-                        f"[冲红] {it['item_name']}",
-                        it["specification"],
-                        it["unit"],
-                        neg_qty,
-                        it["unit_price_minor"],
-                        neg_amt,
-                        it["tax_rate_basis_points"],
-                        neg_tax,
-                    ),
-                )
+            item_cols = {str(r["name"]) for r in conn.execute("PRAGMA table_info(customer_invoice_item)").fetchall()}
+            if red_items:
+                for line in breakdown.lines:
+                    if "tax_classification_code" in item_cols:
+                        conn.execute(
+                            "INSERT INTO customer_invoice_item("
+                            "item_id, invoice_id, item_name, specification, unit, quantity, "
+                            "unit_price_minor, amount_minor, tax_rate_basis_points, tax_amount_minor, tax_classification_code) "
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            (
+                                str(uuid.uuid4()),
+                                red_invoice_id,
+                                f"[冲红] {line.item_name}",
+                                line.specification,
+                                line.unit,
+                                -line.quantity,
+                                line.unit_price_minor,
+                                -line.amount_minor,
+                                line.tax_rate_basis_points,
+                                -line.tax_amount_minor,
+                                line.tax_classification_code,
+                            ),
+                        )
+                    else:
+                        conn.execute(
+                            "INSERT INTO customer_invoice_item("
+                            "item_id, invoice_id, item_name, specification, unit, quantity, "
+                            "unit_price_minor, amount_minor, tax_rate_basis_points, tax_amount_minor) "
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            (
+                                str(uuid.uuid4()),
+                                red_invoice_id,
+                                f"[冲红] {line.item_name}",
+                                line.specification,
+                                line.unit,
+                                -line.quantity,
+                                line.unit_price_minor,
+                                -line.amount_minor,
+                                line.tax_rate_basis_points,
+                                -line.tax_amount_minor,
+                            ),
+                        )
+            else:
+                for it in orig_items:
+                    neg_qty = -it["quantity"]
+                    neg_amt = -it["amount_minor"]
+                    neg_tax = -it["tax_amount_minor"]
+                    conn.execute(
+                        "INSERT INTO customer_invoice_item("
+                        "item_id, invoice_id, item_name, specification, unit, quantity, "
+                        "unit_price_minor, amount_minor, tax_rate_basis_points, tax_amount_minor) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            str(uuid.uuid4()),
+                            red_invoice_id,
+                            f"[冲红] {it['item_name']}",
+                            it["specification"],
+                            it["unit"],
+                            neg_qty,
+                            it["unit_price_minor"],
+                            neg_amt,
+                            it["tax_rate_basis_points"],
+                            neg_tax,
+                        ),
+                    )
 
             # Mark original as RED_NOTED if fully reversed
             if target_reverse == remaining_reversable:
@@ -2473,6 +2647,11 @@ class CustomerInvoiceLedger:
 
         keys = row.keys() if hasattr(row, "keys") else []
         payload_digest = row["idempotency_payload_digest"] if "idempotency_payload_digest" in keys else None
+        split_batch_id = row["split_batch_id"] if "split_batch_id" in keys else None
+        split_index = row["split_index"] if "split_index" in keys else 1
+        split_count = row["split_count"] if "split_count" in keys else 1
+
+        it_keys = items[0].keys() if items and hasattr(items[0], "keys") else []
 
         return {
             "invoiceId": row["invoice_id"],
@@ -2509,6 +2688,9 @@ class CustomerInvoiceLedger:
             "downloadUrl": row["download_url"],
             "idempotencyKey": row["idempotency_key"],
             "idempotencyPayloadDigest": payload_digest,
+            "splitBatchId": split_batch_id,
+            "splitIndex": split_index,
+            "splitCount": split_count,
             "createdAt": row["created_at"],
             "updatedAt": row["updated_at"],
             "items": [
@@ -2522,7 +2704,885 @@ class CustomerInvoiceLedger:
                     "amountMinor": it["amount_minor"],
                     "taxRateBasisPoints": it["tax_rate_basis_points"],
                     "taxAmountMinor": it["tax_amount_minor"],
+                    "taxClassificationCode": it["tax_classification_code"] if "tax_classification_code" in it_keys else "304020101",
                 }
                 for it in items
             ],
         }
+
+    # --- Enterprise Tax Quota & Monthly Limits ---
+    def configure_tax_quota(
+        self,
+        tenant_id: str,
+        monthly_tax_quota_minor: int,
+        single_invoice_limit_minor: int,
+        quota_version: str = "SHI_WAN",
+        auto_split_enabled: bool = True,
+        alarm_threshold_pct: int = 85,
+        operator: str | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Configure monthly invoicing quota and single invoice limit for a tenant."""
+        if monthly_tax_quota_minor <= 0:
+            raise ValidationError("monthly_tax_quota_minor must be strictly positive")
+        if single_invoice_limit_minor <= 0:
+            raise ValidationError("single_invoice_limit_minor must be strictly positive")
+        if quota_version not in {"WAN", "SHI_WAN", "BAI_WAN", "QIAN_WAN", "UNLIMITED"}:
+            raise ValidationError(f"unsupported quota_version: {quota_version}")
+        if not (1 <= alarm_threshold_pct <= 100):
+            raise ValidationError("alarm_threshold_pct must be between 1 and 100")
+
+        current_iso = _instant(now)
+        with self.store.transaction() as conn:
+            quota_cols = {str(r["name"]) for r in conn.execute("PRAGMA table_info(customer_invoice_quota)").fetchall()}
+            if "alarm_threshold_pct" in quota_cols:
+                conn.execute(
+                    "INSERT INTO customer_invoice_quota("
+                    "tenant_id, monthly_tax_quota_minor, single_invoice_limit_minor, "
+                    "quota_version, auto_split_enabled, alarm_threshold_pct, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT(tenant_id) DO UPDATE SET "
+                    "monthly_tax_quota_minor=excluded.monthly_tax_quota_minor, "
+                    "single_invoice_limit_minor=excluded.single_invoice_limit_minor, "
+                    "quota_version=excluded.quota_version, "
+                    "auto_split_enabled=excluded.auto_split_enabled, "
+                    "alarm_threshold_pct=excluded.alarm_threshold_pct, "
+                    "updated_at=excluded.updated_at",
+                    (
+                        tenant_id,
+                        monthly_tax_quota_minor,
+                        single_invoice_limit_minor,
+                        quota_version,
+                        1 if auto_split_enabled else 0,
+                        alarm_threshold_pct,
+                        current_iso,
+                        current_iso,
+                    ),
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO customer_invoice_quota("
+                    "tenant_id, monthly_tax_quota_minor, single_invoice_limit_minor, "
+                    "quota_version, auto_split_enabled, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT(tenant_id) DO UPDATE SET "
+                    "monthly_tax_quota_minor=excluded.monthly_tax_quota_minor, "
+                    "single_invoice_limit_minor=excluded.single_invoice_limit_minor, "
+                    "quota_version=excluded.quota_version, "
+                    "auto_split_enabled=excluded.auto_split_enabled, "
+                    "updated_at=excluded.updated_at",
+                    (
+                        tenant_id,
+                        monthly_tax_quota_minor,
+                        single_invoice_limit_minor,
+                        quota_version,
+                        1 if auto_split_enabled else 0,
+                        current_iso,
+                        current_iso,
+                    ),
+                )
+        return {
+            "tenantId": tenant_id,
+            "monthlyTaxQuotaMinor": monthly_tax_quota_minor,
+            "singleInvoiceLimitMinor": single_invoice_limit_minor,
+            "quotaVersion": quota_version,
+            "autoSplitEnabled": auto_split_enabled,
+            "alarmThresholdPct": alarm_threshold_pct,
+            "operator": operator,
+            "updatedAt": current_iso,
+        }
+
+    def get_tax_quota(self, tenant_id: str) -> dict[str, Any] | None:
+        with self.store.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM customer_invoice_quota WHERE tenant_id=?",
+                (tenant_id,),
+            ).fetchone()
+            if not row:
+                return None
+            keys = set(row.keys())
+            return {
+                "tenantId": row["tenant_id"],
+                "monthlyTaxQuotaMinor": row["monthly_tax_quota_minor"],
+                "singleInvoiceLimitMinor": row["single_invoice_limit_minor"],
+                "quotaVersion": row["quota_version"],
+                "autoSplitEnabled": bool(row["auto_split_enabled"]),
+                "alarmThresholdPct": row["alarm_threshold_pct"] if "alarm_threshold_pct" in keys else 85,
+            }
+
+    def get_tax_quota_status(
+        self,
+        tenant_id: str,
+        year: int | None = None,
+        month: int | None = None,
+        tax_period: str | None = None,
+        connection: Any = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Calculate current month's consumed quota and remaining quota."""
+        cfg = self.get_tax_quota(tenant_id)
+        monthly_limit = cfg["monthlyTaxQuotaMinor"] if cfg else 50000000
+        single_limit = cfg["singleInvoiceLimitMinor"] if cfg else 10000000
+        version = cfg["quotaVersion"] if cfg else "SHI_WAN"
+        auto_split = cfg["autoSplitEnabled"] if cfg else True
+        alarm_threshold = cfg["alarmThresholdPct"] if cfg else 85
+
+        if tax_period:
+            parts = tax_period.split("-")
+            year = int(parts[0])
+            month = int(parts[1])
+        elif year is None or month is None:
+            ct = _current(now)
+            year = ct.year
+            month = ct.month
+
+        start_prefix = f"{year:04d}-{month:02d}-01T"
+        if month == 12:
+            end_prefix = f"{year+1:04d}-01-01T"
+        else:
+            end_prefix = f"{year:04d}-{month+1:02d}-01T"
+
+        conn = connection or self.store.connect()
+        try:
+            rows = conn.execute(
+                "SELECT invoice_category, total_amount_minor FROM customer_invoice "
+                "WHERE tenant_id=? AND status IN ('APPLIED', 'ISSUED', 'RED_NOTED') "
+                "AND created_at >= ? AND created_at < ?",
+                (tenant_id, start_prefix, end_prefix),
+            ).fetchall()
+            consumed = 0
+            for r in rows:
+                amt = r["total_amount_minor"]
+                if r["invoice_category"] == "blue":
+                    consumed += amt
+                elif r["invoice_category"] == "red":
+                    consumed += amt  # negative
+            consumed = max(0, consumed)
+            remaining = max(0, monthly_limit - consumed)
+            is_alarm = (consumed / monthly_limit >= alarm_threshold / 100.0) if monthly_limit > 0 else True
+            is_exhausted = remaining == 0
+            return {
+                "tenantId": tenant_id,
+                "taxPeriod": f"{year:04d}-{month:02d}",
+                "year": year,
+                "month": month,
+                "quotaLimitMinor": monthly_limit,
+                "monthlyTaxQuotaMinor": monthly_limit,
+                "singleInvoiceLimitMinor": single_limit,
+                "quotaVersion": version,
+                "autoSplitEnabled": auto_split,
+                "consumedMinor": consumed,
+                "usedTaxQuotaMinor": consumed,
+                "remainingQuotaMinor": remaining,
+                "remainingTaxQuotaMinor": remaining,
+                "alarmThresholdPct": alarm_threshold,
+                "isAlarm": is_alarm,
+                "isExhausted": is_exhausted,
+                "usageRatio": round(consumed / monthly_limit, 4) if monthly_limit > 0 else 1.0,
+            }
+        finally:
+            if connection is None:
+                conn.close()
+
+    # --- Enterprise Invoice Auto-Splitting ---
+    def split_and_apply_invoice(
+        self,
+        *,
+        tenant_id: str,
+        payment_intent_id: str,
+        invoice_type: str = "vat_electronic_normal",
+        buyer_info: dict[str, Any] | None = None,
+        seller_info: dict[str, Any] | None = None,
+        items: list[dict[str, Any]] | None = None,
+        project_id: str = "proj_default",
+        captured_amount_minor: int | None = None,
+        refunded_amount_minor: int = 0,
+        seller_name: str | None = None,
+        seller_tax_number: str | None = None,
+        operator: str = "system",
+        buyer_title_id: str | None = None,
+        total_requested_minor: int | None = None,
+        item_name: str = "企业技术服务费",
+        specification: str = "",
+        unit: str = "项",
+        tax_rate_basis_points: int = 1300,
+        tax_classification_code: str = "3040201010000000000",
+        single_invoice_cap_minor: int | None = None,
+        auto_issue: bool = False,
+        actor_id: str = "actor_split",
+        checker: str | None = None,
+        payee: str | None = None,
+        seller_address_phone: str | None = None,
+        seller_bank_account: str | None = None,
+        idempotency_key: str | None = None,
+        currency: str = "CNY",
+        now: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """Split oversized payment balance into compliant sub-invoices respecting single-invoice cap."""
+        if idempotency_key:
+            with self.store.connect() as conn:
+                existing_splits = conn.execute(
+                    "SELECT invoice_id FROM customer_invoice WHERE tenant_id=? AND idempotency_key LIKE ? ORDER BY split_index ASC",
+                    (tenant_id, f"{idempotency_key}_part_%"),
+                ).fetchall()
+                if existing_splits:
+                    return [self._load_invoice_detail(conn, r["invoice_id"]) for r in existing_splits]
+
+        if buyer_info:
+            buyer_type = buyer_info.get("buyerType") or ("enterprise" if (buyer_info.get("taxNumber") or buyer_info.get("buyerTaxNumber") or buyer_info.get("taxId")) else "individual")
+            buyer_name = buyer_info.get("name") or buyer_info.get("buyerName") or "企业客户"
+            buyer_tax_number = buyer_info.get("taxNumber") or buyer_info.get("buyerTaxNumber") or buyer_info.get("taxId")
+            buyer_address_phone = buyer_info.get("addressPhone") or buyer_info.get("buyerAddressPhone")
+            buyer_bank_account = buyer_info.get("bankAccount") or buyer_info.get("buyerBankAccount")
+            recipient_email = buyer_info.get("email") or buyer_info.get("recipientEmail")
+            recipient_phone = buyer_info.get("phone") or buyer_info.get("recipientPhone")
+        else:
+            title = self.get_buyer_title(tenant_id, buyer_title_id)
+            if not title:
+                raise ValidationError(f"buyer title not found: {buyer_title_id or 'default'}")
+            buyer_type = title["buyerType"]
+            buyer_name = title["buyerName"]
+            buyer_tax_number = title.get("buyerTaxNumber")
+            buyer_address_phone = title.get("buyerAddressPhone")
+            buyer_bank_account = title.get("buyerBankAccount")
+            recipient_email = title.get("recipientEmail")
+            recipient_phone = title.get("recipientPhone")
+
+        if seller_info:
+            seller_name = seller_info.get("name") or seller_info.get("sellerName") or seller_name or "榆钱儿支付"
+            seller_tax_number = seller_info.get("taxNumber") or seller_info.get("sellerTaxNumber") or seller_tax_number or "91110105MA02YYYYYY"
+            seller_address_phone = seller_info.get("addressPhone") or seller_address_phone
+            seller_bank_account = seller_info.get("bankAccount") or seller_bank_account
+        else:
+            seller_name = seller_name or "榆钱儿支付"
+            seller_tax_number = seller_tax_number or "91110105MA02YYYYYY"
+
+        if items:
+            orig_breakdown = calculate_vat_breakdown(items)
+            target_amount = orig_breakdown.total_amount_minor
+            first_item = items[0]
+            item_name = first_item.get("itemName", item_name)
+            specification = first_item.get("specification", specification)
+            unit = first_item.get("unit", unit)
+            tax_rate_basis_points = first_item.get("taxRateBasisPoints", tax_rate_basis_points)
+            tax_classification_code = first_item.get("taxClassificationCode", tax_classification_code)
+        else:
+            invoicable = self.calculate_invoicable_balance(
+                tenant_id, payment_intent_id, captured_amount_minor or 0, refunded_amount_minor
+            )
+            target_amount = total_requested_minor if total_requested_minor is not None else invoicable
+
+        if target_amount <= 0:
+            raise ValidationError(f"no invoicable balance remaining for payment intent: {payment_intent_id}")
+
+        quota_cfg = self.get_tax_quota(tenant_id)
+        cap = single_invoice_cap_minor or (quota_cfg["singleInvoiceLimitMinor"] if quota_cfg else 10000000)
+        if cap <= 0:
+            cap = 10000000
+
+        slices: list[int] = []
+        rem = target_amount
+        while rem > 0:
+            take = min(rem, cap)
+            slices.append(take)
+            rem -= take
+
+        split_count = len(slices)
+        split_batch_id = f"split_{uuid.uuid4().hex[:16]}"
+        issued_invoices: list[dict[str, Any]] = []
+
+        for idx, slice_amount in enumerate(slices):
+            r = tax_rate_basis_points
+            u = (slice_amount * 10000 + (10000 + r) // 2) // (10000 + r)
+            tax = (u * r + 5000) // 10000
+            diff = slice_amount - (u + tax)
+            slice_untaxed = u + diff
+
+            slice_items = [
+                {
+                    "itemName": f"{item_name} (分票 {idx + 1}/{split_count})" if split_count > 1 else item_name,
+                    "specification": specification,
+                    "unit": unit,
+                    "quantity": 1,
+                    "unitPriceMinor": slice_untaxed,
+                    "taxRateBasisPoints": r,
+                    "taxClassificationCode": tax_classification_code,
+                }
+            ]
+
+            part_idempotency_key = f"{idempotency_key}_part_{idx + 1}" if idempotency_key else None
+            applied = self.apply_invoice(
+                tenant_id=tenant_id,
+                project_id=project_id,
+                payment_intent_id=payment_intent_id,
+                captured_amount_minor=captured_amount_minor or target_amount,
+                refunded_amount_minor=refunded_amount_minor,
+                invoice_type=invoice_type,
+                buyer_type=buyer_type,
+                buyer_name=buyer_name,
+                buyer_tax_number=buyer_tax_number,
+                buyer_address_phone=buyer_address_phone,
+                buyer_bank_account=buyer_bank_account,
+                recipient_email=recipient_email,
+                recipient_phone=recipient_phone,
+                seller_name=seller_name,
+                seller_tax_number=seller_tax_number,
+                seller_address_phone=seller_address_phone,
+                seller_bank_account=seller_bank_account,
+                operator=operator,
+                items=slice_items,
+                idempotency_key=part_idempotency_key,
+                split_batch_id=split_batch_id,
+                split_index=idx + 1,
+                split_count=split_count,
+                currency=currency,
+                now=now,
+            )
+
+            if auto_issue and applied["status"] == "APPLIED":
+                issued = self.issue_invoice(
+                    tenant_id,
+                    applied["invoiceId"],
+                    actor=actor_id,
+                    checker=checker or operator,
+                    payee=payee or seller_name,
+                    now=now,
+                )
+                issued_invoices.append(issued)
+            else:
+                issued_invoices.append(applied)
+
+        return issued_invoices
+
+    # --- Self-Service Invoicing & QR Ticket Tokens ---
+    def create_self_service_session(
+        self,
+        *,
+        tenant_id: str,
+        payment_intent_id: str,
+        invoicable_amount_minor: int | None = None,
+        captured_amount_minor: int | None = None,
+        project_id: str = "proj_default",
+        seller_name: str = "榆钱儿企业服务（北京）有限公司",
+        seller_tax_number: str = "91110105MA02YYYYYY",
+        currency: str = "CNY",
+        ttl_hours: int | None = None,
+        expire_hours: int = 72,
+        created_by: str = "system",
+        base_portal_url: str = "https://pay.elmpay.com/invoicing/self-service",
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Create time-limited, signed self-service invoicing session for customer self-ticketing."""
+        amount = invoicable_amount_minor if invoicable_amount_minor is not None else (captured_amount_minor or 0)
+        hours = ttl_hours if ttl_hours is not None else expire_hours
+
+        invoicable = self.calculate_invoicable_balance(
+            tenant_id, payment_intent_id, amount, 0
+        )
+        if invoicable <= 0:
+            raise ValidationError(f"no invoicable balance remaining for payment intent: {payment_intent_id}")
+
+        current_time = _current(now)
+        current_iso = current_time.isoformat()
+        expires_time = current_time + timedelta(hours=hours)
+        expires_iso = expires_time.isoformat()
+
+        session_id = str(uuid.uuid4())
+        raw_token = hashlib.sha256(f"{session_id}:{tenant_id}:{payment_intent_id}:{current_iso}".encode("utf-8")).hexdigest()
+        token_digest = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        qr_url = f"{base_portal_url}?token={raw_token}"
+
+        with self.store.transaction() as conn:
+            existing = conn.execute(
+                "SELECT * FROM customer_invoice_self_service WHERE tenant_id=? AND payment_intent_id=?",
+                (tenant_id, payment_intent_id),
+            ).fetchone()
+            if existing:
+                if existing["status"] == "ACTIVE" and existing["expires_at"] > current_iso:
+                    return {
+                        "sessionId": existing["session_id"],
+                        "tenantId": existing["tenant_id"],
+                        "projectId": existing["project_id"],
+                        "paymentIntentId": existing["payment_intent_id"],
+                        "invoicableAmountMinor": existing["captured_amount_minor"],
+                        "capturedAmountMinor": existing["captured_amount_minor"],
+                        "currency": existing["currency"],
+                        "sellerName": existing["seller_name"],
+                        "sellerTaxNumber": existing["seller_tax_number"],
+                        "sessionToken": existing["session_token"],
+                        "qrPayload": existing["qr_code_url"],
+                        "qrCodeUrl": existing["qr_code_url"],
+                        "expiresAt": existing["expires_at"],
+                        "status": existing["status"],
+                        "createdBy": created_by,
+                        "createdAt": existing["created_at"],
+                    }
+
+            conn.execute(
+                "INSERT INTO customer_invoice_self_service("
+                "session_id, tenant_id, project_id, payment_intent_id, captured_amount_minor, "
+                "currency, seller_name, seller_tax_number, session_token, session_token_digest, "
+                "qr_code_url, expires_at, status, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?) "
+                "ON CONFLICT(tenant_id, payment_intent_id) DO UPDATE SET "
+                "session_id=excluded.session_id, session_token=excluded.session_token, "
+                "session_token_digest=excluded.session_token_digest, qr_code_url=excluded.qr_code_url, "
+                "expires_at=excluded.expires_at, status='ACTIVE', created_at=excluded.created_at",
+                (
+                    session_id,
+                    tenant_id,
+                    project_id,
+                    payment_intent_id,
+                    amount,
+                    currency,
+                    seller_name,
+                    seller_tax_number,
+                    raw_token,
+                    token_digest,
+                    qr_url,
+                    expires_iso,
+                    current_iso,
+                ),
+            )
+
+        return {
+            "sessionId": session_id,
+            "tenantId": tenant_id,
+            "projectId": project_id,
+            "paymentIntentId": payment_intent_id,
+            "invoicableAmountMinor": amount,
+            "capturedAmountMinor": amount,
+            "currency": currency,
+            "sellerName": seller_name,
+            "sellerTaxNumber": seller_tax_number,
+            "sessionToken": raw_token,
+            "qrPayload": qr_url,
+            "qrCodeUrl": qr_url,
+            "expiresAt": expires_iso,
+            "status": "ACTIVE",
+            "createdBy": created_by,
+            "createdAt": current_iso,
+        }
+
+    def get_self_service_session(self, session_token: str, now: datetime | None = None) -> dict[str, Any]:
+        """Fetch and validate a self-service session."""
+        current_iso = _instant(now)
+        with self.store.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM customer_invoice_self_service WHERE session_token=?",
+                (session_token,),
+            ).fetchone()
+            if not row:
+                raise ValidationError("self-service session not found")
+
+            status = row["status"]
+            if status == "ACTIVE" and row["expires_at"] <= current_iso:
+                status = "EXPIRED"
+
+            return {
+                "sessionId": row["session_id"],
+                "tenantId": row["tenant_id"],
+                "projectId": row["project_id"],
+                "paymentIntentId": row["payment_intent_id"],
+                "invoicableAmountMinor": row["captured_amount_minor"],
+                "capturedAmountMinor": row["captured_amount_minor"],
+                "currency": row["currency"],
+                "sellerName": row["seller_name"],
+                "sellerTaxNumber": row["seller_tax_number"],
+                "sessionToken": row["session_token"],
+                "qrPayload": row["qr_code_url"],
+                "qrCodeUrl": row["qr_code_url"],
+                "expiresAt": row["expires_at"],
+                "status": status,
+                "redeemedInvoiceId": row["redeemed_invoice_id"],
+                "redeemedAt": row["redeemed_at"],
+                "createdAt": row["created_at"],
+            }
+
+    def redeem_self_service_session(
+        self,
+        *,
+        session_token: str,
+        buyer_info: dict[str, Any] | None = None,
+        buyer_type: str | None = None,
+        buyer_name: str | None = None,
+        buyer_tax_number: str | None = None,
+        buyer_address_phone: str | None = None,
+        buyer_bank_account: str | None = None,
+        recipient_email: str | None = None,
+        recipient_phone: str | None = None,
+        invoice_type: str = "vat_electronic_normal",
+        item_name: str = "企业支付技术服务费",
+        tax_rate_basis_points: int = 1300,
+        tax_classification_code: str = "3040201010000000000",
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Buyer redeems self-service ticket, generating official VAT invoice."""
+        if buyer_info:
+            b_name = buyer_info.get("name") or buyer_info.get("buyerName") or buyer_name or ""
+            b_tax = buyer_info.get("taxNumber") or buyer_info.get("buyerTaxNumber") or buyer_info.get("taxId") or buyer_tax_number
+            b_type = buyer_info.get("buyerType") or (buyer_type or ("enterprise" if b_tax else "individual"))
+            b_addr = buyer_info.get("addressPhone") or buyer_info.get("buyerAddressPhone") or buyer_address_phone
+            b_bank = buyer_info.get("bankAccount") or buyer_info.get("buyerBankAccount") or buyer_bank_account
+            r_email = buyer_info.get("email") or buyer_info.get("recipientEmail") or recipient_email
+            r_phone = buyer_info.get("phone") or buyer_info.get("recipientPhone") or recipient_phone
+        else:
+            b_type = buyer_type or "individual"
+            b_name = buyer_name or ""
+            b_tax = buyer_tax_number
+            b_addr = buyer_address_phone
+            b_bank = buyer_bank_account
+            r_email = recipient_email
+            r_phone = recipient_phone
+
+        validate_buyer_info(b_type, b_name, b_tax)
+        current_time = _current(now)
+        current_iso = current_time.isoformat()
+
+        with self.store.transaction() as conn:
+            row = conn.execute(
+                "SELECT * FROM customer_invoice_self_service WHERE session_token=?",
+                (session_token,),
+            ).fetchone()
+            if not row:
+                raise ValidationError("self-service session not found")
+            if row["status"] != "ACTIVE":
+                raise ValidationError(f"self-service session already redeemed or invalid: {row['status']}")
+            if row["expires_at"] <= current_iso:
+                raise ValidationError("self-service session has expired")
+
+            cur = conn.execute(
+                "UPDATE customer_invoice_self_service SET status='REDEEMED', redeemed_at=? "
+                "WHERE session_token=? AND status='ACTIVE'",
+                (current_iso, session_token),
+            )
+            if cur.rowcount == 0:
+                raise ValidationError("self-service session already redeemed")
+
+            tenant_id = row["tenant_id"]
+            project_id = row["project_id"]
+            pi_id = row["payment_intent_id"]
+            captured_minor = row["captured_amount_minor"]
+            seller_name = row["seller_name"]
+            seller_tax = row["seller_tax_number"]
+            currency = row["currency"]
+
+        r = tax_rate_basis_points
+        u = (captured_minor * 10000 + (10000 + r) // 2) // (10000 + r)
+        tax = (u * r + 5000) // 10000
+        diff = captured_minor - (u + tax)
+
+        items = [
+            {
+                "itemName": item_name,
+                "quantity": 1,
+                "unitPriceMinor": u + diff,
+                "taxRateBasisPoints": r,
+                "taxClassificationCode": tax_classification_code,
+            }
+        ]
+
+        applied = self.apply_invoice(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            payment_intent_id=pi_id,
+            captured_amount_minor=captured_minor,
+            refunded_amount_minor=0,
+            invoice_type=invoice_type,
+            buyer_type=b_type,
+            buyer_name=b_name,
+            buyer_tax_number=b_tax,
+            buyer_address_phone=b_addr,
+            buyer_bank_account=b_bank,
+            recipient_email=r_email,
+            recipient_phone=r_phone,
+            seller_name=seller_name,
+            seller_tax_number=seller_tax,
+            operator="self_service_customer",
+            items=items,
+            idempotency_key=f"self_service_{session_token[:16]}",
+            currency=currency,
+            now=now,
+        )
+
+        issued = self.issue_invoice(
+            tenant_id,
+            applied["invoiceId"],
+            actor="actor_self_service",
+            checker="系统自动复核",
+            payee=seller_name,
+            now=now,
+        )
+
+        with self.store.transaction() as conn:
+            conn.execute(
+                "UPDATE customer_invoice_self_service SET redeemed_invoice_id=? WHERE session_token=?",
+                (issued["invoiceId"], session_token),
+            )
+
+        return issued
+
+    # --- VAT Declaration & Tax Return Summary ---
+    def generate_tax_declaration_summary(
+        self,
+        tenant_id: str,
+        year: int | None = None,
+        month: int | None = None,
+        tax_period: str | None = None,
+        payments: Sequence[Mapping[str, Any]] | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Aggregate VAT declaration summary grouped by tax rate brackets."""
+        if tax_period:
+            parts = tax_period.split("-")
+            year = int(parts[0])
+            month = int(parts[1])
+        elif year is None or month is None:
+            ct = _current(now)
+            year = ct.year
+            month = ct.month
+
+        start_prefix = f"{year:04d}-{month:02d}-01T"
+        if month == 12:
+            end_prefix = f"{year+1:04d}-01-01T"
+        else:
+            end_prefix = f"{year:04d}-{month+1:02d}-01T"
+
+        with self.store.connect() as conn:
+            rows = conn.execute(
+                "SELECT ci.invoice_id, ci.invoice_category, ci.status, "
+                "cii.tax_rate_basis_points, cii.amount_minor, cii.tax_amount_minor "
+                "FROM customer_invoice ci "
+                "JOIN customer_invoice_item cii ON ci.invoice_id = cii.invoice_id "
+                "WHERE ci.tenant_id=? AND ci.status IN ('ISSUED', 'RED_NOTED') "
+                "AND ci.created_at >= ? AND ci.created_at < ?",
+                (tenant_id, start_prefix, end_prefix),
+            ).fetchall()
+
+            brackets: dict[int, dict[str, int]] = {}
+            seen_invoices: set[tuple[int, str, str]] = set()
+
+            for r in rows:
+                rate = r["tax_rate_basis_points"]
+                cat = r["invoice_category"]
+                inv_id = r["invoice_id"]
+                if rate not in brackets:
+                    brackets[rate] = {
+                        "taxRateBasisPoints": rate,
+                        "blueInvoiceCount": 0,
+                        "blueUntaxedMinor": 0,
+                        "blueTaxMinor": 0,
+                        "blueTotalMinor": 0,
+                        "redInvoiceCount": 0,
+                        "redUntaxedMinor": 0,
+                        "redTaxMinor": 0,
+                        "redTotalMinor": 0,
+                        "netSalesUntaxedMinor": 0,
+                        "netOutputTaxMinor": 0,
+                        "netTotalMinor": 0,
+                    }
+
+                b = brackets[rate]
+                inv_key = (rate, cat, inv_id)
+                if inv_key not in seen_invoices:
+                    seen_invoices.add(inv_key)
+                    if cat == "blue":
+                        b["blueInvoiceCount"] += 1
+                    else:
+                        b["redInvoiceCount"] += 1
+
+                amt = r["amount_minor"]
+                tax = r["tax_amount_minor"]
+                if cat == "blue":
+                    b["blueUntaxedMinor"] += amt
+                    b["blueTaxMinor"] += tax
+                    b["blueTotalMinor"] += (amt + tax)
+                else:
+                    b["redUntaxedMinor"] += (-amt if amt < 0 else amt)
+                    b["redTaxMinor"] += (-tax if tax < 0 else tax)
+                    b["redTotalMinor"] += (-amt - tax if amt < 0 else amt + tax)
+
+                b["netSalesUntaxedMinor"] += amt
+                b["netOutputTaxMinor"] += tax
+                b["netTotalMinor"] += (amt + tax)
+
+            total_invoiced_net = sum(b["netTotalMinor"] for b in brackets.values())
+
+            uninvoiced_sales = 0
+            if payments:
+                total_captured_net = 0
+                for p in payments:
+                    cap = int(p.get("capturedAmountMinor", 0))
+                    ref = int(p.get("refundedAmountMinor", 0))
+                    total_captured_net += max(0, cap - ref)
+                uninvoiced_sales = max(0, total_captured_net - total_invoiced_net)
+
+            sorted_brackets = [brackets[k] for k in sorted(brackets.keys(), reverse=True)]
+
+            summary_totals = {
+                "totalBlueCount": sum(b["blueInvoiceCount"] for b in sorted_brackets),
+                "totalRedCount": sum(b["redInvoiceCount"] for b in sorted_brackets),
+                "totalNetSalesUntaxedMinor": sum(b["netSalesUntaxedMinor"] for b in sorted_brackets),
+                "totalNetOutputTaxMinor": sum(b["netOutputTaxMinor"] for b in sorted_brackets),
+                "totalNetTotalMinor": total_invoiced_net,
+                "totalNetMinor": total_invoiced_net,
+                "uninvoicedSalesMinor": uninvoiced_sales,
+            }
+
+            return {
+                "tenantId": tenant_id,
+                "taxPeriod": f"{year:04d}-{month:02d}",
+                "year": year,
+                "month": month,
+                "taxRateBrackets": sorted_brackets,
+                "totals": summary_totals,
+            }
+
+    @staticmethod
+    def export_tax_declaration_csv(summary: Mapping[str, Any]) -> str:
+        """Export VAT declaration summary into CSV table."""
+        out = io.StringIO()
+        writer = csv.writer(out)
+        writer.writerow([
+            "税率(%)", "蓝字发票份数", "蓝字销售额(元)", "蓝字销项税额(元)",
+            "红字发票份数", "红字销售额(元)", "红字销项税额(元)",
+            "净销售额(元)", "净销项税额(元)", "价税合计(元)"
+        ])
+        for b in summary.get("taxRateBrackets", []):
+            rate_pct = f"{b['taxRateBasisPoints'] / 100:.1f}%"
+            writer.writerow([
+                rate_pct,
+                b["blueInvoiceCount"],
+                f"{b['blueUntaxedMinor'] / 100:.2f}",
+                f"{b['blueTaxMinor'] / 100:.2f}",
+                b["redInvoiceCount"],
+                f"{b['redUntaxedMinor'] / 100:.2f}",
+                f"{b['redTaxMinor'] / 100:.2f}",
+                f"{b['netSalesUntaxedMinor'] / 100:.2f}",
+                f"{b['netOutputTaxMinor'] / 100:.2f}",
+                f"{b['netTotalMinor'] / 100:.2f}",
+            ])
+        t = summary.get("totals", {})
+        writer.writerow([
+            "合计",
+            t.get("totalBlueCount", 0),
+            "",
+            "",
+            t.get("totalRedCount", 0),
+            "",
+            "",
+            f"{t.get('totalNetSalesUntaxedMinor', 0) / 100:.2f}",
+            f"{t.get('totalNetOutputTaxMinor', 0) / 100:.2f}",
+            f"{t.get('totalNetTotalMinor', 0) / 100:.2f}",
+        ])
+        if t.get("uninvoicedSalesMinor"):
+            writer.writerow(["未开票销售额(元)", "", "", "", "", "", "", f"{t['uninvoicedSalesMinor'] / 100:.2f}", "", ""])
+        return out.getvalue()
+
+    # --- Subscription & Periodic Billing Auto-Invoicing ---
+    def auto_invoice_subscription_billing(
+        self,
+        *,
+        tenant_id: str,
+        subscription_id: str,
+        billing_cycle: str | None = None,
+        amount_minor: int,
+        plan_name: str = "企业SaaS专业版订阅",
+        buyer_info: dict[str, Any] | None = None,
+        operator: str = "subscription_billing_worker",
+        tax_rate_basis_points: int = 600,
+        tax_classification_code: str = "3040201010000000000",
+        project_id: str = "proj_subscription",
+        seller_name: str = "榆钱儿企业服务（北京）有限公司",
+        seller_tax_number: str = "91110105MA02YYYYYY",
+        cycle_index: int = 1,
+        period_start: str | None = None,
+        period_end: str | None = None,
+        buyer_title_id: str | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Auto-invoice recurring subscription billing cycle."""
+        if buyer_info:
+            buyer_type = buyer_info.get("buyerType") or ("enterprise" if (buyer_info.get("taxNumber") or buyer_info.get("taxId")) else "individual")
+            buyer_name = buyer_info.get("name") or buyer_info.get("buyerName") or "企业客户"
+            buyer_tax_number = buyer_info.get("taxNumber") or buyer_info.get("taxId")
+            buyer_address_phone = buyer_info.get("addressPhone")
+            buyer_bank_account = buyer_info.get("bankAccount")
+            recipient_email = buyer_info.get("email")
+            recipient_phone = buyer_info.get("phone")
+        else:
+            title = self.get_buyer_title(tenant_id, buyer_title_id)
+            if not title:
+                raise ValidationError(f"buyer title not found: {buyer_title_id or 'default'}")
+            buyer_type = title["buyerType"]
+            buyer_name = title["buyerName"]
+            buyer_tax_number = title.get("buyerTaxNumber")
+            buyer_address_phone = title.get("buyerAddressPhone")
+            buyer_bank_account = title.get("buyerBankAccount")
+            recipient_email = title.get("recipientEmail")
+            recipient_phone = title.get("recipientPhone")
+
+        if billing_cycle:
+            item_desc = f"{plan_name} ({billing_cycle} 账期)"
+            idempotency_key = f"sub_{subscription_id}_{billing_cycle}"
+            pi_id = f"pi_sub_{subscription_id}_{billing_cycle}"
+        else:
+            clean_start = (period_start or "2026-01-01")[:10]
+            clean_end = (period_end or "2026-01-31")[:10]
+            item_desc = f"{plan_name} ({clean_start} 至 {clean_end}, 第{cycle_index}期)"
+            idempotency_key = f"sub_{subscription_id}_cycle_{cycle_index}"
+            pi_id = f"pi_sub_{subscription_id}_{cycle_index}"
+
+        r = tax_rate_basis_points
+        u = (amount_minor * 10000 + (10000 + r) // 2) // (10000 + r)
+        tax = (u * r + 5000) // 10000
+        diff = amount_minor - (u + tax)
+
+        items = [
+            {
+                "itemName": item_desc,
+                "quantity": 1,
+                "unitPriceMinor": u + diff,
+                "taxRateBasisPoints": r,
+                "taxClassificationCode": tax_classification_code,
+            }
+        ]
+
+        applied = self.apply_invoice(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            payment_intent_id=pi_id,
+            captured_amount_minor=amount_minor,
+            refunded_amount_minor=0,
+            invoice_type="vat_electronic_normal",
+            buyer_type=buyer_type,
+            buyer_name=buyer_name,
+            buyer_tax_number=buyer_tax_number,
+            buyer_address_phone=buyer_address_phone,
+            buyer_bank_account=buyer_bank_account,
+            recipient_email=recipient_email,
+            recipient_phone=recipient_phone,
+            seller_name=seller_name,
+            seller_tax_number=seller_tax_number,
+            operator=operator,
+            items=items,
+            idempotency_key=idempotency_key,
+            now=now,
+        )
+
+        if applied.get("isIdempotentReplay"):
+            return applied
+
+        issued = self.issue_invoice(
+            tenant_id,
+            applied["invoiceId"],
+            actor="actor_subscription_engine",
+            checker="系统自动复核",
+            payee=seller_name,
+            now=now,
+        )
+        return issued
+
+
+export_tax_declaration_csv = CustomerInvoiceLedger.export_tax_declaration_csv
+
