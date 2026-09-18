@@ -1013,4 +1013,133 @@ CREATE TABLE IF NOT EXISTS card_updater_event (
 );
 CREATE INDEX IF NOT EXISTS idx_card_updater_token ON card_updater_event(vault_token);
 
+CREATE TABLE IF NOT EXISTS routing_provider_profile (
+  profile_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  provider_name TEXT NOT NULL,
+  supported_methods_csv TEXT NOT NULL,
+  supported_currencies_csv TEXT NOT NULL,
+  min_amount_minor INTEGER NOT NULL DEFAULT 1 CHECK(min_amount_minor >= 0),
+  max_amount_minor INTEGER NOT NULL CHECK(max_amount_minor > 0),
+  fee_basis_points INTEGER NOT NULL CHECK(fee_basis_points >= 0),
+  fixed_fee_minor INTEGER NOT NULL DEFAULT 0 CHECK(fixed_fee_minor >= 0),
+  health_status TEXT NOT NULL CHECK(health_status IN ('HEALTHY', 'DEGRADED', 'CIRCUIT_BROKEN')),
+  priority_rank INTEGER NOT NULL DEFAULT 100,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(tenant_id, provider_id)
+);
+CREATE INDEX IF NOT EXISTS idx_routing_profile_tenant ON routing_provider_profile(tenant_id, health_status);
+
+CREATE TABLE IF NOT EXISTS smart_routing_decision_log (
+  decision_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  payment_intent_id TEXT NOT NULL,
+  amount_minor INTEGER NOT NULL,
+  currency TEXT NOT NULL,
+  payment_method TEXT NOT NULL,
+  card_brand TEXT,
+  selected_provider_id TEXT NOT NULL,
+  estimated_fee_minor INTEGER NOT NULL,
+  cascade_routes_json TEXT NOT NULL,
+  routed_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_routing_decision_pi ON smart_routing_decision_log(tenant_id, payment_intent_id);
+
+CREATE TABLE IF NOT EXISTS merchant_fee_schedule (
+  schedule_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL UNIQUE,
+  pricing_model TEXT NOT NULL CHECK(pricing_model IN ('BLENDED', 'TIERED_VOLUME', 'INTERCHANGE_PLUS_PLUS')),
+  tiers_json TEXT,
+  markup_basis_points INTEGER NOT NULL DEFAULT 30 CHECK(markup_basis_points >= 0),
+  fixed_fee_minor INTEGER NOT NULL DEFAULT 30 CHECK(fixed_fee_minor >= 0),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS merchant_fee_journal (
+  journal_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  transaction_id TEXT NOT NULL,
+  amount_minor INTEGER NOT NULL,
+  currency TEXT NOT NULL,
+  pricing_model TEXT NOT NULL,
+  gross_fee_minor INTEGER NOT NULL,
+  interchange_cost_minor INTEGER NOT NULL DEFAULT 0,
+  scheme_assessment_minor INTEGER NOT NULL DEFAULT 0,
+  net_margin_minor INTEGER NOT NULL,
+  billed_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_fee_journal_tenant_txn ON merchant_fee_journal(tenant_id, transaction_id);
+
+CREATE TABLE IF NOT EXISTS webhook_endpoint_subscription (
+  endpoint_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  url TEXT NOT NULL,
+  secret_key TEXT NOT NULL,
+  subscribed_events_csv TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('ACTIVE', 'DISABLED')),
+  created_at TEXT NOT NULL,
+  UNIQUE(tenant_id, url)
+);
+
+CREATE TABLE IF NOT EXISTS webhook_event_queue (
+  event_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  endpoint_id TEXT NOT NULL REFERENCES webhook_endpoint_subscription(endpoint_id),
+  event_type TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  signature_header TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('PENDING', 'DELIVERED', 'RETRYING', 'DEAD_LETTER')),
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  max_attempts INTEGER NOT NULL DEFAULT 5,
+  last_http_status INTEGER,
+  last_error_message TEXT,
+  next_delivery_at TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  delivered_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_queue_status ON webhook_event_queue(tenant_id, status, next_delivery_at);
+
+CREATE TABLE IF NOT EXISTS webhook_dead_letter (
+  dead_letter_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  event_id TEXT NOT NULL UNIQUE REFERENCES webhook_event_queue(event_id),
+  endpoint_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  final_error TEXT NOT NULL,
+  replayed_at TEXT,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_webhook_dlq_tenant ON webhook_dead_letter(tenant_id);
+
+CREATE TABLE IF NOT EXISTS marketplace_split_order (
+  order_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  captured_amount_minor INTEGER NOT NULL CHECK(captured_amount_minor > 0),
+  currency TEXT NOT NULL,
+  platform_fee_minor INTEGER NOT NULL CHECK(platform_fee_minor >= 0),
+  escrow_status TEXT NOT NULL CHECK(escrow_status IN ('HELD', 'RELEASED', 'REFUNDED', 'PARTIALLY_REFUNDED')),
+  hold_until TEXT NOT NULL,
+  released_at TEXT,
+  refunded_amount_minor INTEGER NOT NULL DEFAULT 0 CHECK(refunded_amount_minor >= 0),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_split_order_tenant_status ON marketplace_split_order(tenant_id, escrow_status);
+
+CREATE TABLE IF NOT EXISTS marketplace_split_recipient (
+  recipient_split_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  order_id TEXT NOT NULL REFERENCES marketplace_split_order(order_id),
+  vendor_id TEXT NOT NULL,
+  allocated_amount_minor INTEGER NOT NULL CHECK(allocated_amount_minor > 0),
+  settled_amount_minor INTEGER NOT NULL DEFAULT 0 CHECK(settled_amount_minor >= 0),
+  refunded_amount_minor INTEGER NOT NULL DEFAULT 0 CHECK(refunded_amount_minor >= 0),
+  status TEXT NOT NULL CHECK(status IN ('PENDING', 'RELEASED', 'REFUNDED')),
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_split_recip_order ON marketplace_split_recipient(order_id);
+
+
 

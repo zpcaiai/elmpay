@@ -33,6 +33,10 @@ from .fx_engine import FXQuoteLockManager, RATE_SCALE
 from .b2b_credit import B2BCreditManager, TERM_DAYS
 from .mass_payout import MassPayoutManager, SUPPORTED_CHANNELS
 from .card_vault import CardVaultManager
+from .smart_routing import SmartRoutingEngine
+from .tiered_pricing import TieredPricingEngine
+from .webhook_engine import EnterpriseWebhookDispatcher, sign_webhook_payload, verify_webhook_signature
+from .marketplace_escrow import MarketplaceEscrowManager
 
 __all__ = [
     "GateReport",
@@ -67,5 +71,11 @@ __all__ = [
     "MassPayoutManager",
     "SUPPORTED_CHANNELS",
     "CardVaultManager",
+    "SmartRoutingEngine",
+    "TieredPricingEngine",
+    "EnterpriseWebhookDispatcher",
+    "sign_webhook_payload",
+    "verify_webhook_signature",
+    "MarketplaceEscrowManager",
 ]
 

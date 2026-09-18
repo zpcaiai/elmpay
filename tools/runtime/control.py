@@ -34,6 +34,10 @@ from elmpay_runtime.fx_engine import FXQuoteLockManager
 from elmpay_runtime.b2b_credit import B2BCreditManager
 from elmpay_runtime.mass_payout import MassPayoutManager
 from elmpay_runtime.card_vault import CardVaultManager
+from elmpay_runtime.smart_routing import SmartRoutingEngine
+from elmpay_runtime.tiered_pricing import TieredPricingEngine
+from elmpay_runtime.webhook_engine import EnterpriseWebhookDispatcher, verify_webhook_signature
+from elmpay_runtime.marketplace_escrow import MarketplaceEscrowManager
 from elmpay_runtime.durable import DurableStore
 from elmpay_runtime.external_evidence import (
     validate_external_evidence,
@@ -654,6 +658,102 @@ def _parser() -> argparse.ArgumentParser:
     vt_pg.add_argument("--tenant", required=True)
     vt_pg.add_argument("--year", type=int, required=True)
     vt_pg.add_argument("--month", type=int, required=True)
+
+    # Smart Routing
+    rt_pr = subcommands.add_parser("routing-provider-reg", help="register or update payment routing provider")
+    rt_pr.add_argument("--database", type=Path, required=True)
+    rt_pr.add_argument("--tenant", required=True)
+    rt_pr.add_argument("--provider-id", required=True)
+    rt_pr.add_argument("--provider-name", required=True)
+    rt_pr.add_argument("--methods", required=True, help="comma-separated methods")
+    rt_pr.add_argument("--currencies", required=True, help="comma-separated currencies")
+    rt_pr.add_argument("--min-minor", type=int, default=1)
+    rt_pr.add_argument("--max-minor", type=int, default=100000000)
+    rt_pr.add_argument("--fee-bp", type=int, default=30)
+    rt_pr.add_argument("--fixed-fee", type=int, default=30)
+    rt_pr.add_argument("--priority", type=int, default=100)
+
+    rt_ev = subcommands.add_parser("routing-evaluate", help="evaluate optimal Least-Cost Route for transaction")
+    rt_ev.add_argument("--database", type=Path, required=True)
+    rt_ev.add_argument("--tenant", required=True)
+    rt_ev.add_argument("--payment-intent", required=True)
+    rt_ev.add_argument("--amount-minor", type=int, required=True)
+    rt_ev.add_argument("--currency", required=True)
+    rt_ev.add_argument("--method", required=True)
+    rt_ev.add_argument("--brand")
+
+    rt_hu = subcommands.add_parser("routing-health-update", help="update provider circuit breaker health status")
+    rt_hu.add_argument("--database", type=Path, required=True)
+    rt_hu.add_argument("--tenant", required=True)
+    rt_hu.add_argument("--provider-id", required=True)
+    rt_hu.add_argument("--status", required=True, choices=["HEALTHY", "DEGRADED", "CIRCUIT_BROKEN"])
+
+    # Tiered Pricing
+    pr_sc = subcommands.add_parser("pricing-schedule-set", help="configure merchant tiered/IC++ fee schedule")
+    pr_sc.add_argument("--database", type=Path, required=True)
+    pr_sc.add_argument("--tenant", required=True)
+    pr_sc.add_argument("--model", required=True, choices=["BLENDED", "TIERED_VOLUME", "INTERCHANGE_PLUS_PLUS"])
+    pr_sc.add_argument("--tiers", type=Path, help="JSON file with volume tiers")
+    pr_sc.add_argument("--markup-bp", type=int, default=30)
+    pr_sc.add_argument("--fixed-fee", type=int, default=30)
+
+    pr_fc = subcommands.add_parser("pricing-fee-calc", help="calculate transaction fees under fee schedule")
+    pr_fc.add_argument("--database", type=Path, required=True)
+    pr_fc.add_argument("--tenant", required=True)
+    pr_fc.add_argument("--txn-id", required=True)
+    pr_fc.add_argument("--amount-minor", type=int, required=True)
+    pr_fc.add_argument("--currency", default="CNY")
+    pr_fc.add_argument("--brand", default="VISA")
+    pr_fc.add_argument("--monthly-volume", type=int, default=0)
+
+    # Webhook Engine
+    wh_er = subcommands.add_parser("webhook-endpoint-reg", help="subscribe webhook endpoint to event topics")
+    wh_er.add_argument("--database", type=Path, required=True)
+    wh_er.add_argument("--tenant", required=True)
+    wh_er.add_argument("--endpoint-id", required=True)
+    wh_er.add_argument("--url", required=True)
+    wh_er.add_argument("--secret", required=True)
+    wh_er.add_argument("--events", required=True, help="comma-separated event types or *")
+
+    wh_dp = subcommands.add_parser("webhook-dispatch", help="dispatch signed webhook event to subscribers")
+    wh_dp.add_argument("--database", type=Path, required=True)
+    wh_dp.add_argument("--tenant", required=True)
+    wh_dp.add_argument("--event-type", required=True)
+    wh_dp.add_argument("--payload", type=Path, required=True)
+    wh_dp.add_argument("--http-status", type=int, default=200)
+
+    wh_rp = subcommands.add_parser("webhook-replay", help="replay dead-letter queue webhook event")
+    wh_rp.add_argument("--database", type=Path, required=True)
+    wh_rp.add_argument("--tenant", required=True)
+    wh_rp.add_argument("--dlq-id", required=True)
+    wh_rp.add_argument("--http-status", type=int, default=200)
+
+    wh_vs = subcommands.add_parser("webhook-verify-sign", help="verify webhook HMAC signature header")
+    wh_vs.add_argument("--header", required=True)
+    wh_vs.add_argument("--secret", required=True)
+    wh_vs.add_argument("--payload", type=Path, required=True)
+
+    # Marketplace Escrow & Split
+    mp_sc = subcommands.add_parser("marketplace-split-create", help="create escrow split order")
+    mp_sc.add_argument("--database", type=Path, required=True)
+    mp_sc.add_argument("--tenant", required=True)
+    mp_sc.add_argument("--order-id", required=True)
+    mp_sc.add_argument("--amount-minor", type=int, required=True)
+    mp_sc.add_argument("--currency", default="CNY")
+    mp_sc.add_argument("--platform-fee", type=int, default=0)
+    mp_sc.add_argument("--recipients", type=Path, required=True)
+    mp_sc.add_argument("--hold-days", type=int, default=7)
+
+    mp_er = subcommands.add_parser("marketplace-escrow-release", help="release marketplace escrow to vendors")
+    mp_er.add_argument("--database", type=Path, required=True)
+    mp_er.add_argument("--tenant", required=True)
+    mp_er.add_argument("--order-id", required=True)
+
+    mp_sr = subcommands.add_parser("marketplace-split-refund", help="proportionately refund marketplace split order")
+    mp_sr.add_argument("--database", type=Path, required=True)
+    mp_sr.add_argument("--tenant", required=True)
+    mp_sr.add_argument("--order-id", required=True)
+    mp_sr.add_argument("--refund-amount-minor", type=int, required=True)
 
     stl_cfg = subcommands.add_parser("settlement-config", help="configure merchant settlement rules")
     stl_cfg.add_argument("--database", type=Path, required=True)
@@ -1633,6 +1733,154 @@ def main(argv: list[str] | None = None) -> int:
             mgr = CardVaultManager(store)
             count = mgr.purge_expired_tokens(args.tenant, args.year, args.month)
             _emit({"tenantId": args.tenant, "purgedCount": count, "year": args.year, "month": args.month})
+            return 0
+
+        # Smart Routing Handlers
+        if args.command == "routing-provider-reg":
+            store = DurableStore(str(args.database))
+            engine = SmartRoutingEngine(store)
+            res = engine.register_provider_profile(
+                tenant_id=args.tenant,
+                provider_id=args.provider_id,
+                provider_name=args.provider_name,
+                supported_methods=[m.strip() for m in args.methods.split(",") if m.strip()],
+                supported_currencies=[c.strip() for c in args.currencies.split(",") if c.strip()],
+                min_amount_minor=args.min_minor,
+                max_amount_minor=args.max_minor,
+                fee_basis_points=args.fee_bp,
+                fixed_fee_minor=args.fixed_fee,
+                priority_rank=args.priority,
+            )
+            _emit(res)
+            return 0
+        if args.command == "routing-evaluate":
+            store = DurableStore(str(args.database))
+            engine = SmartRoutingEngine(store)
+            res = engine.route_transaction(
+                tenant_id=args.tenant,
+                payment_intent_id=args.payment_intent,
+                amount_minor=args.amount_minor,
+                currency=args.currency,
+                payment_method=args.method,
+                card_brand=args.brand,
+            )
+            _emit(res)
+            return 0
+        if args.command == "routing-health-update":
+            store = DurableStore(str(args.database))
+            engine = SmartRoutingEngine(store)
+            res = engine.update_provider_health(
+                tenant_id=args.tenant,
+                provider_id=args.provider_id,
+                health_status=args.status,
+            )
+            _emit(res)
+            return 0
+
+        # Tiered Pricing Handlers
+        if args.command == "pricing-schedule-set":
+            store = DurableStore(str(args.database))
+            engine = TieredPricingEngine(store)
+            tiers = read_json(args.tiers) if args.tiers else None
+            if isinstance(tiers, dict) and "tiers" in tiers:
+                tiers = tiers["tiers"]
+            res = engine.configure_fee_schedule(
+                tenant_id=args.tenant,
+                pricing_model=args.model,
+                tiers=tiers,
+                markup_basis_points=args.markup_bp,
+                fixed_fee_minor=args.fixed_fee,
+            )
+            _emit(res)
+            return 0
+        if args.command == "pricing-fee-calc":
+            store = DurableStore(str(args.database))
+            engine = TieredPricingEngine(store)
+            res = engine.calculate_merchant_fee(
+                tenant_id=args.tenant,
+                transaction_id=args.txn_id,
+                amount_minor=args.amount_minor,
+                currency=args.currency,
+                card_brand=args.brand,
+                monthly_accumulated_volume_minor=args.monthly_volume,
+            )
+            _emit(res)
+            return 0
+
+        # Webhook Handlers
+        if args.command == "webhook-endpoint-reg":
+            store = DurableStore(str(args.database))
+            dispatcher = EnterpriseWebhookDispatcher(store)
+            events = [e.strip() for e in args.events.split(",") if e.strip()]
+            res = dispatcher.register_endpoint(
+                tenant_id=args.tenant,
+                endpoint_id=args.endpoint_id,
+                url=args.url,
+                secret_key=args.secret,
+                subscribed_events=events,
+            )
+            _emit(res)
+            return 0
+        if args.command == "webhook-dispatch":
+            store = DurableStore(str(args.database))
+            dispatcher = EnterpriseWebhookDispatcher(store)
+            payload = read_json(args.payload)
+            res = dispatcher.dispatch_event(
+                tenant_id=args.tenant,
+                event_type=args.event_type,
+                payload=payload,
+                simulate_http_status=args.http_status,
+            )
+            _emit({"dispatchedCount": len(res), "events": res})
+            return 0
+        if args.command == "webhook-replay":
+            store = DurableStore(str(args.database))
+            dispatcher = EnterpriseWebhookDispatcher(store)
+            res = dispatcher.replay_dead_letter(
+                tenant_id=args.tenant,
+                dead_letter_id=args.dlq_id,
+                simulate_http_status=args.http_status,
+            )
+            _emit(res)
+            return 0
+        if args.command == "webhook-verify-sign":
+            try:
+                parsed = read_json(args.payload)
+                payload_text = json.dumps(parsed, sort_keys=True, separators=(",", ":"))
+            except Exception:
+                payload_text = args.payload.read_text(encoding="utf-8")
+            valid = verify_webhook_signature(args.header, args.secret, payload_text)
+            _emit({"signatureValid": valid})
+            return 0 if valid else 1
+
+        # Marketplace Escrow & Split Handlers
+        if args.command == "marketplace-split-create":
+            store = DurableStore(str(args.database))
+            mgr = MarketplaceEscrowManager(store)
+            recip_data = read_json(args.recipients)
+            recips = recip_data if isinstance(recip_data, list) else recip_data.get("recipients", [])
+            res = mgr.create_split_order(
+                tenant_id=args.tenant,
+                order_id=args.order_id,
+                captured_amount_minor=args.amount_minor,
+                currency=args.currency,
+                platform_fee_minor=args.platform_fee,
+                recipients=recips,
+                hold_days=args.hold_days,
+            )
+            _emit(res)
+            return 0
+        if args.command == "marketplace-escrow-release":
+            store = DurableStore(str(args.database))
+            mgr = MarketplaceEscrowManager(store)
+            res = mgr.release_escrow(args.tenant, args.order_id)
+            _emit(res)
+            return 0
+        if args.command == "marketplace-split-refund":
+            store = DurableStore(str(args.database))
+            mgr = MarketplaceEscrowManager(store)
+            res = mgr.refund_split_order(args.tenant, args.order_id, args.refund_amount_minor)
+            _emit(res)
             return 0
         if args.command == "settlement-config":
             ledger = SettlementLedger(str(args.database))
