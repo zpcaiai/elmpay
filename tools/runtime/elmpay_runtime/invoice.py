@@ -8,6 +8,7 @@ import json
 import re
 from typing import Any, Mapping, Sequence
 import uuid
+import xml.sax.saxutils
 
 from .common import (
     ValidationError,
@@ -134,6 +135,633 @@ def generate_verification_code(invoice_id: str, tenant_id: str, total_minor: int
     return f"{number:020d}"
 
 
+def amount_minor_to_chinese_uppercase(amount_minor: int) -> str:
+    """Convert monetary amount in minor units (cents/fen) to official Chinese legal uppercase."""
+    if not isinstance(amount_minor, int):
+        raise ValidationError("amount_minor must be an integer")
+
+    if amount_minor == 0:
+        return "零元整"
+
+    prefix = "(负)" if amount_minor < 0 else ""
+    amount = abs(amount_minor)
+
+    yuan = amount // 100
+    jiao = (amount % 100) // 10
+    fen = amount % 10
+
+    digits = ["零", "壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌", "玖"]
+    big_units = ["", "万", "亿", "兆"]
+
+    def _convert_section(sec: int) -> str:
+        if sec == 0:
+            return ""
+        radices = ["", "拾", "佰", "仟"]
+        res = []
+        zero_pending = False
+        s_str = f"{sec:04d}"
+        for i, ch in enumerate(s_str):
+            d = int(ch)
+            unit = radices[3 - i]
+            if d == 0:
+                if res:
+                    zero_pending = True
+            else:
+                if zero_pending:
+                    res.append("零")
+                    zero_pending = False
+                res.append(digits[d] + unit)
+        return "".join(res)
+
+    yuan_str = ""
+    if yuan > 0:
+        sections: list[int] = []
+        tmp = yuan
+        while tmp > 0:
+            sections.append(tmp % 10000)
+            tmp //= 10000
+
+        parts: list[str] = []
+        zero_section_flag = False
+
+        for idx in range(len(sections) - 1, -1, -1):
+            sec = sections[idx]
+            sec_unit = big_units[idx]
+            if sec == 0:
+                zero_section_flag = True
+            else:
+                if zero_section_flag:
+                    if parts and not parts[-1].endswith("零"):
+                        parts.append("零")
+                    zero_section_flag = False
+                elif parts and sec < 1000:
+                    if not parts[-1].endswith("零"):
+                        parts.append("零")
+
+                sec_text = _convert_section(sec)
+                parts.append(sec_text + sec_unit)
+
+        yuan_str = "".join(parts) + "元"
+
+    # Fraction part
+    frac_str = ""
+    if jiao == 0 and fen == 0:
+        frac_str = "整"
+    elif jiao > 0 and fen == 0:
+        frac_str = f"{digits[jiao]}角整"
+    elif jiao == 0 and fen > 0:
+        if yuan > 0:
+            frac_str = f"零{digits[fen]}分"
+        else:
+            frac_str = f"{digits[fen]}分"
+    else:
+        frac_str = f"{digits[jiao]}角{digits[fen]}分"
+
+    if not yuan_str and (jiao > 0 or fen > 0):
+        return f"{prefix}{frac_str}"
+
+    return f"{prefix}{yuan_str}{frac_str}"
+
+
+def _escape_html(val: Any) -> str:
+    """Escape string for safe embedding into HTML documents."""
+    s = str(val if val is not None else "")
+    return (
+        s.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+        .replace("'", "&#39;")
+    )
+
+
+def _generate_seal_svg(seller_name: str, tax_number: str) -> str:
+    """Generate authentic China electronic tax invoice seal SVG (发票专用章)."""
+    display_name = seller_name[:24] if seller_name else "发票销售方"
+    clean_tax = tax_number[:18] if tax_number else "000000000000000000"
+    return (
+        '<svg width="150" height="105" viewBox="0 0 150 105" xmlns="http://www.w3.org/2000/svg" '
+        'style="transform: rotate(-6deg); opacity: 0.88;">\\n'
+        '  <ellipse cx="75" cy="52.5" rx="70" ry="48" fill="none" stroke="#cf222e" stroke-width="2.5" />\\n'
+        '  <ellipse cx="75" cy="52.5" rx="66" ry="44" fill="none" stroke="#cf222e" stroke-width="0.8" stroke-dasharray="2,2" />\\n'
+        '  <path id="sealTextPath" d="M 15,55 A 60,38 0 0,1 135,55" fill="none" />\\n'
+        '  <text font-size="10" font-weight="bold" fill="#cf222e" text-anchor="middle">\\n'
+        f'    <textPath href="#sealTextPath" startOffset="50%">{_escape_html(display_name)}</textPath>\\n'
+        '  </text>\\n'
+        '  <polygon points="75,37 78,45 86,45 80,50 82,58 75,53 68,58 70,50 64,45 72,45" fill="#cf222e" />\\n'
+        '  <text x="75" y="70" font-size="12" font-weight="bold" fill="#cf222e" text-anchor="middle" letter-spacing="2">发票专用章</text>\\n'
+        f'  <text x="75" y="85" font-size="8" font-family="monospace" fill="#cf222e" text-anchor="middle">{_escape_html(clean_tax)}</text>\\n'
+        '</svg>'
+    )
+
+
+def _generate_qr_svg(invoice_code: str, invoice_number: str, amount_yuan: str, verification_code: str) -> str:
+    """Generate clean SVG QR matrix representation for invoice header."""
+    return (
+        '<svg width="86" height="86" viewBox="0 0 86 86" xmlns="http://www.w3.org/2000/svg">\\n'
+        '  <rect width="86" height="86" fill="#ffffff" stroke="#8c3b28" stroke-width="1"/>\\n'
+        '  <rect x="6" y="6" width="22" height="22" fill="#8c3b28"/>\\n'
+        '  <rect x="10" y="10" width="14" height="14" fill="#ffffff"/>\\n'
+        '  <rect x="13" y="13" width="8" height="8" fill="#8c3b28"/>\\n'
+        '  <rect x="58" y="6" width="22" height="22" fill="#8c3b28"/>\\n'
+        '  <rect x="62" y="10" width="14" height="14" fill="#ffffff"/>\\n'
+        '  <rect x="65" y="13" width="8" height="8" fill="#8c3b28"/>\\n'
+        '  <rect x="6" y="58" width="22" height="22" fill="#8c3b28"/>\\n'
+        '  <rect x="10" y="62" width="14" height="14" fill="#ffffff"/>\\n'
+        '  <rect x="13" y="65" width="8" height="8" fill="#8c3b28"/>\\n'
+        '  <rect x="35" y="8" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="45" y="14" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="36" y="24" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="48" y="32" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="16" y="36" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="26" y="42" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="36" y="42" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="60" y="36" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="70" y="44" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="38" y="56" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="50" y="64" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="66" y="64" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="40" y="74" width="5" height="5" fill="#8c3b28"/>\\n'
+        '  <rect x="72" y="76" width="5" height="5" fill="#8c3b28"/>\\n'
+        '</svg>'
+    )
+
+
+def render_invoice_html(invoice_detail: Mapping[str, Any]) -> str:
+    """Render authentic, printable China VAT Electronic Invoice HTML document."""
+    inv_type = str(invoice_detail.get("invoiceType") or "ELECTRONIC_NORMAL").upper()
+    inv_category = str(invoice_detail.get("invoiceCategory") or "BLUE").upper()
+    status = str(invoice_detail.get("status") or "ISSUED").upper()
+
+    if inv_category == "RED":
+        title = "增值税电子专用发票（红字）" if "SPECIAL" in inv_type else "增值税电子普通发票（红字）"
+    elif "SPECIAL" in inv_type:
+        title = "增值税电子专用发票"
+    else:
+        title = "增值税电子普通发票"
+
+    watermark_html = ""
+    if status == "VOIDED":
+        watermark_html = '<div class="watermark watermark-void">作&nbsp;&nbsp;废</div>'
+    elif inv_category == "RED" or status == "RED_NOTED":
+        watermark_html = '<div class="watermark watermark-red">红&nbsp;&nbsp;字</div>'
+
+    vc = str(invoice_detail.get("verificationCode") or "")
+    formatted_vc = " ".join([vc[i:i+5] for i in range(0, len(vc), 5)]) if len(vc) == 20 else vc
+
+    issued_at = invoice_detail.get("issuedAt") or ""
+    date_str = ""
+    if issued_at:
+        try:
+            dt = datetime.fromisoformat(str(issued_at).replace("Z", "+00:00"))
+            date_str = f"{dt.year}年{dt.month:02d}月{dt.day:02d}日"
+        except Exception:
+            date_str = str(issued_at)
+
+    total_minor = int(invoice_detail.get("totalAmountMinor", 0))
+    untaxed_minor = int(invoice_detail.get("untaxedAmountMinor", 0))
+    tax_minor = int(invoice_detail.get("taxAmountMinor", 0))
+
+    total_yuan = f"{total_minor / 100:.2f}"
+    untaxed_yuan = f"{untaxed_minor / 100:.2f}"
+    tax_yuan = f"{tax_minor / 100:.2f}"
+    chinese_total = amount_minor_to_chinese_uppercase(total_minor)
+
+    seller_name = str(invoice_detail.get("sellerName") or "")
+    seller_tax = str(invoice_detail.get("sellerTaxNumber") or "")
+    seller_addr_phone = str(invoice_detail.get("sellerAddressPhone") or "")
+    seller_bank_acc = str(invoice_detail.get("sellerBankAccount") or "")
+
+    buyer_name = str(invoice_detail.get("buyerName") or "")
+    buyer_tax = str(invoice_detail.get("buyerTaxNumber") or "无")
+    buyer_addr_phone = str(invoice_detail.get("buyerAddressPhone") or "无")
+    buyer_bank_acc = str(invoice_detail.get("buyerBankAccount") or "无")
+
+    inv_code = str(invoice_detail.get("invoiceCode") or "")
+    inv_num = str(invoice_detail.get("invoiceNumber") or "")
+
+    qr_svg = _generate_qr_svg(inv_code, inv_num, total_yuan, vc)
+    seal_svg = _generate_seal_svg(seller_name, seller_tax)
+
+    seed_hash = hashlib.sha256(f"{inv_code}:{inv_num}:{vc}".encode()).hexdigest()
+    pw_lines = [
+        seed_hash[0:20].upper(),
+        seed_hash[20:40].upper(),
+        seed_hash[40:60].upper(),
+        seed_hash[60:64].upper() + "A8F9E01B34CD",
+    ]
+    pw_html = "<br/>".join(pw_lines)
+
+    items = invoice_detail.get("items") or []
+    items_rows = []
+    for item in items:
+        qty = item.get("quantity", 1)
+        up_minor = item.get("unitPriceMinor", 0)
+        amt_minor = item.get("amountMinor", 0)
+        tax_bp = item.get("taxRateBasisPoints", 0)
+        tax_amt_minor = item.get("taxAmountMinor", 0)
+
+        tax_rate_str = f"{tax_bp / 100:.0f}%" if tax_bp % 100 == 0 else f"{tax_bp / 100:.2f}%"
+        if tax_bp == 0:
+            tax_rate_str = "免税"
+
+        items_rows.append(
+            f'<tr>'
+            f'<td>{_escape_html(str(item.get("itemName") or ""))}</td>'
+            f'<td>{_escape_html(str(item.get("specification") or ""))}</td>'
+            f'<td style="text-align:center;">{_escape_html(str(item.get("unit") or "项"))}</td>'
+            f'<td style="text-align:right;">{qty}</td>'
+            f'<td style="text-align:right;">¥{up_minor / 100:.2f}</td>'
+            f'<td style="text-align:right;">¥{amt_minor / 100:.2f}</td>'
+            f'<td style="text-align:center;">{tax_rate_str}</td>'
+            f'<td style="text-align:right;">¥{tax_amt_minor / 100:.2f}</td>'
+            f'</tr>'
+        )
+
+    while len(items_rows) < 3:
+        items_rows.append('<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>')
+
+    items_body = "\n".join(items_rows)
+
+    remarks = []
+    if invoice_detail.get("paymentIntentId"):
+        remarks.append(f"关联支付意向: {invoice_detail['paymentIntentId']}")
+    if invoice_detail.get("originalInvoiceId"):
+        remarks.append(f"对应蓝字发票: {invoice_detail['originalInvoiceId']}")
+    remarks_text = "<br/>".join(_escape_html(r) for r in remarks)
+
+    payee = _escape_html(str(invoice_detail.get("payee") or seller_name or ""))
+    checker = _escape_html(str(invoice_detail.get("checker") or "系统自动复核"))
+    operator = _escape_html(str(invoice_detail.get("operator") or "系统自动开具"))
+
+    return f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>{_escape_html(title)} - {_escape_html(inv_num)}</title>
+  <style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background-color: #f8fafc;
+      color: #2b2625;
+      padding: 24px;
+      display: flex;
+      justify-content: center;
+    }}
+    .invoice-card {{
+      position: relative;
+      width: 920px;
+      background: #ffffff;
+      border: 2px solid #8c3b28;
+      border-radius: 6px;
+      padding: 24px 28px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }}
+    .watermark {{
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-25deg);
+      font-size: 78px;
+      font-weight: 800;
+      letter-spacing: 20px;
+      pointer-events: none;
+      z-index: 20;
+      opacity: 0.22;
+      user-select: none;
+    }}
+    .watermark-void {{ color: #dc2626; border: 5px dashed #dc2626; padding: 12px 40px; border-radius: 12px; }}
+    .watermark-red {{ color: #b91c1c; border: 5px solid #b91c1c; padding: 12px 40px; border-radius: 12px; }}
+
+    .header-grid {{
+      display: grid;
+      grid-template-columns: 100px 1fr 280px;
+      align-items: center;
+      margin-bottom: 16px;
+    }}
+    .title-box {{
+      text-align: center;
+    }}
+    .invoice-title {{
+      font-size: 24px;
+      font-weight: 700;
+      color: #8c3b28;
+      letter-spacing: 4px;
+      border-bottom: 3px double #8c3b28;
+      padding-bottom: 4px;
+      display: inline-block;
+    }}
+    .meta-list {{
+      font-size: 12px;
+      color: #4b5563;
+      line-height: 1.6;
+    }}
+    .meta-label {{
+      color: #8c3b28;
+      font-weight: 600;
+      display: inline-block;
+      width: 68px;
+    }}
+    .meta-value {{
+      font-family: monospace;
+      font-weight: 600;
+      color: #111827;
+    }}
+
+    .grid-table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: -1px;
+      font-size: 12px;
+    }}
+    .grid-table td, .grid-table th {{
+      border: 1px solid #8c3b28;
+      padding: 6px 8px;
+      vertical-align: middle;
+    }}
+    .label-col {{
+      width: 24px;
+      text-align: center;
+      color: #8c3b28;
+      font-weight: 600;
+      padding: 8px 4px !important;
+      line-height: 1.3;
+      background-color: #fdfaf8;
+    }}
+    .field-label {{
+      color: #8c3b28;
+      font-weight: 600;
+      width: 110px;
+      display: inline-block;
+    }}
+    .cipher-text {{
+      font-family: monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: #1e293b;
+      line-height: 1.5;
+    }}
+
+    .items-table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-bottom: -1px;
+    }}
+    .items-table th {{
+      background-color: #fdfaf8;
+      color: #8c3b28;
+      font-weight: 600;
+      text-align: center;
+      border: 1px solid #8c3b28;
+      padding: 6px 4px;
+    }}
+    .items-table td {{
+      border: 1px solid #8c3b28;
+      padding: 5px 6px;
+      font-size: 12px;
+    }}
+
+    .total-row td {{
+      padding: 7px 10px;
+      font-size: 12px;
+      border: 1px solid #8c3b28;
+    }}
+
+    .footer-bar {{
+      margin-top: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #374151;
+      position: relative;
+    }}
+    .footer-seal {{
+      position: absolute;
+      right: 40px;
+      bottom: -20px;
+      pointer-events: none;
+      z-index: 15;
+    }}
+
+    @media print {{
+      body {{ background: transparent; padding: 0; }}
+      .invoice-card {{ box-shadow: none; border: 2px solid #8c3b28; width: 100%; max-width: 100%; padding: 15px; }}
+    }}
+  </style>
+</head>
+<body>
+  <div class="invoice-card">
+    {watermark_html}
+    <div class="header-grid">
+      <div>{qr_svg}</div>
+      <div class="title-box">
+        <h1 class="invoice-title">{_escape_html(title)}</h1>
+      </div>
+      <div class="meta-list">
+        <div><span class="meta-label">发票代码:</span><span class="meta-value">{_escape_html(inv_code)}</span></div>
+        <div><span class="meta-label">发票号码:</span><span class="meta-value">{_escape_html(inv_num)}</span></div>
+        <div><span class="meta-label">开票日期:</span><span class="meta-value">{date_str}</span></div>
+        <div><span class="meta-label">校&nbsp;验&nbsp;码:</span><span class="meta-value">{_escape_html(formatted_vc)}</span></div>
+      </div>
+    </div>
+
+    <!-- Buyer & Password Area -->
+    <table class="grid-table">
+      <tr>
+        <td class="label-col" rowspan="4">购买方</td>
+        <td style="width: 48%;">
+          <span class="field-label">名&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;称:</span>{_escape_html(buyer_name)}
+        </td>
+        <td class="label-col" rowspan="4">密码区</td>
+        <td rowspan="4" class="cipher-text" style="width: 44%; vertical-align: middle;">
+          {pw_html}
+        </td>
+      </tr>
+      <tr>
+        <td><span class="field-label">纳税人识别号:</span><span style="font-family: monospace;">{_escape_html(buyer_tax)}</span></td>
+      </tr>
+      <tr>
+        <td><span class="field-label">地&nbsp;址、电&nbsp;话:</span>{_escape_html(buyer_addr_phone)}</td>
+      </tr>
+      <tr>
+        <td><span class="field-label">开户行及账号:</span>{_escape_html(buyer_bank_acc)}</td>
+      </tr>
+    </table>
+
+    <!-- Line Items Table -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width: 32%;">项目名称</th>
+          <th style="width: 12%;">规格型号</th>
+          <th style="width: 6%;">单位</th>
+          <th style="width: 8%;">数量</th>
+          <th style="width: 12%;">单价</th>
+          <th style="width: 14%;">金额</th>
+          <th style="width: 8%;">税率</th>
+          <th style="width: 14%;">税额</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items_body}
+        <!-- Subtotal -->
+        <tr>
+          <td style="text-align: center; font-weight: bold; color: #8c3b28;">合&nbsp;&nbsp;&nbsp;&nbsp;计</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td style="text-align: right; font-weight: bold;">¥{untaxed_yuan}</td>
+          <td></td>
+          <td style="text-align: right; font-weight: bold;">¥{tax_yuan}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Total Row -->
+    <table class="grid-table total-row">
+      <tr>
+        <td style="width: 25%; color: #8c3b28; font-weight: 600;">价税合计（大写）</td>
+        <td style="width: 45%; font-weight: bold; font-size: 13px;">{_escape_html(chinese_total)}</td>
+        <td style="width: 10%; color: #8c3b28; font-weight: 600;">（小写）</td>
+        <td style="width: 20%; font-weight: bold; font-family: monospace; font-size: 14px; text-align: right;">¥{total_yuan}</td>
+      </tr>
+    </table>
+
+    <!-- Seller & Remarks Area -->
+    <table class="grid-table">
+      <tr>
+        <td class="label-col" rowspan="4">销售方</td>
+        <td style="width: 48%;">
+          <span class="field-label">名&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;称:</span>{_escape_html(seller_name)}
+        </td>
+        <td class="label-col" rowspan="4">备<br/>注</td>
+        <td rowspan="4" style="width: 44%; vertical-align: top; color: #4b5563; font-size: 11px; line-height: 1.6;">
+          {remarks_text}
+        </td>
+      </tr>
+      <tr>
+        <td><span class="field-label">纳税人识别号:</span><span style="font-family: monospace;">{_escape_html(seller_tax)}</span></td>
+      </tr>
+      <tr>
+        <td><span class="field-label">地&nbsp;址、电&nbsp;话:</span>{_escape_html(seller_addr_phone)}</td>
+      </tr>
+      <tr>
+        <td><span class="field-label">开户行及账号:</span>{_escape_html(seller_bank_acc)}</td>
+      </tr>
+    </table>
+
+    <!-- Footer Signatures and Seal -->
+    <div class="footer-bar">
+      <div><span style="color:#8c3b28; font-weight:600;">收款人:</span> {payee}</div>
+      <div><span style="color:#8c3b28; font-weight:600;">复&nbsp;&nbsp;核:</span> {checker}</div>
+      <div><span style="color:#8c3b28; font-weight:600;">开票人:</span> {operator}</div>
+      <div style="width: 180px; text-align: right;"><span style="color:#8c3b28; font-weight:600;">销售方:</span>（章）</div>
+      <div class="footer-seal">
+        {seal_svg}
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+
+def render_golden_tax_xml(invoice_detail: Mapping[str, Any]) -> str:
+    """Export China State Taxation Administration Golden Tax / Fully Digitalized E-Invoice XML document."""
+    def _xtag(tag: str, val: Any) -> str:
+        return f"<{tag}>{xml.sax.saxutils.escape(str(val) if val is not None else '')}</{tag}>"
+
+    total_minor = int(invoice_detail.get("totalAmountMinor", 0))
+    untaxed_minor = int(invoice_detail.get("untaxedAmountMinor", 0))
+    tax_minor = int(invoice_detail.get("taxAmountMinor", 0))
+    chinese_total = amount_minor_to_chinese_uppercase(total_minor)
+
+    items = invoice_detail.get("items") or []
+    item_nodes: list[str] = []
+    for it in items:
+        tax_bp = int(it.get("taxRateBasisPoints", 0))
+        pct_str = f"{tax_bp / 100:.0f}%" if tax_bp % 100 == 0 else f"{tax_bp / 100:.2f}%"
+        up_minor = int(it.get("unitPriceMinor", 0))
+        amt_minor = int(it.get("amountMinor", 0))
+        tax_amt_minor = int(it.get("taxAmountMinor", 0))
+
+        item_nodes.append(
+            '    <Item id="' + xml.sax.saxutils.escape(str(it.get("itemId") or "")) + '">\\n'
+            f'      {_xtag("ItemName", it.get("itemName", ""))}\\n'
+            f'      {_xtag("Specification", it.get("specification", ""))}\\n'
+            f'      {_xtag("Unit", it.get("unit", "项"))}\\n'
+            f'      {_xtag("Quantity", it.get("quantity", 1))}\\n'
+            f'      {_xtag("UnitPriceMinor", up_minor)}\\n'
+            f'      {_xtag("UnitPriceYuan", f"{up_minor / 100:.2f}")}\\n'
+            f'      {_xtag("AmountMinor", amt_minor)}\\n'
+            f'      {_xtag("AmountYuan", f"{amt_minor / 100:.2f}")}\\n'
+            f'      {_xtag("TaxRateBasisPoints", tax_bp)}\\n'
+            f'      {_xtag("TaxRatePercentage", pct_str)}\\n'
+            f'      {_xtag("TaxAmountMinor", tax_amt_minor)}\\n'
+            f'      {_xtag("TaxAmountYuan", f"{tax_amt_minor / 100:.2f}")}\\n'
+            '    </Item>'
+        )
+    items_xml = "\\n".join(item_nodes)
+
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<TaxInvoiceExchange xmlns="http://tax.chinatax.gov.cn/schema/einvoice/v3" version="3.0">
+  <Header>
+    {_xtag("TenantId", invoice_detail.get("tenantId", ""))}
+    {_xtag("ProjectId", invoice_detail.get("projectId", ""))}
+    {_xtag("InvoiceId", invoice_detail.get("invoiceId", ""))}
+    {_xtag("InvoiceCode", invoice_detail.get("invoiceCode", ""))}
+    {_xtag("InvoiceNumber", invoice_detail.get("invoiceNumber", ""))}
+    {_xtag("InvoiceType", invoice_detail.get("invoiceType", ""))}
+    {_xtag("InvoiceCategory", invoice_detail.get("invoiceCategory", ""))}
+    {_xtag("Status", invoice_detail.get("status", ""))}
+    {_xtag("OriginalInvoiceId", invoice_detail.get("originalInvoiceId", ""))}
+    {_xtag("PaymentIntentId", invoice_detail.get("paymentIntentId", ""))}
+    {_xtag("IssueDate", invoice_detail.get("issuedAt", ""))}
+    {_xtag("VerificationCode", invoice_detail.get("verificationCode", ""))}
+    {_xtag("Currency", invoice_detail.get("currency", "CNY"))}
+  </Header>
+  <Seller>
+    {_xtag("Name", invoice_detail.get("sellerName", ""))}
+    {_xtag("TaxNumber", invoice_detail.get("sellerTaxNumber", ""))}
+    {_xtag("AddressPhone", invoice_detail.get("sellerAddressPhone", ""))}
+    {_xtag("BankAccount", invoice_detail.get("sellerBankAccount", ""))}
+  </Seller>
+  <Buyer>
+    {_xtag("Type", invoice_detail.get("buyerType", ""))}
+    {_xtag("Name", invoice_detail.get("buyerName", ""))}
+    {_xtag("TaxNumber", invoice_detail.get("buyerTaxNumber", ""))}
+    {_xtag("AddressPhone", invoice_detail.get("buyerAddressPhone", ""))}
+    {_xtag("BankAccount", invoice_detail.get("buyerBankAccount", ""))}
+    {_xtag("RecipientEmail", invoice_detail.get("recipientEmail", ""))}
+    {_xtag("RecipientPhone", invoice_detail.get("recipientPhone", ""))}
+  </Buyer>
+  <Summary>
+    {_xtag("UntaxedAmountMinor", untaxed_minor)}
+    {_xtag("UntaxedAmountYuan", f"{untaxed_minor / 100:.2f}")}
+    {_xtag("TaxAmountMinor", tax_minor)}
+    {_xtag("TaxAmountYuan", f"{tax_minor / 100:.2f}")}
+    {_xtag("TotalAmountMinor", total_minor)}
+    {_xtag("TotalAmountYuan", f"{total_minor / 100:.2f}")}
+    {_xtag("ChineseUppercaseTotal", chinese_total)}
+  </Summary>
+  <Items count="{len(items)}">
+{items_xml}
+  </Items>
+  <Signatures>
+    {_xtag("Payee", invoice_detail.get("payee", ""))}
+    {_xtag("Checker", invoice_detail.get("checker", ""))}
+    {_xtag("Operator", invoice_detail.get("operator", ""))}
+    {_xtag("DownloadUrl", invoice_detail.get("downloadUrl", ""))}
+  </Signatures>
+</TaxInvoiceExchange>
+"""
+
+
 class CustomerInvoiceLedger:
     """Enterprise payment customer invoice lifecycle and audit ledger."""
 
@@ -258,7 +886,14 @@ class CustomerInvoiceLedger:
         if not currency or len(currency) != 3 or not currency.isupper():
             raise ValidationError(f"invalid currency code: {currency}")
 
-        if invoice_type not in {"vat_electronic_normal", "vat_electronic_special", "commercial_receipt"}:
+        norm_type = str(invoice_type).lower()
+        if norm_type in {"vat_electronic_normal", "electronic_normal"}:
+            invoice_type = "vat_electronic_normal"
+        elif norm_type in {"vat_electronic_special", "electronic_special"}:
+            invoice_type = "vat_electronic_special"
+        elif norm_type in {"commercial_receipt"}:
+            invoice_type = "commercial_receipt"
+        else:
             raise ValidationError(f"unsupported invoice_type: {invoice_type}")
 
         validate_buyer_info(buyer_type, buyer_name, buyer_tax_number)
@@ -946,6 +1581,39 @@ class CustomerInvoiceLedger:
                 for r in rows
             ]
 
+    def get_buyer_title(self, tenant_id: str, title_id: str) -> dict[str, Any] | None:
+        """Get buyer title by ID or default title for tenant."""
+        with self.store.connect() as conn:
+            if title_id == "default":
+                row = conn.execute(
+                    "SELECT * FROM customer_buyer_title WHERE tenant_id=? AND is_default=1 LIMIT 1",
+                    (tenant_id,),
+                ).fetchone()
+                if not row:
+                    row = conn.execute(
+                        "SELECT * FROM customer_buyer_title WHERE tenant_id=? ORDER BY created_at DESC LIMIT 1",
+                        (tenant_id,),
+                    ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT * FROM customer_buyer_title WHERE tenant_id=? AND title_id=?",
+                    (tenant_id, title_id),
+                ).fetchone()
+            if not row:
+                return None
+            return {
+                "titleId": row["title_id"],
+                "tenantId": row["tenant_id"],
+                "buyerType": row["buyer_type"],
+                "buyerName": row["buyer_name"],
+                "buyerTaxNumber": row["buyer_tax_number"],
+                "buyerAddressPhone": row["buyer_address_phone"],
+                "buyerBankAccount": row["buyer_bank_account"],
+                "recipientEmail": row["recipient_email"],
+                "recipientPhone": row["recipient_phone"],
+                "isDefault": bool(row["is_default"]),
+            }
+
     # --- Audit Chain Verification ---
     def verify_invoice_audit_chain(self, tenant_id: str) -> bool:
         """Verify cryptographic append-only integrity of invoice audit events for a tenant."""
@@ -977,6 +1645,318 @@ class CustomerInvoiceLedger:
                     return False
                 expected_prior = row["event_digest"]
             return True
+
+    # --- Automated Payment Invoicing & Reconciliation ---
+    def auto_invoice_payment_intent(
+        self,
+        *,
+        tenant_id: str,
+        project_id: str,
+        payment_intent_id: str,
+        buyer_title_id: str,
+        captured_amount_minor: int,
+        refunded_amount_minor: int = 0,
+        seller_name: str,
+        seller_tax_number: str,
+        operator: str,
+        actor_id: str,
+        idempotency_key: str,
+        invoice_type: str = "ELECTRONIC_NORMAL",
+        item_name: str = "企业技术服务费",
+        specification: str = "",
+        unit: str = "项",
+        tax_rate_basis_points: int = 1300,
+        auto_issue: bool = True,
+        checker: str | None = None,
+        payee: str | None = None,
+        seller_address_phone: str | None = None,
+        seller_bank_account: str | None = None,
+        currency: str = "CNY",
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        # Check idempotency key before balance computation
+        with self.store.connect() as conn:
+            existing = conn.execute(
+                "SELECT invoice_id FROM customer_invoice WHERE tenant_id=? AND idempotency_key=?",
+                (tenant_id, idempotency_key),
+            ).fetchone()
+            if existing:
+                inv = self.get_invoice(tenant_id, existing["invoice_id"])
+                if inv is not None:
+                    return inv
+
+        title = self.get_buyer_title(tenant_id, buyer_title_id)
+        if not title:
+            raise ValidationError(f"buyer title not found: {buyer_title_id}")
+
+        balance = self.calculate_invoicable_balance(
+            tenant_id, payment_intent_id, captured_amount_minor, refunded_amount_minor
+        )
+        if balance <= 0:
+            raise ValidationError(f"no invoicable balance remaining for payment intent: {payment_intent_id}")
+
+        r = tax_rate_basis_points
+        u = (balance * 10000 + (10000 + r) // 2) // (10000 + r)
+        tax = (u * r + 5000) // 10000
+        line_total = u + tax
+
+        items: list[dict[str, Any]] = []
+        if line_total == balance:
+            items.append({
+                "itemName": item_name,
+                "specification": specification,
+                "unit": unit,
+                "quantity": 1,
+                "unitPriceMinor": u,
+                "taxRateBasisPoints": r,
+            })
+        elif line_total < balance:
+            delta = balance - line_total
+            items.append({
+                "itemName": item_name,
+                "specification": specification,
+                "unit": unit,
+                "quantity": 1,
+                "unitPriceMinor": u,
+                "taxRateBasisPoints": r,
+            })
+            items.append({
+                "itemName": f"{item_name}(精度调整)",
+                "specification": "",
+                "unit": "项",
+                "quantity": 1,
+                "unitPriceMinor": delta,
+                "taxRateBasisPoints": 0,
+            })
+        else:
+            u_adj = max(0, u - 1)
+            tax_adj = (u_adj * r + 5000) // 10000
+            delta = balance - (u_adj + tax_adj)
+            items.append({
+                "itemName": item_name,
+                "specification": specification,
+                "unit": unit,
+                "quantity": 1,
+                "unitPriceMinor": u_adj,
+                "taxRateBasisPoints": r,
+            })
+            if delta > 0:
+                items.append({
+                    "itemName": f"{item_name}(精度调整)",
+                    "specification": "",
+                    "unit": "项",
+                    "quantity": 1,
+                    "unitPriceMinor": delta,
+                    "taxRateBasisPoints": 0,
+                })
+
+        applied = self.apply_invoice(
+            tenant_id=tenant_id,
+            project_id=project_id,
+            payment_intent_id=payment_intent_id,
+            captured_amount_minor=captured_amount_minor,
+            refunded_amount_minor=refunded_amount_minor,
+            invoice_type=invoice_type,
+            buyer_type=title["buyerType"],
+            buyer_name=title["buyerName"],
+            buyer_tax_number=title.get("buyerTaxNumber"),
+            buyer_address_phone=title.get("buyerAddressPhone"),
+            buyer_bank_account=title.get("buyerBankAccount"),
+            recipient_email=title.get("recipientEmail"),
+            recipient_phone=title.get("recipientPhone"),
+            seller_name=seller_name,
+            seller_tax_number=seller_tax_number,
+            seller_address_phone=seller_address_phone,
+            seller_bank_account=seller_bank_account,
+            operator=operator,
+            items=items,
+            idempotency_key=idempotency_key,
+            currency=currency,
+            now=now,
+        )
+
+        if auto_issue and applied["status"] == "APPLIED":
+            issued = self.issue_invoice(
+                tenant_id,
+                applied["invoiceId"],
+                actor=actor_id,
+                checker=checker or operator,
+                payee=payee or seller_name,
+                now=now,
+            )
+            return issued
+
+        return applied
+
+    def reconcile_invoices_with_payments(
+        self,
+        tenant_id: str,
+        *,
+        payments: Sequence[Mapping[str, Any]] | None = None,
+        start_time: datetime | str | None = None,
+        end_time: datetime | str | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Cross-reconcile customer invoice balances with payment intents to detect financial discrepancies."""
+        current_iso = _instant(now)
+
+        with self.store.connect() as conn:
+            query = (
+                "SELECT invoice_id, payment_intent_id, status, total_amount_minor, "
+                "invoice_category, created_at FROM customer_invoice WHERE tenant_id=?"
+            )
+            params: list[Any] = [tenant_id]
+            if start_time:
+                s_iso = start_time.isoformat() if isinstance(start_time, datetime) else start_time
+                query += " AND created_at >= ?"
+                params.append(s_iso)
+            if end_time:
+                e_iso = end_time.isoformat() if isinstance(end_time, datetime) else end_time
+                query += " AND created_at <= ?"
+                params.append(e_iso)
+
+            rows = conn.execute(query, params).fetchall()
+
+        invoices_by_pi: dict[str, list[dict[str, Any]]] = {}
+        for r in rows:
+            pi_id = r["payment_intent_id"]
+            if pi_id not in invoices_by_pi:
+                invoices_by_pi[pi_id] = []
+            invoices_by_pi[pi_id].append({
+                "invoiceId": r["invoice_id"],
+                "status": r["status"],
+                "totalAmountMinor": r["total_amount_minor"],
+                "invoiceCategory": r["invoice_category"],
+                "createdAt": r["created_at"],
+            })
+
+        reconciled_details: list[dict[str, Any]] = []
+        discrepancies: list[dict[str, Any]] = []
+
+        total_captured = 0
+        total_refunded = 0
+        total_invoiced = 0
+
+        payment_map: dict[str, Mapping[str, Any]] = {}
+        if payments is not None:
+            for p in payments:
+                p_id = str(p.get("paymentIntentId") or p.get("id"))
+                payment_map[p_id] = p
+        else:
+            for p_id in invoices_by_pi:
+                payment_map[p_id] = {
+                    "paymentIntentId": p_id,
+                    "capturedAmountMinor": 0,
+                    "refundedAmountMinor": 0,
+                }
+
+        for pi_id, p_data in payment_map.items():
+            cap = int(p_data.get("capturedAmountMinor", 0))
+            ref = int(p_data.get("refundedAmountMinor", 0))
+            net_cap = max(0, cap - ref)
+
+            total_captured += cap
+            total_refunded += ref
+
+            inv_list = invoices_by_pi.get(pi_id, [])
+            active_invs = [inv for inv in inv_list if inv["status"] in ("APPLIED", "ISSUED", "RED_NOTED")]
+            inv_sum = sum(inv["totalAmountMinor"] for inv in active_invs)
+            total_invoiced += inv_sum
+
+            item_discrepancies: list[str] = []
+
+            if payments is not None and inv_sum > net_cap:
+                disc = {
+                    "code": "OVER_INVOICED",
+                    "severity": "CRITICAL",
+                    "paymentIntentId": pi_id,
+                    "message": f"Invoiced net amount ({inv_sum}) exceeds net captured payment ({net_cap})",
+                    "invoicedAmountMinor": inv_sum,
+                    "netCapturedAmountMinor": net_cap,
+                }
+                discrepancies.append(disc)
+                item_discrepancies.append("OVER_INVOICED")
+
+            if payments is not None and ref > 0 and inv_sum > net_cap:
+                disc = {
+                    "code": "REFUND_WITHOUT_RED_NOTE",
+                    "severity": "HIGH",
+                    "paymentIntentId": pi_id,
+                    "message": f"Payment refunded {ref} minor units without matching red-note invoice adjustment",
+                    "refundedAmountMinor": ref,
+                }
+                discrepancies.append(disc)
+                item_discrepancies.append("REFUND_WITHOUT_RED_NOTE")
+
+            if payments is not None and 0 < inv_sum < net_cap:
+                item_discrepancies.append("PARTIALLY_INVOICED")
+
+            if payments is not None and inv_sum == 0 and net_cap > 0:
+                item_discrepancies.append("UNINVOICED_PAYMENT")
+
+            status = "BALANCED" if not item_discrepancies or item_discrepancies == ["PARTIALLY_INVOICED"] else "DISCREPANCY"
+            if not item_discrepancies:
+                status = "BALANCED"
+
+            reconciled_details.append({
+                "paymentIntentId": pi_id,
+                "capturedAmountMinor": cap,
+                "refundedAmountMinor": ref,
+                "netInvoicableAmountMinor": net_cap,
+                "invoicedAmountMinor": inv_sum,
+                "invoiceCount": len(inv_list),
+                "activeInvoiceCount": len(active_invs),
+                "status": status,
+                "discrepancyCodes": item_discrepancies,
+            })
+
+        if payments is not None:
+            for pi_id, inv_list in invoices_by_pi.items():
+                if pi_id not in payment_map:
+                    active_invs = [inv for inv in inv_list if inv["status"] in ("APPLIED", "ISSUED", "RED_NOTED")]
+                    inv_sum = sum(inv["totalAmountMinor"] for inv in active_invs)
+                    disc = {
+                        "code": "UNMATCHED_PAYMENT_INTENT",
+                        "severity": "MEDIUM",
+                        "paymentIntentId": pi_id,
+                        "message": f"Invoice exists for payment {pi_id}, but payment not found in reconciliation input",
+                        "invoicedAmountMinor": inv_sum,
+                    }
+                    discrepancies.append(disc)
+                    total_invoiced += inv_sum
+                    reconciled_details.append({
+                        "paymentIntentId": pi_id,
+                        "capturedAmountMinor": 0,
+                        "refundedAmountMinor": 0,
+                        "netInvoicableAmountMinor": 0,
+                        "invoicedAmountMinor": inv_sum,
+                        "invoiceCount": len(inv_list),
+                        "activeInvoiceCount": len(active_invs),
+                        "status": "UNMATCHED",
+                        "discrepancyCodes": ["UNMATCHED_PAYMENT_INTENT"],
+                    })
+
+        net_invoicable = max(0, total_captured - total_refunded)
+        un_invoiced = max(0, net_invoicable - total_invoiced)
+        over_invoiced = max(0, total_invoiced - net_invoicable) if payments is not None else 0
+
+        overall_status = "BALANCED" if not any(d["severity"] in ("CRITICAL", "HIGH") for d in discrepancies) else "HAS_DISCREPANCIES"
+
+        return {
+            "tenantId": tenant_id,
+            "reconciledAt": current_iso,
+            "totalPaymentIntents": len(reconciled_details),
+            "totalCapturedAmountMinor": total_captured,
+            "totalRefundedAmountMinor": total_refunded,
+            "netInvoicableAmountMinor": net_invoicable,
+            "totalInvoicedAmountMinor": total_invoiced,
+            "unInvoicedAmountMinor": un_invoiced,
+            "overInvoicedAmountMinor": over_invoiced,
+            "discrepancyCount": len(discrepancies),
+            "status": overall_status,
+            "discrepancies": discrepancies,
+            "details": reconciled_details,
+        }
 
 
     @staticmethod

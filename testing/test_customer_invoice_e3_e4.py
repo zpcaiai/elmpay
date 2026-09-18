@@ -12,6 +12,8 @@ from typing import Any
 import unittest
 import uuid
 
+import xml.etree.ElementTree as ET
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools/runtime"))
 
@@ -19,8 +21,11 @@ from elmpay_runtime.common import ValidationError, sha256_json
 from elmpay_runtime.durable import DurableStore
 from elmpay_runtime.invoice import (
     CustomerInvoiceLedger,
+    amount_minor_to_chinese_uppercase,
     calculate_vat_breakdown,
     generate_verification_code,
+    render_golden_tax_xml,
+    render_invoice_html,
     validate_buyer_info,
 )
 
@@ -107,6 +112,145 @@ class CustomerInvoiceE1E2Test(unittest.TestCase):
         self.assertTrue(titles[0]["isDefault"])
         self.assertEqual(t1["titleId"], titles[1]["titleId"])
         self.assertFalse(titles[1]["isDefault"])
+
+    def test_e1_chinese_legal_uppercase_currency(self) -> None:
+        self.assertEqual("零元整", amount_minor_to_chinese_uppercase(0))
+        self.assertEqual("壹分", amount_minor_to_chinese_uppercase(1))
+        self.assertEqual("伍分", amount_minor_to_chinese_uppercase(5))
+        self.assertEqual("壹角整", amount_minor_to_chinese_uppercase(10))
+        self.assertEqual("壹角伍分", amount_minor_to_chinese_uppercase(15))
+        self.assertEqual("壹元整", amount_minor_to_chinese_uppercase(100))
+        self.assertEqual("壹元零伍分", amount_minor_to_chinese_uppercase(105))
+        self.assertEqual("壹元伍角整", amount_minor_to_chinese_uppercase(150))
+        self.assertEqual("壹元伍角伍分", amount_minor_to_chinese_uppercase(155))
+        self.assertEqual("壹拾元整", amount_minor_to_chinese_uppercase(1000))
+        self.assertEqual("壹拾元零伍分", amount_minor_to_chinese_uppercase(1005))
+        self.assertEqual("壹拾元伍角整", amount_minor_to_chinese_uppercase(1050))
+        self.assertEqual("壹仟元整", amount_minor_to_chinese_uppercase(100000))
+        self.assertEqual("壹仟零伍元整", amount_minor_to_chinese_uppercase(100500))
+        self.assertEqual("壹万元整", amount_minor_to_chinese_uppercase(1000000))
+        self.assertEqual("壹万零伍元整", amount_minor_to_chinese_uppercase(1000500))
+        self.assertEqual("壹拾万元整", amount_minor_to_chinese_uppercase(10000000))
+        self.assertEqual("壹拾万零伍元整", amount_minor_to_chinese_uppercase(10000500))
+        self.assertEqual("壹亿元整", amount_minor_to_chinese_uppercase(10000000000))
+        self.assertEqual("壹亿零壹万元整", amount_minor_to_chinese_uppercase(10001000000))
+        self.assertEqual("壹亿零伍元整", amount_minor_to_chinese_uppercase(10000000500))
+        self.assertEqual("(负)壹佰壹拾叁元整", amount_minor_to_chinese_uppercase(-11300))
+        self.assertEqual("(负)伍角整", amount_minor_to_chinese_uppercase(-50))
+        with self.assertRaises(ValidationError):
+            amount_minor_to_chinese_uppercase("100")  # type: ignore
+
+    def test_e2_render_invoice_html_and_golden_tax_xml(self) -> None:
+        tenant_id = "tenant-render-test"
+        applied = self.ledger.apply_invoice(
+            tenant_id=tenant_id,
+            project_id="proj-render",
+            payment_intent_id="pi_render_1",
+            captured_amount_minor=11300,
+            refunded_amount_minor=0,
+            invoice_type="ELECTRONIC_NORMAL",
+            buyer_type="enterprise",
+            buyer_name="北京百度网讯科技有限公司",
+            buyer_tax_number="91110000802100433B",
+            buyer_address_phone="北京市海淀区上地十街10号 010-59928888",
+            buyer_bank_account="招商银行北京分行 110901234567890",
+            seller_name="榆钱儿支付信息科技有限公司",
+            seller_tax_number="91110108MA01XXXXXX",
+            seller_address_phone="北京市朝阳区科技园8号 010-88889999",
+            seller_bank_account="中国工商银行中关村支行 0200001909023456789",
+            operator="op-bill",
+            items=[
+                {
+                    "itemName": "分布式支付网关云服务费",
+                    "specification": "企业独享型",
+                    "unit": "月",
+                    "quantity": 1,
+                    "unitPriceMinor": 10000,
+                    "taxRateBasisPoints": 1300,
+                }
+            ],
+            now=NOW,
+        )
+        issued = self.ledger.issue_invoice(
+            tenant_id,
+            applied["invoiceId"],
+            actor="checker-01",
+            checker="finance-auditor",
+            payee="finance-cashier",
+            now=NOW + timedelta(minutes=2),
+        )
+
+        # 1. Render HTML and verify visual layout components
+        html_doc = render_invoice_html(issued)
+        self.assertIn("<!DOCTYPE html>", html_doc)
+        self.assertIn("增值税电子普通发票", html_doc)
+        self.assertIn("北京百度网讯科技有限公司", html_doc)
+        self.assertIn("91110000802100433B", html_doc)
+        self.assertIn("榆钱儿支付信息科技有限公司", html_doc)
+        self.assertIn("91110108MA01XXXXXX", html_doc)
+        self.assertIn("分布式支付网关云服务费", html_doc)
+        self.assertIn("壹佰壹拾叁元整", html_doc)
+        self.assertIn("¥113.00", html_doc)
+        self.assertIn("发票专用章", html_doc)
+        self.assertIn('rect width="86"', html_doc)
+
+        # 2. Test Watermarks
+        applied_for_void = self.ledger.apply_invoice(
+            tenant_id=tenant_id,
+            project_id="proj-render",
+            payment_intent_id="pi_render_2",
+            captured_amount_minor=10000,
+            refunded_amount_minor=0,
+            invoice_type="ELECTRONIC_NORMAL",
+            buyer_type="individual",
+            buyer_name="测试作废用户",
+            seller_name="榆钱儿支付信息科技有限公司",
+            seller_tax_number="91110108MA01XXXXXX",
+            operator="op-void-apply",
+            items=[{"itemName": "测试服务", "quantity": 1, "unitPriceMinor": 10000, "taxRateBasisPoints": 0}],
+            now=NOW,
+        )
+        voided = self.ledger.void_invoice(tenant_id, applied_for_void["invoiceId"], reason="作废重开", operator="op-void")
+        void_html = render_invoice_html(voided)
+        self.assertIn("watermark-void", void_html)
+        self.assertIn("作&nbsp;&nbsp;废", void_html)
+
+        red_note = self.ledger.issue_red_note(tenant_id, applied["invoiceId"], reason="全额折让冲红", operator="op-red")
+        red_html = render_invoice_html(red_note)
+        self.assertIn("watermark-red", red_html)
+        self.assertIn("红&nbsp;&nbsp;字", red_html)
+
+        # 3. Render Golden Tax XML and verify parsing
+        xml_doc = render_golden_tax_xml(issued)
+        self.assertIn('<?xml version="1.0" encoding="UTF-8"?>', xml_doc)
+        root = ET.fromstring(xml_doc)
+        tag = root.tag.split("}")[-1] if "}" in root.tag else root.tag
+        self.assertEqual("TaxInvoiceExchange", tag)
+
+        ns = {"ns": "http://tax.chinatax.gov.cn/schema/einvoice/v3"}
+        header = root.find("ns:Header", ns)
+        self.assertIsNotNone(header)
+        self.assertEqual(issued["invoiceId"], header.find("ns:InvoiceId", ns).text)
+        self.assertIn(header.find("ns:InvoiceType", ns).text, ["vat_electronic_normal", "ELECTRONIC_NORMAL"])
+
+        seller = root.find("ns:Seller", ns)
+        self.assertIsNotNone(seller)
+        self.assertEqual("榆钱儿支付信息科技有限公司", seller.find("ns:Name", ns).text)
+        self.assertEqual("91110108MA01XXXXXX", seller.find("ns:TaxNumber", ns).text)
+
+        summary = root.find("ns:Summary", ns)
+        self.assertIsNotNone(summary)
+        self.assertEqual("11300", summary.find("ns:TotalAmountMinor", ns).text)
+        self.assertEqual("113.00", summary.find("ns:TotalAmountYuan", ns).text)
+        self.assertEqual("壹佰壹拾叁元整", summary.find("ns:ChineseUppercaseTotal", ns).text)
+
+        items_elem = root.find("ns:Items", ns)
+        self.assertIsNotNone(items_elem)
+        self.assertEqual("1", items_elem.attrib.get("count"))
+        item_elem = items_elem.find("ns:Item", ns)
+        self.assertEqual("分布式支付网关云服务费", item_elem.find("ns:ItemName", ns).text)
+        self.assertEqual("1300", item_elem.find("ns:TaxRateBasisPoints", ns).text)
+        self.assertEqual("13%", item_elem.find("ns:TaxRatePercentage", ns).text)
 
 
 class CustomerInvoiceE3SystemLifecycleTest(unittest.TestCase):
@@ -452,6 +596,164 @@ class CustomerInvoiceE3SystemLifecycleTest(unittest.TestCase):
                 operator="attacker",
             )
 
+    def test_e3_auto_invoice_payment_intent_workflow(self) -> None:
+        tenant_id = "tenant-auto-e3"
+        # 1. Save title
+        title = self.ledger.save_buyer_title(
+            tenant_id,
+            "enterprise",
+            "阿里巴巴（中国）网络技术有限公司",
+            buyer_tax_number="91330100716105852F",
+            is_default=True,
+            now=NOW,
+        )
+
+        # 2. Auto-invoice payment intent
+        inv = self.ledger.auto_invoice_payment_intent(
+            tenant_id=tenant_id,
+            project_id="proj-auto",
+            payment_intent_id="pi_auto_2001",
+            buyer_title_id=title["titleId"],
+            captured_amount_minor=11300,
+            refunded_amount_minor=0,
+            seller_name="榆钱儿支付",
+            seller_tax_number="91110108MA01XXXXXX",
+            operator="auto-bot",
+            actor_id="sys-auto",
+            idempotency_key="idem-auto-p1",
+            tax_rate_basis_points=1300,
+            auto_issue=True,
+            now=NOW,
+        )
+        self.assertEqual("ISSUED", inv["status"])
+        self.assertEqual(11300, inv["totalAmountMinor"])
+        self.assertEqual(10000, inv["untaxedAmountMinor"])
+        self.assertEqual(1300, inv["taxAmountMinor"])
+        self.assertIsNotNone(inv["verificationCode"])
+
+        # 3. Idempotent call returns same invoice
+        replay = self.ledger.auto_invoice_payment_intent(
+            tenant_id=tenant_id,
+            project_id="proj-auto",
+            payment_intent_id="pi_auto_2001",
+            buyer_title_id=title["titleId"],
+            captured_amount_minor=11300,
+            refunded_amount_minor=0,
+            seller_name="榆钱儿支付",
+            seller_tax_number="91110108MA01XXXXXX",
+            operator="auto-bot",
+            actor_id="sys-auto",
+            idempotency_key="idem-auto-p1",
+            tax_rate_basis_points=1300,
+            auto_issue=True,
+            now=NOW,
+        )
+        self.assertEqual(inv["invoiceId"], replay["invoiceId"])
+
+        # 4. Subsequent new call fails because remaining invoicable balance is 0
+        with self.assertRaises(ValidationError) as ctx:
+            self.ledger.auto_invoice_payment_intent(
+                tenant_id=tenant_id,
+                project_id="proj-auto",
+                payment_intent_id="pi_auto_2001",
+                buyer_title_id=title["titleId"],
+                captured_amount_minor=11300,
+                refunded_amount_minor=0,
+                seller_name="榆钱儿支付",
+                seller_tax_number="91110108MA01XXXXXX",
+                operator="auto-bot",
+                actor_id="sys-auto",
+                idempotency_key="idem-auto-p2",
+                tax_rate_basis_points=1300,
+                auto_issue=True,
+                now=NOW,
+            )
+        self.assertIn("no invoicable balance remaining", str(ctx.exception))
+
+    def test_e3_reconcile_invoices_with_payments(self) -> None:
+        tenant = "tenant-reconcile-e3"
+        # 1. Invoice for payment 1 (Balanced)
+        inv1 = self.ledger.apply_invoice(
+            tenant_id=tenant,
+            project_id="p1",
+            payment_intent_id="pi_rec_01",
+            captured_amount_minor=10000,
+            refunded_amount_minor=0,
+            invoice_type="ELECTRONIC_NORMAL",
+            buyer_type="individual",
+            buyer_name="李四",
+            seller_name="商家A",
+            seller_tax_number="91110108MA01XXXXXX",
+            operator="op",
+            items=[{"itemName": "服务费", "quantity": 1, "unitPriceMinor": 10000, "taxRateBasisPoints": 0}],
+            now=NOW,
+        )
+        self.ledger.issue_invoice(tenant, inv1["invoiceId"], actor="chk")
+
+        # 2. Invoice for payment 2 (Partially invoiced: captured 20,000, invoiced 10,000)
+        inv2 = self.ledger.apply_invoice(
+            tenant_id=tenant,
+            project_id="p1",
+            payment_intent_id="pi_rec_02",
+            captured_amount_minor=20000,
+            refunded_amount_minor=0,
+            invoice_type="ELECTRONIC_NORMAL",
+            buyer_type="individual",
+            buyer_name="王五",
+            seller_name="商家A",
+            seller_tax_number="91110108MA01XXXXXX",
+            operator="op",
+            items=[{"itemName": "服务费", "quantity": 1, "unitPriceMinor": 10000, "taxRateBasisPoints": 0}],
+            now=NOW,
+        )
+        self.ledger.issue_invoice(tenant, inv2["invoiceId"], actor="chk")
+
+        # 3. Invoice for payment 4 (Over-invoiced via refund: captured 10,000, invoiced 10,000, then refunded 5,000 without red note)
+        inv4 = self.ledger.apply_invoice(
+            tenant_id=tenant,
+            project_id="p1",
+            payment_intent_id="pi_rec_04",
+            captured_amount_minor=10000,
+            refunded_amount_minor=0,
+            invoice_type="ELECTRONIC_NORMAL",
+            buyer_type="individual",
+            buyer_name="赵六",
+            seller_name="商家A",
+            seller_tax_number="91110108MA01XXXXXX",
+            operator="op",
+            items=[{"itemName": "服务费", "quantity": 1, "unitPriceMinor": 10000, "taxRateBasisPoints": 0}],
+            now=NOW,
+        )
+        self.ledger.issue_invoice(tenant, inv4["invoiceId"], actor="chk")
+
+        # Payment portfolio to reconcile
+        payments = [
+            {"paymentIntentId": "pi_rec_01", "capturedAmountMinor": 10000, "refundedAmountMinor": 0},
+            {"paymentIntentId": "pi_rec_02", "capturedAmountMinor": 20000, "refundedAmountMinor": 0},
+            {"paymentIntentId": "pi_rec_03", "capturedAmountMinor": 15000, "refundedAmountMinor": 0},  # Uninvoiced
+            {"paymentIntentId": "pi_rec_04", "capturedAmountMinor": 10000, "refundedAmountMinor": 5000},  # Refund without red note
+        ]
+
+        report = self.ledger.reconcile_invoices_with_payments(tenant, payments=payments)
+        self.assertEqual("HAS_DISCREPANCIES", report["status"])
+        self.assertEqual(4, report["totalPaymentIntents"])
+        self.assertEqual(55000, report["totalCapturedAmountMinor"])
+        self.assertEqual(5000, report["totalRefundedAmountMinor"])
+        self.assertEqual(50000, report["netInvoicableAmountMinor"])
+        self.assertEqual(30000, report["totalInvoicedAmountMinor"])
+        self.assertEqual(20000, report["unInvoicedAmountMinor"])
+
+        disc_codes = {d["code"] for d in report["discrepancies"]}
+        self.assertIn("OVER_INVOICED", disc_codes)
+        self.assertIn("REFUND_WITHOUT_RED_NOTE", disc_codes)
+
+        # Check detail statuses
+        details_by_pi = {d["paymentIntentId"]: d for d in report["details"]}
+        self.assertEqual("BALANCED", details_by_pi["pi_rec_01"]["status"])
+        self.assertIn("PARTIALLY_INVOICED", details_by_pi["pi_rec_02"]["discrepancyCodes"])
+        self.assertIn("UNINVOICED_PAYMENT", details_by_pi["pi_rec_03"]["discrepancyCodes"])
+        self.assertIn("OVER_INVOICED", details_by_pi["pi_rec_04"]["discrepancyCodes"])
+
 
 class CustomerInvoiceE4AdvancedTesting(unittest.TestCase):
     """Level E4 High-Concurrency, Fault-Tolerance, and Adversarial Security Tests."""
@@ -694,6 +996,59 @@ class CustomerInvoiceE4AdvancedTesting(unittest.TestCase):
         with self.assertRaises(ValidationError):
             calculate_vat_breakdown([{"itemName": "a", "quantity": 1, "unitPriceMinor": 100, "taxRateBasisPoints": 10001}])
 
+    def test_e4_concurrent_auto_invoicing_race_condition(self) -> None:
+        """Spawn 15 concurrent threads calling auto_invoice_payment_intent on the same payment intent."""
+        tenant = "tenant-race-auto"
+        title = self.ledger.save_buyer_title(
+            tenant,
+            "enterprise",
+            "北京字节跳动科技有限公司",
+            buyer_tax_number="91110108MA0000000X",
+            is_default=True,
+            now=NOW,
+        )
+        payment_id = "pi_race_auto_001"
+        captured = 50000  # 500.00 CNY
+
+        successes = []
+        failures = []
+
+        def worker(idx: int) -> None:
+            try:
+                res = self.ledger.auto_invoice_payment_intent(
+                    tenant_id=tenant,
+                    project_id="proj-race",
+                    payment_intent_id=payment_id,
+                    buyer_title_id=title["titleId"],
+                    captured_amount_minor=captured,
+                    refunded_amount_minor=0,
+                    seller_name="榆钱儿科技",
+                    seller_tax_number="91110108MA01XXXXXX",
+                    operator=f"worker-{idx}",
+                    actor_id=f"actor-{idx}",
+                    idempotency_key=f"idem-race-auto-{idx}",
+                    tax_rate_basis_points=1300,
+                    auto_issue=True,
+                    now=NOW,
+                )
+                successes.append(res)
+            except ValidationError as err:
+                failures.append(str(err))
+
+        with ThreadPoolExecutor(max_workers=15) as executor:
+            futures = [executor.submit(worker, i) for i in range(15)]
+            for f in as_completed(futures):
+                f.result()
+
+        # Exactly ONE thread should have successfully created and issued the invoice
+        self.assertEqual(1, len(successes))
+        self.assertEqual(14, len(failures))
+        self.assertEqual(50000, successes[0]["totalAmountMinor"])
+
+        # Remaining balance in ledger must be 0
+        rem = self.ledger.calculate_invoicable_balance(tenant, payment_id, captured, 0)
+        self.assertEqual(0, rem)
+
 
 class CustomerInvoiceCliIntegrationTest(unittest.TestCase):
     """Level E3/E4 CLI Integration Testing for control.py entrypoints."""
@@ -802,6 +1157,89 @@ class CustomerInvoiceCliIntegrationTest(unittest.TestCase):
         )
         self.assertEqual(0, code)
         self.assertTrue(audit_res["auditChainValid"])
+
+    def test_cli_invoice_render_and_auto_reconcile(self) -> None:
+        tenant = "tenant-cli-render"
+        ledger = CustomerInvoiceLedger(str(self.db_path))
+        title = ledger.save_buyer_title(
+            tenant,
+            "enterprise",
+            "北京三快在线科技有限公司",
+            buyer_tax_number="91110108MA0111111A",
+            is_default=True,
+            now=NOW,
+        )
+
+        # 1. CLI auto-invoice
+        code, inv = self.run_cli(
+            "invoice-auto",
+            "--database", str(self.db_path),
+            "--tenant", tenant,
+            "--project", "proj-cli",
+            "--payment-intent", "pi_cli_auto_1",
+            "--buyer-title-id", title["titleId"],
+            "--captured-minor", "11300",
+            "--refunded-minor", "0",
+            "--seller-name", "榆钱儿支付",
+            "--seller-tax-number", "91110108MA01XXXXXX",
+            "--operator", "cli-bot",
+            "--actor", "cli-actor",
+            "--idempotency-key", "cli-idem-auto-1",
+        )
+        self.assertEqual(0, code)
+        self.assertEqual("ISSUED", inv["status"])
+        self.assertEqual(11300, inv["totalAmountMinor"])
+
+        inv_id = inv["invoiceId"]
+
+        # 2. CLI render HTML to file
+        html_out = Path(self.temporary.name) / "invoice.html"
+        code, render_res = self.run_cli(
+            "invoice-render",
+            "--database", str(self.db_path),
+            "--tenant", tenant,
+            "--invoice-id", inv_id,
+            "--format", "html",
+            "--out", str(html_out),
+        )
+        self.assertEqual(0, code)
+        self.assertTrue(html_out.exists())
+        html_content = html_out.read_text(encoding="utf-8")
+        self.assertIn("<!DOCTYPE html>", html_content)
+        self.assertIn("北京三快在线科技有限公司", html_content)
+        self.assertIn("壹佰壹拾叁元整", html_content)
+
+        # 3. CLI render XML to file
+        xml_out = Path(self.temporary.name) / "invoice.xml"
+        code, render_res = self.run_cli(
+            "invoice-render",
+            "--database", str(self.db_path),
+            "--tenant", tenant,
+            "--invoice-id", inv_id,
+            "--format", "xml",
+            "--out", str(xml_out),
+        )
+        self.assertEqual(0, code)
+        self.assertTrue(xml_out.exists())
+        xml_content = xml_out.read_text(encoding="utf-8")
+        parsed_xml = ET.fromstring(xml_content)
+        self.assertTrue(parsed_xml.tag.endswith("TaxInvoiceExchange"))
+
+        # 4. CLI reconcile
+        pmts_file = Path(self.temporary.name) / "payments.json"
+        pmts_file.write_text(
+            json.dumps([{"paymentIntentId": "pi_cli_auto_1", "capturedAmountMinor": 11300, "refundedAmountMinor": 0}]),
+            encoding="utf-8",
+        )
+        code, rec_res = self.run_cli(
+            "invoice-reconcile",
+            "--database", str(self.db_path),
+            "--tenant", tenant,
+            "--payments", str(pmts_file),
+        )
+        self.assertEqual(0, code)
+        self.assertEqual("BALANCED", rec_res["status"])
+        self.assertEqual(0, rec_res["discrepancyCount"])
 
 
 if __name__ == "__main__":

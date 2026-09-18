@@ -12,7 +12,11 @@ from elmpay_runtime.billing import calculate_invoice
 from elmpay_runtime.capacity import evaluate_capacity
 from elmpay_runtime.common import GateReport, ValidationError, read_json
 from elmpay_runtime.compliance import evaluate_vendor, evaluate_vulnerability_report
-from elmpay_runtime.invoice import CustomerInvoiceLedger
+from elmpay_runtime.invoice import (
+    CustomerInvoiceLedger,
+    render_golden_tax_xml,
+    render_invoice_html,
+)
 from elmpay_runtime.external_evidence import (
     validate_external_evidence,
     validate_test_evidence_template,
@@ -210,6 +214,36 @@ def _parser() -> argparse.ArgumentParser:
     inv_audit = subcommands.add_parser("invoice-audit-verify", help="verify cryptographic audit chain of customer invoices")
     inv_audit.add_argument("--database", type=Path, required=True)
     inv_audit.add_argument("--tenant", required=True)
+
+    inv_render = subcommands.add_parser("invoice-render", help="render printable HTML or Golden Tax XML invoice")
+    inv_render.add_argument("--database", type=Path, required=True)
+    inv_render.add_argument("--tenant", required=True)
+    inv_render.add_argument("--invoice-id", required=True)
+    inv_render.add_argument("--format", choices=["html", "xml"], default="html")
+    inv_render.add_argument("--out", type=Path)
+
+    inv_auto = subcommands.add_parser("invoice-auto", help="automatically generate and issue invoice for a payment")
+    inv_auto.add_argument("--database", type=Path, required=True)
+    inv_auto.add_argument("--tenant", required=True)
+    inv_auto.add_argument("--project", required=True)
+    inv_auto.add_argument("--payment-intent", required=True)
+    inv_auto.add_argument("--buyer-title-id", required=True)
+    inv_auto.add_argument("--captured-minor", type=int, required=True)
+    inv_auto.add_argument("--refunded-minor", type=int, default=0)
+    inv_auto.add_argument("--seller-name", required=True)
+    inv_auto.add_argument("--seller-tax-number", required=True)
+    inv_auto.add_argument("--operator", required=True)
+    inv_auto.add_argument("--actor", required=True)
+    inv_auto.add_argument("--idempotency-key", required=True)
+    inv_auto.add_argument("--item-name", default="企业支付技术服务费")
+    inv_auto.add_argument("--tax-rate-bp", type=int, default=1300)
+
+    inv_rec = subcommands.add_parser("invoice-reconcile", help="cross-reconcile invoice balances against payments")
+    inv_rec.add_argument("--database", type=Path, required=True)
+    inv_rec.add_argument("--tenant", required=True)
+    inv_rec.add_argument("--payments", type=Path)
+    inv_rec.add_argument("--start")
+    inv_rec.add_argument("--end")
     return parser
 
 
@@ -472,6 +506,56 @@ def main(argv: list[str] | None = None) -> int:
             valid = ledger.verify_invoice_audit_chain(args.tenant)
             _emit({"tenantId": args.tenant, "auditChainValid": valid})
             return 0 if valid else 2
+        if args.command == "invoice-render":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            invoice = ledger.get_invoice(args.tenant, args.invoice_id)
+            if not invoice:
+                raise ValidationError(f"invoice not found: {args.invoice_id}")
+            if args.format == "xml":
+                content = render_golden_tax_xml(invoice)
+            else:
+                content = render_invoice_html(invoice)
+            if args.out:
+                args.out.write_text(content, encoding="utf-8")
+                _emit({"tenantId": args.tenant, "invoiceId": args.invoice_id, "rendered": True, "outPath": str(args.out)})
+            else:
+                print(content)
+            return 0
+        if args.command == "invoice-auto":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            invoice = ledger.auto_invoice_payment_intent(
+                tenant_id=args.tenant,
+                project_id=args.project,
+                payment_intent_id=args.payment_intent,
+                buyer_title_id=args.buyer_title_id,
+                captured_amount_minor=args.captured_minor,
+                refunded_amount_minor=args.refunded_minor,
+                seller_name=args.seller_name,
+                seller_tax_number=args.seller_tax_number,
+                operator=args.operator,
+                actor_id=args.actor,
+                idempotency_key=args.idempotency_key,
+                item_name=args.item_name,
+                tax_rate_basis_points=args.tax_rate_bp,
+            )
+            _emit(invoice)
+            return 0
+        if args.command == "invoice-reconcile":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            payments = None
+            if args.payments:
+                payments_data = read_json(args.payments)
+                payments = payments_data if isinstance(payments_data, list) else payments_data.get("payments")
+            start = datetime.fromisoformat(args.start.replace("Z", "+00:00")) if args.start else None
+            end = datetime.fromisoformat(args.end.replace("Z", "+00:00")) if args.end else None
+            result = ledger.reconcile_invoices_with_payments(
+                args.tenant,
+                payments=payments,
+                start_time=start,
+                end_time=end,
+            )
+            _emit(result)
+            return 0 if result.get("status") == "BALANCED" else 1
         raise ValidationError(f"unsupported command: {args.command}")
 
     except (ValidationError, KeyError, TypeError, ValueError) as exc:
