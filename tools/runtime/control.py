@@ -15,8 +15,11 @@ from elmpay_runtime.compliance import evaluate_vendor, evaluate_vulnerability_re
 from elmpay_runtime.invoice import (
     CustomerInvoiceLedger,
     render_golden_tax_xml,
+    render_invoice_batch_html,
     render_invoice_html,
 )
+from elmpay_runtime.settlement import SettlementLedger, render_settlement_html
+from elmpay_runtime.dispute import DisputeLedger
 from elmpay_runtime.external_evidence import (
     validate_external_evidence,
     validate_test_evidence_template,
@@ -244,6 +247,125 @@ def _parser() -> argparse.ArgumentParser:
     inv_rec.add_argument("--payments", type=Path)
     inv_rec.add_argument("--start")
     inv_rec.add_argument("--end")
+
+    inv_b_auto = subcommands.add_parser("invoice-batch-auto", help="process batch of payments for automated invoicing")
+    inv_b_auto.add_argument("--database", type=Path, required=True)
+    inv_b_auto.add_argument("--tenant", required=True)
+    inv_b_auto.add_argument("--manifest", type=Path, required=True)
+    inv_b_auto.add_argument("--seller-name", required=True)
+    inv_b_auto.add_argument("--seller-tax-number", required=True)
+    inv_b_auto.add_argument("--operator", default="系统批量开票引擎")
+    inv_b_auto.add_argument("--actor", default="batch_engine_service")
+    inv_b_auto.add_argument("--checker")
+    inv_b_auto.add_argument("--payee")
+
+    inv_ref_red = subcommands.add_parser("invoice-refund-red-note", help="auto-issue red note when a payment is refunded")
+    inv_ref_red.add_argument("--database", type=Path, required=True)
+    inv_ref_red.add_argument("--tenant", required=True)
+    inv_ref_red.add_argument("--payment-intent", required=True)
+    inv_ref_red.add_argument("--refund-minor", type=int, required=True)
+    inv_ref_red.add_argument("--operator", required=True)
+    inv_ref_red.add_argument("--reason", default="原交易发生退款，自动红字冲销")
+    inv_ref_red.add_argument("--idempotency-key")
+
+    inv_b_render = subcommands.add_parser("invoice-batch-render", help="render multi-invoice printable booklet")
+    inv_b_render.add_argument("--database", type=Path, required=True)
+    inv_b_render.add_argument("--tenant", required=True)
+    inv_b_render.add_argument("--invoices", type=Path)
+    inv_b_render.add_argument("--out", type=Path)
+    inv_b_render.add_argument("--title", default="企业电子发票批量装订归档册")
+
+    stl_cfg = subcommands.add_parser("settlement-config", help="configure merchant settlement rules")
+    stl_cfg.add_argument("--database", type=Path, required=True)
+    stl_cfg.add_argument("--tenant", required=True)
+    stl_cfg.add_argument("--project", required=True)
+    stl_cfg.add_argument("--currency", default="CNY")
+    stl_cfg.add_argument("--cycle", default="T_PLUS_1")
+    stl_cfg.add_argument("--min-payout", type=int, default=1000)
+    stl_cfg.add_argument("--commission-bp", type=int, default=30)
+    stl_cfg.add_argument("--fee-bp", type=int, default=38)
+    stl_cfg.add_argument("--reserve-bp", type=int, default=500)
+    stl_cfg.add_argument("--bank-name", required=True)
+    stl_cfg.add_argument("--bank-acc", required=True)
+    stl_cfg.add_argument("--bank-acc-name", required=True)
+
+    stl_batch = subcommands.add_parser("settlement-batch", help="calculate settlement batch for a period")
+    stl_batch.add_argument("--database", type=Path, required=True)
+    stl_batch.add_argument("--tenant", required=True)
+    stl_batch.add_argument("--project", required=True)
+    stl_batch.add_argument("--period-start", required=True)
+    stl_batch.add_argument("--period-end", required=True)
+    stl_batch.add_argument("--transactions", type=Path, required=True)
+    stl_batch.add_argument("--operator", required=True)
+    stl_batch.add_argument("--currency", default="CNY")
+
+    stl_appr = subcommands.add_parser("settlement-approve", help="four-eyes approval of settlement payout")
+    stl_appr.add_argument("--database", type=Path, required=True)
+    stl_appr.add_argument("--tenant", required=True)
+    stl_appr.add_argument("--batch-id", required=True)
+    stl_appr.add_argument("--approver", required=True)
+
+    stl_exec = subcommands.add_parser("settlement-execute", help="execute approved settlement payout")
+    stl_exec.add_argument("--database", type=Path, required=True)
+    stl_exec.add_argument("--tenant", required=True)
+    stl_exec.add_argument("--batch-id", required=True)
+    stl_exec.add_argument("--executor", required=True)
+    stl_exec.add_argument("--bank-ref", required=True)
+
+    stl_render = subcommands.add_parser("settlement-render", help="render settlement voucher HTML")
+    stl_render.add_argument("--database", type=Path, required=True)
+    stl_render.add_argument("--tenant", required=True)
+    stl_render.add_argument("--batch-id", required=True)
+    stl_render.add_argument("--out", type=Path)
+
+    stl_exp = subcommands.add_parser("settlement-export", help="export bank payout instructions")
+    stl_exp.add_argument("--database", type=Path, required=True)
+    stl_exp.add_argument("--tenant", required=True)
+    stl_exp.add_argument("--batch-id", required=True)
+    stl_exp.add_argument("--format", choices=["csv", "json"], default="csv")
+    stl_exp.add_argument("--out", type=Path)
+
+    stl_audit = subcommands.add_parser("settlement-audit-verify", help="verify settlement cryptographic audit chain")
+    stl_audit.add_argument("--database", type=Path, required=True)
+    stl_audit.add_argument("--tenant", required=True)
+    stl_audit.add_argument("--batch-id", required=True)
+
+    dsp_rec = subcommands.add_parser("dispute-record", help="record incoming payment dispute")
+    dsp_rec.add_argument("--database", type=Path, required=True)
+    dsp_rec.add_argument("--tenant", required=True)
+    dsp_rec.add_argument("--project", required=True)
+    dsp_rec.add_argument("--payment-intent", required=True)
+    dsp_rec.add_argument("--amount-minor", type=int, required=True)
+    dsp_rec.add_argument("--due-at", required=True)
+    dsp_rec.add_argument("--currency", default="CNY")
+    dsp_rec.add_argument("--reason", default="UNRECOGNIZED")
+    dsp_rec.add_argument("--actor", default="dispute_webhook_service")
+
+    dsp_evd = subcommands.add_parser("dispute-evidence", help="submit dispute rebuttal evidence")
+    dsp_evd.add_argument("--database", type=Path, required=True)
+    dsp_evd.add_argument("--tenant", required=True)
+    dsp_evd.add_argument("--dispute-id", required=True)
+    dsp_evd.add_argument("--evidence", type=Path, required=True)
+    dsp_evd.add_argument("--actor", required=True)
+
+    dsp_res = subcommands.add_parser("dispute-resolve", help="resolve dispute as WON or LOST")
+    dsp_res.add_argument("--database", type=Path, required=True)
+    dsp_res.add_argument("--tenant", required=True)
+    dsp_res.add_argument("--dispute-id", required=True)
+    dsp_res.add_argument("--outcome", choices=["WON", "LOST"], required=True)
+    dsp_res.add_argument("--lost-fee-minor", type=int, default=0)
+    dsp_res.add_argument("--actor", required=True)
+
+    dsp_list = subcommands.add_parser("dispute-list", help="list disputes for a tenant")
+    dsp_list.add_argument("--database", type=Path, required=True)
+    dsp_list.add_argument("--tenant", required=True)
+    dsp_list.add_argument("--status")
+
+    dsp_audit = subcommands.add_parser("dispute-audit-verify", help="verify dispute cryptographic audit chain")
+    dsp_audit.add_argument("--database", type=Path, required=True)
+    dsp_audit.add_argument("--tenant", required=True)
+    dsp_audit.add_argument("--dispute-id", required=True)
+
     return parser
 
 
@@ -556,6 +678,175 @@ def main(argv: list[str] | None = None) -> int:
             )
             _emit(result)
             return 0 if result.get("status") == "BALANCED" else 1
+        if args.command == "invoice-batch-auto":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            manifest = read_json(args.manifest)
+            items = manifest if isinstance(manifest, list) else manifest.get("items", [])
+            res = ledger.batch_auto_invoice(
+                tenant_id=args.tenant,
+                manifest=items,
+                seller_name=args.seller_name,
+                seller_tax_number=args.seller_tax_number,
+                operator=args.operator,
+                actor_id=args.actor,
+                checker=args.checker,
+                payee=args.payee,
+            )
+            _emit(res)
+            return 0 if res.get("failedCount", 0) == 0 else 1
+        if args.command == "invoice-refund-red-note":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            res = ledger.auto_red_note_on_refund(
+                tenant_id=args.tenant,
+                payment_intent_id=args.payment_intent,
+                refund_amount_minor=args.refund_minor,
+                operator=args.operator,
+                reason=args.reason,
+                idempotency_key=args.idempotency_key,
+            )
+            _emit(res)
+            return 0
+        if args.command == "invoice-batch-render":
+            ledger = CustomerInvoiceLedger(str(args.database))
+            if args.invoices:
+                inv_data = read_json(args.invoices)
+                invoices = inv_data if isinstance(inv_data, list) else inv_data.get("invoices", [])
+            else:
+                exp = ledger.export_invoice_ledger(args.tenant, limit=100)
+                invoices = exp.get("invoices", [])
+            content = render_invoice_batch_html(invoices, title=args.title)
+            if args.out:
+                args.out.write_text(content, encoding="utf-8")
+                _emit({"tenantId": args.tenant, "invoiceCount": len(invoices), "rendered": True, "outPath": str(args.out)})
+            else:
+                print(content)
+            return 0
+        if args.command == "settlement-config":
+            ledger = SettlementLedger(str(args.database))
+            cfg = ledger.configure_merchant_settlement(
+                tenant_id=args.tenant,
+                project_id=args.project,
+                currency=args.currency,
+                settlement_cycle=args.cycle,
+                minimum_payout_minor=args.min_payout,
+                commission_basis_points=args.commission_bp,
+                channel_fee_basis_points=args.fee_bp,
+                reserve_holdback_basis_points=args.reserve_bp,
+                bank_name=args.bank_name,
+                bank_account_number=args.bank_acc,
+                bank_account_name=args.bank_acc_name,
+            )
+            _emit(cfg)
+            return 0
+        if args.command == "settlement-batch":
+            ledger = SettlementLedger(str(args.database))
+            tx_data = read_json(args.transactions)
+            txs = tx_data if isinstance(tx_data, list) else tx_data.get("transactions", [])
+            batch = ledger.calculate_settlement_batch(
+                tenant_id=args.tenant,
+                project_id=args.project,
+                period_start=args.period_start,
+                period_end=args.period_end,
+                transactions=txs,
+                operator=args.operator,
+                currency=args.currency,
+            )
+            _emit(batch)
+            return 0
+        if args.command == "settlement-approve":
+            ledger = SettlementLedger(str(args.database))
+            res = ledger.approve_settlement_payout(
+                tenant_id=args.tenant,
+                batch_id=args.batch_id,
+                approver=args.approver,
+            )
+            _emit(res)
+            return 0
+        if args.command == "settlement-execute":
+            ledger = SettlementLedger(str(args.database))
+            res = ledger.execute_settlement_payout(
+                tenant_id=args.tenant,
+                batch_id=args.batch_id,
+                executor=args.executor,
+                bank_reference_id=args.bank_ref,
+            )
+            _emit(res)
+            return 0
+        if args.command == "settlement-render":
+            ledger = SettlementLedger(str(args.database))
+            batch = ledger.get_settlement_batch(args.tenant, args.batch_id)
+            cfg = ledger.get_merchant_settlement_config(args.tenant, batch["projectId"], currency=batch["currency"])
+            content = render_settlement_html(batch, config=cfg)
+            if args.out:
+                args.out.write_text(content, encoding="utf-8")
+                _emit({"tenantId": args.tenant, "batchId": args.batch_id, "rendered": True, "outPath": str(args.out)})
+            else:
+                print(content)
+            return 0
+        if args.command == "settlement-export":
+            ledger = SettlementLedger(str(args.database))
+            content = ledger.export_payout_instructions(
+                tenant_id=args.tenant,
+                batch_id=args.batch_id,
+                format_type=args.format,
+            )
+            if args.out:
+                args.out.write_text(content, encoding="utf-8")
+                _emit({"tenantId": args.tenant, "batchId": args.batch_id, "format": args.format, "outPath": str(args.out)})
+            else:
+                print(content)
+            return 0
+        if args.command == "settlement-audit-verify":
+            ledger = SettlementLedger(str(args.database))
+            valid = ledger.verify_settlement_audit_chain(args.tenant, args.batch_id)
+            _emit({"tenantId": args.tenant, "batchId": args.batch_id, "auditChainValid": valid})
+            return 0 if valid else 1
+        if args.command == "dispute-record":
+            ledger = DisputeLedger(str(args.database))
+            disp = ledger.record_dispute(
+                tenant_id=args.tenant,
+                project_id=args.project,
+                payment_intent_id=args.payment_intent,
+                dispute_amount_minor=args.amount_minor,
+                evidence_due_at=args.due_at,
+                currency=args.currency,
+                reason_code=args.reason,
+                actor_id=args.actor,
+            )
+            _emit(disp)
+            return 0
+        if args.command == "dispute-evidence":
+            ledger = DisputeLedger(str(args.database))
+            evd_data = read_json(args.evidence)
+            disp = ledger.submit_dispute_evidence(
+                tenant_id=args.tenant,
+                dispute_id=args.dispute_id,
+                evidence=evd_data,
+                actor_id=args.actor,
+            )
+            _emit(disp)
+            return 0
+        if args.command == "dispute-resolve":
+            ledger = DisputeLedger(str(args.database))
+            disp = ledger.resolve_dispute(
+                tenant_id=args.tenant,
+                dispute_id=args.dispute_id,
+                outcome=args.outcome,
+                lost_fee_minor=args.lost_fee_minor,
+                actor_id=args.actor,
+            )
+            _emit(disp)
+            return 0
+        if args.command == "dispute-list":
+            ledger = DisputeLedger(str(args.database))
+            disps = ledger.list_disputes(tenant_id=args.tenant, status=args.status)
+            _emit({"tenantId": args.tenant, "count": len(disps), "disputes": disps})
+            return 0
+        if args.command == "dispute-audit-verify":
+            ledger = DisputeLedger(str(args.database))
+            valid = ledger.verify_dispute_audit_chain(args.tenant, args.dispute_id)
+            _emit({"tenantId": args.tenant, "disputeId": args.dispute_id, "auditChainValid": valid})
+            return 0 if valid else 1
         raise ValidationError(f"unsupported command: {args.command}")
 
     except (ValidationError, KeyError, TypeError, ValueError) as exc:

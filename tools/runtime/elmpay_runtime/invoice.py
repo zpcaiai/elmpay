@@ -762,6 +762,316 @@ def render_golden_tax_xml(invoice_detail: Mapping[str, Any]) -> str:
 """
 
 
+def render_invoice_batch_html(
+    invoices: Sequence[Mapping[str, Any]],
+    *,
+    title: str = "企业电子发票批量装订归档册",
+) -> str:
+    """Render multiple invoices into a combined, printable booklet with summary cover sheet."""
+    total_count = len(invoices)
+    total_amount_minor = sum(int(inv.get("totalAmountMinor", 0)) for inv in invoices)
+    total_untaxed_minor = sum(int(inv.get("untaxedAmountMinor", 0)) for inv in invoices)
+    total_tax_minor = sum(int(inv.get("taxAmountMinor", 0)) for inv in invoices)
+
+    chinese_total = amount_minor_to_chinese_uppercase(total_amount_minor)
+
+    index_rows = []
+    for idx, inv in enumerate(invoices, 1):
+        num = str(inv.get("invoiceNumber", ""))
+        code = str(inv.get("invoiceCode", ""))
+        buyer = str(inv.get("buyerName", ""))
+        tot_yuan = f"{int(inv.get('totalAmountMinor', 0)) / 100:.2f}"
+        tax_yuan = f"{int(inv.get('taxAmountMinor', 0)) / 100:.2f}"
+        st = str(inv.get("status", ""))
+        date = str(inv.get("issuedAt", "") or "")[:10]
+        index_rows.append(
+            f'<tr>'
+            f'<td style="text-align:center;">{idx}</td>'
+            f'<td style="font-family:monospace;">{_escape_html(code)}</td>'
+            f'<td style="font-family:monospace;font-weight:600;">{_escape_html(num)}</td>'
+            f'<td>{_escape_html(buyer)}</td>'
+            f'<td style="text-align:right;">¥{tot_yuan}</td>'
+            f'<td style="text-align:right;">¥{tax_yuan}</td>'
+            f'<td style="text-align:center;">{_escape_html(st)}</td>'
+            f'<td style="text-align:center;">{_escape_html(date)}</td>'
+            f'</tr>'
+        )
+    index_tbody = "\n".join(index_rows)
+
+    cards = []
+    for inv in invoices:
+        single_html = render_invoice_html(inv)
+        start_marker = '<div class="invoice-card">'
+        end_marker = '</div>\n</body>'
+        start_idx = single_html.find(start_marker)
+        end_idx = single_html.rfind(end_marker)
+        if start_idx != -1 and end_idx != -1:
+            card_content = single_html[start_idx:end_idx + 6]
+        else:
+            card_content = single_html
+        cards.append(f'<div class="invoice-sheet">\n{card_content}\n</div>')
+
+    all_sheets = "\n".join(cards)
+
+    now_str = datetime.now(timezone.utc).strftime("%Y年%m月%d日 %H:%M:%S UTC")
+
+    return f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>{_escape_html(title)} ({total_count} 份)</title>
+  <style>
+    * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background-color: #f1f5f9;
+      color: #1e293b;
+      padding: 24px;
+    }}
+    .booklet-container {{
+      max-width: 960px;
+      margin: 0 auto;
+    }}
+    .cover-sheet {{
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 40px;
+      margin-bottom: 32px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }}
+    .cover-title {{
+      font-size: 26px;
+      font-weight: bold;
+      color: #8c3b28;
+      text-align: center;
+      margin-bottom: 8px;
+    }}
+    .cover-subtitle {{
+      font-size: 13px;
+      color: #64748b;
+      text-align: center;
+      margin-bottom: 32px;
+    }}
+    .stat-grid {{
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }}
+    .stat-box {{
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 16px;
+      text-align: center;
+    }}
+    .stat-label {{
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 6px;
+    }}
+    .stat-value {{
+      font-size: 20px;
+      font-weight: bold;
+      color: #0f172a;
+    }}
+    .index-table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 16px;
+    }}
+    .index-table th {{
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      padding: 8px 10px;
+      color: #475569;
+      font-weight: 600;
+    }}
+    .index-table td {{
+      border: 1px solid #e2e8f0;
+      padding: 8px 10px;
+      color: #334155;
+    }}
+    .index-table tr:nth-child(even) {{
+      background: #f8fafc;
+    }}
+    .invoice-sheet {{
+      display: flex;
+      justify-content: center;
+      margin-bottom: 40px;
+    }}
+    .invoice-card {{
+      width: 100%;
+      max-width: 900px;
+      background: #ffffff;
+      border: 2px solid #8c3b28;
+      border-radius: 4px;
+      padding: 24px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      position: relative;
+      overflow: hidden;
+    }}
+    .watermark {{
+      position: absolute;
+      top: 45%;
+      left: 30%;
+      transform: translate(-50%, -50%) rotate(-30deg);
+      font-size: 96px;
+      font-weight: 900;
+      letter-spacing: 24px;
+      pointer-events: none;
+      z-index: 5;
+      user-select: none;
+    }}
+    .watermark-void {{ color: rgba(100, 116, 139, 0.16); }}
+    .watermark-red {{ color: rgba(207, 34, 46, 0.16); }}
+    .header-grid {{
+      display: grid;
+      grid-template-columns: 90px 1fr 220px;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 20px;
+    }}
+    .title-box {{ text-align: center; }}
+    .invoice-title {{
+      font-size: 22px;
+      font-weight: bold;
+      color: #8c3b28;
+      letter-spacing: 4px;
+      border-bottom: 2px double #8c3b28;
+      display: inline-block;
+      padding-bottom: 4px;
+    }}
+    .meta-list {{ font-size: 12px; line-height: 1.8; color: #4b5563; }}
+    .meta-label {{ color: #8c3b28; font-weight: 600; margin-right: 6px; }}
+    .meta-value {{ font-family: monospace; font-weight: bold; }}
+    .grid-table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }}
+    .grid-table td {{
+      border: 1px solid #8c3b28;
+      padding: 6px 10px;
+      vertical-align: middle;
+    }}
+    .label-col {{
+      width: 24px;
+      text-align: center;
+      background-color: #fff9f6;
+      color: #8c3b28;
+      font-weight: 600;
+      line-height: 1.4;
+      padding: 6px 4px !important;
+    }}
+    .field-label {{ color: #8c3b28; margin-right: 8px; font-weight: 500; }}
+    .cipher-text {{
+      font-family: monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
+      line-height: 1.6;
+      word-break: break-all;
+      color: #1e293b;
+    }}
+    .items-table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-bottom: 12px;
+    }}
+    .items-table th, .items-table td {{
+      border: 1px solid #8c3b28;
+      padding: 6px 8px;
+    }}
+    .items-table th {{
+      background-color: #fff9f6;
+      color: #8c3b28;
+      font-weight: 600;
+      text-align: center;
+    }}
+    .total-row td {{ padding: 8px 10px; font-size: 13px; }}
+    .footer-bar {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #4b5563;
+      margin-top: 14px;
+      position: relative;
+    }}
+    .footer-seal {{
+      position: absolute;
+      right: 20px;
+      bottom: -15px;
+      pointer-events: none;
+      z-index: 10;
+    }}
+    @media print {{
+      body {{ background-color: #ffffff; padding: 0; }}
+      .booklet-container {{ max-width: 100%; }}
+      .cover-sheet {{ border: none; box-shadow: none; page-break-after: always; }}
+      .invoice-sheet {{ margin-bottom: 0; page-break-after: always; }}
+      .invoice-card {{ border: 2px solid #8c3b28; box-shadow: none; max-width: 100%; }}
+    }}
+  </style>
+</head>
+<body>
+  <div class="booklet-container">
+    <!-- Cover Sheet -->
+    <div class="cover-sheet">
+      <h1 class="cover-title">{_escape_html(title)}</h1>
+      <div class="cover-subtitle">生成时间: {now_str} &nbsp;|&nbsp; 纳税申报与企业财务记账留存件</div>
+      <div class="stat-grid">
+        <div class="stat-box">
+          <div class="stat-label">发票总张数</div>
+          <div class="stat-value">{total_count}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">价税合计总额</div>
+          <div class="stat-value" style="color:#8c3b28;">¥{total_amount_minor / 100:.2f}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">不含税金额合计</div>
+          <div class="stat-value">¥{total_untaxed_minor / 100:.2f}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">税额合计</div>
+          <div class="stat-value" style="color:#059669;">¥{total_tax_minor / 100:.2f}</div>
+        </div>
+      </div>
+      <div style="font-size:13px; margin-bottom:16px;">
+        <span style="color:#64748b;">价税合计大写:</span> <strong>{chinese_total}</strong>
+      </div>
+      <table class="index-table">
+        <thead>
+          <tr>
+            <th style="width: 5%;">序号</th>
+            <th style="width: 18%;">发票代码</th>
+            <th style="width: 15%;">发票号码</th>
+            <th style="width: 26%;">购买方名称</th>
+            <th style="width: 12%;">价税合计</th>
+            <th style="width: 10%;">税额</th>
+            <th style="width: 8%;">状态</th>
+            <th style="width: 10%;">开票日期</th>
+          </tr>
+        </thead>
+        <tbody>
+          {index_tbody}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Individual Invoice Sheets -->
+    {all_sheets}
+  </div>
+</body>
+</html>
+"""
+
+
 class CustomerInvoiceLedger:
     """Enterprise payment customer invoice lifecycle and audit ledger."""
 
@@ -942,7 +1252,9 @@ class CustomerInvoiceLedger:
                         raise ValidationError(
                             f"idempotency_key_reuse: request payload conflict for key '{idempotency_key}'"
                         )
-                    return self._load_invoice_detail(conn, existing["invoice_id"])
+                    detail = self._load_invoice_detail(conn, existing["invoice_id"])
+                    detail["isIdempotentReplay"] = True
+                    return detail
 
             # Verify invoicable balance inside active transaction connection
             invoicable = self.calculate_invoicable_balance(
@@ -1559,6 +1871,8 @@ class CustomerInvoiceLedger:
                 "isDefault": is_default,
             }
 
+    create_buyer_title = save_buyer_title
+
     def list_buyer_titles(self, tenant_id: str) -> list[dict[str, Any]]:
         with self.store.connect() as conn:
             rows = conn.execute(
@@ -1581,10 +1895,10 @@ class CustomerInvoiceLedger:
                 for r in rows
             ]
 
-    def get_buyer_title(self, tenant_id: str, title_id: str) -> dict[str, Any] | None:
+    def get_buyer_title(self, tenant_id: str, title_id: str | None = None) -> dict[str, Any] | None:
         """Get buyer title by ID or default title for tenant."""
         with self.store.connect() as conn:
-            if title_id == "default":
+            if not title_id or title_id == "default":
                 row = conn.execute(
                     "SELECT * FROM customer_buyer_title WHERE tenant_id=? AND is_default=1 LIMIT 1",
                     (tenant_id,),
@@ -1651,16 +1965,16 @@ class CustomerInvoiceLedger:
         self,
         *,
         tenant_id: str,
-        project_id: str,
         payment_intent_id: str,
-        buyer_title_id: str,
         captured_amount_minor: int,
-        refunded_amount_minor: int = 0,
         seller_name: str,
         seller_tax_number: str,
-        operator: str,
-        actor_id: str,
-        idempotency_key: str,
+        project_id: str = "default_project",
+        buyer_title_id: str | None = None,
+        refunded_amount_minor: int = 0,
+        operator: str = "system",
+        actor_id: str = "actor_system",
+        idempotency_key: str | None = None,
         invoice_type: str = "ELECTRONIC_NORMAL",
         item_name: str = "企业技术服务费",
         specification: str = "",
@@ -1674,6 +1988,9 @@ class CustomerInvoiceLedger:
         currency: str = "CNY",
         now: datetime | None = None,
     ) -> dict[str, Any]:
+        if not idempotency_key:
+            idempotency_key = f"auto_{tenant_id}_{payment_intent_id}"
+
         # Check idempotency key before balance computation
         with self.store.connect() as conn:
             existing = conn.execute(
@@ -1683,16 +2000,29 @@ class CustomerInvoiceLedger:
             if existing:
                 inv = self.get_invoice(tenant_id, existing["invoice_id"])
                 if inv is not None:
+                    inv["isIdempotentReplay"] = True
                     return inv
 
         title = self.get_buyer_title(tenant_id, buyer_title_id)
         if not title:
-            raise ValidationError(f"buyer title not found: {buyer_title_id}")
+            raise ValidationError(f"buyer title not found: {buyer_title_id or 'default'}")
 
         balance = self.calculate_invoicable_balance(
             tenant_id, payment_intent_id, captured_amount_minor, refunded_amount_minor
         )
         if balance <= 0:
+            if idempotency_key:
+                with self.store.connect() as conn:
+                    existing = conn.execute(
+                        "SELECT invoice_id FROM customer_invoice "
+                        "WHERE tenant_id=? AND idempotency_key=?",
+                        (tenant_id, idempotency_key),
+                    ).fetchone()
+                    if existing:
+                        inv = self.get_invoice(tenant_id, existing["invoice_id"])
+                        if inv is not None:
+                            inv["isIdempotentReplay"] = True
+                            return inv
             raise ValidationError(f"no invoicable balance remaining for payment intent: {payment_intent_id}")
 
         r = tax_rate_basis_points
@@ -1775,6 +2105,9 @@ class CustomerInvoiceLedger:
             now=now,
         )
 
+        if applied.get("isIdempotentReplay"):
+            return applied
+
         if auto_issue and applied["status"] == "APPLIED":
             issued = self.issue_invoice(
                 tenant_id,
@@ -1784,8 +2117,10 @@ class CustomerInvoiceLedger:
                 payee=payee or seller_name,
                 now=now,
             )
+            issued["isIdempotentReplay"] = False
             return issued
 
+        applied["isIdempotentReplay"] = False
         return applied
 
     def reconcile_invoices_with_payments(
@@ -1957,6 +2292,173 @@ class CustomerInvoiceLedger:
             "discrepancies": discrepancies,
             "details": reconciled_details,
         }
+
+    def batch_auto_invoice(
+        self,
+        tenant_id: str,
+        manifest: Sequence[Mapping[str, Any]],
+        *,
+        seller_name: str,
+        seller_tax_number: str,
+        seller_address_phone: str = "中国上海市浦东新区张江高科",
+        seller_bank_account: str = "招商银行上海张江支行 9876543210987654",
+        operator: str = "系统批量开票引擎",
+        actor_id: str = "batch_engine_service",
+        checker: str | None = "财务自动复核服务",
+        payee: str | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Process a batch of payment intents for automated invoice issuance."""
+        success_invoices: list[dict[str, Any]] = []
+        skipped_duplicates: list[dict[str, Any]] = []
+        failures: list[dict[str, Any]] = []
+        total_invoiced_minor = 0
+        total_tax_minor = 0
+
+        for item in manifest:
+            pi_id = str(item.get("paymentIntentId") or "")
+            if not pi_id:
+                failures.append({"paymentIntentId": "", "error": "missing paymentIntentId"})
+                continue
+            project_id = str(item.get("projectId") or "default_project")
+            captured = int(item.get("capturedAmountMinor", 0))
+            refunded = int(item.get("refundedAmountMinor", 0))
+            buyer_title_id = item.get("buyerTitleId")
+            item_name = str(item.get("itemName") or "企业支付技术服务费")
+            tax_rate_bp = int(item.get("taxRateBasisPoints", 1300))
+            idempotency_key = item.get("idempotencyKey") or f"batch_auto_{tenant_id}_{pi_id}"
+            currency = str(item.get("currency") or "CNY")
+
+            try:
+                inv = self.auto_invoice_payment_intent(
+                    tenant_id=tenant_id,
+                    project_id=project_id,
+                    payment_intent_id=pi_id,
+                    captured_amount_minor=captured,
+                    refunded_amount_minor=refunded,
+                    seller_name=seller_name,
+                    seller_tax_number=seller_tax_number,
+                    buyer_title_id=buyer_title_id,
+                    item_name=item_name,
+                    tax_rate_basis_points=tax_rate_bp,
+                    idempotency_key=idempotency_key,
+                    operator=operator,
+                    actor_id=actor_id,
+                    checker=checker,
+                    payee=payee,
+                    auto_issue=True,
+                    seller_address_phone=seller_address_phone,
+                    seller_bank_account=seller_bank_account,
+                    currency=currency,
+                    now=now,
+                )
+                if inv.get("isIdempotentReplay") or any(prev["invoiceId"] == inv["invoiceId"] for prev in success_invoices):
+                    skipped_duplicates.append(inv)
+                elif inv.get("status") in {"ISSUED", "APPLIED"}:
+                    success_invoices.append(inv)
+                    total_invoiced_minor += int(inv.get("totalAmountMinor", 0))
+                    total_tax_minor += int(inv.get("taxAmountMinor", 0))
+                else:
+                    success_invoices.append(inv)
+            except Exception as e:
+                failures.append({
+                    "paymentIntentId": pi_id,
+                    "error": str(e),
+                })
+
+        return {
+            "tenantId": tenant_id,
+            "totalProcessed": len(manifest),
+            "successCount": len(success_invoices),
+            "skippedDuplicateCount": len(skipped_duplicates),
+            "failedCount": len(failures),
+            "totalInvoicedAmountMinor": total_invoiced_minor,
+            "totalTaxAmountMinor": total_tax_minor,
+            "invoices": success_invoices,
+            "failures": failures,
+        }
+
+    def auto_red_note_on_refund(
+        self,
+        tenant_id: str,
+        payment_intent_id: str,
+        refund_amount_minor: int,
+        *,
+        operator: str,
+        reason: str = "原交易发生退款，自动红字冲销",
+        idempotency_key: str | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Automatically issue credit notes (red note) when a payment intent is refunded."""
+        if refund_amount_minor <= 0:
+            raise ValidationError("refund_amount_minor must be strictly positive")
+
+        with self.store.connect() as conn:
+            rows = conn.execute(
+                "SELECT invoice_id, total_amount_minor, status FROM customer_invoice "
+                "WHERE tenant_id=? AND payment_intent_id=? AND invoice_category='blue' "
+                "AND status IN ('ISSUED', 'APPLIED', 'RED_NOTED') ORDER BY created_at ASC",
+                (tenant_id, payment_intent_id),
+            ).fetchall()
+
+        if not rows:
+            raise ValidationError(f"no active blue invoice found for payment {payment_intent_id} to red-note")
+
+        with self.store.connect() as conn:
+            red_rows = conn.execute(
+                "SELECT original_invoice_id, total_amount_minor FROM customer_invoice "
+                "WHERE tenant_id=? AND payment_intent_id=? AND invoice_category='red' "
+                "AND status IN ('ISSUED', 'APPLIED')",
+                (tenant_id, payment_intent_id),
+            ).fetchall()
+
+        red_sum_by_orig: dict[str, int] = {}
+        for r in red_rows:
+            orig = r["original_invoice_id"]
+            red_sum_by_orig[orig] = red_sum_by_orig.get(orig, 0) + abs(int(r["total_amount_minor"]))
+
+        remaining_to_red = refund_amount_minor
+        issued_red_notes: list[dict[str, Any]] = []
+
+        for r in rows:
+            if remaining_to_red <= 0:
+                break
+            inv_id = r["invoice_id"]
+            blue_total = int(r["total_amount_minor"])
+            already_red = red_sum_by_orig.get(inv_id, 0)
+            avail_for_red = max(0, blue_total - already_red)
+
+            if avail_for_red <= 0:
+                continue
+
+            red_portion = min(avail_for_red, remaining_to_red)
+            red_key = idempotency_key or f"auto_red_{payment_intent_id}_{inv_id}_{refund_amount_minor}"
+
+            red_note = self.issue_red_note(
+                tenant_id=tenant_id,
+                original_invoice_id=inv_id,
+                reason=reason,
+                operator=operator,
+                red_amount_minor=red_portion,
+                idempotency_key=red_key,
+                now=now,
+            )
+            issued_red_notes.append(red_note)
+            remaining_to_red -= red_portion
+
+        if remaining_to_red > 0 and not issued_red_notes:
+            raise ValidationError("all existing blue invoices are already fully red-noted")
+
+        return {
+            "tenantId": tenant_id,
+            "paymentIntentId": payment_intent_id,
+            "requestedRefundMinor": refund_amount_minor,
+            "creditedAmountMinor": refund_amount_minor - remaining_to_red,
+            "uncreditedAmountMinor": remaining_to_red,
+            "redNotesCount": len(issued_red_notes),
+            "redNotes": issued_red_notes,
+        }
+
 
 
     @staticmethod

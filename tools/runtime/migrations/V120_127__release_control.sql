@@ -490,4 +490,106 @@ CREATE TABLE IF NOT EXISTS customer_invoice_audit (
 
 CREATE INDEX IF NOT EXISTS idx_customer_invoice_audit_tenant_inv ON customer_invoice_audit(tenant_id, invoice_id);
 
+CREATE TABLE IF NOT EXISTS merchant_settlement_config (
+  config_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  currency TEXT NOT NULL CHECK(length(currency) = 3),
+  settlement_cycle TEXT NOT NULL CHECK(settlement_cycle IN ('T_PLUS_0', 'T_PLUS_1', 'WEEKLY', 'MONTHLY')),
+  minimum_payout_minor INTEGER NOT NULL CHECK(minimum_payout_minor >= 0),
+  commission_basis_points INTEGER NOT NULL CHECK(commission_basis_points BETWEEN 0 AND 10000),
+  channel_fee_basis_points INTEGER NOT NULL CHECK(channel_fee_basis_points BETWEEN 0 AND 10000),
+  reserve_holdback_basis_points INTEGER NOT NULL CHECK(reserve_holdback_basis_points BETWEEN 0 AND 10000),
+  bank_name TEXT NOT NULL,
+  bank_account_number TEXT NOT NULL,
+  bank_account_name TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('ACTIVE', 'SUSPENDED')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(tenant_id, project_id, currency)
+);
+
+CREATE TABLE IF NOT EXISTS merchant_settlement_batch (
+  batch_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  batch_number TEXT NOT NULL,
+  period_start TEXT NOT NULL,
+  period_end TEXT NOT NULL,
+  currency TEXT NOT NULL CHECK(length(currency) = 3),
+  total_transactions INTEGER NOT NULL CHECK(total_transactions >= 0),
+  gross_captured_minor INTEGER NOT NULL CHECK(gross_captured_minor >= 0),
+  gross_refunded_minor INTEGER NOT NULL CHECK(gross_refunded_minor >= 0),
+  net_captured_minor INTEGER NOT NULL CHECK(net_captured_minor >= 0),
+  channel_fee_minor INTEGER NOT NULL CHECK(channel_fee_minor >= 0),
+  platform_commission_minor INTEGER NOT NULL CHECK(platform_commission_minor >= 0),
+  reserve_holdback_minor INTEGER NOT NULL CHECK(reserve_holdback_minor >= 0),
+  net_payout_minor INTEGER NOT NULL CHECK(net_payout_minor >= 0),
+  status TEXT NOT NULL CHECK(status IN ('DRAFT', 'CALCULATED', 'PENDING_APPROVAL', 'APPROVED', 'EXECUTED', 'REJECTED', 'ON_HOLD')),
+  created_by TEXT NOT NULL,
+  approved_by TEXT,
+  executed_by TEXT,
+  bank_reference_id TEXT,
+  executed_at TEXT,
+  payout_instruction_digest TEXT CHECK(payout_instruction_digest IS NULL OR length(payout_instruction_digest) = 64),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(tenant_id, batch_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_settlement_batch_tenant_period ON merchant_settlement_batch(tenant_id, period_start, period_end);
+CREATE INDEX IF NOT EXISTS idx_settlement_batch_tenant_status ON merchant_settlement_batch(tenant_id, status);
+
+CREATE TABLE IF NOT EXISTS merchant_settlement_audit (
+  audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id TEXT NOT NULL,
+  batch_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  actor_id TEXT NOT NULL,
+  occurred_at TEXT NOT NULL,
+  payload_digest TEXT NOT NULL CHECK(length(payload_digest) = 64),
+  previous_digest TEXT CHECK(previous_digest IS NULL OR length(previous_digest) = 64),
+  event_digest TEXT NOT NULL CHECK(length(event_digest) = 64),
+  payload_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_settlement_audit_tenant_batch ON merchant_settlement_audit(tenant_id, batch_id);
+
+CREATE TABLE IF NOT EXISTS merchant_dispute (
+  dispute_id TEXT PRIMARY KEY,
+  tenant_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  payment_intent_id TEXT NOT NULL,
+  dispute_amount_minor INTEGER NOT NULL CHECK(dispute_amount_minor > 0),
+  currency TEXT NOT NULL CHECK(length(currency) = 3),
+  reason_code TEXT NOT NULL CHECK(reason_code IN ('FRAUDULENT', 'UNRECOGNIZED', 'PRODUCT_NOT_RECEIVED', 'SUBSCRIPTION_CANCELED', 'DUPLICATE', 'OTHER')),
+  status TEXT NOT NULL CHECK(status IN ('NEEDS_RESPONSE', 'UNDER_REVIEW', 'WON', 'LOST')),
+  evidence_due_at TEXT NOT NULL,
+  evidence_json TEXT,
+  lost_fee_minor INTEGER NOT NULL DEFAULT 0 CHECK(lost_fee_minor >= 0),
+  resolved_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE(tenant_id, payment_intent_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_merchant_dispute_tenant_status ON merchant_dispute(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_merchant_dispute_tenant_pi ON merchant_dispute(tenant_id, payment_intent_id);
+
+CREATE TABLE IF NOT EXISTS merchant_dispute_audit (
+  audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tenant_id TEXT NOT NULL,
+  dispute_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  actor_id TEXT NOT NULL,
+  occurred_at TEXT NOT NULL,
+  payload_digest TEXT NOT NULL CHECK(length(payload_digest) = 64),
+  previous_digest TEXT CHECK(previous_digest IS NULL OR length(previous_digest) = 64),
+  event_digest TEXT NOT NULL CHECK(length(event_digest) = 64),
+  payload_json TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_dispute_audit_tenant_disp ON merchant_dispute_audit(tenant_id, dispute_id);
+
+
 
