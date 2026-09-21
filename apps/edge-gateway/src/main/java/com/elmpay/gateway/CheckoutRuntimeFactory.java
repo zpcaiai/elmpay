@@ -52,16 +52,24 @@ public final class CheckoutRuntimeFactory {
 
     private static Runtime localRuntime(PaymentService payments,
             Map<String, String> environment) {
-        Map<String, URI> routes = Map.of("checkout-complete",
-                URI.create("https://merchant.example/checkout/complete"));
+        Map<String, URI> routes = environment.containsKey("ELMPAY_CHECKOUT_RETURN_ROUTES")
+                ? parseRoutes(environment.get("ELMPAY_CHECKOUT_RETURN_ROUTES"))
+                : Map.of("checkout-complete",
+                        URI.create("https://merchant.example/checkout/complete"));
+        String defaultRoute = environment.getOrDefault("ELMPAY_CHECKOUT_DEFAULT_RETURN_ROUTE_ID",
+                "checkout-complete");
+        Set<String> methods = environment.containsKey("ELMPAY_CHECKOUT_ALLOWED_METHODS")
+                ? java.util.Arrays.stream(environment.get("ELMPAY_CHECKOUT_ALLOWED_METHODS").split(","))
+                        .map(String::trim).filter(value -> !value.isEmpty()).collect(Collectors.toSet())
+                : Set.of("card");
         byte[] key = new byte[32];
         java.util.Arrays.fill(key, (byte) 0x4c);
         URI publicBase = URI.create(environment.getOrDefault("ELMPAY_CHECKOUT_PUBLIC_BASE_URL",
                 "http://127.0.0.1:8081/"));
         HostedCheckoutService checkout = service(payments, Map.of("local-v1", key), "local-v1", routes,
-                "checkout-complete", Set.of("card"), publicBase, Duration.ofMinutes(10), "US",
+                defaultRoute, methods, publicBase, Duration.ofMinutes(10), "US",
                 true, new InMemoryCheckoutSessionRepository(),
-                new ConfiguredCheckoutCapabilitySource(Set.of("card")),
+                new ConfiguredCheckoutCapabilitySource(methods),
                 CheckoutProviderSdkSource.disabled());
         return new Runtime(checkout, new CheckoutProviderSdkRuntime(checkout,
                 CheckoutProviderSdkRegistry.fromClasspath(environment), ignored -> {
