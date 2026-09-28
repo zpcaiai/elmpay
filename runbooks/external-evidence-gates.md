@@ -32,6 +32,8 @@ capacity and operational inputs. Omitting either external input is an explicit
 block. A local pass proves only that supplied external material is structurally
 and cryptographically consistent; it does not itself grant certification.
 
-Keep `scripts/batch.py status` at `0/128 NOT_CERTIFIED` until the named human
-reviewer and external authorities have supplied their real, independently
-verifiable artifacts. Do not copy synthetic test fixtures into `evidence/B00`.
+Read the current completed-batch count from `scripts/batch.py status`; do not
+substitute that local progress count for certification. Keep release status
+`NOT_CERTIFIED` until the named human reviewer and external authorities have
+supplied their real, independently verifiable artifacts and the release gate
+passes. Do not copy synthetic test fixtures into `evidence/B00`.

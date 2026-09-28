@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import csv
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import io
 import json
 from pathlib import Path
@@ -363,7 +363,7 @@ class EnterpriseInvoiceProductivityE3Test(unittest.TestCase):
         token = session["sessionToken"]
 
         # 2. Query session
-        queried = self.ledger.get_self_service_session(token)
+        queried = self.ledger.get_self_service_session(token, now=NOW)
         self.assertIsNotNone(queried)
         self.assertEqual(session["sessionId"], queried["sessionId"])
         self.assertEqual("ACTIVE", queried["status"])
@@ -387,7 +387,7 @@ class EnterpriseInvoiceProductivityE3Test(unittest.TestCase):
         self.assertEqual("91110108MA00223344", issued_invoice["buyerTaxNumber"])
 
         # 4. Session status is now REDEEMED
-        updated_session = self.ledger.get_self_service_session(token)
+        updated_session = self.ledger.get_self_service_session(token, now=NOW)
         self.assertEqual("REDEEMED", updated_session["status"])
         self.assertEqual(issued_invoice["invoiceId"], updated_session["redeemedInvoiceId"])
 
@@ -399,6 +399,30 @@ class EnterpriseInvoiceProductivityE3Test(unittest.TestCase):
                 now=NOW,
             )
         self.assertIn("already redeemed", str(ctx.exception))
+
+    def test_self_service_session_expires_at_ttl_boundary(self) -> None:
+        session = self.ledger.create_self_service_session(
+            tenant_id="tenant-expiring-qr",
+            payment_intent_id="pi_expiring_qr_001",
+            invoicable_amount_minor=10000,
+            ttl_hours=48,
+            now=NOW,
+        )
+        token = session["sessionToken"]
+        self.assertEqual(
+            "ACTIVE",
+            self.ledger.get_self_service_session(token, now=NOW + timedelta(hours=48, microseconds=-1))["status"],
+        )
+        self.assertEqual(
+            "EXPIRED",
+            self.ledger.get_self_service_session(token, now=NOW + timedelta(hours=48))["status"],
+        )
+        with self.assertRaisesRegex(ValidationError, "has expired"):
+            self.ledger.redeem_self_service_session(
+                session_token=token,
+                buyer_name="测试客户",
+                now=NOW + timedelta(hours=48),
+            )
 
     def test_vat_tax_declaration_summary_and_csv_export(self) -> None:
         tenant = "tenant-tax-summary"

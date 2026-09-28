@@ -53,3 +53,9 @@ secret lease service rather than PostgreSQL or environment variables.
 Local unit/E2E tests are engineering evidence only. Provider execution, real CNY payment,
 deployment, independent verification, and production certification remain `NOT_RUN` /
 `NOT_CERTIFIED` until separately authorized and evidenced.
+
+The optional loopback integration suite requires a running local gateway and a test-only API
+credential file. Run it explicitly with
+`ELMPAY_TEST_API_KEY_FILE=/path/to/local-test-key python3 -m unittest testing.live.elmos_payment_integration_test`.
+It is excluded from automatic local test discovery because it makes HTTP requests and fails
+when the gateway is absent. Its result does not establish provider or production acceptance.

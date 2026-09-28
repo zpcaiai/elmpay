@@ -13,7 +13,7 @@
   - `docs/deploy/aliyun-ack-pro-rendered/egress-controls.yaml`
 - 对生产命名空间执行滚动发布
 - 完成健康探测与基础回滚演练
-- 不修改 `0/128 NOT_CERTIFIED` 声明
+- 不修改批次完成证据；生产认证保持 `NOT_CERTIFIED`，批次完成数由 `python3 scripts/batch.py status` 查询
 
 ## 1. 前置准备（人眼确认）
 ```bash
@@ -181,4 +181,4 @@ kubectl -n elmpay scale deployment/edge-gateway --replicas=3
 - 所有服务 `READY > 0`，`CrashLoopBackOff` 为 `0`
 - 关键路径可达（健康探针 OK）
 - 基本 HPA、PDB、Service、Namespace/SA、NetworkPolicy 已落地
-- 未宣称 B00/B01+ 认证通过；保持 `0/128 NOT_CERTIFIED`，待外部证据链接入后再进入正式 rebaseline
+- 不将本清单的部署结果当作 B00/B01+ 批次认证；批次完成数由 `python3 scripts/batch.py status` 查询，生产认证保持 `NOT_CERTIFIED`，待外部证据链接入后再进入正式 rebaseline

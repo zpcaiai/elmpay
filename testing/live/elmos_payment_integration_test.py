@@ -7,18 +7,28 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 import time
 import unittest
 import urllib.error
 import urllib.request
 import uuid
+from pathlib import Path
 
 BASE_URL = "http://127.0.0.1:8080"
 HEALTH_URL = "http://127.0.0.1:8090"
-API_KEY = "test_sandbox_secret_key_001"
 PROJECT_ID = "00000000-0000-0000-0000-000000000202"
 TENANT_ID = "00000000-0000-0000-0000-000000000101"
-WEBHOOK_SECRET_B64URL = "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+
+
+def load_test_api_key() -> str:
+    path = os.environ.get("ELMPAY_TEST_API_KEY_FILE")
+    if not path:
+        raise RuntimeError("ELMPAY_TEST_API_KEY_FILE is required for the loopback integration test")
+    value = Path(path).read_text(encoding="utf-8").strip()
+    if not value:
+        raise RuntimeError("loopback integration test API key file is empty")
+    return value
 
 
 def verify_elmpay_webhook(
@@ -84,6 +94,7 @@ def handle_elmpay_captured_event(
 class ElmosPaymentIntegrationLiveTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.bearer = load_test_api_key()
         # Verify edge gateway health
         req = urllib.request.Request(f"{HEALTH_URL}/health/ready")
         try:
@@ -96,7 +107,7 @@ class ElmosPaymentIntegrationLiveTest(unittest.TestCase):
 
     def _headers(self, idempotency_key=None, extra_headers=None):
         h = {
-            "Authorization": f"Bearer {API_KEY}",
+            "Authorization": f"Bearer {self.bearer}",
             "X-Project-Id": PROJECT_ID,
             "X-Request-Id": f"req-test-{uuid.uuid4().hex[:12]}",
             "traceparent": f"00-{uuid.uuid4().hex}-{uuid.uuid4().hex[:16]}-01",
@@ -372,7 +383,7 @@ class ElmosPaymentIntegrationLiveTest(unittest.TestCase):
 
     def test_06_webhook_hmac_sha256_verification_and_fulfillment(self):
         """4 & 7: Webhook HMAC-SHA256 签名验证与履约核心算法校验"""
-        secret_bytes = base64.urlsafe_b64decode(WEBHOOK_SECRET_B64URL + "==")
+        secret_bytes = bytes([7]) * 32
         order_no = "ELMOS-20260918-99201"
         order_digest = hashlib.sha256(order_no.encode("utf-8")).hexdigest()
         now_ts = int(time.time())
