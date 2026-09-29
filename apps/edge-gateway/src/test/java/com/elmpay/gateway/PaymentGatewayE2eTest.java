@@ -297,6 +297,88 @@ final class PaymentGatewayE2eTest {
         }
     }
 
+    @Test
+    void partialRefundWithCustomAmountAndBalanceEnforcement() throws Exception {
+        String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
+                + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
+        RuntimeComponents runtime = RuntimeFactory.create(Map.of(
+                "ELMPAY_RUNTIME_MODE", "local",
+                "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
+                "ELMPAY_API_PRINCIPALS", principals));
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
+        server.createContext("/", new PaymentHttpHandler(runtime));
+        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.start();
+        try {
+            URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> created = client.send(request(base.resolve("/v1/payment-intents"),
+                    "custom-refund-create", """
+                    {"external_reference":"custom-refund-order-1","amount_minor":2500,"currency":"USD",
+                     "allowed_methods":["card"],"confirmation_mode":"automatic",
+                     "region":"US","ttl_minutes":60}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, created.statusCode(), created.body());
+            String intentId = String.valueOf(Json.object(created.body()).get("id"));
+            HttpResponse<String> confirmed = client.send(request(
+                    base.resolve("/v1/payment-intents/" + intentId + "/confirm"),
+                    "custom-refund-confirm", """
+                    {"method":"card","payment_method_reference":"psp://local/custom-refund",
+                     "fingerprint":"fp-custom-refund","provider_parameters":{"simulation":"succeeded"}}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, confirmed.statusCode(), confirmed.body());
+
+            // 1. Partial refund #1 with custom modified amount: 1000 minor units (10.00 USD)
+            HttpResponse<String> refund1 = client.send(refundRequest(
+                    base.resolve("/v1/refunds"), "POST", "refund-custom-partial-1",
+                    "{\"payment_intent_id\":\"" + intentId + "\",\"amount\":1000,\"reason\":\"customer_request\"}"),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, refund1.statusCode(), refund1.body());
+            Map<String, Object> body1 = Json.object(refund1.body());
+            assertEquals("succeeded", body1.get("status"));
+            assertEquals(1000L, body1.get("amount"));
+
+            // 2. Partial refund #2 with custom modified amount: 1500 minor units (15.00 USD)
+            HttpResponse<String> refund2 = client.send(refundRequest(
+                    base.resolve("/v1/refunds"), "POST", "refund-custom-partial-2",
+                    "{\"payment_intent_id\":\"" + intentId + "\",\"amount\":1500,\"reason\":\"customer_request\"}"),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, refund2.statusCode(), refund2.body());
+            Map<String, Object> body2 = Json.object(refund2.body());
+            assertEquals("succeeded", body2.get("status"));
+            assertEquals(1500L, body2.get("amount"));
+
+            // 3. Excess refund attempt (even 1 minor unit) is rejected fail-closed with 409 (REFUND_AMOUNT_EXCEEDS_REFUNDABLE)
+            HttpResponse<String> refundExcess = client.send(refundRequest(
+                    base.resolve("/v1/refunds"), "POST", "refund-custom-excess",
+                    "{\"payment_intent_id\":\"" + intentId + "\",\"amount\":1,\"reason\":\"customer_request\"}"),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(409, refundExcess.statusCode(), refundExcess.body());
+            assertEquals("refund_amount_exceeds_refundable", Json.object(refundExcess.body()).get("code"));
+
+            // 4. Verify both refunds are queryable and durable via GET /v1/refunds/{id}
+            HttpResponse<String> q1 = client.send(refundRequest(
+                    base.resolve("/v1/refunds/" + body1.get("id")), "GET", null, null),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, q1.statusCode(), q1.body());
+            assertEquals(1000L, Json.object(q1.body()).get("amount"));
+            assertEquals("succeeded", Json.object(q1.body()).get("status"));
+
+            HttpResponse<String> q2 = client.send(refundRequest(
+                    base.resolve("/v1/refunds/" + body2.get("id")), "GET", null, null),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, q2.statusCode(), q2.body());
+            assertEquals(1500L, Json.object(q2.body()).get("amount"));
+            assertEquals("succeeded", Json.object(q2.body()).get("status"));
+
+            // 5. Verify remaining refundable amount is exactly 0
+            assertEquals(0L, runtime.refunds().remainingRefundable(TENANT, UUID.fromString(intentId)));
+        } finally {
+            server.stop(0);
+        }
+    }
+
     private static HttpRequest request(URI uri, String idempotencyKey, String body) {
         return HttpRequest.newBuilder(uri)
                 .header("Authorization", "Bearer " + KEY)
