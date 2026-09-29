@@ -174,7 +174,7 @@
       "id": "postgresql-jdbc",
       "name": "PostgreSQL JDBC Driver",
       "category": "database-driver",
-      "version": "42.7.7",
+      "version": "42.7.12",
       "pin_type": "exact",
       "digest": "",
       "source": "https://jdbc.postgresql.org/download/",

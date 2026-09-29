@@ -231,6 +231,8 @@ dependencyCheck {
     outputDirectory.set(layout.buildDirectory.dir("reports"))
     failBuildOnCVSS.set(0.0f)
     failOnError.set(true)
+    suppressionFile.set(rootProject.file("platform/security/dependency-check-suppressions.xml").absolutePath)
+    failBuildOnUnusedSuppressionRule.set(true)
     // Avoid the 13.0.0 empty-key regression without accepting stale data.
     // CI checks the governed mirror metadata before this aggregate scan.
     nvd {

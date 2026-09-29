@@ -30,7 +30,7 @@
   "gateInputsDigestAlgorithm": "SHA-256",
   "controlPolicyDigestRequired": true,
   "productImageIndexRequired": true,
-  "productImageManifestDigest": "2fe2d5cf988334b8b0765ddb18949252a72abffa4828ba0505c056e1a0deae9d",
+  "productImageManifestDigest": "ac122fc186da499641f8dd96c597a4dc8e44e99d3ae3f3252ba628f9e325779c",
   "imageAdmissionPolicyDigest": "f5bae0c772f806a928cb91acea523b20b575edd34148104d8cf08bf2f42925f6",
   "requiredProductImages": [
     "edge-gateway",

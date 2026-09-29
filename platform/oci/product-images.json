@@ -5,7 +5,7 @@
   "runtimeUser": 10001,
   "contextPolicy": {
     "dockerignore": ".dockerignore",
-    "dockerignoreDigest": "70910e5884557538de83ce4d68f15c89fe987fe22978e9198082a38fb23531c0",
+    "dockerignoreDigest": "2bca895afd3bebafa312c0f119df251b15f3b9b03c8d74d1470d526351ea68f3",
     "mode": "EXACT_ALLOWLIST"
   },
   "buildEngine": {

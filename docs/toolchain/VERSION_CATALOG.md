@@ -23,7 +23,7 @@
 | coverage-py | Coverage.py | testing | 7.14.3 | exact | payment-platform-platform-eng | 仅接受固定版本；升级必须重跑完整 Python 行覆盖并保持详细 JSON 重算门禁绿色 |
 | kotlin | Kotlin (仅构建脚本) | build | 2.3.0 | exact | payment-platform-platform-eng | 仅用于 Gradle KTS，不用于生产代码 |
 | postgresql | PostgreSQL | database | 18.2 | exact | payment-platform-sre | 次版本一月内跟进；大版本升级需 B90 演练 |
-| postgresql-jdbc | PostgreSQL JDBC Driver | database-driver | 42.7.7 | exact | payment-platform-architecture | 随 PostgreSQL 安全修复升级；升级需迁移、故障恢复和连接池回归 |
+| postgresql-jdbc | PostgreSQL JDBC Driver | database-driver | 42.7.12 | exact | payment-platform-architecture | 随 PostgreSQL 安全修复升级；升级需迁移、故障恢复和连接池回归 |
 | flyway | Flyway | migration | 11.9.0 | exact | payment-platform-architecture | 迁移必须可回滚或前向兼容 |
 | kafka | Apache Kafka | messaging | 4.2.0 | exact | payment-platform-sre | 仅作可重放事件日志，不作事实源 |
 | redis | Redis | cache | 8.2.1 | exact | payment-platform-sre | 仅限流与可丢失缓存 |

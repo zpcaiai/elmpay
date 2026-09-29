@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+  <suppress>
+    <notes><![CDATA[
+      CI run 36400243111: CVE-2015-0897 describes the LINE mobile application,
+      not PIT's Java command-line test tool. Dependency-Check matched the generic
+      CPE cpe:2.3:a:line:line:1.25.8 to pitest-command-line-1.25.8.jar.
+      Source: https://jvndb.jvn.jp/ja/contents/2015/JVNDB-2015-000040.html
+      Review again on a PIT upgrade; this exception is exact-version scoped.
+    ]]></notes>
+    <packageUrl>pkg:maven/org.pitest/pitest-command-line@1.25.8</packageUrl>
+    <cve>CVE-2015-0897</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      CI run 36400243111: CVE-2026-41115 concerns broker authorization and ACL
+      documentation, not code in kafka-clients-4.2.0.jar. Apache says the broker
+      implementation is correct and the documentation was updated; operators
+      must still review deployed broker ACLs independently before release.
+      Source: https://kafka.apache.org/community/cve-list/
+      Review again on a Kafka client upgrade; this exception is exact-version scoped.
+    ]]></notes>
+    <packageUrl>pkg:maven/org.apache.kafka/kafka-clients@4.2.0</packageUrl>
+    <cve>CVE-2026-41115</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      Local aggregate scan on 2026-09-30: Dependency-Check associated this
+      first-party com.elmpay PayPal connector JAR with the unrelated PayPal
+      Android app 5.3 WebHybridClient vulnerabilities. The evidence report
+      assigns the PayPal CPE LOW confidence. This is not an Android artifact.
+      Source: https://nvd.nist.gov/vuln/detail/CVE-2013-7201
+      Review again if the connector artifact coordinates change.
+    ]]></notes>
+    <packageUrl>pkg:maven/com.elmpay/paypal@0.1.0-SNAPSHOT</packageUrl>
+    <cve>CVE-2013-7201</cve>
+    <cve>CVE-2013-7202</cve>
+  </suppress>
+  <suppress>
+    <notes><![CDATA[
+      Local aggregate scan on 2026-09-30: Dependency-Check associated this
+      first-party com.elmpay Stripe connector JAR with Stripe for VS Code.
+      Stripe's advisory applies to the vscode-stripe extension before 1.7.3,
+      not to this Java connector; the matched CPE has LOW confidence.
+      Source: https://github.com/stripe/vscode-stripe/security/advisories/GHSA-j6x4-4622-8vv3
+      Review again if the connector artifact coordinates change.
+    ]]></notes>
+    <packageUrl>pkg:maven/com.elmpay/stripe@0.1.0-SNAPSHOT</packageUrl>
+    <cve>CVE-2021-21420</cve>
+  </suppress>
+</suppressions>

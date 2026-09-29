@@ -159,7 +159,7 @@
 ```json
 {
   "id": "b3e2189a-0205-4c07-b391-722a45fb318d",
-  "project_id": "a0000000-b000-c000-d000-e00000000202",
+  "project_id": "<PROJECT_ID>",
   "business_order_no": "ELMOS-20260918-99201",
   "amount": 9900,
   "amount_captured": 9900,
@@ -193,7 +193,7 @@
 ```json
 {
   "payment_intent_id": "b3e2189a-0205-4c07-b391-722a45fb318d",
-  "project_id": "a0000000-b000-c000-d000-e00000000202",
+  "project_id": "<PROJECT_ID>",
   "status": "succeeded",
   "amount_minor": 9900,
   "currency": "CNY",
@@ -230,7 +230,7 @@
 ```json
 {
   "id": "7fa8e23b-6f81-4201-92be-6296b42b1577",
-  "project_id": "a0000000-b000-c000-d000-e00000000202",
+  "project_id": "<PROJECT_ID>",
   "payment_intent_id": "b3e2189a-0205-4c07-b391-722a45fb318d",
   "amount": 9900,
   "currency": "CNY",
@@ -271,7 +271,7 @@ ELMPay 发送到 ELMOS 接收端时携带如下 Header：
 POST /api/v1/payments/elmpay-webhook HTTP/1.1
 Host: elmos.internal:8000
 Content-Type: application/json; charset=utf-8
-X-Elmpay-Event-Id: a0000000-b000-c000-d000-e00000000303
+X-Elmpay-Event-Id: <EVENT_ID>
 X-Elmpay-Event-Type: payment_intent.captured
 X-Elmpay-Timestamp: 1789722135
 X-Elmpay-Key-Id: key-sec-2026-01
@@ -301,7 +301,7 @@ ELMOS 仅需处理 `payment_intent.captured` 版本 1，其余通知类型直接
 ```json
 {
   "payment_intent_id": "b3e2189a-0205-4c07-b391-722a45fb318d",
-  "project_id": "a0000000-b000-c000-d000-e00000000202",
+  "project_id": "<PROJECT_ID>",
   "provider": "alipay",
   "captured_at": "2026-09-18T10:02:15Z",
   "amount_minor": 9900,
@@ -363,11 +363,12 @@ export ELMPAY_ENABLE_LOCAL_SANDBOX=true
 ```
 默认网关监听在 `http://127.0.0.1:8080`。
 
-### 6.2 测试固定常量
-- **Project ID**：`a0000000-b000-c000-d000-e00000000202`
-- **Tenant ID**：`a0000000-b000-c000-d000-e00000000101`
-- **API Key (沙箱)**：`test_sandbox_secret_key_001`
-- **Webhook 验签 Secret**：`BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc` (base64url)
+### 6.2 本地测试身份
+- **Project ID / Tenant ID**：使用本地沙箱已配置的测试项目和租户；文中的 `<PROJECT_ID>`、`<TENANT_ID>` 是占位符。
+- **API Key**：`ELMPAY_TEST_API_KEY_FILE` 指向本地测试密钥文件。不要把密钥写进仓库或命令历史。
+- **Webhook 验签 Secret**：由本地沙箱以文件或密钥服务挂载的测试专用密钥（base64url）。
+
+执行下列 cURL 命令前，设置 `ELMPAY_PROJECT_ID` 和 `ELMPAY_TEST_API_KEY_FILE`，并确认它们只对应本地测试环境。
 
 ---
 
@@ -376,8 +377,8 @@ export ELMPAY_ENABLE_LOCAL_SANDBOX=true
 #### Step 1: 创建收银台会话
 ```bash
 curl -i -X POST http://127.0.0.1:8080/v1/checkout-sessions \
-  -H "Authorization: Bearer test_sandbox_secret_key_001" \
-  -H "X-Project-Id: a0000000-b000-c000-d000-e00000000202" \
+  -H "Authorization: Bearer $(cat "$ELMPAY_TEST_API_KEY_FILE")" \
+  -H "X-Project-Id: ${ELMPAY_PROJECT_ID}" \
   -H "Idempotency-Key: $(uuidgen)" \
   -H "X-Request-Id: req-test-0001" \
   -H "traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01" \
@@ -395,8 +396,8 @@ curl -i -X POST http://127.0.0.1:8080/v1/checkout-sessions \
 ```bash
 # 提取返回的 checkout_session_id 进行状态检查
 curl -i -X GET http://127.0.0.1:8080/v1/checkout-sessions/<SESSION_ID> \
-  -H "Authorization: Bearer test_sandbox_secret_key_001" \
-  -H "X-Project-Id: a0000000-b000-c000-d000-e00000000202" \
+  -H "Authorization: Bearer $(cat "$ELMPAY_TEST_API_KEY_FILE")" \
+  -H "X-Project-Id: ${ELMPAY_PROJECT_ID}" \
   -H "X-Request-Id: req-test-0002" \
   -H "traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
 ```
@@ -404,8 +405,8 @@ curl -i -X GET http://127.0.0.1:8080/v1/checkout-sessions/<SESSION_ID> \
 #### Step 3: 查询支付意图详情与状态
 ```bash
 curl -i -X GET http://127.0.0.1:8080/v1/payment_intents/<PAYMENT_INTENT_ID> \
-  -H "Authorization: Bearer test_sandbox_secret_key_001" \
-  -H "X-Project-Id: a0000000-b000-c000-d000-e00000000202" \
+  -H "Authorization: Bearer $(cat "$ELMPAY_TEST_API_KEY_FILE")" \
+  -H "X-Project-Id: ${ELMPAY_PROJECT_ID}" \
   -H "X-Request-Id: req-test-0003" \
   -H "traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
 ```
@@ -413,8 +414,8 @@ curl -i -X GET http://127.0.0.1:8080/v1/payment_intents/<PAYMENT_INTENT_ID> \
 #### Step 4: 模拟发起退款
 ```bash
 curl -i -X POST http://127.0.0.1:8080/v1/refunds \
-  -H "Authorization: Bearer test_sandbox_secret_key_001" \
-  -H "X-Project-Id: a0000000-b000-c000-d000-e00000000202" \
+  -H "Authorization: Bearer $(cat "$ELMPAY_TEST_API_KEY_FILE")" \
+  -H "X-Project-Id: ${ELMPAY_PROJECT_ID}" \
   -H "Idempotency-Key: $(uuidgen)" \
   -H "X-Request-Id: req-test-0004" \
   -H "X-Device-Context-Digest: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" \

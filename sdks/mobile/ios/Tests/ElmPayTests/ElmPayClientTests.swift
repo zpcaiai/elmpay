@@ -86,7 +86,7 @@ actor Launcher: PaymentMethodLauncher {
     }
 }
 
-@MainActor private func XCTAssertThrowsErrorAsync<T>(_ expression: @autoclosure () async throws -> T,
+@MainActor private func XCTAssertThrowsErrorAsync<T: Sendable>(_ expression: @autoclosure () async throws -> T,
                                                       file: StaticString = #filePath,
                                                       line: UInt = #line) async {
     do {

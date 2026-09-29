@@ -35,7 +35,7 @@ ZERO_DIGEST = "0" * 64
 PRODUCT_MANIFEST_PATH = Path("platform/oci/product-images.json")
 ADMISSION_POLICY_PATH = Path("platform/kubernetes/image-admission-policy.json")
 CANONICAL_DOCKERIGNORE_DIGEST = (
-    "70910e5884557538de83ce4d68f15c89fe987fe22978e9198082a38fb23531c0"
+    "2bca895afd3bebafa312c0f119df251b15f3b9b03c8d74d1470d526351ea68f3"
 )
 CANONICAL_JAVA_LAUNCHER_DIGEST = (
     "5880f8b364d458bb55fb9d3dc1574c020d3f7483cfb87935b58c8412ea67a87e"

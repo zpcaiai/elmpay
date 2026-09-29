@@ -355,10 +355,10 @@
       "execution": "external",
       "critical": true,
       "blocking_evidence": "BLOCKED: approved migration shadow/canary, production merchant onboarding and Go/No-Go evidence are external and must be release-bound.",
-      "target_paths": ["tools/runtime", "platform/rollout", "docs/charter/DELIVERY_MODEL.md", "governance/provider-accounts.json"],
+      "target_paths": ["tools/runtime", "platform/rollout", "docs/charter/DELIVERY_MODEL.md", "governance/provider-accounts.json", "testing/live/elmos_payment_integration_test.py"],
       "scenarios": [
         {"id": "REL-01", "steps": "Run old/new adapter in shadow mode against replayed, non-mutating traffic.", "expected": "Canonical diff is zero or explicitly approved; candidate has no provider side effects."},
-        {"id": "REL-02", "steps": "Onboard a synthetic merchant through KYB, capabilities, credentials and regional policy.", "expected": "Four-eyes approval and rollback are recorded."},
+        {"id": "REL-02", "steps": "Onboard a synthetic merchant through KYB, capabilities, credentials and regional policy; execute the explicit ELMOS loopback checkout/refund integration test with a mounted test credential.", "expected": "Four-eyes approval and rollback are recorded; loopback integration results are separate from provider-official evidence."},
         {"id": "REL-03", "steps": "Review readiness checklist and Go/No-Go decision with owners.", "expected": "All local gates pass and external evidence is present; otherwise blocked."}
       ],
       "evidence_outputs": ["evidence/B120/review.json", "evidence/B121/review.json", "evidence/B123/review.json"]

@@ -437,8 +437,8 @@ class EnterpriseFXB2BPayoutVaultE4Test(unittest.TestCase):
         # Tamper test: direct database tampering of total_amount_minor
         with self.store.transaction() as conn:
             conn.execute(
-                "UPDATE mass_payout_batch SET total_amount_minor = 999_999 WHERE batch_id = ?",
-                (bid,),
+                "UPDATE mass_payout_batch SET total_amount_minor = ? WHERE batch_id = ?",
+                (999_999, bid),
             )
 
         # Verification that recalculating digest detects discrepancy
