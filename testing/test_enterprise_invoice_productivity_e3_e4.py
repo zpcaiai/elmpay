@@ -363,7 +363,7 @@ class EnterpriseInvoiceProductivityE3Test(unittest.TestCase):
         token = session["sessionToken"]
 
         # 2. Query session
-        queried = self.ledger.get_self_service_session(token)
+        queried = self.ledger.get_self_service_session(token, now=NOW)
         self.assertIsNotNone(queried)
         self.assertEqual(session["sessionId"], queried["sessionId"])
         self.assertEqual("ACTIVE", queried["status"])
