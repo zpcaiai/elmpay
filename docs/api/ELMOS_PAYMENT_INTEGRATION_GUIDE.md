@@ -67,7 +67,7 @@
 | `Idempotency-Key` | **是** | 所有 `POST` 写接口 | 幂等键（建议 UUIDv4），保留 168 小时。**同一键不同请求体将直接返回 409 冲突** |
 | `X-Request-Id` | **是** | 所有 | 链路请求 ID，正则 `^[A-Za-z0-9._:-]{8,128}$` |
 | `traceparent` | **是** | 所有 | W3C Trace Context 规范，如 `00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01` |
-| `Content-Type` | **是** | 所有 `POST` 接口 | 必须为 `application/json; charset=utf-8` |
+| `Content-Type` | **是** | 所有 `POST` 接口 | 必须精确为 `application/json`；请求体按 UTF-8 编码，不附加 `charset` 参数 |
 | `X-Device-Context-Digest` | 仅退款 | `POST /v1/refunds` | 设备与操作上下文的 64 位 SHA-256 小写哈希（防欺诈举证） |
 
 ### 2.4 金额规范 (零浮点原则)

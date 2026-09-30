@@ -984,7 +984,8 @@ public final class PaymentHttpHandler implements HttpHandler {
             case "RESOURCE_NOT_FOUND" -> 404;
             case "RISK_BLOCKED", "REFUND_RISK_DENIED" -> 403;
             case "RISK_REVIEW_REQUIRED" -> 409;
-            case "ATTEMPT_IN_PROGRESS", "CONCURRENT_MODIFICATION" -> 409;
+            case "ATTEMPT_IN_PROGRESS", "CONCURRENT_MODIFICATION",
+                    "IDEMPOTENCY_KEY_REUSE" -> 409;
             case "PROVIDER_NOT_CONFIGURED", "NO_ELIGIBLE_PROVIDER",
                     "PROVIDER_ACCOUNT_REFUND_DISABLED", "READ_MODEL_UNAVAILABLE",
                     "READ_MODEL_LAGGING" -> 503;
