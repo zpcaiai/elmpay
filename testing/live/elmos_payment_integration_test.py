@@ -111,7 +111,7 @@ class ElmosPaymentIntegrationLiveTest(unittest.TestCase):
             "X-Project-Id": PROJECT_ID,
             "X-Request-Id": f"req-test-{uuid.uuid4().hex[:12]}",
             "traceparent": f"00-{uuid.uuid4().hex}-{uuid.uuid4().hex[:16]}-01",
-            "Content-Type": "application/json; charset=utf-8",
+            "Content-Type": "application/json",
         }
         if idempotency_key:
             h["Idempotency-Key"] = idempotency_key

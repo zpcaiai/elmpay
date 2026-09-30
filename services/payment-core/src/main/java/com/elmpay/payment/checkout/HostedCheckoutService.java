@@ -458,7 +458,7 @@ public final class HostedCheckoutService {
             String requestDigest) {
         if (!MessageDigest.isEqual(session.requestDigest().getBytes(StandardCharsets.US_ASCII),
                 requestDigest.getBytes(StandardCharsets.US_ASCII))) {
-            throw new IllegalArgumentException(
+            throw new PaymentCoreException("IDEMPOTENCY_KEY_REUSE",
                     "idempotency key was already used with a different checkout request");
         }
     }

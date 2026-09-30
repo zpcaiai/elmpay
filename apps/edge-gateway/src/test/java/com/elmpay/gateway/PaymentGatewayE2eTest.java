@@ -179,6 +179,22 @@ final class PaymentGatewayE2eTest {
             Map<String, Object> createdBody = Json.object(created.body());
             String sessionId = String.valueOf(createdBody.get("checkout_session_id"));
             assertEquals(36, String.valueOf(createdBody.get("payment_intent_id")).length());
+            HttpResponse<String> replay = client.send(checkoutRequest(
+                    base.resolve("/v1/checkout-sessions"), "POST", KEY,
+                    "checkout-create-00000001", """
+                    {"business_order_no":"checkout-order-1","amount":1250,"currency":"USD",
+                     "return_route_id":"checkout-complete","payment_method":"card"}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, replay.statusCode(), replay.body());
+            assertEquals(sessionId, Json.object(replay.body()).get("checkout_session_id"));
+            HttpResponse<String> conflict = client.send(checkoutRequest(
+                    base.resolve("/v1/checkout-sessions"), "POST", KEY,
+                    "checkout-create-00000001", """
+                    {"business_order_no":"checkout-order-1","amount":1251,"currency":"USD",
+                     "return_route_id":"checkout-complete","payment_method":"card"}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(409, conflict.statusCode(), conflict.body());
+            assertEquals("idempotency_key_reuse", Json.object(conflict.body()).get("code"));
             URI checkoutUrl = URI.create(String.valueOf(createdBody.get("checkout_url")));
             assertNull(checkoutUrl.getQuery(), "the checkout bearer must never enter an HTTP query");
             assertFalse(checkoutUrl.getRawPath().contains("token"));

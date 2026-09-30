@@ -88,6 +88,9 @@ final class StrictJsonHttpRequestTest {
                     .header("Content-Type", "application/jsonx")
                     .POST(HttpRequest.BodyPublishers.ofString("{\"value\":1}"))));
             assertEquals(400, send(client, HttpRequest.newBuilder(endpoint)
+                    .header("Content-Type", "application/json; charset=utf-8")
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"value\":1}"))));
+            assertEquals(400, send(client, HttpRequest.newBuilder(endpoint)
                     .header("Content-Type", "application/json")
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString("{\"value\":1}"))));
