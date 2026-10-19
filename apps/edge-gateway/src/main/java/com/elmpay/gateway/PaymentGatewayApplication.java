@@ -25,7 +25,7 @@ public final class PaymentGatewayApplication {
             throw new IllegalArgumentException("business and health ports must be different");
         }
         HttpServer server = businessServer(runtime.mode(), environment, port);
-        HttpServer health = HttpServer.create(new InetSocketAddress(healthPort), 16);
+        HttpServer health = HttpServer.create(listenerAddress(runtime.mode(), healthPort), 16);
         health.createContext("/", new GatewayHealthHandler(runtime));
         CommerceHttpHandler commerce = new CommerceHttpHandler(runtime.authenticator(),
                 CommerceRuntimeFactory.create(environment));
@@ -60,13 +60,19 @@ public final class PaymentGatewayApplication {
 
     private static HttpServer businessServer(String mode, Map<String, String> environment, int port)
             throws IOException {
-        InetSocketAddress address = new InetSocketAddress(port);
+        InetSocketAddress address = listenerAddress(mode, port);
         if ("local".equals(mode)) {
             return HttpServer.create(address, 128);
         }
         HttpsServer server = HttpsServer.create(address, 128);
         GatewayTlsConfiguration.fromEnvironment(environment, Clock.systemUTC()).configure(server);
         return server;
+    }
+
+    static InetSocketAddress listenerAddress(String mode, int port) {
+        return "local".equals(mode)
+                ? new InetSocketAddress("127.0.0.1", port)
+                : new InetSocketAddress(port);
     }
 
     private static int port(Map<String, String> environment, String name, int fallback) {
