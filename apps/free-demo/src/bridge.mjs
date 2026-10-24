@@ -106,6 +106,7 @@ async function upstreamJson(origin, path, options = {}) {
 /** This adapter only exposes the existing loopback sandbox, never production PSP endpoints. */
 export function createDemoBridge(configuration, { page = null, asset = null, gatewayAlive = () => true } = {}) {
   const createKeys = new Map();
+  const observedOutcomes = new Map();
   let active = 0;
   return async function demoHandler(request, response) {
     active += 1;
@@ -191,6 +192,23 @@ export function createDemoBridge(configuration, { page = null, asset = null, gat
           ...(key ? { 'idempotency-key': key } : {}) },
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
+      // The core intent can remain CREATED after a declined/unknown attempt.
+      // Project only a provider result actually returned by the local gateway;
+      // the user's requested simulation is never evidence of a payment outcome.
+      const code = result.body.nextAction?.provider_code;
+      if (result.status === 200 && expected === 'POST'
+          && ['local_declined', 'local_unknown'].includes(code)) {
+        observedOutcomes.set(member[1], code);
+      }
+      const observed = observedOutcomes.get(member[1]);
+      if (result.status === 200 && result.body.status === 'OPEN' && observed) {
+        result.body.gateway_status = result.body.status;
+        result.body.demo_provider_result = observed;
+        result.body.status = observed === 'local_declined' ? 'FAILED' : 'PENDING';
+        result.body.messages = { ...result.body.messages, 'status.current':
+          observed === 'local_declined' ? '本次模拟支付被服务器拒绝。未扣款。'
+            : '模拟支付结果未知，仍待服务器确认。未推定成功。' };
+      }
       return respond(response, result.status, result.body);
     } catch (error) {
       return respond(response, error.status ?? (error instanceof SyntaxError ? 400 : 503),

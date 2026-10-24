@@ -84,3 +84,34 @@ test('browser confirmation refuses a real PSP reference before any upstream conn
     assert.match(result.headers.get('content-security-policy'), /default-src 'none'/);
   } finally { await close(server); }
 });
+
+test('provider-observed decline and unknown remain visible across authoritative rereads', async () => {
+  for (const [providerCode, expected] of [['local_declined', 'FAILED'], ['local_unknown', 'PENDING']]) {
+    const upstream = await listen((request, response) => {
+      request.resume();
+      response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({
+        checkoutSessionId: session, status: 'OPEN', messages: { 'status.current': 'Ready' },
+        nextAction: request.method === 'POST' ? { provider_code: providerCode } : {},
+      }));
+    });
+    const config = demoConfiguration({ ...enabled, ELMPAY_DEMO_GATEWAY_PORT: String(upstream.address().port) });
+    const server = await listen(createDemoBridge(config));
+    const path = `http://127.0.0.1:${server.address().port}/api/checkout/sessions/${session}`;
+    const headers = { authorization: `CheckoutSession ${token}`, origin: enabled.ELMPAY_DEMO_PUBLIC_ORIGIN,
+      'content-type': 'application/json', 'idempotency-key': 'demo-outcome-contract-0001' };
+    try {
+      assert.equal((await (await fetch(path, { headers })).json()).status, 'OPEN');
+      // Deliberately request success: only the observed upstream result may decide the projection.
+      const result = await (await fetch(`${path}/confirm`, { method: 'POST', headers,
+        body: JSON.stringify({ method: 'card', payment_method_reference: `psp://elmpay-demo/${session}`,
+          provider_parameters: { simulation: 'succeeded' } }) })).json();
+      assert.equal(result.status, expected);
+      assert.equal(result.gateway_status, 'OPEN');
+      const reread = await (await fetch(path, { headers })).json();
+      assert.equal(reread.status, expected);
+      assert.equal(reread.demo_provider_result, providerCode);
+      assert.notEqual(reread.messages['status.current'], 'Ready');
+      assert.equal((await fetch(path)).status, 401);
+    } finally { await close(server); await close(upstream); }
+  }
+});
