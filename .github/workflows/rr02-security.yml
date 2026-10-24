@@ -51,7 +51,7 @@ jobs:
           queries: security-extended
       - name: Build all governed Java modules and the actual demo distribution
         id: native-build
-        run: ./gradlew --no-daemon --max-workers=2 --console=plain build :apps:edge-gateway:installDist
+        run: ./gradlew --no-daemon --no-build-cache --rerun-tasks --max-workers=2 --console=plain build :apps:edge-gateway:installDist
       - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           output: build/rr02/codeql
@@ -98,3 +98,4 @@ jobs:
             build/rr02/
             build/reports/dependency-check-report.json
             build/reports/bom.json
+            **/build/test-results/test/*.xml

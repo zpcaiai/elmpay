@@ -90,7 +90,16 @@ async function jsonBody(request) {
 }
 
 async function upstreamJson(origin, path, options = {}) {
-  const response = await fetch(new URL(path, origin), {
+  const target = new URL(origin);
+  if (target.protocol !== 'http:' || target.hostname !== '127.0.0.1'
+      || target.username || target.password || target.pathname !== '/'
+      || target.search || target.hash || typeof path !== 'string'
+      || !path.startsWith('/') || path.startsWith('//') || /[?#\\]/.test(path)) {
+    throw new Error('demo upstream must be the fixed loopback sandbox');
+  }
+  target.pathname = path;
+  if (target.origin !== origin) throw new Error('demo upstream authority changed');
+  const response = await fetch(target, {
     ...options, redirect: 'manual', signal: AbortSignal.timeout(5000),
   });
   if (response.status >= 300 && response.status < 400) throw new Error('upstream redirect refused');
@@ -113,6 +122,9 @@ export function createDemoBridge(configuration, { page = null, asset = null, gat
     active += 1;
     try {
       const url = new URL(request.url, 'https://demo.invalid');
+      if (url.origin !== 'https://demo.invalid' || request.url.startsWith('//')) {
+        return respond(response, 400, { code: 'absolute_request_target_not_allowed' });
+      }
       if (url.search) return respond(response, 400, { code: 'query_not_allowed' });
       if (active > 8) return respond(response, 429, { code: 'demo_busy' });
       const path = url.pathname;

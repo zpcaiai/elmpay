@@ -65,6 +65,7 @@ test('real HTTP transport keeps credentials private, bounds demo creation and de
     assert.equal((await fetch(`${origin}/demo/orders`, { method: 'POST', headers,
       body: '{"scenario":"declined"}' })).status, 409);
     assert.equal((await fetch(`${origin}/demo/orders?token=unsafe`)).status, 400);
+    assert.equal((await fetch(`${origin}//attacker.example/api/checkout/sessions/${session}`)).status, 400);
     assert.equal(calls.length, 1);
   } finally { await close(server); await close(upstream); }
 });
