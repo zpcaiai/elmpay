@@ -205,6 +205,11 @@ export function createDemoBridge(configuration, { page = null, asset = null, gat
         result.body.gateway_status = result.body.status;
         result.body.demo_provider_result = observed;
         result.body.status = observed === 'local_declined' ? 'FAILED' : 'PENDING';
+        if (Array.isArray(result.body.methods)) {
+          result.body.methods = result.body.methods.map(method => ({
+            ...method, eligible: false, reason: 'DEMO_RESULT_RECORDED',
+          }));
+        }
         result.body.messages = { ...result.body.messages, 'status.current':
           observed === 'local_declined' ? '本次模拟支付被服务器拒绝。未扣款。'
             : '模拟支付结果未知，仍待服务器确认。未推定成功。' };

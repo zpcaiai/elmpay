@@ -91,6 +91,7 @@ test('provider-observed decline and unknown remain visible across authoritative 
       request.resume();
       response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({
         checkoutSessionId: session, status: 'OPEN', messages: { 'status.current': 'Ready' },
+        methods: [{ id: 'card', eligible: true, reason: '' }],
         nextAction: request.method === 'POST' ? { provider_code: providerCode } : {},
       }));
     });
@@ -107,9 +108,11 @@ test('provider-observed decline and unknown remain visible across authoritative 
           provider_parameters: { simulation: 'succeeded' } }) })).json();
       assert.equal(result.status, expected);
       assert.equal(result.gateway_status, 'OPEN');
+      assert.ok(result.methods.every(method => method.eligible === false));
       const reread = await (await fetch(path, { headers })).json();
       assert.equal(reread.status, expected);
       assert.equal(reread.demo_provider_result, providerCode);
+      assert.ok(reread.methods.every(method => method.eligible === false));
       assert.notEqual(reread.messages['status.current'], 'Ready');
       assert.equal((await fetch(path)).status, 401);
     } finally { await close(server); await close(upstream); }
