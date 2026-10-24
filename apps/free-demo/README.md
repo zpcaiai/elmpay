@@ -1,6 +1,18 @@
 # ElmPay 免费演示
 
-此部署只供演示：真实支付已禁用，不接入真实 PSP，不接收卡号或商户凭据。使用现有 Java local sandbox、内存状态和原收银台控制器。成功、拒绝、未知结果均从服务器读取；未知结果保持待确认。休眠、重启或重新部署会清空订单。
+此部署只供演示：真实支付已禁用，不接入真实 PSP，不接收卡号或商户凭据。使用现有 Java local sandbox、内存状态和原收银台控制器。所有结果均从服务器读取；未知结果保持待确认。休眠、重启或重新部署会清空订单。
+
+| 场景 | 实际演示结果 |
+| --- | --- |
+| 模拟成功 | SUCCEEDED，服务器确认模拟完成 |
+| 模拟拒绝 | FAILED，服务器观察到 local_declined |
+| 模拟未知结果 | PENDING，服务器观察到 local_unknown，不能视为成功 |
+| 模拟仅授权 | PENDING，实际本地适配器返回 AUTHORIZED，尚未完成支付 |
+| 模拟需要进一步操作 | PENDING，实际本地适配器返回 REQUIRES_ACTION / local_challenge |
+
+最后一种仅展示原生沙箱返回的待操作状态，不接入真实认证页面或模拟绕过认证。页面的场景说明不是结果证据。
+
+界面提供订单摘要、三步进度、明确的结果与错误说明、待确认状态重新查询，以及桌面和手机布局。创建请求的幂等键绑定所选场景：同场景失败重试保持同键，切换场景创建新键。状态轮询保留已选支付方式；页面不会使用用户所选场景推定支付成功。
 
 Render 使用一个 `Free` Docker Web Service、一个实例，仓库根 Dockerfile。无需数据库、磁盘、Worker 或付费附加项。必须设置：
 
@@ -22,7 +34,7 @@ python3 apps/free-demo/test/deployed_e2e.py https://elmpay.onrender.com
 python3 apps/free-demo/test/deployed_e2e.py https://elmpay.vercel.app
 ```
 
-API 检查覆盖三种服务器结果、创建重放、重复确认、令牌篡改、跨站请求、金额注入、真实支付引用拦截。现有 HostedCheckoutService 只允许 OPEN 会话确认；成功后重复请求返回 HTTP 400。拒绝和未知尝试保留核心 OPEN 订单及幂等重放；演示适配层只根据实际网关返回的 local_declined / local_unknown 投影 FAILED / PENDING，保留 gateway_status 和 demo_provider_result，并在后续授权查询中保持显示。用户选择的模拟场景本身不能作为结果证据。浏览器验收另外执行实际点击创建、选择演示方式、确认和状态显示，检查 URL 片段被清除。日志禁止输出短期 bearer 或完整收银台 URL。
+API 检查覆盖五种服务器结果、创建重放、重复确认、令牌篡改、跨站请求、金额/查询注入、不支持的真实场景、缺失幂等键、错误内容类型和真实支付引用拦截。现有 HostedCheckoutService 只允许 OPEN 会话确认；成功、授权或需进一步操作后重复请求返回 HTTP 400。拒绝和未知尝试保留核心 OPEN 订单及幂等重放；演示适配层只根据实际网关返回的 local_declined / local_unknown 投影 FAILED / PENDING，保留 gateway_status 和 demo_provider_result，并在后续授权查询中保持显示。用户选择的模拟场景本身不能作为结果证据。浏览器验收另外执行实际点击创建、选择演示方式、确认和状态显示，检查 URL 片段被清除，并检查手机布局、焦点/键盘、错误恢复及重新查询。日志禁止输出短期 bearer 或完整收银台 URL。
 
 Render 免费服务会休眠，首次访问可能等待约一分钟；工作区免费时长、流量及构建额度是共享的。额度不足时保持停止构建或暂停服务，不添加银行卡、不升级。付费服务、持久数据、生产证书、渠道接入和真实资金验收不属于此演示。
 

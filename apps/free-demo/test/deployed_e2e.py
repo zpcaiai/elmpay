@@ -19,7 +19,7 @@ def run(origin):
     opener = urllib.request.build_opener(NoRedirect)
     results = []
 
-    def request(label, path, expected, body=None, token=None, key=None, source=None):
+    def request(label, path, expected, body=None, token=None, key=None, source=None, header_overrides=None):
         headers = {"accept": "application/json"}
         if body is not None:
             headers.update({"content-type": "application/json", "origin": source or origin})
@@ -27,6 +27,7 @@ def run(origin):
             headers["authorization"] = "CheckoutSession " + token
         if key:
             headers["idempotency-key"] = key
+        headers.update(header_overrides or {})
         req = urllib.request.Request(origin + path, headers=headers,
                                      data=None if body is None else json.dumps(body).encode())
         try:
@@ -61,7 +62,18 @@ def run(origin):
             key="demo-" + str(uuid.uuid4()), source="https://untrusted.example")
     request("amount injection denied", "/demo/orders", 400, {"scenario": "succeeded", "amount": 1},
             key="demo-" + str(uuid.uuid4()))
-    for scenario, expected_state in [("succeeded", "SUCCEEDED"), ("declined", "FAILED"), ("unknown", "PENDING")]:
+    request("browser checkout page", "/checkout", 200)
+    request("order collection requires POST", "/demo/orders", 405)
+    request("query injection denied", "/demo/orders?scenario=succeeded", 400)
+    request("unsupported live scenario denied", "/demo/orders", 400, {"scenario": "live"},
+            key="demo-" + str(uuid.uuid4()))
+    request("missing idempotency key denied", "/demo/orders", 400, {"scenario": "succeeded"})
+    request("non JSON creation denied", "/demo/orders", 415, {"scenario": "succeeded"},
+            key="demo-" + str(uuid.uuid4()), header_overrides={"content-type": "text/plain"})
+    request("merchant checkout API denied", "/v1/checkout-sessions", 404)
+    for scenario, expected_state in [("succeeded", "SUCCEEDED"), ("declined", "FAILED"),
+                                     ("unknown", "PENDING"), ("authorized", "PENDING"),
+                                     ("requires_action", "PENDING")]:
         key = "demo-" + str(uuid.uuid4())
         created = request(scenario + " create", "/demo/orders", 201, {"scenario": scenario}, key=key)
         replay = request(scenario + " create replay", "/demo/orders", 201, {"scenario": scenario}, key=key)
@@ -92,12 +104,15 @@ def run(origin):
         confirmed = request(scenario + " confirm", path + "/confirm", 200, command,
                             token=token, key=confirm_key)
         assert confirmed["status"] == expected_state, scenario + ": incorrect authoritative state"
+        assert not any(m["eligible"] for m in confirmed["methods"]), scenario + ": confirmation still enabled"
+        if scenario == "requires_action":
+            assert confirmed["nextAction"].get("action") == "local_challenge"
         # Captured intents reject a second confirmation; declined/unknown attempts
         # keep the core intent OPEN and replay by the same key without redispatch.
         replay = request(scenario + " repeat confirmation", path + "/confirm",
-                         400 if scenario == "succeeded" else 200, command,
+                         200 if scenario in {"declined", "unknown"} else 400, command,
                          token=token, key=confirm_key)
-        if scenario != "succeeded":
+        if scenario in {"declined", "unknown"}:
             assert replay["status"] == expected_state
             assert replay["gateway_status"] == "OPEN"
             assert replay["demo_provider_result"] == "local_" + scenario
