@@ -131,9 +131,60 @@ def release_gate_script(root: Path, budget: Budget | None = None) -> str:
     return _release_gate_script(load_json(root / PIPELINE, budget))
 
 
+def _source_security_enabled(doc: dict) -> bool:
+    policy = doc.get("source_security")
+    if policy is None:
+        return False
+    if policy != {"languages": ["java-kotlin", "javascript-typescript", "python"],
+                  "queries": "security-extended", "fail_on_any_result": True}:
+        raise ValueError("source security policy must keep every language, extended queries and findings gate")
+    return True
+
+
+def _source_security_post_steps(actions: dict) -> list[str]:
+    analyze = actions["github/codeql-action/analyze"]
+    lines = [
+        "      - name: Build the real local sandbox distribution",
+        "        id: native-dist",
+        "        run: ./gradlew --no-daemon :apps:edge-gateway:installDist",
+        f'      - uses: {analyze["name"]}@{analyze["ref"]}  # {analyze["version_comment"]}',
+        "        with:", "          output: build/rr02/codeql", "          upload: never",
+        "      - name: Require successful CodeQL execution and zero findings",
+        "        run: python3 scripts/rr02-security.py sarif build/rr02/codeql --out build/rr02/sast.json",
+        "      - name: Probe the built Java and Node sandbox",
+        "        if: always() && steps.native-dist.outcome == 'success'",
+        "        shell: bash", "        run: |",
+    ]
+    runtime = r'''set -euo pipefail
+mkdir -p build/rr02
+ELMPAY_DEMO_ENABLED=true ELMPAY_DEMO_REAL_PAYMENTS_DISABLED=true \
+ELMPAY_DEMO_PUBLIC_ORIGIN=https://elmpay.vercel.app \
+ELMPAY_DEMO_JAVA_PATH="${JAVA_HOME}/bin/java" PORT=10000 \
+node apps/free-demo/src/start.mjs > build/rr02/native-runtime.log 2>&1 &
+demo_pid=$!
+trap 'kill -TERM "${demo_pid}" 2>/dev/null || true; wait "${demo_pid}" 2>/dev/null || true' EXIT
+python3 - <<'PY'
+import time, urllib.request
+for attempt in range(30):
+    try:
+        with urllib.request.urlopen('http://127.0.0.1:10000/health/ready', timeout=2) as response:
+            if response.status == 200:
+                break
+    except OSError:
+        if attempt == 29:
+            raise
+        time.sleep(1)
+PY
+python3 scripts/rr02-security.py dast http://127.0.0.1:10000 --out build/rr02/dast.json
+'''
+    lines.extend("          " + line for line in runtime.splitlines())
+    return lines
+
+
 def workflow(root: Path, budget: Budget | None = None) -> str:
     budget = budget or Budget().start()
     doc = load_json(root / PIPELINE, budget)
+    source_security = _source_security_enabled(doc)
     signing = doc["signing_policy"]
     cache_policy = doc["gradle_cache_policy"]
     entries = {e["id"]: e for e in load_json(root / CATALOG, budget)["entries"]}
@@ -197,6 +248,8 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
             lines.append("    permissions:")
             for key in sorted(signing["job_permissions"]):
                 lines.append(f'      {key}: {signing["job_permissions"][key]}')
+        elif stage["id"] == "static-analysis" and source_security:
+            lines += ["    permissions:", "      contents: read", "      security-events: read"]
         lines += ["    steps:",
                   f'      - uses: {checkout["name"]}@{checkout["ref"]}  # {checkout["version_comment"]}',
                   "        with:",
@@ -264,6 +317,16 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
                     "          restore-keys: |",
                     f'            {cache_policy["dependency_data_restore_key"]}',
                 ]
+        if stage["id"] == "static-analysis" and source_security:
+            init = actions["github/codeql-action/init"]
+            lines += [
+                f'      - uses: {setup_node["name"]}@{setup_node["ref"]}  # {setup_node["version_comment"]}',
+                "        with:", f'          node-version: {_quote(node_version)}',
+                f'      - uses: {init["name"]}@{init["ref"]}  # {init["version_comment"]}',
+                "        with:",
+                "          languages: " + ",".join(doc["source_security"]["languages"]),
+                "          queries: security-extended",
+            ]
         for index, command in enumerate(stage["commands"], 1):
             step_name = f'{stage["purpose"]} ({index}/{len(stage["commands"])})'
             lines.append(f'      - name: {_quote(step_name)}')
@@ -274,6 +337,8 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
                     f'${{{{ vars.{signing["public_sigstore_opt_in_variable"]} }}}}',
                 ]
             lines += ["        run: |", f'          {command}']
+        if stage["id"] == "static-analysis" and source_security:
+            lines += _source_security_post_steps(actions)
         if stage["id"] == cache_policy["dependency_data_stage"]:
             save_condition = (
                 "success() && github.event_name == '" + cache_policy["trusted_event"]

@@ -5,6 +5,7 @@ from pathlib import Path
 import unittest
 import json
 import tempfile
+from tools.paygov import cigen
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -90,3 +91,33 @@ class SarifControls(unittest.TestCase):
             (directory / 'TEST-Money.xml').write_text(
                 '<testsuite tests="2" errors="0" failures="0" skipped="0"/>')
             self.assertEqual(MODULE.check_junit(root)['money']['tests'], 2)
+
+    def test_generated_static_stage_retains_original_checks_and_adds_real_scanners(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'governance').mkdir()
+            for name in ('ci-pipeline.json', 'version-catalog.json', 'module-registry.json'):
+                (root / 'governance' / name).write_bytes((ROOT / 'governance' / name).read_bytes())
+            pipeline = json.loads((root / 'governance/ci-pipeline.json').read_text())
+            pipeline['source_security'] = {
+                'languages': ['java-kotlin', 'javascript-typescript', 'python'],
+                'queries': 'security-extended', 'fail_on_any_result': True,
+            }
+            for name in ('init', 'analyze'):
+                pipeline['actions'].append({'name': 'github/codeql-action/' + name,
+                    'ref': '9b3254085494b55a0f7c4c2b3d2d52cc712ce370',
+                    'version_comment': 'v4.39.1'})
+            (root / 'governance/ci-pipeline.json').write_text(json.dumps(pipeline))
+            text = cigen.workflow(root)
+            static = text.split('\n  static-analysis:\n', 1)[1].split('\n  secret-scan:\n', 1)[0]
+            for expected in ('github/codeql-action/init@', 'github/codeql-action/analyze@',
+                    'queries: security-extended', 'scripts/rr02-security.py sarif',
+                    'scripts/rr02-security.py dast', 'apps/free-demo/src/start.mjs',
+                    './gradlew --no-daemon check -x test', 'verify module-registry'):
+                self.assertIn(expected, static)
+            self.assertIn('upload: never', static)
+            self.assertNotIn('continue-on-error', static)
+            pipeline['source_security']['fail_on_any_result'] = False
+            (root / 'governance/ci-pipeline.json').write_text(json.dumps(pipeline))
+            with self.assertRaises(ValueError):
+                cigen.workflow(root)
