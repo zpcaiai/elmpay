@@ -3,6 +3,8 @@ import copy
 import importlib.util
 from pathlib import Path
 import unittest
+import json
+import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,3 +69,24 @@ class SarifControls(unittest.TestCase):
                 MODULE.local_origin(origin)
         self.assertEqual(MODULE.local_origin("http://127.0.0.1:10000"),
                          "http://127.0.0.1:10000")
+
+    def test_native_junit_denominator_rejects_missing_zero_and_skipped_tests(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'governance').mkdir()
+            (root / 'governance/version-catalog.json').write_text(json.dumps({
+                'modules_by_build_system': {'gradle': ['money']}}))
+            (root / 'governance/module-registry.json').write_text(json.dumps({
+                'modules': [{'name': 'money', 'path': 'libs/money'}]}))
+            with self.assertRaises(ValueError):
+                MODULE.check_junit(root)
+            directory = root / 'libs/money/build/test-results/test'
+            directory.mkdir(parents=True)
+            for tests, failed, skipped in [(0, 0, 0), (1, 1, 0), (1, 0, 1)]:
+                (directory / 'TEST-Money.xml').write_text(
+                    f'<testsuite tests="{tests}" errors="0" failures="{failed}" skipped="{skipped}"/>')
+                with self.assertRaises(ValueError):
+                    MODULE.check_junit(root)
+            (directory / 'TEST-Money.xml').write_text(
+                '<testsuite tests="2" errors="0" failures="0" skipped="0"/>')
+            self.assertEqual(MODULE.check_junit(root)['money']['tests'], 2)

@@ -52,6 +52,8 @@ jobs:
       - name: Build all governed Java modules and the actual demo distribution
         id: native-build
         run: ./gradlew --no-daemon --no-build-cache --rerun-tasks --max-workers=2 --console=plain build :apps:edge-gateway:installDist
+      - name: Require nonzero fresh Java tests for every governed module, with no skips
+        run: python3 scripts/rr02-security.py junit . --out build/rr02/junit.json
       - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           output: build/rr02/codeql

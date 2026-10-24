@@ -13,6 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+import xml.etree.ElementTree as ET
 
 
 def check_sarif(document):
@@ -49,6 +50,35 @@ def local_origin(value):
             or parsed.port is None or not 1024 <= parsed.port <= 65535):
         raise ValueError("DAST requires an explicit loopback test origin")
     return value
+
+
+def check_junit(root):
+    """Require fresh successful native results for every declared Java module."""
+    root = Path(root)
+    catalog = json.loads((root / 'governance/version-catalog.json').read_text())
+    registry = json.loads((root / 'governance/module-registry.json').read_text())
+    modules = {module['name']: module['path'] for module in registry['modules']}
+    summary = {}
+    for name in catalog['modules_by_build_system']['gradle']:
+        module = root / modules[name]
+        paths = sorted((module / 'build/test-results/test').glob('TEST-*.xml'))
+        if not paths:
+            raise ValueError('native JUnit reports missing for ' + name)
+        tests = 0
+        for path in paths:
+            if path.stat().st_size > 4 * 1024 * 1024:
+                raise ValueError('oversized native JUnit report')
+            suite = ET.fromstring(path.read_bytes())
+            if suite.tag != 'testsuite' or any(int(suite.attrib[key]) != 0
+                    for key in ('errors', 'failures', 'skipped')):
+                raise ValueError('failed, skipped or invalid native tests for ' + name)
+            tests += int(suite.attrib['tests'])
+        if tests <= 0:
+            raise ValueError('zero native tests for ' + name)
+        summary[name] = {'tests': tests, 'reports': len(paths)}
+    if not summary:
+        raise ValueError('empty governed Java module denominator')
+    return summary
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -116,7 +146,7 @@ def dast(origin):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("sarif", "dast"))
+    parser.add_argument("mode", choices=("sarif", "dast", "junit"))
     parser.add_argument("target")
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
@@ -127,6 +157,8 @@ def main():
             raise ValueError("all three declared CodeQL language reports are required")
         result = {str(p): {**check_sarif(json.loads(p.read_text())),
                             "sha256": hashlib.sha256(p.read_bytes()).hexdigest()} for p in paths}
+    elif args.mode == 'junit':
+        result = check_junit(args.target)
     else:
         result = dast(args.target)
     report = {"mode": args.mode, "pid": os.getpid(), "executed": True, "result": "PASS",
