@@ -1,5 +1,8 @@
 const allowed = new Set(['succeeded', 'declined', 'unknown']);
 
+// Native browser fetch requires its Window receiver when called as a method.
+export function demoApi(...args) { return globalThis.fetch(...args); }
+
 export function demoReference(sessionId, scenario) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(sessionId)
       || !allowed.has(scenario)) throw new Error('invalid demo reference');
@@ -16,6 +19,7 @@ async function initialize() {
     document.querySelector('#checkout').hidden = false;
     const { CheckoutController } = await import('/checkout.mjs');
     const controller = new CheckoutController({
+      api: demoApi,
       tokenizer: async ({ checkoutSessionId }) => demoReference(checkoutSessionId,
         sessionStorage.getItem(`elmpay.demo.scenario.${checkoutSessionId}`)),
     });

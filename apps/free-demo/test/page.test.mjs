@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { renderDemoPage, demoAsset } from '../src/page.mjs';
 import { demoReference } from '../src/demo.mjs';
+import * as demo from '../src/demo.mjs';
 
 test('standalone page visibly forbids real funds and never offers card-data inputs', () => {
   const first = renderDemoPage(); const second = renderDemoPage();
@@ -38,4 +39,19 @@ test('only reviewed demo/controller/style assets are served, with no filesystem 
   assert.equal(demoAsset('/../../.env'), null);
   assert.equal(demoAsset('/provider-sdk-bootstrap.mjs'), null);
   assert.equal(demoAsset('/src/bridge.mjs'), null);
+});
+
+test('browser API transport preserves the native fetch Window receiver', async () => {
+  const original = globalThis.fetch;
+  const expected = { ok: true };
+  globalThis.fetch = function (url, options) {
+    if (this !== globalThis) throw new TypeError('Illegal invocation');
+    assert.equal(url, '/api/checkout/sessions/example');
+    assert.equal(options.cache, 'no-store');
+    return Promise.resolve(expected);
+  };
+  try {
+    const controller = { api: demo.demoApi };
+    assert.equal(await controller.api('/api/checkout/sessions/example', { cache: 'no-store' }), expected);
+  } finally { globalThis.fetch = original; }
 });
