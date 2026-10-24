@@ -49,6 +49,8 @@ test('browser API transport preserves the native fetch Window receiver', async (
     if (this !== globalThis) throw new TypeError('Illegal invocation');
     assert.equal(url, '/api/checkout/sessions/example');
     assert.equal(options.cache, 'no-store');
+    assert.ok(options.signal instanceof AbortSignal);
+    assert.equal(options.signal.aborted, false);
     return Promise.resolve(expected);
   };
   try {
@@ -65,6 +67,18 @@ test('all native demo scenarios have labeled choices and synthetic-only referenc
     assert.equal(demoReference('21000000-0000-4000-8000-000000000004', scenario)
       .providerParameters.simulation, scenario);
   }
+});
+
+test('browser transport retains an explicit caller cancellation signal', async () => {
+  const original = globalThis.fetch;
+  const abort = new AbortController();
+  globalThis.fetch = function (_url, options) {
+    assert.equal(this, globalThis);
+    assert.equal(options.signal, abort.signal);
+    return Promise.resolve({ ok: true });
+  };
+  try { await demo.demoApi('/demo/orders', { signal: abort.signal }); }
+  finally { globalThis.fetch = original; }
 });
 
 test('UI presentation follows authoritative state and never treats pending or unknown as success', () => {

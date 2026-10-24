@@ -1,6 +1,8 @@
 """Real HTTPS demo integration checks; never print checkout bearer credentials."""
 import json
+import http.client
 import os
+import ssl
 import sys
 import urllib.error
 import urllib.parse
@@ -11,6 +13,21 @@ import uuid
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
+
+
+def open_verified_request(opener, req, label):
+    """Retry only transport errors, reusing the exact request and idempotency key."""
+    for attempt in range(3):
+        try:
+            return opener.open(req, timeout=60)
+        except urllib.error.HTTPError:
+            raise
+        except (urllib.error.URLError, ConnectionError, TimeoutError, ssl.SSLError,
+                http.client.RemoteDisconnected) as error:
+            if attempt == 2:
+                raise
+            print(json.dumps({"transport_retry": label, "attempt": attempt + 1,
+                              "error_type": type(error).__name__, "same_request": True}), flush=True)
 
 
 def run(origin):
@@ -31,7 +48,7 @@ def run(origin):
         req = urllib.request.Request(origin + path, headers=headers,
                                      data=None if body is None else json.dumps(body).encode())
         try:
-            response = opener.open(req, timeout=60)
+            response = open_verified_request(opener, req, label)
         except urllib.error.HTTPError as error:
             response = error
         with response:
@@ -110,7 +127,10 @@ def run(origin):
         request(label + " tampered bearer denied", path, 401, token=changed)
         view = request(label + " initial state", path, 200, token=token)
         assert view["status"] == "OPEN" and view["checkoutSessionId"] == session
-        assert view["amount"] == 1000 and view["currency"] == currency
+        # The browser API intentionally exposes formatted money, not the
+        # merchant API's raw amount/currency fields. Validate its exact contract.
+        expected_display = {"CNY": {"¥10.00", "￥10.00"}, "USD": {"US$10.00", "$10.00"}}[currency]
+        assert view["displayAmount"] in expected_display, label + ": incorrect server money display"
         assert len(view["methods"]) == 1 and view["methods"][0]["id"] == method and view["methods"][0]["eligible"]
         assert "10.00" in view["displayAmount"]
         if currency == "CNY":
@@ -140,7 +160,7 @@ def run(origin):
             assert replay["demo_provider_result"] == "local_" + scenario
         final = request(label + " authoritative reread", path, 200, token=token)
         assert final["status"] == expected_state
-        assert final["amount"] == 1000 and final["currency"] == currency
+        assert final["displayAmount"] in expected_display
         assert len(final["methods"]) == 1 and final["methods"][0]["id"] == method
     print(json.dumps({"result": "PASS", "origin": origin, "checks": len(results),
                       "executed": True, "pid": os.getpid(), "real_payments": False}), flush=True)

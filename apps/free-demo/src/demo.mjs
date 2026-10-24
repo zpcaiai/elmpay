@@ -12,7 +12,9 @@ export const demoProfiles = Object.freeze([
 ]);
 
 // Native browser fetch requires its Window receiver when called as a method.
-export function demoApi(...args) { return globalThis.fetch(...args); }
+export function demoApi(url, options = {}) {
+  return globalThis.fetch(url, { ...options, signal: options.signal ?? AbortSignal.timeout(15000) });
+}
 
 export function demoPresentation(view) {
   switch (view.status) {
@@ -179,7 +181,7 @@ async function initialize() {
       const method = methodInput.value;
       if (!allowed.has(scenario)) throw new Error('invalid scenario');
       const { key } = demoCreateRequest(sessionStorage, scenario, method);
-      const response = await fetch('/demo/orders', {
+      const response = await demoApi('/demo/orders', {
         method: 'POST', credentials: 'same-origin', cache: 'no-store', referrerPolicy: 'no-referrer',
         headers: { 'content-type': 'application/json', 'idempotency-key': key },
         body: JSON.stringify({ scenario, payment_method: method }),
