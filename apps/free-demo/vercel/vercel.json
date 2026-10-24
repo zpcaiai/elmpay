@@ -5,6 +5,7 @@
   "installCommand": "",
   "outputDirectory": ".",
   "rewrites": [
+    { "source": "/", "destination": "https://elmpay.onrender.com/" },
     { "source": "/:path*", "destination": "https://elmpay.onrender.com/:path*" }
   ],
   "headers": [
