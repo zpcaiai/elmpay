@@ -84,6 +84,8 @@ async function initialize() {
     };
     controller.render = view => {
       const selected = document.querySelector('input[name="method"]:checked')?.value;
+      const focused = document.activeElement?.matches('input[name="method"]')
+        ? document.activeElement.value : null;
       render(demoDisplayView(view));
       if (view.status === 'OPEN' && view.methods.some(method => method.id === selected && method.eligible)) {
         for (const input of document.querySelectorAll('input[name="method"]')) {
@@ -105,6 +107,11 @@ async function initialize() {
         document.querySelector('#continue').disabled = true;
         document.querySelector('#methods').disabled = true;
       }
+      if (!confirming && view.status === 'OPEN' && focused) {
+        for (const input of document.querySelectorAll('input[name="method"]')) {
+          if (input.value === focused && !input.disabled) input.focus({ preventScroll: true });
+        }
+      }
       progress(presentation.step);
     };
     controller.fail = message => {
@@ -120,6 +127,7 @@ async function initialize() {
         : '连接暂时不可用，请重新查询状态；不要将网络错误视为支付成功。';
       document.querySelector('#retry-status').hidden = expired;
       document.querySelector('#continue').disabled = true;
+      document.querySelector('#methods').disabled = true;
       progress('confirm');
     };
     document.querySelector('#retry-status').addEventListener('click', async () => {
