@@ -89,7 +89,8 @@ jobs:
         if: always() && steps.native-build.outcome == 'success'
         run: |
           python3 -m tools.paygov.nvdfeed --repo .
-          ./gradlew --no-daemon --max-workers=2 dependencyCheckAggregate cyclonedxBom
+          ./gradlew --no-daemon --max-workers=2 dependencyCheckAggregate
+          ./gradlew --no-daemon --max-workers=2 cyclonedxBom
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: always()
         with:
