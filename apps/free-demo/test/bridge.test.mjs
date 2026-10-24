@@ -54,6 +54,7 @@ test('real HTTP transport keeps credentials private, bounds demo creation and de
     assert.ok(!JSON.stringify(body).includes(config.apiToken));
     assert.equal(calls[0].url, '/v1/checkout-sessions');
     assert.equal(calls[0].headers.authorization, `Bearer ${config.apiToken}`);
+    assert.match(calls[0].headers.traceparent ?? '', /^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/);
     assert.equal(JSON.parse(calls[0].body).amount, 1000);
     assert.equal(JSON.parse(calls[0].body).currency, 'USD');
     assert.equal((await fetch(`${origin}/v1/payment_intents`)).status, 404);

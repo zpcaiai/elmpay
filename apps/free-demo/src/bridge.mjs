@@ -139,6 +139,7 @@ export function createDemoBridge(configuration, { page = null, asset = null, gat
         return respond(response, 400, { code: 'invalid_idempotency_key' });
       }
       const headers = { accept: 'application/json', 'x-request-id': randomUUID(),
+        traceparent: `00-${randomBytes(16).toString('hex')}-${randomBytes(8).toString('hex')}-01`,
         'accept-language': 'zh-CN', 'content-type': 'application/json' };
       if (create) {
         const body = await jsonBody(request);
