@@ -15,6 +15,16 @@ SPEC.loader.exec_module(MODULE)
 
 
 class SarifControls(unittest.TestCase):
+    def test_real_pipeline_requires_every_source_security_language_and_findings_gate(self):
+        doc = json.loads((ROOT / 'governance/ci-pipeline.json').read_text())
+        self.assertEqual(doc['source_security'], {
+            'languages': ['java-kotlin', 'javascript-typescript', 'python'],
+            'queries': 'security-extended', 'fail_on_any_result': True})
+        static = next(s for s in doc['stages'] if s['id'] == 'static-analysis')
+        self.assertTrue(static['required'])
+        self.assertTrue(static['fail_closed'])
+        self.assertIn('static-analysis', doc['required_stages'])
+
     def setUp(self):
         self.document = {"version": "2.1.0", "runs": [{
             "tool": {"driver": {"name": "CodeQL", "version": "2.27.3",
