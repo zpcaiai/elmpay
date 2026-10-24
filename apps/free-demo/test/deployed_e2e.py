@@ -1,6 +1,8 @@
 """Real HTTPS demo integration checks; never print checkout bearer credentials."""
 import json
+import http.client
 import os
+import ssl
 import sys
 import urllib.error
 import urllib.parse
@@ -11,6 +13,21 @@ import uuid
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
+
+
+def open_verified_request(opener, req, label):
+    """Retry only transport errors, reusing the exact request and idempotency key."""
+    for attempt in range(3):
+        try:
+            return opener.open(req, timeout=60)
+        except urllib.error.HTTPError:
+            raise
+        except (urllib.error.URLError, ConnectionError, TimeoutError, ssl.SSLError,
+                http.client.RemoteDisconnected) as error:
+            if attempt == 2:
+                raise
+            print(json.dumps({"transport_retry": label, "attempt": attempt + 1,
+                              "error_type": type(error).__name__, "same_request": True}), flush=True)
 
 
 def run(origin):
@@ -31,7 +48,7 @@ def run(origin):
         req = urllib.request.Request(origin + path, headers=headers,
                                      data=None if body is None else json.dumps(body).encode())
         try:
-            response = opener.open(req, timeout=60)
+            response = open_verified_request(opener, req, label)
         except urllib.error.HTTPError as error:
             response = error
         with response:
@@ -71,16 +88,32 @@ def run(origin):
     request("non JSON creation denied", "/demo/orders", 415, {"scenario": "succeeded"},
             key="demo-" + str(uuid.uuid4()), header_overrides={"content-type": "text/plain"})
     request("merchant checkout API denied", "/v1/checkout-sessions", 404)
-    for scenario, expected_state in [("succeeded", "SUCCEEDED"), ("declined", "FAILED"),
+    for unsupported in ["wechat_jsapi", "__proto__", None]:
+        request("unsupported demo method denied", "/demo/orders", 400,
+                {"scenario": "unknown", "payment_method": unsupported}, key="demo-" + str(uuid.uuid4()))
+    request("WeChat currency injection denied", "/demo/orders", 400,
+            {"scenario": "unknown", "payment_method": "wechat_native", "currency": "USD"},
+            key="demo-" + str(uuid.uuid4()))
+    cases = [(method, currency, scenario, state)
+             for method, currency in [("card", "USD"), ("wechat_native", "CNY")]
+             for scenario, state in [("succeeded", "SUCCEEDED"), ("declined", "FAILED"),
                                      ("unknown", "PENDING"), ("authorized", "PENDING"),
-                                     ("requires_action", "PENDING")]:
+                                     ("requires_action", "PENDING")]]
+    for method, currency, scenario, expected_state in cases:
+        label = method + " " + scenario
+        other_method = "card" if method == "wechat_native" else "wechat_native"
+        create_body = {"scenario": scenario, **({"payment_method": method} if method != "card" else {})}
         key = "demo-" + str(uuid.uuid4())
-        created = request(scenario + " create", "/demo/orders", 201, {"scenario": scenario}, key=key)
-        replay = request(scenario + " create replay", "/demo/orders", 201, {"scenario": scenario}, key=key)
+        created = request(label + " create", "/demo/orders", 201, create_body, key=key)
+        assert created["payment_method"] == method and created["currency"] == currency and created["amount"] == 1000
+        assert created["simulation_engine"] == "local-sandbox"
+        replay = request(label + " create replay", "/demo/orders", 201, create_body, key=key)
         assert replay["checkout_session_id"] == created["checkout_session_id"]
         assert replay["checkout_url"] == created["checkout_url"]
-        request(scenario + " create conflict", "/demo/orders", 409,
-                {"scenario": "unknown" if scenario != "unknown" else "succeeded"}, key=key)
+        request(label + " create conflict", "/demo/orders", 409,
+                {**create_body, "scenario": "unknown" if scenario != "unknown" else "succeeded"}, key=key)
+        request(label + " profile key conflict", "/demo/orders", 409,
+                {**create_body, "payment_method": other_method}, key=key)
         checkout = urllib.parse.urlsplit(created["checkout_url"])
         assert checkout.scheme == "https" and checkout.netloc == "elmpay.vercel.app"
         assert checkout.path == "/checkout" and not checkout.query
@@ -89,19 +122,28 @@ def run(origin):
         assert fragment["session"] == [session]
         token = fragment["token"][0]
         path = "/api/checkout/sessions/" + session
-        request(scenario + " missing bearer denied", path, 401)
+        request(label + " missing bearer denied", path, 401)
         changed = ("A" if token[0] != "A" else "B") + token[1:]
-        request(scenario + " tampered bearer denied", path, 401, token=changed)
-        view = request(scenario + " initial state", path, 200, token=token)
+        request(label + " tampered bearer denied", path, 401, token=changed)
+        view = request(label + " initial state", path, 200, token=token)
         assert view["status"] == "OPEN" and view["checkoutSessionId"] == session
-        assert any(m["id"] == "card" and m["eligible"] for m in view["methods"])
+        # The browser API intentionally exposes formatted money, not the
+        # merchant API's raw amount/currency fields. Validate its exact contract.
+        expected_display = {"CNY": {"¥10.00", "￥10.00"}, "USD": {"US$10.00", "$10.00"}}[currency]
+        assert view["displayAmount"] in expected_display, label + ": incorrect server money display"
+        assert len(view["methods"]) == 1 and view["methods"][0]["id"] == method and view["methods"][0]["eligible"]
+        assert "10.00" in view["displayAmount"]
+        if currency == "CNY":
+            assert "$" not in view["displayAmount"] and "USD" not in view["displayAmount"]
         confirm_key = "demo-confirm-" + str(uuid.uuid4())
-        command = {"method": "card", "payment_method_reference": "psp://elmpay-demo/" + session,
+        command = {"method": method, "payment_method_reference": "psp://elmpay-demo/" + session,
                    "provider_parameters": {"simulation": scenario}}
-        request(scenario + " real provider reference denied", path + "/confirm", 400,
+        request(label + " session method mismatch denied", path + "/confirm", 400,
+                {**command, "method": other_method}, token=token, key="demo-wrong-" + str(uuid.uuid4()))
+        request(label + " real provider reference denied", path + "/confirm", 400,
                 {**command, "payment_method_reference": "psp://stripe/not-a-real-token"},
                 token=token, key=confirm_key)
-        confirmed = request(scenario + " confirm", path + "/confirm", 200, command,
+        confirmed = request(label + " confirm", path + "/confirm", 200, command,
                             token=token, key=confirm_key)
         assert confirmed["status"] == expected_state, scenario + ": incorrect authoritative state"
         assert not any(m["eligible"] for m in confirmed["methods"]), scenario + ": confirmation still enabled"
@@ -109,15 +151,17 @@ def run(origin):
             assert confirmed["nextAction"].get("action") == "local_challenge"
         # Captured intents reject a second confirmation; declined/unknown attempts
         # keep the core intent OPEN and replay by the same key without redispatch.
-        replay = request(scenario + " repeat confirmation", path + "/confirm",
+        replay = request(label + " repeat confirmation", path + "/confirm",
                          200 if scenario in {"declined", "unknown"} else 400, command,
                          token=token, key=confirm_key)
         if scenario in {"declined", "unknown"}:
             assert replay["status"] == expected_state
             assert replay["gateway_status"] == "OPEN"
             assert replay["demo_provider_result"] == "local_" + scenario
-        final = request(scenario + " authoritative reread", path, 200, token=token)
+        final = request(label + " authoritative reread", path, 200, token=token)
         assert final["status"] == expected_state
+        assert final["displayAmount"] in expected_display
+        assert len(final["methods"]) == 1 and final["methods"][0]["id"] == method
     print(json.dumps({"result": "PASS", "origin": origin, "checks": len(results),
                       "executed": True, "pid": os.getpid(), "real_payments": False}), flush=True)
 

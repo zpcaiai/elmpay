@@ -155,3 +155,57 @@ test('additional native sandbox scenarios pass only validated synthetic commands
     assert.equal(calls.length, count);
   } finally { await close(server); await close(upstream); }
 });
+
+test('WeChat-shaped demo uses a native CNY method and binds replay keys to its profile', async () => {
+  const calls = [];
+  const upstream = await listen(async (request, response) => {
+    const chunks = []; for await (const chunk of request) chunks.push(chunk);
+    calls.push({ url: request.url, body: JSON.parse(Buffer.concat(chunks).toString()) });
+    const create = request.url === '/v1/checkout-sessions';
+    response.writeHead(create ? 201 : 200, { 'content-type': 'application/json' }).end(JSON.stringify(
+      create ? { checkout_session_id: session,
+        checkout_url: `https://elmpay.vercel.app/checkout#session=${session}&token=${token}` }
+        : { checkoutSessionId: session, status: 'PENDING', nextAction: {} }));
+  });
+  const config = demoConfiguration({ ...enabled, ELMPAY_DEMO_GATEWAY_PORT: String(upstream.address().port) });
+  const server = await listen(createDemoBridge(config));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  const headers = { origin: enabled.ELMPAY_DEMO_PUBLIC_ORIGIN, 'content-type': 'application/json',
+    'idempotency-key': 'demo-wechat-profile-0001', authorization: `CheckoutSession ${token}` };
+  try {
+    assert.deepEqual(config.childEnvironment.ELMPAY_CHECKOUT_ALLOWED_METHODS.split(',').sort(), ['card', 'wechat_native']);
+    const body = { scenario: 'unknown', payment_method: 'wechat_native' };
+    const created = await fetch(`${origin}/demo/orders`, { method: 'POST', headers, body: JSON.stringify(body) });
+    assert.equal(created.status, 201);
+    const value = await created.json();
+    assert.equal(value.payment_method, 'wechat_native');
+    assert.equal(value.currency, 'CNY');
+    assert.equal(value.amount, 1000);
+    assert.equal(value.simulation_engine, 'local-sandbox');
+    assert.equal(value.real_payments, false);
+    assert.equal(calls.at(-1).body.payment_method, 'wechat_native');
+    assert.equal(calls.at(-1).body.currency, 'CNY');
+    assert.equal(calls.at(-1).body.amount, 1000);
+    assert.equal((await fetch(`${origin}/demo/orders`, { method: 'POST', headers,
+      body: JSON.stringify(body) })).status, 201);
+    const count = calls.length;
+    assert.equal((await fetch(`${origin}/demo/orders`, { method: 'POST', headers,
+      body: JSON.stringify({ ...body, payment_method: 'card' }) })).status, 409);
+    for (const extra of [{ payment_method: 'wechat_jsapi' }, { payment_method: '__proto__' },
+      { payment_method: null }, { amount: 1 }, { currency: 'USD' }]) {
+      assert.equal((await fetch(`${origin}/demo/orders`, { method: 'POST', headers,
+        body: JSON.stringify({ ...body, ...extra }) })).status, 400);
+    }
+    assert.equal(calls.length, count);
+    const command = { method: 'wechat_native', payment_method_reference: `psp://elmpay-demo/${session}`,
+      provider_parameters: { simulation: 'unknown' } };
+    assert.equal((await fetch(`${origin}/api/checkout/sessions/${session}/confirm`, {
+      method: 'POST', headers, body: JSON.stringify(command) })).status, 200);
+    assert.deepEqual(calls.at(-1).body, command);
+    const dispatched = calls.length;
+    assert.equal((await fetch(`${origin}/api/checkout/sessions/${session}/confirm`, {
+      method: 'POST', headers, body: JSON.stringify({ ...command,
+        payment_method_reference: 'psp://wechat/real-provider-reference' }) })).status, 400);
+    assert.equal(calls.length, dispatched);
+  } finally { await close(server); await close(upstream); }
+});

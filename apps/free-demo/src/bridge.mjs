@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 export const scenarios = Object.freeze(['succeeded', 'declined', 'unknown', 'authorized', 'requires_action']);
+const demoCurrencies = Object.freeze({ card: 'USD', wechat_native: 'CNY' });
 const sessionPattern = /^\/api\/checkout\/sessions\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(\/confirm)?$/;
 const bearerPattern = /^CheckoutSession [A-Za-z0-9_-]{48}\.[A-Za-z0-9_-]{43}$/;
 const keyPattern = /^[A-Za-z0-9._:-]{16,100}$/;
@@ -63,7 +64,7 @@ export function demoConfiguration(environment) {
       ELMPAY_CHECKOUT_PUBLIC_BASE_URL: `${publicUrl.origin}/checkout`,
       ELMPAY_CHECKOUT_RETURN_ROUTES: `demo-complete=${publicUrl.origin}/complete`,
       ELMPAY_CHECKOUT_DEFAULT_RETURN_ROUTE_ID: 'demo-complete',
-      ELMPAY_CHECKOUT_ALLOWED_METHODS: 'card',
+      ELMPAY_CHECKOUT_ALLOWED_METHODS: 'card,wechat_native',
     }),
   });
 }
@@ -144,21 +145,24 @@ export function createDemoBridge(configuration, { page = null, asset = null, gat
         'accept-language': 'zh-CN', 'content-type': 'application/json' };
       if (create) {
         const body = await jsonBody(request);
-        if (Object.keys(body).join(',') !== 'scenario' || !scenarios.includes(body.scenario)) {
+        const method = Object.hasOwn(body, 'payment_method') ? body.payment_method : 'card';
+        if (Object.keys(body).some(name => !['scenario', 'payment_method'].includes(name))
+            || !scenarios.includes(body.scenario) || !Object.hasOwn(demoCurrencies, method)) {
           return respond(response, 400, { code: 'invalid_demo_scenario' });
         }
-        if (createKeys.has(key) && createKeys.get(key) !== body.scenario) {
+        const identity = `${body.scenario}:${method}`;
+        if (createKeys.has(key) && createKeys.get(key) !== identity) {
           return respond(response, 409, { code: 'idempotency_conflict' });
         }
         if (!createKeys.has(key) && createKeys.size >= 200) {
           return respond(response, 429, { code: 'demo_capacity_reached' });
         }
-        createKeys.set(key, body.scenario);
+        createKeys.set(key, identity);
         const result = await upstreamJson(configuration.gatewayOrigin, '/v1/checkout-sessions', {
           method: 'POST', headers: { ...headers, authorization: `Bearer ${configuration.apiToken}`,
             'x-project-id': configuration.project, 'idempotency-key': key },
           body: JSON.stringify({ business_order_no: `demo-${createHash('sha256').update(key).digest('hex').slice(0, 24)}`,
-            amount: 1000, currency: 'USD', return_route_id: 'demo-complete', payment_method: 'card' }),
+            amount: 1000, currency: demoCurrencies[method], return_route_id: 'demo-complete', payment_method: method }),
         });
         if (result.status !== 201) return respond(response, result.status, { code: 'demo_create_rejected' });
         const target = new URL(result.body.checkout_url);
@@ -172,7 +176,8 @@ export function createDemoBridge(configuration, { page = null, asset = null, gat
           throw new Error('checkout origin mismatch');
         }
         return respond(response, 201, { checkout_session_id: result.body.checkout_session_id,
-          checkout_url: target.href, scenario: body.scenario });
+          checkout_url: target.href, scenario: body.scenario, payment_method: method,
+          amount: 1000, currency: demoCurrencies[method], simulation_engine: 'local-sandbox' });
       }
       const authorization = request.headers.authorization;
       if (!bearerPattern.test(authorization ?? '')) return respond(response, 401, { code: 'invalid_checkout_token' });
@@ -180,7 +185,8 @@ export function createDemoBridge(configuration, { page = null, asset = null, gat
       if (expected === 'POST') {
         body = await jsonBody(request);
         if (Object.keys(body).some(name => !['method', 'payment_method_reference', 'provider_parameters'].includes(name))
-            || body.method !== 'card' || body.payment_method_reference !== `psp://elmpay-demo/${member[1]}`
+            || !Object.hasOwn(demoCurrencies, body.method)
+            || body.payment_method_reference !== `psp://elmpay-demo/${member[1]}`
             || !body.provider_parameters || Object.getPrototypeOf(body.provider_parameters) !== Object.prototype
             || Object.keys(body.provider_parameters).join(',') !== 'simulation'
             || !scenarios.includes(body.provider_parameters.simulation)) {

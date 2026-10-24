@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { BrowserSecurityRuntime } from '../../checkout-web/src/browser-security.mjs';
 import { demoHeaders } from './bridge.mjs';
-import { demoScenarios } from './demo.mjs';
+import { demoScenarios, demoProfiles } from './demo.mjs';
 
 const publicRoot = fileURLToPath(new URL('../../checkout-web/public/', import.meta.url));
 const security = new BrowserSecurityRuntime({ publicRoot,
@@ -63,6 +63,8 @@ dl{margin:20px 0;border-top:1px solid #d5e2d9;padding-top:18px}dl div{display:fl
 <ol class="steps" aria-label="演示进度"><li data-step="create" aria-current="step"><span class="step-number" aria-hidden="true">1</span>创建订单</li><li data-step="confirm"><span class="step-number" aria-hidden="true">2</span>确认模拟支付</li><li data-step="result"><span class="step-number" aria-hidden="true">3</span>查看结果</li></ol>
 <main id="main" class="layout" tabindex="-1"><div class="panel">
 <section id="demo-start" aria-labelledby="create-title"><p class="eyebrow">Start a demo</p><h2 id="create-title">选择一个模拟场景</h2><p class="muted">成功、拒绝或待确认，体验不同结果下的收银台。</p>
+<label for="demo-method">模拟支付方式</label><select id="demo-method" aria-describedby="method-description">${demoProfiles.map(value => `<option value="${value.method}">${value.label} · ${value.displayAmount}</option>`).join('')}</select>
+<p id="method-description" class="helper">本地模拟，不连接微信，不生成真实支付二维码，不发生真实扣款。</p>
 <label for="scenario">模拟结果</label><select id="scenario" aria-describedby="scenario-description">${demoScenarios.map(value => `<option value="${value.id}">${value.label}</option>`).join('')}</select>
 <p id="scenario-description" class="helper">${demoScenarios[0].hint}</p>
 <button id="create-demo" class="primary" type="button">创建演示订单</button><p id="create-status" role="status" aria-live="polite"></p>
@@ -76,7 +78,7 @@ dl{margin:20px 0;border-top:1px solid #d5e2d9;padding-top:18px}dl div{display:fl
 <a class="link-button" href="/">创建新的演示订单</a></section>
 </div><aside class="panel summary" aria-labelledby="order-summary-title"><p class="eyebrow">Order summary</p><h2 id="order-summary-title">演示订单摘要</h2>
 <div class="item"><span class="item-mark" aria-hidden="true">e</span><div><p>模拟体验项目</p><small id="order-session">临时演示订单 · 1 项</small></div></div>
-<dl><div><dt>演示金额</dt><dd>USD 10.00</dd></div><div><dt>真实扣款</dt><dd>无</dd></div><div class="total"><dt>模拟合计</dt><dd id="summary-amount">US$10.00</dd></div></dl>
+<dl><div><dt>模拟方式</dt><dd id="summary-method">微信支付（模拟）</dd></div><div><dt>演示金额</dt><dd id="summary-original-amount">￥10.00</dd></div><div><dt>真实扣款</dt><dd>无</dd></div><div class="total"><dt>模拟合计</dt><dd id="summary-amount">￥10.00</dd></div></dl>
 <p class="summary-note">金额固定，所有结果均为演示。请勿用于真实交易。</p>
 <details><summary>演示使用说明</summary><p>选择场景后创建新订单。待确认结果不会视为成功，您可以重新查询状态。</p><p>免费服务可能休眠，首次打开请稍候。订单保存在内存中，休眠或重启后清空。</p></details></aside></main>
 <footer><p>ElmPay 演示环境 · 不发生真实扣款</p><p>临时演示状态保存在内存中，服务休眠或重启后清空。</p></footer></div></body></html>`,
