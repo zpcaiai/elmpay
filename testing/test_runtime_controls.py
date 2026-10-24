@@ -22,6 +22,7 @@ from elmpay_runtime.compliance import (  # noqa: E402
     evaluate_vulnerability_report,
 )
 from elmpay_runtime.kubernetes import (  # noqa: E402
+    _cronjob_annotations,
     render_workloads,
     validate_workload_sources,
 )
@@ -69,6 +70,19 @@ class PlatformValidationTest(unittest.TestCase):
 
 
 class KubernetesControlTest(unittest.TestCase):
+    def test_cronjob_annotations_require_exact_namespace_and_named_key(self) -> None:
+        annotations = {
+            "elmpay.io/owner": "platform",
+            "elmpay.io.evil/owner": "foreign",
+            "foreign/elmpay.io/owner": "foreign",
+            "elmpay.io": "unnamed",
+            "elmpay.io/": "unnamed",
+            "elmpay.io/requires-drained-database-roles": "edge",
+            "argocd.argoproj.io/hook": "PreSync",
+        }
+        self.assertEqual({"elmpay.io/owner": "platform"},
+                         _cronjob_annotations(annotations))
+
     def setUp(self) -> None:
         self.policy = read_json(ROOT / "platform/kubernetes/workload-policy.json")
 
