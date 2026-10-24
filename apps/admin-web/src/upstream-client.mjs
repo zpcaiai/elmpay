@@ -1,5 +1,6 @@
 import { request as httpsRequest } from "node:https";
-import { readFileSync, realpathSync, statSync } from "node:fs";
+import { realpathSync } from "node:fs";
+import { readControlledFile } from "./controlled-file.mjs";
 import { dirname, isAbsolute, sep } from "node:path";
 import { buildDiagnosticView } from "./diagnostics.mjs";
 import { canonicalJson, sha256Hex } from "./canonical-json.mjs";
@@ -32,12 +33,7 @@ function controlledPem(path, label) {
   if (resolved !== mountParent && !resolved.startsWith(`${mountParent}${sep}`)) {
     throw new Error(`${label} must remain inside its controlled mount`);
   }
-  const stat = statSync(resolved, { throwIfNoEntry: true });
-  if (!stat.isFile() || stat.size < 1 || stat.size > 1_048_576
-      || (stat.mode & 0o222) !== 0) {
-    throw new Error(`${label} must be a bounded read-only regular file`);
-  }
-  return readFileSync(resolved);
+  return readControlledFile(resolved, label, 1_048_576);
 }
 
 function boundedJsonResponse(response, maximumBytes, allowedStatuses = new Set([200])) {

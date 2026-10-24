@@ -1,13 +1,11 @@
-import { readFileSync, statSync } from "node:fs";
+import { readControlledFile } from "./controlled-file.mjs";
 import { assertVerifiedOperator } from "./operator-auth.mjs";
 import { canonicalJson, sha256Hex } from "./canonical-json.mjs";
 
 const ACTION_KINDS = new Set(["CASE_CLOSE", "LIST_CHANGE", "REFUND_OVERRIDE", "ROLLOUT_APPROVAL"]);
 
 function requireControlledFile(path, label) {
-  const stat = statSync(path, { throwIfNoEntry: true });
-  if (!stat.isFile() || (stat.mode & 0o222) !== 0) throw new Error(`${label} must be a read-only regular file`);
-  return JSON.parse(readFileSync(path, "utf8"));
+  return JSON.parse(readControlledFile(path, label, 1_048_576).toString("utf8"));
 }
 
 function requireUniqueText(values, label) {
