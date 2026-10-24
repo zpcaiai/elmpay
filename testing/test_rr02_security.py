@@ -116,6 +116,8 @@ class SarifControls(unittest.TestCase):
                     './gradlew --no-daemon check -x test', 'verify module-registry'):
                 self.assertIn(expected, static)
             self.assertIn('upload: never', static)
+            self.assertIn('name: source-security-artifacts', static)
+            self.assertIn('name: static-analysis-artifacts', static)
             self.assertNotIn('continue-on-error', static)
             pipeline['source_security']['fail_on_any_result'] = False
             (root / 'governance/ci-pipeline.json').write_text(json.dumps(pipeline))

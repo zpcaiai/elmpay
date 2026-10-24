@@ -178,6 +178,13 @@ PY
 python3 scripts/rr02-security.py dast http://127.0.0.1:10000 --out build/rr02/dast.json
 '''
     lines.extend("          " + line for line in runtime.splitlines())
+    upload = actions["actions/upload-artifact"]
+    lines += [
+        f'      - uses: {upload["name"]}@{upload["ref"]}  # {upload["version_comment"]}',
+        "        if: always()", "        with:",
+        "          name: source-security-artifacts", "          path: build/rr02/",
+        "          retention-days: 1", "          if-no-files-found: error",
+    ]
     return lines
 
 
