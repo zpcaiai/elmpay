@@ -91,6 +91,38 @@ test("cookies are never an authentication fallback and unavailable dependency di
   assert.equal(createCalls, 0);
 });
 
+test("early cookie and request-shape denials are logged without authenticating cookies or executing actions", async () => {
+  const operator = await verifiedOperator();
+  let authentications = 0; let actions = 0;
+  const events = [];
+  const dependencies = fixture({ store: {
+    createApproval: async () => { actions += 1; },
+    getApproval: async () => { actions += 1; },
+  }, upstream: { diagnostic: async () => { actions += 1; } } });
+  const handler = createAdminHandler({ authenticator: {
+    verifyRequest: async () => { authentications += 1; return operator; },
+    isRecentStepUp: () => true,
+  }, policy, ...dependencies, publicOrigin: "https://admin.example.test",
+  logger: { event: (name, fields) => events.push({ name, fields }) } });
+  const cookie = await invoke(handler, { url: "/api/admin/approvals", method: "POST",
+    headers: { cookie: "must-never-be-logged" } });
+  assert.equal(cookie.status, 401);
+  assert.equal(JSON.parse(cookie.body).title, "COOKIE_AUTH_FORBIDDEN");
+  assert.equal(authentications, 0);
+  const cases = [
+    ["GET", "/api/admin/diagnostics?private-value=never-log", 400],
+    ["GET", "/api/admin/approvals", 405],
+    ["GET", "/api/admin/approvals/not-a-uuid?private-value=never-log", 404],
+  ];
+  for (const [method, url, status] of cases) {
+    assert.equal((await invoke(handler, { method, url })).status, status);
+  }
+  assert.equal(actions, 0);
+  assert.equal(events.length, 4);
+  assert.ok(events.every(event => event.name === "REQUEST_REJECTED"));
+  assert.doesNotMatch(JSON.stringify(events), /must-never|never-log|private-value/);
+});
+
 test("DPoP challenge is an unpredictable server nonce stored only by digest", async () => {
   const issued = [];
   const dependencies = fixture({ store: { issueNonce: async (record) => { issued.push(record); return true; } } });
