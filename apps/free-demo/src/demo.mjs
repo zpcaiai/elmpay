@@ -25,7 +25,13 @@ async function initialize() {
     });
     const render = controller.render.bind(controller);
     controller.render = view => {
+      const selected = document.querySelector('input[name="method"]:checked')?.value;
       render(view);
+      if (view.status === 'OPEN' && view.methods.some(method => method.id === selected && method.eligible)) {
+        for (const input of document.querySelectorAll('input[name="method"]')) {
+          if (input.value === selected && !input.disabled) input.checked = true;
+        }
+      }
       document.querySelector('#checkout').dataset.state = view.status;
       document.querySelector('#status').textContent = `模拟状态 · ${controller.statusText(view.status)}`;
       document.querySelector('#continue').textContent = '确认模拟支付（不扣款）';
