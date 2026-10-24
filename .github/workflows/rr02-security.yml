@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  security-events: read
 
 concurrency:
   group: rr02-security-${{ github.ref }}
@@ -46,7 +47,6 @@ jobs:
       - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           languages: java-kotlin,javascript-typescript,python
-          build-mode: manual
           queries: security-extended
       - name: Build all governed Java modules and the actual demo distribution
         run: ./gradlew --no-daemon --max-workers=2 --console=plain build :apps:edge-gateway:installDist
