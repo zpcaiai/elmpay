@@ -220,7 +220,8 @@ export function createHandler({
         return;
       }
       try {
-        const target = new URL(path, upstream);
+        const target = new URL(upstream);
+        target.pathname = path;
         target.searchParams.set('method', method);
         target.searchParams.set('channel', channel);
         const upstreamResponse = await transport(target, {
@@ -251,7 +252,8 @@ export function createHandler({
     }
     try {
       const body = request.method === 'POST' ? await boundedBody(request, 32_768) : undefined;
-      const target = new URL(path, upstream);
+      const target = new URL(upstream);
+      target.pathname = path;
       const upstreamResponse = await transport(target, {
         method: request.method,
         redirect: 'manual',
