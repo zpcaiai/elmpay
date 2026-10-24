@@ -115,3 +115,40 @@ test('provider-observed decline and unknown remain visible across authoritative 
     } finally { await close(server); await close(upstream); }
   }
 });
+
+test('additional native sandbox scenarios pass only validated synthetic commands upstream', async () => {
+  const calls = [];
+  const upstream = await listen(async (request, response) => {
+    const chunks = []; for await (const chunk of request) chunks.push(chunk);
+    calls.push({ url: request.url, body: JSON.parse(Buffer.concat(chunks).toString()) });
+    const create = request.url === '/v1/checkout-sessions';
+    response.writeHead(create ? 201 : 200, { 'content-type': 'application/json' }).end(JSON.stringify(
+      create ? { checkout_session_id: session,
+        checkout_url: `https://elmpay.vercel.app/checkout#session=${session}&token=${token}` }
+        : { checkoutSessionId: session, status: 'PENDING', nextAction: {} }));
+  });
+  const config = demoConfiguration({ ...enabled, ELMPAY_DEMO_GATEWAY_PORT: String(upstream.address().port) });
+  const server = await listen(createDemoBridge(config));
+  const origin = `http://127.0.0.1:${server.address().port}`;
+  try {
+    for (const scenario of ['authorized', 'requires_action']) {
+      const headers = { origin: enabled.ELMPAY_DEMO_PUBLIC_ORIGIN, 'content-type': 'application/json',
+        'idempotency-key': `demo-extra-${scenario}-0001`, authorization: `CheckoutSession ${token}` };
+      const created = await fetch(`${origin}/demo/orders`, { method: 'POST', headers,
+        body: JSON.stringify({ scenario }) });
+      assert.equal(created.status, 201);
+      const result = await fetch(`${origin}/api/checkout/sessions/${session}/confirm`, {
+        method: 'POST', headers, body: JSON.stringify({ method: 'card',
+          payment_method_reference: `psp://elmpay-demo/${session}`, provider_parameters: { simulation: scenario } }),
+      });
+      assert.equal(result.status, 200);
+      assert.equal((await result.json()).status, 'PENDING');
+      assert.equal(calls.at(-1).body.provider_parameters.simulation, scenario);
+    }
+    const count = calls.length;
+    assert.equal((await fetch(`${origin}/demo/orders`, { method: 'POST',
+      headers: { origin: enabled.ELMPAY_DEMO_PUBLIC_ORIGIN, 'content-type': 'application/json',
+        'idempotency-key': 'demo-live-unsupported-0001' }, body: '{"scenario":"live"}' })).status, 400);
+    assert.equal(calls.length, count);
+  } finally { await close(server); await close(upstream); }
+});

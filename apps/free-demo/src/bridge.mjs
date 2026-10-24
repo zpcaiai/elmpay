@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
-export const scenarios = Object.freeze(['succeeded', 'declined', 'unknown']);
+export const scenarios = Object.freeze(['succeeded', 'declined', 'unknown', 'authorized', 'requires_action']);
 const sessionPattern = /^\/api\/checkout\/sessions\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})(\/confirm)?$/;
 const bearerPattern = /^CheckoutSession [A-Za-z0-9_-]{48}\.[A-Za-z0-9_-]{43}$/;
 const keyPattern = /^[A-Za-z0-9._:-]{16,100}$/;
