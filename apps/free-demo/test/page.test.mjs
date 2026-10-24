@@ -77,6 +77,18 @@ test('UI presentation follows authoritative state and never treats pending or un
   assert.match(demo.demoPresentation({ status: 'PENDING' }).description, /未.*成功|不会.*成功/);
 });
 
+test('closed-state display hides internal codes without changing server status or method eligibility', () => {
+  const original = { status: 'PENDING', methods: [{ id: 'card', label: '银行卡', eligible: false,
+    reason: 'SESSION_NOT_OPEN' }] };
+  const view = demo.demoDisplayView(original);
+  assert.equal(view.status, original.status);
+  assert.equal(view.methods[0].eligible, false);
+  assert.equal(view.methods[0].reason, '');
+  assert.equal(original.methods[0].reason, 'SESSION_NOT_OPEN');
+  const open = { ...original, status: 'OPEN' };
+  assert.equal(demo.demoDisplayView(open), open);
+});
+
 test('create retry keys stay with one scenario and rotate for a changed scenario', () => {
   const values = new Map();
   const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };

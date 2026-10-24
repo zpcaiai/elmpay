@@ -29,6 +29,11 @@ export function demoPresentation(view) {
   }
 }
 
+export function demoDisplayView(view) {
+  if (view.status === 'OPEN') return view;
+  return { ...view, methods: view.methods.map(method => ({ ...method, reason: '' })) };
+}
+
 export function demoCreateRequest(storage, scenario) {
   if (!allowed.has(scenario)) throw new Error('invalid demo scenario');
   let stored;
@@ -79,7 +84,7 @@ async function initialize() {
     };
     controller.render = view => {
       const selected = document.querySelector('input[name="method"]:checked')?.value;
-      render(view);
+      render(demoDisplayView(view));
       if (view.status === 'OPEN' && view.methods.some(method => method.id === selected && method.eligible)) {
         for (const input of document.querySelectorAll('input[name="method"]')) {
           if (input.value === selected && !input.disabled) input.checked = true;
