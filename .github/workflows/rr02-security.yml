@@ -44,11 +44,13 @@ jobs:
           assert shutil.disk_usage('.').free >= 8 * 1024**3
           PY
           python3 -m unittest testing.test_rr02_security -v
+          node --test apps/free-demo/test/*.test.mjs apps/checkout-web/test/*.test.mjs apps/admin-web/test/*.test.mjs
       - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           languages: java-kotlin,javascript-typescript,python
           queries: security-extended
       - name: Build all governed Java modules and the actual demo distribution
+        id: native-build
         run: ./gradlew --no-daemon --max-workers=2 --console=plain build :apps:edge-gateway:installDist
       - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
@@ -57,6 +59,7 @@ jobs:
       - name: Reject missing execution evidence and every CodeQL finding
         run: python3 scripts/rr02-security.py sarif build/rr02/codeql --out build/rr02/sast.json
       - name: DAST against the built Java and Node sandbox, with owned process cleanup
+        if: always() && steps.native-build.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -81,6 +84,7 @@ jobs:
           PY
           python3 scripts/rr02-security.py dast http://127.0.0.1:10000 --out build/rr02/dast.json
       - name: Real aggregate dependency vulnerability scan, original zero-findings policy
+        if: always() && steps.native-build.outcome == 'success'
         run: |
           python3 -m tools.paygov.nvdfeed --repo .
           ./gradlew --no-daemon --max-workers=2 dependencyCheckAggregate cyclonedxBom
