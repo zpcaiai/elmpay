@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { renderDemoPage, demoAsset } from '../src/page.mjs';
 import { demoReference } from '../src/demo.mjs';
 import * as demo from '../src/demo.mjs';
+import { scenarios } from '../src/bridge.mjs';
 
 test('standalone page visibly forbids real funds and never offers card-data inputs', () => {
   const first = renderDemoPage(); const second = renderDemoPage();
@@ -54,4 +55,56 @@ test('browser API transport preserves the native fetch Window receiver', async (
     const controller = { api: demo.demoApi };
     assert.equal(await controller.api('/api/checkout/sessions/example', { cache: 'no-store' }), expected);
   } finally { globalThis.fetch = original; }
+});
+
+test('all native demo scenarios have labeled choices and synthetic-only references', () => {
+  assert.deepEqual(demo.demoScenarios.map(value => value.id), scenarios);
+  const html = renderDemoPage().html;
+  for (const scenario of scenarios) {
+    assert.ok(html.includes(`value="${scenario}"`));
+    assert.equal(demoReference('21000000-0000-4000-8000-000000000004', scenario)
+      .providerParameters.simulation, scenario);
+  }
+});
+
+test('UI presentation follows authoritative state and never treats pending or unknown as success', () => {
+  for (const status of ['OPEN', 'PENDING', 'FAILED', 'EXPIRED', 'CANCELED', 'not-a-state']) {
+    const value = demo.demoPresentation({ status, scenario: 'succeeded' });
+    assert.notEqual(value.tone, 'success');
+    assert.doesNotMatch(value.heading, /已成功/);
+  }
+  assert.equal(demo.demoPresentation({ status: 'SUCCEEDED', scenario: 'declined' }).tone, 'success');
+  assert.match(demo.demoPresentation({ status: 'PENDING' }).description, /未.*成功|不会.*成功/);
+});
+
+test('create retry keys stay with one scenario and rotate for a changed scenario', () => {
+  const values = new Map();
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const first = demo.demoCreateRequest(storage, 'succeeded');
+  assert.deepEqual(demo.demoCreateRequest(storage, 'succeeded'), first);
+  assert.notEqual(demo.demoCreateRequest(storage, 'declined').key, first.key);
+  assert.throws(() => demo.demoCreateRequest(storage, 'live'), /invalid demo/);
+});
+
+test('page provides semantic progress, recovery, skip navigation and readable contrast', () => {
+  const html = renderDemoPage().html;
+  assert.match(html, /href="#main"/);
+  assert.match(html, /aria-label="演示进度"/);
+  assert.match(html, /id="order-summary-title"/);
+  assert.match(html, /id="retry-status"/);
+  assert.match(html, /:focus-visible/);
+  assert.match(html, /min-height:48px/);
+  const colors = Object.fromEntries([...html.matchAll(/--([a-z-]+):\s*(#[0-9a-f]{6})/g)]
+    .map(match => [match[1], match[2]]));
+  function luminance(hex) {
+    const channels = hex.slice(1).match(/../g).map(value => parseInt(value, 16) / 255)
+      .map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4);
+    return channels[0] * .2126 + channels[1] * .7152 + channels[2] * .0722;
+  }
+  for (const [foreground, background] of [['ink', 'surface'], ['muted', 'surface'],
+    ['surface', 'brand'], ['warning', 'warning-bg'], ['danger', 'surface']]) {
+    assert.ok(colors[foreground] && colors[background]);
+    const values = [luminance(colors[foreground]), luminance(colors[background])].sort((a, b) => b - a);
+    assert.ok((values[0] + .05) / (values[1] + .05) >= 4.5, foreground + ' contrast too low');
+  }
 });
