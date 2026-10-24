@@ -98,6 +98,39 @@ test('create retry keys stay with one scenario and rotate for a changed scenario
   assert.throws(() => demo.demoCreateRequest(storage, 'live'), /invalid demo/);
 });
 
+test('WeChat simulation is explicit and profile changes cannot reuse card order keys', () => {
+  const html = renderDemoPage().html;
+  assert.match(html, /微信支付（模拟）/);
+  assert.match(html, /￥10\.00/);
+  assert.match(html, /不生成真实支付二维码/);
+  assert.match(html, /id="demo-method"/);
+  assert.equal(demo.demoProfiles[0].method, 'wechat_native');
+  assert.equal(demo.demoProfiles[0].currency, 'CNY');
+  const values = new Map();
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const card = demo.demoCreateRequest(storage, 'unknown', 'card');
+  const wechat = demo.demoCreateRequest(storage, 'unknown', 'wechat_native');
+  assert.notEqual(wechat.key, card.key);
+  assert.deepEqual(demo.demoCreateRequest(storage, 'unknown', 'wechat_native'), wechat);
+  assert.notEqual(demo.demoCreateRequest(storage, 'declined', 'wechat_native').key, wechat.key);
+  assert.throws(() => demo.demoCreateRequest(storage, 'unknown', 'wechat_jsapi'), /invalid demo/);
+});
+
+test('WeChat display retains actual server method, amount, state and eligibility', () => {
+  const original = { amount: 1000, currency: 'CNY', displayAmount: '￥10.00', status: 'PENDING',
+    methods: [{ id: 'wechat_native', label: '微信支付', eligible: false, reason: 'SESSION_NOT_OPEN' }] };
+  const result = demo.demoDisplayView(original);
+  assert.equal(result.methods[0].id, 'wechat_native');
+  assert.equal(result.methods[0].label, '微信支付（模拟）');
+  assert.equal(result.methods[0].eligible, false);
+  assert.equal(result.currency, 'CNY');
+  assert.equal(result.amount, 1000);
+  assert.equal(result.displayAmount, original.displayAmount);
+  assert.equal(result.status, 'PENDING');
+  assert.equal(original.methods[0].label, '微信支付');
+  assert.equal(demo.demoDisplayView({ ...original, status: 'OPEN' }).methods[0].label, '微信支付（模拟）');
+});
+
 test('page provides semantic progress, recovery, skip navigation and readable contrast', () => {
   const html = renderDemoPage().html;
   assert.match(html, /href="#main"/);

@@ -6,6 +6,10 @@ export const demoScenarios = Object.freeze([
   { id: 'requires_action', label: '模拟需要进一步操作', hint: '体验需要额外操作的待确认状态，不跳转真实认证页面。' },
 ]);
 const allowed = new Set(demoScenarios.map(value => value.id));
+export const demoProfiles = Object.freeze([
+  { method: 'wechat_native', label: '微信支付（模拟）', currency: 'CNY', displayAmount: '￥10.00' },
+  { method: 'card', label: '银行卡（模拟）', currency: 'USD', displayAmount: 'US$10.00' },
+]);
 
 // Native browser fetch requires its Window receiver when called as a method.
 export function demoApi(...args) { return globalThis.fetch(...args); }
@@ -30,16 +34,22 @@ export function demoPresentation(view) {
 }
 
 export function demoDisplayView(view) {
-  if (view.status === 'OPEN') return view;
-  return { ...view, methods: view.methods.map(method => ({ ...method, reason: '' })) };
+  if (view.status === 'OPEN' && !view.methods.some(method => method.id === 'wechat_native')) return view;
+  return { ...view, methods: view.methods.map(method => ({ ...method,
+    label: method.id === 'wechat_native' ? '微信支付（模拟）' : method.label,
+    reason: view.status === 'OPEN' ? method.reason : '',
+  })) };
 }
 
-export function demoCreateRequest(storage, scenario) {
-  if (!allowed.has(scenario)) throw new Error('invalid demo scenario');
+export function demoCreateRequest(storage, scenario, method = 'card') {
+  if (!allowed.has(scenario) || !demoProfiles.some(profile => profile.method === method)) {
+    throw new Error('invalid demo scenario or method');
+  }
   let stored;
   try { stored = JSON.parse(storage.getItem('elmpay.demo.create-request') ?? 'null'); } catch { stored = null; }
-  if (stored?.scenario === scenario && /^demo-[0-9a-f-]{36}$/.test(stored.key ?? '')) return stored;
-  const request = { key: `demo-${crypto.randomUUID()}`, scenario };
+  if (stored?.scenario === scenario && (stored.method ?? 'card') === method
+      && /^demo-[0-9a-f-]{36}$/.test(stored.key ?? '')) return stored;
+  const request = { key: `demo-${crypto.randomUUID()}`, scenario, method };
   storage.setItem('elmpay.demo.create-request', JSON.stringify(request));
   return request;
 }
@@ -86,7 +96,8 @@ async function initialize() {
       const selected = document.querySelector('input[name="method"]:checked')?.value;
       const focused = document.activeElement?.matches('input[name="method"]')
         ? document.activeElement.value : null;
-      render(demoDisplayView(view));
+      const displayed = demoDisplayView(view);
+      render(displayed);
       if (view.status === 'OPEN' && view.methods.some(method => method.id === selected && method.eligible)) {
         for (const input of document.querySelectorAll('input[name="method"]')) {
           if (input.value === selected && !input.disabled) input.checked = true;
@@ -98,6 +109,8 @@ async function initialize() {
       document.querySelector('#page-title').textContent = presentation.heading;
       document.querySelector('#result-description').textContent = presentation.description;
       document.querySelector('#summary-amount').textContent = view.displayAmount;
+      document.querySelector('#summary-original-amount').textContent = view.displayAmount;
+      document.querySelector('#summary-method').textContent = displayed.methods.map(method => method.label).join(' / ');
       document.querySelector('#order-session').textContent = `演示订单 · ${view.checkoutSessionId.slice(-8)}`;
       document.querySelector('#status').textContent = `模拟状态 · ${controller.statusText(view.status)}`;
       document.querySelector('#continue').textContent = '确认模拟支付（不扣款）';
@@ -142,6 +155,15 @@ async function initialize() {
     document.querySelector('#create-status').textContent = '演示链接不完整或已失效，请重新创建订单。';
   }
   const scenarioInput = document.querySelector('#scenario');
+  const methodInput = document.querySelector('#demo-method');
+  const describeMethod = () => {
+    const profile = demoProfiles.find(value => value.method === methodInput.value);
+    if (!profile) return;
+    document.querySelector('#summary-original-amount').textContent = profile.displayAmount;
+    document.querySelector('#summary-amount').textContent = profile.displayAmount;
+    document.querySelector('#summary-method').textContent = profile.label;
+  };
+  methodInput.addEventListener('change', describeMethod); describeMethod();
   const describeScenario = () => {
     document.querySelector('#scenario-description').textContent =
       demoScenarios.find(value => value.id === scenarioInput.value)?.hint ?? '请选择支持的演示场景。';
@@ -154,17 +176,19 @@ async function initialize() {
     output.textContent = '正在创建演示订单…';
     try {
       const scenario = document.querySelector('#scenario').value;
+      const method = methodInput.value;
       if (!allowed.has(scenario)) throw new Error('invalid scenario');
-      const { key } = demoCreateRequest(sessionStorage, scenario);
+      const { key } = demoCreateRequest(sessionStorage, scenario, method);
       const response = await fetch('/demo/orders', {
         method: 'POST', credentials: 'same-origin', cache: 'no-store', referrerPolicy: 'no-referrer',
         headers: { 'content-type': 'application/json', 'idempotency-key': key },
-        body: JSON.stringify({ scenario }),
+        body: JSON.stringify({ scenario, payment_method: method }),
       });
       if (response.status !== 201) throw new Error('creation unavailable');
       const created = await response.json();
       const target = new URL(created.checkout_url);
-      if (created.demo !== true || created.real_payments !== false || target.pathname !== '/checkout') {
+      if (created.demo !== true || created.real_payments !== false || target.pathname !== '/checkout'
+          || created.payment_method !== method || created.simulation_engine !== 'local-sandbox') {
         throw new Error('not a demo session');
       }
       sessionStorage.setItem(`elmpay.demo.scenario.${created.checkout_session_id}`, scenario);
