@@ -60,7 +60,9 @@ public record Money(long amountMinor, CurrencyUnit currency) implements Comparab
             result.add(new Money(share, currency));
             allocated = Math.addExact(allocated, share);
         }
-        long remainder = amountMinor - allocated;
+        // Each division drops less than one unit, so the remainder is smaller
+        // than the number of recipients. Check the index-width conversion.
+        int remainder = Math.toIntExact(amountMinor - allocated);
         for (int index = 0; index < remainder; index++) {
             Money current = result.get(index % result.size());
             result.set(index % result.size(), new Money(current.amountMinor + 1, currency));

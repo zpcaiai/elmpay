@@ -22,6 +22,15 @@ class SarifControls(unittest.TestCase):
     def test_actual_complete_zero_findings_report_is_accepted(self):
         self.assertEqual(MODULE.check_sarif(self.document)["findings"], 0)
 
+    def test_codeql_query_pack_extensions_have_real_rules(self):
+        tool = self.document["runs"][0]["tool"]
+        rules = tool["driver"].pop("rules")
+        tool["extensions"] = [{"name": "codeql/java-queries", "rules": rules}]
+        self.assertEqual(MODULE.check_sarif(self.document)["rules"], 1)
+        tool["extensions"][0]["rules"] = []
+        with self.assertRaises(ValueError):
+            MODULE.check_sarif(self.document)
+
     def test_empty_missing_or_failed_execution_is_rejected(self):
         mutations = [
             lambda d: d.update(runs=[]),

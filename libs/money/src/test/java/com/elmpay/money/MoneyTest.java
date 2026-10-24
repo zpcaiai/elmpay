@@ -27,4 +27,12 @@ final class MoneyTest {
         assertEquals(101, parts.stream().mapToLong(Money::amountMinor).sum());
         assertEquals(List.of(34L, 34L, 33L), parts.stream().map(Money::amountMinor).toList());
     }
+
+    @Test
+    void allocationBoundsRemainderEvenForMaximumAmount() {
+        List<Money> parts = Money.of(Long.MAX_VALUE, "CNY").allocate(List.of(1L, 1L, 1L));
+        assertEquals(Long.MAX_VALUE, parts.stream().mapToLong(Money::amountMinor).sum());
+        assertEquals(List.of(3_074_457_345_618_258_603L, 3_074_457_345_618_258_602L,
+                3_074_457_345_618_258_602L), parts.stream().map(Money::amountMinor).toList());
+    }
 }

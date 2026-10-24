@@ -21,7 +21,10 @@ def check_sarif(document):
     rule_count = 0
     for run in document["runs"]:
         driver = run.get("tool", {}).get("driver", {})
-        rules = driver.get("rules", [])
+        # CodeQL 2.27 writes query packs as SARIF tool extensions. Both forms
+        # are SARIF 2.1; an empty driver alone still proves no queries ran.
+        components = [driver, *run.get("tool", {}).get("extensions", [])]
+        rules = [rule for component in components for rule in component.get("rules", [])]
         if driver.get("name") != "CodeQL" or not rules:
             raise ValueError("CodeQL query rules are missing")
         rule_count += len(rules)
@@ -120,8 +123,8 @@ def main():
     if args.mode == "sarif":
         directory = Path(args.target)
         paths = sorted(directory.glob("*.sarif"))
-        if not paths:
-            raise ValueError("no CodeQL SARIF files")
+        if {p.name for p in paths} != {"java.sarif", "javascript.sarif", "python.sarif"}:
+            raise ValueError("all three declared CodeQL language reports are required")
         result = {str(p): {**check_sarif(json.loads(p.read_text())),
                             "sha256": hashlib.sha256(p.read_bytes()).hexdigest()} for p in paths}
     else:
