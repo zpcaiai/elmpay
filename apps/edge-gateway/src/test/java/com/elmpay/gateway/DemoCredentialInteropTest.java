@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
+import java.io.File;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -13,11 +15,14 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.time.Duration;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 final class DemoCredentialInteropTest {
     @Test
@@ -27,7 +32,9 @@ final class DemoCredentialInteropTest {
             root = root.getParent();
         }
         assertTrue(root != null, "repository root must be available");
-        Process generator = new ProcessBuilder("node", "--input-type=module", "-e", """
+        String node = nodeExecutable(System.getenv("PATH"));
+        assertTrue(Path.of(node).isAbsolute());
+        Process generator = new ProcessBuilder(node, "--input-type=module", "-e", """
                 import { demoConfiguration } from './apps/free-demo/src/bridge.mjs';
                 const config = demoConfiguration({ELMPAY_DEMO_ENABLED:'true',
                   ELMPAY_DEMO_REAL_PAYMENTS_DISABLED:'true'});
@@ -73,6 +80,37 @@ final class DemoCredentialInteropTest {
         } finally {
             if (generator.isAlive()) generator.destroyForcibly();
         }
+    }
+
+    @Test
+    void relativePathsAndWorkspaceExecutablesCannotSelectTheToolchain(@TempDir Path temporary) throws Exception {
+        Path candidate = temporary.resolve("node");
+        Files.writeString(candidate, "#!/bin/sh\nexit 99\n");
+        assertTrue(candidate.toFile().setExecutable(true, true));
+        assertThrows(IOException.class, () -> nodeExecutable("."));
+        assertThrows(IOException.class, () -> nodeExecutable(temporary.toString()));
+    }
+
+    private static String nodeExecutable(String searchPath) throws IOException {
+        List<Path> installations = List.of(Path.of("/opt/hostedtoolcache/node"),
+                Path.of("/Users/runner/hostedtoolcache/node"), Path.of("/opt/homebrew/Cellar"),
+                Path.of("/usr/local/Cellar"));
+        for (String value : (searchPath == null ? "" : searchPath).split(File.pathSeparator)) {
+            Path directory = Path.of(value);
+            if (!directory.isAbsolute()) continue;
+            Path entry = directory.resolve("node");
+            if (!Files.isRegularFile(entry) || !Files.isExecutable(entry)) continue;
+            Path executable = entry.toRealPath();
+            boolean installed = installations.stream().anyMatch(executable::startsWith)
+                    || executable.equals(Path.of("/usr/bin/node"))
+                    || executable.equals(Path.of("/usr/local/bin/node"));
+            if (!installed) continue;
+            var permissions = Files.getPosixFilePermissions(executable);
+            if (permissions.contains(PosixFilePermission.GROUP_WRITE)
+                    || permissions.contains(PosixFilePermission.OTHERS_WRITE)) continue;
+            return executable.toString();
+        }
+        throw new IOException("an absolute, non-writable-by-others installed Node toolchain is required");
     }
 
     @Test
