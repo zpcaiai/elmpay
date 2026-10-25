@@ -188,13 +188,13 @@ public final class StrictJson {
             List<Object> result = new ArrayList<>();
             whitespace();
             if (consume(']')) {
-                return List.copyOf(result);
+                return Collections.unmodifiableList(result);
             }
             while (true) {
                 result.add(value());
                 whitespace();
                 if (consume(']')) {
-                    return List.copyOf(result);
+                    return Collections.unmodifiableList(result);
                 }
                 expect(',');
             }
@@ -238,6 +238,15 @@ public final class StrictJson {
             if (index + 4 > input.length()) {
                 throw new IllegalArgumentException("invalid JSON unicode escape");
             }
+            for (int offset = index; offset < index + 4; offset++) {
+                char character = input.charAt(offset);
+                boolean hexadecimal = character >= '0' && character <= '9'
+                        || character >= 'a' && character <= 'f'
+                        || character >= 'A' && character <= 'F';
+                if (!hexadecimal) {
+                    throw new IllegalArgumentException("invalid JSON unicode escape");
+                }
+            }
             try {
                 char value = (char) Integer.parseInt(input.substring(index, index + 4), 16);
                 index += 4;
@@ -253,12 +262,12 @@ public final class StrictJson {
                 throw new IllegalArgumentException("invalid JSON number");
             }
             if (consume('0')) {
-                if (!done() && Character.isDigit(input.charAt(index))) {
+                if (!done() && input.charAt(index) >= '0' && input.charAt(index) <= '9') {
                     throw new IllegalArgumentException("JSON number has a leading zero");
                 }
             } else {
                 int firstDigit = index;
-                while (!done() && Character.isDigit(input.charAt(index))) {
+                while (!done() && input.charAt(index) >= '0' && input.charAt(index) <= '9') {
                     index++;
                 }
                 if (firstDigit == index) {
