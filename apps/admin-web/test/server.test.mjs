@@ -139,6 +139,104 @@ test("DPoP challenge is an unpredictable server nonce stored only by digest", as
   assert.notEqual(issued[0].nonceDigest, firstNonce);
 });
 
+test("query shape cannot bypass the actual diagnostic and approval authorization policies", async () => {
+  const operator = await verifiedOperator({ sub: "risk-query", roles: ["risk-analyst"] });
+  const calls = []; let effects = 0;
+  const recordingPolicy = Object.create(policy);
+  for (const method of ["authorizeDiagnostic", "authorizeAction"]) {
+    recordingPolicy[method] = (...args) => {
+      calls.push({ method, tenant: args[1] });
+      return policy[method](...args);
+    };
+  }
+  const approvalId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const dependencies = fixture({ store: {
+    getApproval: async (tenant, id) => {
+      assert.equal(tenant, TENANT); assert.equal(id, approvalId);
+      return { id, tenantId: tenant, kind: "LIST_CHANGE" };
+    },
+    createApproval: async () => { effects += 1; },
+    decideApproval: async () => { effects += 1; },
+  }, upstream: { diagnostic: async () => { effects += 1; } } });
+  const handler = createAdminHandler({ authenticator: {
+    verifyRequest: async () => operator, isRecentStepUp: () => true,
+  }, policy: recordingPolicy, ...dependencies, publicOrigin: "https://admin.example.test" });
+  const cases = [
+    { url: `/api/admin/diagnostics?tenantId=${TENANT}&tenantId=${TENANT}&service=risk-engine`, status: 400,
+      methodName: "authorizeDiagnostic" },
+    { method: "POST", url: "/api/admin/approvals?extra=forbidden", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tenantId: TENANT, kind: "LIST_CHANGE" }), status: 405, methodName: "authorizeAction" },
+    { url: `/api/admin/approvals/${approvalId}?tenantId=${TENANT}&tenantId=${TENANT}`,
+      status: 404, methodName: "authorizeAction" },
+  ];
+  for (const request of cases) {
+    const before = calls.length;
+    assert.equal((await invoke(handler, request)).status, request.status);
+    assert.deepEqual(calls.slice(before), [{ method: request.methodName, tenant: TENANT }]);
+  }
+  assert.equal(effects, 0);
+});
+
+test("approval lookup and authority remain bound to the verified tenant, never the requested tenant", async () => {
+  const operator = await verifiedOperator({ sub: "risk-tenant", roles: ["risk-analyst"] });
+  const foreign = "22222222-2222-4222-8222-222222222222";
+  const approvalId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const scopes = []; const audits = []; let effects = 0;
+  const dependencies = fixture({ store: {
+    getApproval: async (tenant, id) => {
+      scopes.push(tenant); return { id, tenantId: tenant, kind: "LIST_CHANGE" };
+    },
+    recordAccess: async (event) => audits.push(event),
+    createApproval: async () => { effects += 1; },
+    decideApproval: async () => { effects += 1; },
+  } });
+  const handler = createAdminHandler({ authenticator: {
+    verifyRequest: async () => operator, isRecentStepUp: () => true,
+  }, policy, ...dependencies, publicOrigin: "https://admin.example.test" });
+  const denied = await invoke(handler, { url: `/api/admin/approvals/${approvalId}?tenantId=${foreign}` });
+  assert.equal(denied.status, 403);
+  assert.deepEqual(scopes, [TENANT]);
+  assert.equal(audits.at(-1).decision, "DENY");
+  assert.equal(audits.at(-1).tenantId, TENANT);
+  assert.equal(effects, 0);
+});
+
+test("unprivileged and stale step-up identities remain denied even when the query is malformed", async () => {
+  const unprivileged = await verifiedOperator({ roles: ["unregistered-operator"] });
+  const risk = await verifiedOperator({ sub: "risk-stale", roles: ["risk-analyst"] });
+  let effects = 0;
+  const dependencies = fixture({ store: { createApproval: async () => { effects += 1; } },
+    upstream: { diagnostic: async () => { effects += 1; } } });
+  for (const [operator, method, url, body] of [
+    [unprivileged, "GET", "/api/admin/diagnostics?extra=invalid", ""],
+    [risk, "POST", "/api/admin/approvals?extra=invalid", JSON.stringify({ tenantId: TENANT, kind: "LIST_CHANGE" })],
+  ]) {
+    const handler = createAdminHandler({ authenticator: {
+      verifyRequest: async () => operator, isRecentStepUp: () => false,
+    }, policy, ...dependencies, publicOrigin: "https://admin.example.test" });
+    assert.equal((await invoke(handler, { method, url, headers: { "content-type": "application/json" }, body })).status, 403);
+  }
+  assert.equal(effects, 0);
+});
+
+test("approval reads reject a record outside the verified tenant even if the store returns it", async () => {
+  const operator = await verifiedOperator({ sub: "risk-row", roles: ["risk-analyst"] });
+  const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const audits = [];
+  const dependencies = fixture({ store: {
+    getApproval: async () => ({ id, tenantId: "22222222-2222-4222-8222-222222222222",
+      kind: "LIST_CHANGE", targetId: "foreign-secret-target" }),
+    recordAccess: async event => audits.push(event),
+  } });
+  const handler = createAdminHandler({ authenticator: {
+    verifyRequest: async () => operator, isRecentStepUp: () => true,
+  }, policy, ...dependencies, publicOrigin: "https://admin.example.test" });
+  const result = await invoke(handler, { url: `/api/admin/approvals/${id}?tenantId=${TENANT}` });
+  assert.equal(result.status, 403);
+  assert.doesNotMatch(result.body, /foreign-secret-target/);
+  assert.equal(audits.at(-1).decision, "DENY");
+});
+
 test("external diagnostic transport is pinned to TLS 1.3, rejects redirects and bounds response bytes", () => {
   const source = fileURLToPath(new URL("../src/upstream-client.mjs", import.meta.url));
   assert.ok(source.endsWith("upstream-client.mjs"));
