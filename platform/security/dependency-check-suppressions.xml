@@ -23,29 +23,4 @@
     <packageUrl>pkg:maven/org.apache.kafka/kafka-clients@4.2.0</packageUrl>
     <cve>CVE-2026-41115</cve>
   </suppress>
-  <suppress>
-    <notes><![CDATA[
-      Local aggregate scan on 2026-09-30: Dependency-Check associated this
-      first-party com.elmpay PayPal connector JAR with the unrelated PayPal
-      Android app 5.3 WebHybridClient vulnerabilities. The evidence report
-      assigns the PayPal CPE LOW confidence. This is not an Android artifact.
-      Source: https://nvd.nist.gov/vuln/detail/CVE-2013-7201
-      Review again if the connector artifact coordinates change.
-    ]]></notes>
-    <packageUrl>pkg:maven/com.elmpay/paypal@0.1.0-SNAPSHOT</packageUrl>
-    <cve>CVE-2013-7201</cve>
-    <cve>CVE-2013-7202</cve>
-  </suppress>
-  <suppress>
-    <notes><![CDATA[
-      Local aggregate scan on 2026-09-30: Dependency-Check associated this
-      first-party com.elmpay Stripe connector JAR with Stripe for VS Code.
-      Stripe's advisory applies to the vscode-stripe extension before 1.7.3,
-      not to this Java connector; the matched CPE has LOW confidence.
-      Source: https://github.com/stripe/vscode-stripe/security/advisories/GHSA-j6x4-4622-8vv3
-      Review again if the connector artifact coordinates change.
-    ]]></notes>
-    <packageUrl>pkg:maven/com.elmpay/stripe@0.1.0-SNAPSHOT</packageUrl>
-    <cve>CVE-2021-21420</cve>
-  </suppress>
 </suppressions>
