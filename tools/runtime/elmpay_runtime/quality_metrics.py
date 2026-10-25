@@ -18,6 +18,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 from typing import Any, Mapping, Sequence
 import xml.etree.ElementTree as ET
@@ -852,6 +853,21 @@ def _tool_execution(
         stderr = bytes(exc.stderr or b"") + b"\nquality tool timed out"
         failure_kind = "TIMEOUT"
     duration = max(0, (time.monotonic_ns() - started) // 1_000_000)
+    output_root = _safe_report_path(cwd, "build/quality-metrics/tool-output")
+    output_root.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(tempfile.mkdtemp(prefix="execution-", dir=output_root))
+    receipt = {
+        "tool": tool, "command": list(command), "executed": True,
+        "executor_pid": os.getpid(), "exit_code": exit_code,
+        "stdout_sha256": _sha256(stdout), "stderr_sha256": _sha256(stderr),
+    }
+    for name, raw in (
+        ("stdout.log", stdout), ("stderr.log", stderr),
+        ("receipt.json", json.dumps(receipt, sort_keys=True).encode("utf-8")),
+    ):
+        descriptor = os.open(output_dir / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(raw)
     return ToolExecution(
         tool,
         tuple(command),

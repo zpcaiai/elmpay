@@ -6,6 +6,7 @@ supplied percentage or a green boolean is never sufficient to pass the gate.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -63,6 +64,37 @@ def _policy() -> dict[str, object]:
 
 
 class QualityCoverageMutationGateTest(unittest.TestCase):
+    def test_real_failed_tool_preserves_private_raw_output_and_digests(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            command = (sys.executable, "-c", (
+                "import sys; print('quality stdout'); "
+                "sys.stderr.write('quality diagnostic\\n'); sys.exit(7)"))
+            result = _tool_execution(
+                "coverage.py", command, cwd=root, environment={}, timeout=10,
+                version="test-process",
+            )
+            self.assertEqual(7, result.exit_code)
+            self.assertEqual("EXECUTION_FAILED", result.failure_kind)
+            receipts = list((root / "build/quality-metrics/tool-output").glob("*/receipt.json"))
+            self.assertEqual(1, len(receipts))
+            receipt = json.loads(receipts[0].read_text())
+            self.assertEqual(list(command), receipt["command"])
+            self.assertTrue(receipt["executed"])
+            self.assertGreater(receipt["executor_pid"], 0)
+            self.assertEqual(7, receipt["exit_code"])
+            for name, expected, digest in (
+                ("stdout", b"quality stdout\n", result.stdout_digest),
+                ("stderr", b"quality diagnostic\n", result.stderr_digest),
+            ):
+                path = receipts[0].parent / (name + ".log")
+                self.assertEqual(expected, path.read_bytes())
+                self.assertEqual(digest, hashlib.sha256(path.read_bytes()).hexdigest())
+                self.assertEqual(digest, receipt[name + "_sha256"])
+                self.assertEqual(0, path.stat().st_mode & 0o077)
+            self.assertEqual(0, receipts[0].stat().st_mode & 0o077)
+            self.assertEqual(0, receipts[0].parent.stat().st_mode & 0o077)
+
     def setUp(self) -> None:
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
