@@ -76,6 +76,10 @@ val moduleDependencies = mapOf(
     (":" + "sdks:mobile:android") to listOf(),
 )
 
+val moduleTestLibraries = mapOf(
+    (":" + "libs:idempotency") to listOf("testcontainers", "postgresql-jdbc"),
+)
+
 val governedLibraries = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
 subprojects {
@@ -113,6 +117,9 @@ subprojects {
         }
         add("testImplementation", governedLibraries.findLibrary("junit").get())
         add("testImplementation", governedLibraries.findLibrary("jqwik").get())
+        moduleTestLibraries[path].orEmpty().forEach { libraryAlias ->
+            add("testImplementation", governedLibraries.findLibrary(libraryAlias).get())
+        }
         add("testRuntimeOnly", governedLibraries.findLibrary("junit-platform-launcher").get())
     }
 

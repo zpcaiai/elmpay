@@ -122,6 +122,10 @@ def build_gradle(root: Path, budget: Budget | None = None) -> str:
          if name in java_names]
         for module in registry["modules"] if module["name"] in java_names
     }
+    module_test_libraries = {
+        ":" + paths["idempotency"].replace("/", ":"):
+        ["testcontainers", "postgresql-jdbc"]
+    }
     project_literals = ",\n".join(f'    "{project}"' for project in java_projects)
     dependency_lines = []
     for project, deps in dependencies.items():
@@ -133,6 +137,13 @@ def build_gradle(root: Path, budget: Budget | None = None) -> str:
             f'    (":" + "{project.removeprefix(":")}") to listOf({quoted_deps}),'
         )
     dependency_literals = "\n".join(dependency_lines)
+    test_library_lines = []
+    for project, libraries in module_test_libraries.items():
+        quoted_libraries = ", ".join('"' + library + '"' for library in libraries)
+        test_library_lines.append(
+            f'    (":" + "{project.removeprefix(":")}") to listOf({quoted_libraries}),'
+        )
+    test_library_literals = "\n".join(test_library_lines)
     return BANNER_SLASH + f"""import info.solidsoft.gradle.pitest.PitestPluginExtension
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.plugins.JavaPluginExtension
@@ -166,6 +177,10 @@ allprojects {{
 
 val moduleDependencies = mapOf(
 {dependency_literals}
+)
+
+val moduleTestLibraries = mapOf(
+{test_library_literals}
 )
 
 val governedLibraries = extensions.getByType<VersionCatalogsExtension>().named("libs")
@@ -205,6 +220,9 @@ subprojects {{
         }}
         add("testImplementation", governedLibraries.findLibrary("junit").get())
         add("testImplementation", governedLibraries.findLibrary("jqwik").get())
+        moduleTestLibraries[path].orEmpty().forEach {{ libraryAlias ->
+            add("testImplementation", governedLibraries.findLibrary(libraryAlias).get())
+        }}
         add("testRuntimeOnly", governedLibraries.findLibrary("junit-platform-launcher").get())
     }}
 

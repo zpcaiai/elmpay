@@ -8,16 +8,63 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.postgresql.ds.PGSimpleDataSource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.utility.DockerImageName;
 
 final class RequestFingerprintTest {
+    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(
+            DockerImageName.parse(
+                    "postgres@sha256:9e2cf6287f25c3151f4c9421ccce2b17f3e60061c111a29165e0d2cdd9ff0a97"))
+            .withDatabaseName("elmpay")
+            .withUsername("postgres")
+            .withPassword("postgres");
+    private static PGSimpleDataSource appDataSource;
+
+    @BeforeAll
+    static void startPostgresAndApplyProductionIdempotencySchema() throws Exception {
+        POSTGRES.start();
+        PGSimpleDataSource admin = dataSource("postgres", "postgres");
+        try (Connection connection = admin.getConnection(); Statement statement = connection.createStatement()) {
+            statement.execute("CREATE ROLE elmpay_idempotency_app LOGIN PASSWORD 'test-only-password'");
+            for (String sql : productionIdempotencyStatements()) {
+                statement.execute(sql);
+            }
+            statement.execute("GRANT SELECT, INSERT, UPDATE ON idempotency_record TO elmpay_idempotency_app");
+        }
+        appDataSource = dataSource("elmpay_idempotency_app", "test-only-password");
+    }
+
+    @AfterAll
+    static void stopPostgres() {
+        POSTGRES.stop();
+    }
+
     @Test
     void fingerprintIsStableAndKeyValidationIsStrict() {
         assertEquals(RequestFingerprint.sha256("canonical"), RequestFingerprint.sha256("canonical"));
@@ -114,6 +161,172 @@ final class RequestFingerprintTest {
         assertEquals(tenant.toString(), calls.get(1));
         assertThrows(SQLException.class, () -> JdbcIdempotencyRegistry.setTenantContext(
                 connection(true, new ArrayList<>()), tenant));
+    }
+
+    @Test
+    void jdbcRegistryClaimsConflictsCompletesAndReplaysUsingPostgres() {
+        UUID tenant = UUID.randomUUID();
+        String key = newKey();
+        Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
+        JdbcIdempotencyRegistry registry = new JdbcIdempotencyRegistry(appDataSource, clock);
+
+        IdempotencyClaim owned = registry.claim(tenant, "payment.create", key, hash('a'),
+                Duration.ofSeconds(30), Duration.ofMinutes(5));
+        assertEquals(IdempotencyClaim.Status.OWNED, owned.status());
+        assertNotNull(owned.ownerToken());
+        assertEquals(IdempotencyClaim.Status.BUSY,
+                registry.claim(tenant, "payment.create", key, hash('a'),
+                        Duration.ofSeconds(30), Duration.ofMinutes(5)).status());
+
+        IdempotencyException conflict = assertThrows(IdempotencyException.class,
+                () -> registry.claim(tenant, "payment.create", key, hash('b'),
+                        Duration.ofSeconds(30), Duration.ofMinutes(5)));
+        assertEquals("IDEMPOTENCY_PAYLOAD_CONFLICT", conflict.code());
+
+        StoredResult expected = new StoredResult(201, "application/json", new byte[] {1, 2, 3});
+        registry.complete(tenant, "payment.create", key, owned.ownerToken(), expected);
+        IdempotencyClaim replay = registry.claim(tenant, "payment.create", key, hash('a'),
+                Duration.ofSeconds(30), Duration.ofMinutes(5));
+        assertEquals(IdempotencyClaim.Status.REPLAY, replay.status());
+        assertEquals(expected.statusCode(), replay.replay().statusCode());
+        assertEquals(expected.contentType(), replay.replay().contentType());
+        assertArrayEquals(expected.body(), replay.replay().body());
+    }
+
+    @Test
+    void jdbcRegistryReclaimsExpiredLeaseAndPersistsUnknownOutcome() {
+        UUID tenant = UUID.randomUUID();
+        String key = newKey();
+        Instant started = Instant.parse("2026-01-01T00:00:00Z");
+        Duration lease = Duration.ofSeconds(1);
+        Duration retention = Duration.ofMinutes(5);
+        IdempotencyClaim first = new JdbcIdempotencyRegistry(appDataSource,
+                Clock.fixed(started, ZoneOffset.UTC)).claim(tenant, "payment.create", key,
+                        hash('c'), lease, retention);
+        IdempotencyClaim recovered = new JdbcIdempotencyRegistry(appDataSource,
+                Clock.fixed(started.plusSeconds(2), ZoneOffset.UTC)).claim(tenant,
+                        "payment.create", key, hash('c'), lease, retention);
+
+        assertEquals(IdempotencyClaim.Status.OWNED, first.status());
+        assertEquals(IdempotencyClaim.Status.OWNED, recovered.status());
+        assertTrue(!first.ownerToken().equals(recovered.ownerToken()));
+
+        JdbcIdempotencyRegistry registry = new JdbcIdempotencyRegistry(appDataSource,
+                Clock.fixed(started.plusSeconds(2), ZoneOffset.UTC));
+        registry.markUnknown(tenant, "payment.create", key, recovered.ownerToken(), "PROVIDER_TIMEOUT");
+        assertEquals(IdempotencyClaim.Status.UNKNOWN_OUTCOME,
+                registry.claim(tenant, "payment.create", key, hash('c'), lease, retention).status());
+        assertEquals("IDEMPOTENCY_OWNERSHIP_LOST", assertThrows(IdempotencyException.class,
+                () -> registry.complete(tenant, "payment.create", key, recovered.ownerToken(),
+                        new StoredResult(200, "text/plain", new byte[0]))).code());
+    }
+
+    @Test
+    void productionRlsPolicyHidesAnotherTenantsRecord() throws Exception {
+        UUID ownerTenant = UUID.randomUUID();
+        UUID otherTenant = UUID.randomUUID();
+        String key = newKey();
+        Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
+        JdbcIdempotencyRegistry registry = new JdbcIdempotencyRegistry(appDataSource, clock);
+        registry.claim(ownerTenant, "payment.create", key, hash('d'), Duration.ofSeconds(30),
+                Duration.ofMinutes(5));
+
+        assertEquals(IdempotencyClaim.Status.OWNED,
+                registry.claim(otherTenant, "payment.create", key, hash('d'),
+                        Duration.ofSeconds(30), Duration.ofMinutes(5)).status());
+        try (Connection connection = appDataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            JdbcIdempotencyRegistry.setTenantContext(connection, otherTenant);
+            try (PreparedStatement query = connection.prepareStatement(
+                    "SELECT count(*) FROM idempotency_record WHERE tenant_id = ? AND idempotency_key = ?")) {
+                query.setObject(1, ownerTenant);
+                query.setString(2, key);
+                try (var rows = query.executeQuery()) {
+                    assertTrue(rows.next());
+                    assertEquals(0L, rows.getLong(1));
+                }
+            }
+            connection.rollback();
+        }
+    }
+
+    @Test
+    void sixtyFourConcurrentWritersProduceOneOwnerAndSixtyThreeBusyClaims() throws Exception {
+        UUID tenant = UUID.randomUUID();
+        String key = newKey();
+        String requestHash = hash('e');
+        Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
+        CountDownLatch ready = new CountDownLatch(64);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<IdempotencyClaim.Status>> results = new ArrayList<>();
+
+        try (ExecutorService workers = Executors.newFixedThreadPool(64)) {
+            for (int index = 0; index < 64; index++) {
+                results.add(workers.submit(() -> {
+                    ready.countDown();
+                    if (!start.await(20, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("concurrent claim start timed out");
+                    }
+                    return new JdbcIdempotencyRegistry(appDataSource, clock).claim(tenant,
+                            "payment.create", key, requestHash, Duration.ofSeconds(30),
+                            Duration.ofMinutes(5)).status();
+                }));
+            }
+            assertTrue(ready.await(20, TimeUnit.SECONDS));
+            start.countDown();
+            long owners = 0;
+            long busy = 0;
+            for (Future<IdempotencyClaim.Status> result : results) {
+                IdempotencyClaim.Status status = result.get(30, TimeUnit.SECONDS);
+                if (status == IdempotencyClaim.Status.OWNED) owners++;
+                if (status == IdempotencyClaim.Status.BUSY) busy++;
+            }
+            assertEquals(1L, owners);
+            assertEquals(63L, busy);
+        }
+    }
+
+    private static List<String> productionIdempotencyStatements() throws IOException {
+        Path directory = Path.of("").toAbsolutePath();
+        while (directory != null
+                && !Files.isRegularFile(directory.resolve("governance/module-registry.json"))) {
+            directory = directory.getParent();
+        }
+        if (directory == null) {
+            throw new IOException("repository root not found for production migration test");
+        }
+        String migration = Files.readString(directory.resolve(
+                "apps/edge-gateway/src/main/resources/db/migration/V032__payment_runtime.sql"));
+        List<String> statements = Arrays.stream(migration.split(";"))
+                .map(String::strip)
+                .filter(sql -> {
+                    String normalized = sql.toLowerCase(Locale.ROOT);
+                    return normalized.startsWith("create table if not exists idempotency_record")
+                            || normalized.startsWith("alter table idempotency_record")
+                            || normalized.startsWith("drop policy if exists idempotency_record_tenant_policy")
+                            || normalized.startsWith("create policy idempotency_record_tenant_policy");
+                }).toList();
+        if (statements.size() != 5) {
+            throw new IOException("expected the table and four RLS statements from V032, found "
+                    + statements.size());
+        }
+        return statements;
+    }
+
+    private static PGSimpleDataSource dataSource(String username, String password) {
+        PGSimpleDataSource dataSource = new PGSimpleDataSource();
+        dataSource.setUrl(POSTGRES.getJdbcUrl());
+        dataSource.setUser(username);
+        dataSource.setPassword(password);
+        return dataSource;
+    }
+
+    private static String newKey() {
+        return "integration-key-" + UUID.randomUUID();
+    }
+
+    private static String hash(char digit) {
+        return String.valueOf(digit).repeat(64);
     }
 
     private static Connection connection(boolean autoCommit, List<String> calls) {
