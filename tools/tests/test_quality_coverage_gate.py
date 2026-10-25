@@ -14,6 +14,7 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
+import xml.etree.ElementTree as ET
 
 from tools.paygov import buildgen
 from tools.runtime.elmpay_runtime.common import ValidationError
@@ -28,6 +29,7 @@ from tools.runtime.elmpay_runtime.quality_metrics import (
     evaluate_quality_reports,
     parse_coverage_json,
     parse_jacoco_xml,
+    parse_pitest_xml,
     run_quality_metrics,
 )
 
@@ -553,6 +555,132 @@ class QualityCoverageMutationGateTest(unittest.TestCase):
         self.assertIn('minimum = "0.80".toBigDecimal()', rendered)
         self.assertIn("mutationThreshold.set(60)", rendered)
         self.assertIn(f'tasks.register("{QUALITY_TASK}")', rendered)
+
+
+class NativeQualityReportFormatTest(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.report = Path(temporary.name) / "report.xml"
+
+    def _write(self, root: ET.Element) -> Path:
+        self.report.write_bytes(ET.tostring(root))
+        return self.report
+
+    @staticmethod
+    def _jacoco_with_abstract_source() -> ET.Element:
+        # Native JaCoCo includes an empty class/source pair for an abstract-only interface.
+        return ET.fromstring('''<report name="native-format"><package name="example">
+          <class name="example/ApiAuthenticator" sourcefilename="ApiAuthenticator.java"/>
+          <sourcefile name="ApiAuthenticator.java"/>
+          <sourcefile name="Example.java"><line nr="1" mi="0" ci="1" mb="0" cb="0"/>
+            <counter type="LINE" missed="0" covered="1"/></sourcefile>
+          </package><counter type="LINE" missed="0" covered="1"/></report>''')
+
+    @staticmethod
+    def _mutant(indexes=(0, 1), blocks=(0,), status="KILLED") -> ET.Element:
+        value = ET.Element("mutation", status=status,
+                           detected="true" if status == "KILLED" else "false")
+        for name, text in (
+            ("sourceFile", "Example.java"), ("mutatedClass", "example.Example"),
+            ("mutatedMethod", "method"), ("methodDescription", "()I"),
+            ("lineNumber", "1"), ("mutator", "example.Mutator"),
+        ):
+            ET.SubElement(value, name).text = text
+        for plural, singular, coordinates in (
+            ("indexes", "index", indexes), ("blocks", "block", blocks),
+        ):
+            container = ET.SubElement(value, plural)
+            for number in coordinates:
+                ET.SubElement(container, singular).text = str(number)
+        return value
+
+    def test_counterless_abstract_source_preserves_all_executable_line_totals(self):
+        result = parse_jacoco_xml(self._write(self._jacoco_with_abstract_source()))
+        self.assertEqual((1, 1, 100), (result.covered, result.total, result.percent))
+
+    def test_counterless_executable_orphan_detailed_and_duplicate_sources_are_rejected(self):
+        for kind in ("executable", "orphan", "detailed", "duplicate"):
+            root = self._jacoco_with_abstract_source()
+            package = root.find("package")
+            source = package.find("sourcefile")
+            if kind == "executable":
+                ET.SubElement(package.find("class"), "counter", type="INSTRUCTION",
+                              missed="1", covered="0")
+            elif kind == "orphan":
+                package.remove(package.find("class"))
+            elif kind == "detailed":
+                ET.SubElement(source, "line", nr="1", mi="0", ci="0", mb="0", cb="0")
+            else:
+                package.append(copy.deepcopy(source))
+            with self.subTest(kind=kind), self.assertRaises(ValidationError):
+                parse_jacoco_xml(self._write(root))
+
+    def test_native_compound_coordinates_count_exactly_one_mutation(self):
+        root = ET.Element("mutations")
+        root.append(self._mutant(indexes=tuple(range(14)), blocks=(0, 0, 1)))
+        result = parse_pitest_xml(self._write(root))
+        self.assertEqual((1, 1, 100), (result.killed, result.total, result.percent))
+
+    def test_distinct_compound_mutants_keep_every_record_and_only_count_killed(self):
+        root = ET.Element("mutations")
+        for indexes, status in (((0, 1), "KILLED"), ((0, 2), "SURVIVED"),
+                                ((0, 3), "NO_COVERAGE")):
+            root.append(self._mutant(indexes=indexes, status=status))
+        result = parse_pitest_xml(self._write(root))
+        self.assertEqual(1, result.killed)
+        self.assertEqual(3, result.total)
+        self.assertAlmostEqual(100 / 3, result.percent)
+
+    def test_compound_duplicates_are_rejected_despite_coordinate_order(self):
+        root = ET.Element("mutations")
+        root.append(self._mutant(indexes=(1, 2), blocks=(0, 1)))
+        root.append(self._mutant(indexes=(2, 1), blocks=(1, 0)))
+        with self.assertRaises(ValidationError):
+            parse_pitest_xml(self._write(root))
+
+    def test_malformed_empty_missing_and_mixed_coordinates_are_rejected(self):
+        for kind in ("both", "empty", "missing", "negative", "text", "unknown", "nested",
+                     "legacy-block", "duplicate-container", "empty-value"):
+            root = ET.Element("mutations")
+            mutant = self._mutant()
+            root.append(mutant)
+            indexes = mutant.find("indexes")
+            if kind == "both":
+                ET.SubElement(mutant, "index").text = "0"
+            elif kind == "empty":
+                indexes.clear()
+            elif kind == "missing":
+                mutant.remove(indexes)
+            elif kind == "negative":
+                indexes.find("index").text = "-1"
+            elif kind == "text":
+                indexes.find("index").text = "invalid"
+            elif kind == "unknown":
+                ET.SubElement(indexes, "untrusted").text = "0"
+            elif kind == "nested":
+                ET.SubElement(indexes.find("index"), "value").text = "0"
+            elif kind == "legacy-block":
+                mutant.remove(mutant.find("blocks"))
+                ET.SubElement(mutant, "block").text = "0"
+            elif kind == "duplicate-container":
+                mutant.append(copy.deepcopy(indexes))
+            else:
+                indexes.find("index").text = None
+            with self.subTest(kind=kind), self.assertRaises(ValidationError):
+                parse_pitest_xml(self._write(root))
+
+    def test_legacy_scalar_and_native_records_both_preserve_the_denominator(self):
+        root = ET.Element("mutations")
+        legacy = self._mutant(indexes=(0,), blocks=(0,))
+        for plural, singular in (("indexes", "index"), ("blocks", "block")):
+            container = legacy.find(plural)
+            legacy.remove(container)
+            ET.SubElement(legacy, singular).text = container.find(singular).text
+        root.append(legacy)
+        root.append(self._mutant(indexes=(1, 2), status="SURVIVED"))
+        result = parse_pitest_xml(self._write(root))
+        self.assertEqual((1, 2, 50), (result.killed, result.total, result.percent))
 
 
 if __name__ == "__main__":
