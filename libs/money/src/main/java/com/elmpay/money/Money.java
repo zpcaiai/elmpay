@@ -78,8 +78,7 @@ public record Money(long amountMinor, CurrencyUnit currency) implements Comparab
 
     private void requireSameCurrency(Money other) {
         Objects.requireNonNull(other, "other");
-        if (!currency.code().equals(other.currency.code())
-                || !currency.metadataVersion().equals(other.currency.metadataVersion())) {
+        if (!currency.equals(other.currency)) {
             throw new IllegalArgumentException("currency metadata mismatch");
         }
     }
