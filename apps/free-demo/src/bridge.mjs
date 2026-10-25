@@ -1,4 +1,4 @@
-import { pbkdf2Sync, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, pbkdf2Sync, randomBytes, randomUUID } from 'node:crypto';
 
 export const scenarios = Object.freeze(['succeeded', 'declined', 'unknown', 'authorized', 'requires_action']);
 const demoCurrencies = Object.freeze({ card: 'USD', wechat_native: 'CNY' });
