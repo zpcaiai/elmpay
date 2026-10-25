@@ -94,7 +94,6 @@
 | ID | 风险 | 严重度 | 风险所有者 | 补偿控制 | 到期日 | 复审批次 |
 | --- | --- | --- | --- | --- | --- | --- |
 | RR-01 | 生产渠道凭证尚未接入 KMS/HSM（当前仅 integration 环境） | medium | payment-platform-security | 仅存在 integration 环境且无生产凭证；治理门禁拒绝任何密钥字面量；凭证只能以 kms:// 或 vault:// 引用出现 | 2026-11-16 | B20 |
-| RR-02 | Java 构建、SAST/DAST 与供应链扫描尚未接入（B03/B05 之前） | medium | payment-platform-platform-eng | 治理工具链零第三方依赖，供应链面积为零；仓库卫生扫描覆盖密钥与浮点金额；所有变更需 CODEOWNERS 复核 | 2026-10-17 | B05 |
 | RR-03 | 反钓鱼、E-skimming 与页面完整性控制尚未实现 | medium | payment-platform-security | 尚无公开部署的收银台；支付链接与二维码域名策略已在需求基线中固化 | 2027-02-14 | B85 |
 | RR-04 | 威胁模型尚未覆盖各渠道协议的具体攻击面 | low | payment-platform-connectors | 每个渠道批次强制更新威胁与控制；渠道适配统一契约限制爆炸半径 | 2026-12-16 | B55 |
 | RR-05 | 证据由单一自动化执行者产生，独立审查依赖人工签署 | high | payment-platform-security | executor 与 reviewer 必须不同且由门禁强制；完成文件的每个字段可从仓库重新计算复核；15 项运行期负向控制证明门禁真会失败；所有产物摘要与提交 SHA 绑定 | 2026-12-16 | B119 |
