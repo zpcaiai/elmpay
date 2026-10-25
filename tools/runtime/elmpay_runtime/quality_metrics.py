@@ -880,6 +880,19 @@ def _tool_execution(
     )
 
 
+def _canonical_tool_version(output: bytes) -> str:
+    pattern = (
+        r"(?:Gradle [0-9]+(?:\.[0-9]+){1,3}|"
+        r"Coverage\.py,? version [0-9]+(?:\.[0-9]+){1,3}"
+        r"(?: (?:with|without) C extension)?)"
+    )
+    identities = [line.strip() for line in output.decode("utf-8", errors="replace").splitlines()
+                  if re.fullmatch(pattern, line.strip())]
+    if len(identities) != 1 or len(identities[0]) > 256:
+        raise ValidationError("quality tool canonical version is missing or ambiguous")
+    return identities[0]
+
+
 def _tool_version(executable: str, arguments: Sequence[str]) -> str:
     try:
         completed = subprocess.run(
@@ -894,7 +907,7 @@ def _tool_version(executable: str, arguments: Sequence[str]) -> str:
     text = completed.stdout.decode("utf-8", errors="replace").strip().splitlines()
     if completed.returncode != 0 or not text:
         raise ValidationError(f"quality tool version probe failed: {executable}")
-    return text[0][:256]
+    return _canonical_tool_version(completed.stdout)
 
 
 def _fresh(path: Path, started_ns: int) -> bool:

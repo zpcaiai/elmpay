@@ -23,6 +23,7 @@ from tools.runtime.elmpay_runtime.quality_metrics import (
     QUALITY_TASK,
     ToolExecution,
     _tool_execution,
+    _canonical_tool_version,
     capture_source_binding,
     evaluate_quality_reports,
     parse_coverage_json,
@@ -64,6 +65,24 @@ def _policy() -> dict[str, object]:
 
 
 class QualityCoverageMutationGateTest(unittest.TestCase):
+    def test_gradle_identity_survives_fresh_wrapper_download_output(self):
+        output = (
+            b"Downloading https://services.gradle.org/distributions/gradle-9.2.1-bin.zip\n"
+            b"Welcome to Gradle 9.2.1!\n\n----------------\nGradle 9.2.1\n----------------\n"
+            b"Launcher JVM: 25.0.4\n")
+        self.assertEqual("Gradle 9.2.1", _canonical_tool_version(output))
+        self.assertEqual("Coverage.py, version 7.14.3 with C extension",
+                         _canonical_tool_version(b"Coverage.py, version 7.14.3 with C extension\n"))
+
+    def test_version_banners_and_ambiguous_identities_are_not_tool_identity(self):
+        for output in (
+            b"", b"Welcome to Gradle 9.2.1!\n", b"Downloading gradle-9.2.1-bin.zip\n",
+            b"Gradle 9.2.1\nGradle 9.3.0\n",
+            b"Gradle 9.2.1\nCoverage.py, version 7.14.3 with C extension\n",
+        ):
+            with self.subTest(output=output), self.assertRaises(ValidationError):
+                _canonical_tool_version(output)
+
     def test_real_failed_tool_preserves_private_raw_output_and_digests(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
