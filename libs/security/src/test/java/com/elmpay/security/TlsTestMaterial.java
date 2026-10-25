@@ -13,7 +13,6 @@ import java.security.cert.CertificateFactory;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -46,6 +45,8 @@ final class TlsTestMaterial {
                 "-keyout", "root.key", "-out", "root.crt", "-config", "root.cnf");
         leaf("client", "clientAuth", "1");
         leaf("server", "serverAuth", "2");
+        run("pkcs8", "-topk8", "-nocrypt", "-in", "server.key", "-outform", "DER",
+                "-out", "server.der");
     }
 
     private void leaf(String name, String purpose, String serial) throws Exception {
@@ -122,10 +123,7 @@ final class TlsTestMaterial {
         Certificate server = factory.generateCertificate(new ByteArrayInputStream(
                 certificate("server")));
         Certificate ca = factory.generateCertificate(new ByteArrayInputStream(certificate("root")));
-        byte[] encoded = key("server");
-        byte[] der = Base64.getDecoder().decode(new String(encoded, StandardCharsets.US_ASCII)
-                .replace("-----BEGIN PRIVATE KEY-----", "")
-                .replace("-----END PRIVATE KEY-----", "").replaceAll("\\s", ""));
+        byte[] der = Files.readAllBytes(root.resolve("server.der"));
         char[] password = new char[0];
         try {
             KeyStore identity = KeyStore.getInstance("PKCS12");
@@ -145,7 +143,6 @@ final class TlsTestMaterial {
             context.init(keys.getKeyManagers(), trusts.getTrustManagers(), new SecureRandom());
             return context;
         } finally {
-            Arrays.fill(encoded, (byte) 0);
             Arrays.fill(der, (byte) 0);
             Arrays.fill(password, '\0');
         }
