@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { pbkdf2Sync, randomBytes, randomUUID } from 'node:crypto';
 
 export const scenarios = Object.freeze(['succeeded', 'declined', 'unknown', 'authorized', 'requires_action']);
 const demoCurrencies = Object.freeze({ card: 'USD', wechat_native: 'CNY' });
@@ -38,7 +38,9 @@ export function demoConfiguration(environment) {
   const healthPort = port(environment.ELMPAY_DEMO_HEALTH_PORT, 8501);
   if (gatewayPort === healthPort) throw new Error('demo ports must differ');
   const apiToken = randomBytes(32).toString('base64url');
-  const digest = createHash('sha256').update(apiToken).digest('hex');
+  const salt = randomBytes(16);
+  const digest = pbkdf2Sync(apiToken, salt, 600000, 32, 'sha256').toString('hex');
+  const verifier = `pbkdf2-sha256:600000:${salt.toString('hex')}:${digest}`;
   const tenant = '21000000-0000-4000-8000-000000000001';
   const project = '21000000-0000-4000-8000-000000000002';
   const merchant = '21000000-0000-4000-8000-000000000003';
@@ -60,7 +62,7 @@ export function demoConfiguration(environment) {
       ELMPAY_RUNTIME_MODE: 'local', ELMPAY_ENABLE_LOCAL_SANDBOX: 'true',
       ELMPAY_LOCAL_RISK_POLICY: 'approve-sandbox', PORT: String(gatewayPort),
       ELMPAY_HEALTH_PORT: String(healthPort),
-      ELMPAY_API_PRINCIPALS: `${digest}|free-demo|${tenant}|${project}|${merchant}|payments.read+payments.write`,
+      ELMPAY_API_PRINCIPALS: `${verifier}|free-demo|${tenant}|${project}|${merchant}|payments.read+payments.write`,
       ELMPAY_CHECKOUT_PUBLIC_BASE_URL: `${publicUrl.origin}/checkout`,
       ELMPAY_CHECKOUT_RETURN_ROUTES: `demo-complete=${publicUrl.origin}/complete`,
       ELMPAY_CHECKOUT_DEFAULT_RETURN_ROUTE_ID: 'demo-complete',
