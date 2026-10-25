@@ -225,6 +225,10 @@ tasks.register("qualityCoverageMutationReports") {
     dependsOn(javaModulePaths.map { project(it).tasks.named("pitest") })
 }
 
+tasks.named("dependencyCheckAggregate") {
+    dependsOn(javaModulePaths.map { project(it).tasks.named("jar") })
+}
+
 dependencyCheck {
     // BLOCK-01: any known vulnerability blocks this reference build.
     format.set("JSON")

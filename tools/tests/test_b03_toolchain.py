@@ -51,6 +51,18 @@ class ToolchainHappyPath(FixtureTestCase):
     def test_generation_is_deterministic(self):
         self.assertEqual(buildgen.render_all(REAL_ROOT), buildgen.render_all(REAL_ROOT))
 
+    def test_aggregate_dependency_scan_builds_every_governed_module_jar(self):
+        dependency = (
+            'tasks.named("dependencyCheckAggregate") {\n'
+            '    dependsOn(javaModulePaths.map { project(it).tasks.named("jar") })\n'
+            '}')
+        generated = buildgen.render_all(REAL_ROOT)["build.gradle.kts"]
+        checked_in = (REAL_ROOT / "build.gradle.kts").read_text(encoding="utf-8")
+        self.assertIn(dependency, generated)
+        self.assertIn(dependency, checked_in)
+        self.assertIn("failBuildOnUnusedSuppressionRule.set(true)", generated)
+        self.assertIn("failBuildOnCVSS.set(0.0f)", generated)
+
     def test_settings_includes_every_gradle_module(self):
         text = (REAL_ROOT / "settings.gradle.kts").read_text(encoding="utf-8")
         doc = self.fixture.read("governance/version-catalog.json")
