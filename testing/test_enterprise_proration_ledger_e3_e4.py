@@ -40,6 +40,25 @@ class TestEnterpriseProrationLedgerE3E4(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
 
+    def test_plan_interval_errors_do_not_disclose_raw_input(self) -> None:
+        for interval in ("private-customer-material-123", None, 17):
+            with self.assertRaises(ValidationError) as caught:
+                self.sub_engine.create_plan(self.tenant_id, plan_code="INVALID_PRIVATE",
+                    name="Invalid", billing_interval=interval, amount_minor=1000, currency="CNY")
+            self.assertNotIn(str(interval), str(caught.exception))
+        with self.store.connect() as connection:
+            self.assertEqual(connection.execute(
+                "SELECT count(*) FROM subscription_plan WHERE plan_code=?", ("INVALID_PRIVATE",)
+            ).fetchone()[0], 0)
+
+    def test_plan_intervals_are_canonical_in_storage_and_output(self) -> None:
+        for index, interval in enumerate(("monthly", "quarterly", "annual")):
+            plan = self.sub_engine.create_plan(self.tenant_id, plan_code=f"CANONICAL_{index}",
+                name="Canonical", billing_interval=interval, amount_minor=1000, currency="CNY")
+            self.assertEqual(plan["billingInterval"], interval.upper())
+            self.assertEqual(self.sub_engine.get_plan(self.tenant_id, plan["planId"])["billingInterval"],
+                interval.upper())
+
     # -------------------------------------------------------------------------
     # E3: Functional, State Transitions & Financial Math Invariants
     # -------------------------------------------------------------------------
