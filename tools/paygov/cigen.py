@@ -264,11 +264,14 @@ def workflow(root: Path, budget: Budget | None = None) -> str:
                   f'      - uses: {setup_python["name"]}@{setup_python["ref"]}  # {setup_python["version_comment"]}',
                   "        with:",
                   f'          python-version: {_quote(python_floor if stage["id"] == "python-floor" else python_reference)}']
-        if stage["id"] == "unit-test":
+        if stage["id"] in {"unit-test", "quality-metrics"}:
             lines += [
                 f'      - uses: {setup_node["name"]}@{setup_node["ref"]}  # {setup_node["version_comment"]}',
                 "        with:",
                 f'          node-version: {_quote(node_version)}',
+            ]
+        if stage["id"] == "unit-test":
+            lines += [
                 f'      - uses: {setup_go["name"]}@{setup_go["ref"]}  # {setup_go["version_comment"]}',
                 "        with:",
                 f'          go-version: {_quote(go_version)}',

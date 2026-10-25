@@ -182,6 +182,10 @@ class PipelineHappyPath(FixtureTestCase):
         self.assertIn("**/build/reports/jacoco/test/jacocoTestReport.xml", quality)
         self.assertIn("**/build/reports/pitest/mutations.xml", quality)
         self.assertIn("cache-read-only: true", quality)
+        node = "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38"
+        self.assertIn(node, quality)
+        self.assertIn("node-version: '24.9.0'", quality)
+        self.assertLess(quality.index(node), quality.index("coverage-mutation"))
 
         self.assertIn("build/test-matrix/local-report.json", unit)
         self.assertIn("build/test-matrix/local-junit.xml", unit)
