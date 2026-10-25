@@ -33,7 +33,7 @@
 | protobuf | Protocol Buffers | framework | 4.30.1 | exact | payment-platform-connectors | 仅相加式 schema 演进 |
 | junit | JUnit | testing | 5.13.2 | exact | payment-platform-platform-eng | 禁止跳过关键测试 |
 | junit-platform-launcher | JUnit Platform Launcher | testing | 1.13.2 | exact | payment-platform-platform-eng | 与 JUnit Jupiter 5.13.x 保持同一发布列，供 Gradle 测试执行器显式加载 |
-| testcontainers | Testcontainers | testing | 1.22.0 | exact | payment-platform-platform-eng | 本地与 CI 使用同一镜像摘要 |
+| testcontainers | Testcontainers | testing | 1.21.4 | exact | payment-platform-platform-eng | 本地与 CI 使用同一镜像摘要 |
 | jqwik | jqwik 属性测试 | testing | 1.9.3 | exact | payment-platform-finance | 金额、状态机与账本不变量的属性测试 |
 | node | Node.js | frontend | 24.9.0 | exact | payment-platform-architecture | 仅用于 checkout-web / admin-web 构建 |
 | dart-sdk | Dart SDK | frontend | 3.8.1 | exact | payment-platform-sdk | Flutter-compatible client contract tests use the exact hosted CI SDK and committed pubspec.lock |
