@@ -99,6 +99,17 @@ public final class CanonicalPayload {
         builder.append('"');
         for (int index = 0; index < value.length(); index++) {
             char character = value.charAt(index);
+            if (Character.isHighSurrogate(character)) {
+                if (index + 1 >= value.length()
+                        || !Character.isLowSurrogate(value.charAt(index + 1))) {
+                    throw new IllegalArgumentException("canonical strings require valid Unicode");
+                }
+                builder.append(character).append(value.charAt(++index));
+                continue;
+            }
+            if (Character.isLowSurrogate(character)) {
+                throw new IllegalArgumentException("canonical strings require valid Unicode");
+            }
             switch (character) {
                 case '"' -> builder.append("\\\"");
                 case '\\' -> builder.append("\\\\");
