@@ -139,10 +139,10 @@ final class PaymentGatewayE2eTest {
                 assertNotEquals("SUCCEEDED", firstAttempt.get("state"), simulation);
                 if ("declined".equals(simulation)) {
                     assertEquals("requires_payment_method", firstIntent.get("status"));
-                    assertEquals("FAILED", firstAttempt.get("state"));
+                    assertEquals("failed", firstAttempt.get("state"));
                 } else {
                     assertEquals("requires_payment_method", firstIntent.get("status"));
-                    assertEquals("UNKNOWN", firstAttempt.get("state"));
+                    assertEquals("unknown", firstAttempt.get("state"));
                 }
 
                 HttpResponse<String> replay = client.send(request(confirmUri, idempotencyKey,
