@@ -150,6 +150,16 @@
       "name": "gradle/actions/setup-gradle",
       "ref": "0723195856401067f7a2779048b490ace7a47d7c",
       "version_comment": "v5.0.2"
+    },
+    {
+      "name": "github/codeql-action/init",
+      "ref": "9b3254085494b55a0f7c4c2b3d2d52cc712ce370",
+      "version_comment": "v4.39.1"
+    },
+    {
+      "name": "github/codeql-action/analyze",
+      "ref": "9b3254085494b55a0f7c4c2b3d2d52cc712ce370",
+      "version_comment": "v4.39.1"
     }
   ],
   "quality_gates": {
@@ -378,13 +388,13 @@
     },
     {
       "id": "static-analysis",
-      "name": "构建检查与模块边界验证",
-      "purpose": "执行 Gradle check、编译告警即错误与模块边界治理；当前不宣称生产源码 SAST",
+      "name": "CodeQL 源码扫描、构建检查与真实沙箱 DAST",
+      "purpose": "执行 CodeQL security-extended、编译检查与真实沙箱 DAST；告警即阻断，未验收时不宣称生产源码 SAST 已通过",
       "needs": [
         "build"
       ],
       "commands": [
-        "./gradlew --no-daemon check -x test",
+        "./gradlew --no-daemon check -x test --no-build-cache --rerun-tasks",
         "python3 -m tools.paygov.cli verify module-registry --repo . --out build/static-analysis.json"
       ],
       "required": true,
@@ -587,5 +597,14 @@
       "if_no_files_found": "error",
       "timeout_minutes": 20
     }
-  ]
+  ],
+  "source_security": {
+    "languages": [
+      "java-kotlin",
+      "javascript-typescript",
+      "python"
+    ],
+    "queries": "security-extended",
+    "fail_on_any_result": true
+  }
 }

@@ -3,7 +3,7 @@ import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { createEdgeTransport } from '../src/edge-transport.mjs';
+import { createEdgeTransport, readMountedCredential } from '../src/edge-transport.mjs';
 import { TEST_CERTIFICATE, TEST_PRIVATE_KEY } from './tls-fixture.mjs';
 
 function credential(directory, name, value) {
@@ -41,4 +41,15 @@ test('writable credential mounts fail closed before any connection attempt', t =
     privateKeyFile: credential(directory, 'client.key', TEST_PRIVATE_KEY),
     trustBundleFile: credential(directory, 'ca.crt', TEST_CERTIFICATE), serverName: 'edge.example',
   }), /read-only/);
+});
+
+test('credential descriptor reads preserve exact bytes and reject empty or oversized material', t => {
+  const directory = mkdtempSync(join(tmpdir(), 'elmpay-edge-transport-'));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const good = credential(directory, 'good', 'public test material');
+  assert.equal(readMountedCredential(good, 'test').toString(), 'public test material');
+  for (const [name, value] of [['empty', ''], ['large', 'x'.repeat(128 * 1024 + 1)]]) {
+    const path = credential(directory, name, value);
+    assert.throws(() => readMountedCredential(path, 'test'), /bounded/);
+  }
 });

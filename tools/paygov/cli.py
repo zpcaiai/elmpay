@@ -59,11 +59,13 @@ def _write_report(root: Path, destination: str, output: str) -> None:
     temporary_path = Path(temporary)
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
+            # Findings can describe sensitive paths or configuration. Keep the
+            # temporary and published report private to this execution user.
+            os.fchmod(stream.fileno(), 0o600)
             stream.write(output)
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
-        os.chmod(temporary_path, 0o644)
         os.replace(temporary_path, path)
         directory_fd = os.open(path.parent, os.O_RDONLY)
         try:

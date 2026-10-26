@@ -146,6 +146,80 @@ final class PayPalAdapterTest {
     }
 
     @Test
+    void routesLifecycleAndDisputeOperationsWithStableRequestIds() {
+        List<java.net.http.HttpRequest> requests = new ArrayList<>();
+        PayPalAdapter adapter = adapter(request -> {
+            if (request.uri().getPath().equals("/v1/oauth2/token")) {
+                return json(200, "{\"access_token\":\"access-fixture\",\"expires_in\":3600}");
+            }
+            requests.add(request);
+            String status = switch (request.uri().getPath()) {
+                case "/v2/checkout/orders/ORDER-123456" -> "APPROVED";
+                case "/v2/checkout/orders/ORDER-123456/authorize" -> "AUTHORIZED";
+                case "/v2/checkout/orders/ORDER-123456/capture" -> "COMPLETED";
+                case "/v2/payments/authorizations/AUTH-123456/void" -> "VOIDED";
+                case "/v2/payments/captures/CAPTURE-123456/refund" -> "COMPLETED";
+                case "/v2/payments/refunds/REFUND-123456" -> "PENDING";
+                case "/v1/billing/subscriptions" -> "ACTIVE";
+                case "/v1/billing/subscriptions/SUB-123456/cancel" -> "CANCELLED";
+                case "/v1/customer/disputes/DISPUTE-123456/provide-evidence" -> "SUBMITTED";
+                default -> throw new AssertionError("unexpected path: " + request.uri().getPath());
+            };
+            return json(200, "{\"id\":\"provider-result-123456\",\"status\":\"" + status + "\"}");
+        });
+
+        assertEquals(PayPalAdapter.State.AUTHORIZED, adapter.queryOrder("ORDER-123456").state());
+        assertEquals(PayPalAdapter.State.AUTHORIZED,
+                adapter.authorize("ORDER-123456", "idem-paypal-authorize-01").state());
+        assertEquals(PayPalAdapter.State.SUCCEEDED,
+                adapter.capture("ORDER-123456", "idem-paypal-capture-01").state());
+        assertEquals(PayPalAdapter.State.VOIDED,
+                adapter.voidAuthorization("AUTH-123456", "idem-paypal-void-00001").state());
+        assertEquals(PayPalAdapter.State.SUCCEEDED, adapter.refund("CAPTURE-123456", 1250,
+                "USD", 2, "refund-reference-1", "idem-paypal-refund-01").state());
+        assertEquals(PayPalAdapter.State.PROCESSING, adapter.queryRefund("REFUND-123456").state());
+        assertEquals(PayPalAdapter.State.AUTHORIZED, adapter.createSubscription("PLAN-123456",
+                "subscriber-1", "returnroute000001", "cancelroute000001",
+                "idem-paypal-subscribe-01").state());
+        assertEquals(PayPalAdapter.State.VOIDED, adapter.cancelSubscription("SUB-123456",
+                "customer request", "idem-paypal-cancel-01").state());
+        assertEquals(PayPalAdapter.State.UNKNOWN, adapter.submitDisputeEvidence("DISPUTE-123456",
+                "delivery confirmed", "evidence-file-1", "idem-paypal-dispute-01").state());
+
+        assertEquals(List.of("GET /v2/checkout/orders/ORDER-123456",
+                "POST /v2/checkout/orders/ORDER-123456/authorize",
+                "POST /v2/checkout/orders/ORDER-123456/capture",
+                "POST /v2/payments/authorizations/AUTH-123456/void",
+                "POST /v2/payments/captures/CAPTURE-123456/refund",
+                "GET /v2/payments/refunds/REFUND-123456",
+                "POST /v1/billing/subscriptions",
+                "POST /v1/billing/subscriptions/SUB-123456/cancel",
+                "POST /v1/customer/disputes/DISPUTE-123456/provide-evidence"),
+                requests.stream().map(request -> request.method() + " " + request.uri().getPath()).toList());
+        assertEquals(List.of("query-order-ORDER-123456", "idem-paypal-authorize-01",
+                "idem-paypal-capture-01", "idem-paypal-void-00001", "idem-paypal-refund-01",
+                "query-refund-REFUND-123456", "idem-paypal-subscribe-01", "idem-paypal-cancel-01",
+                "idem-paypal-dispute-01"), requests.stream().map(request -> request.headers()
+                        .firstValue("PayPal-Request-Id").orElseThrow()).toList());
+    }
+
+    @Test
+    void failsClosedWhenOauthEndpointRejectsCredentials() {
+        AtomicInteger calls = new AtomicInteger();
+        PayPalAdapter adapter = adapter(request -> {
+            calls.incrementAndGet();
+            return json(401, "{}");
+        });
+
+        PayPalAdapter.OperationResult result = adapter.queryOrder("ORDER-123456");
+
+        assertEquals(PayPalAdapter.State.UNKNOWN, result.state());
+        assertFalse(result.finalState());
+        assertEquals(0, result.httpStatus());
+        assertEquals(2, calls.get());
+    }
+
+    @Test
     void commonBridgeDelegatesToConcreteAdapterAndMissingConfigFailsClosed() {
         PayPalProviderBridge bridge = new PayPalProviderBridge(new PayPalProviderBridge.Runtime(
                 adapter(request -> request.uri().getPath().equals("/v1/oauth2/token")

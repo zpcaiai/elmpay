@@ -692,22 +692,6 @@
       ]
     },
     {
-      "id": "RR-02",
-      "title": "Java 构建、SAST/DAST 与供应链扫描尚未接入（B03/B05 之前）",
-      "severity": "medium",
-      "owner": "payment-platform-platform-eng",
-      "compensating_controls": [
-        "治理工具链零第三方依赖，供应链面积为零",
-        "仓库卫生扫描覆盖密钥与浮点金额",
-        "所有变更需 CODEOWNERS 复核"
-      ],
-      "due_date": "2026-10-17",
-      "review_batch": "B05",
-      "related_abuse_cases": [
-        "AC-12"
-      ]
-    },
-    {
       "id": "RR-03",
       "title": "反钓鱼、E-skimming 与页面完整性控制尚未实现",
       "severity": "medium",
@@ -773,6 +757,33 @@
       "related_abuse_cases": [
         "AC-12"
       ]
+    }
+  ],
+  "remediated_risks": [
+    {
+      "id": "RR-02",
+      "original_record": {
+        "id": "RR-02",
+        "title": "Java 构建、SAST/DAST 与供应链扫描尚未接入（B03/B05 之前）",
+        "severity": "medium",
+        "owner": "payment-platform-platform-eng",
+        "compensating_controls": [
+          "治理工具链零第三方依赖，供应链面积为零",
+          "仓库卫生扫描覆盖密钥与浮点金额",
+          "所有变更需 CODEOWNERS 复核"
+        ],
+        "due_date": "2026-10-17",
+        "review_batch": "B05",
+        "related_abuse_cases": [
+          "AC-12"
+        ]
+      },
+      "remediated_on": "2026-10-25",
+      "verified_source": "e5bf5975c5ae3c004854720a4f942d1ede749d80",
+      "native_security_run": "https://github.com/zpcaiai/elmpay/actions/runs/40159159386",
+      "artifact_sha256": "303e9c0babb9f7ae4a2ff70975d78e4fdce1042272112fd7c31014eec2824dec",
+      "evidence_document": "docs/security/rr02-remediation.md",
+      "scope": "Verified build, source security scanning, bounded local sandbox DAST and supply-chain controls are connected; not B05/B116 or production certification."
     }
   ]
 }

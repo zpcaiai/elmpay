@@ -16,13 +16,19 @@ public final class PaymentLinkHttpHandler implements HttpHandler {
     private static final int MAX_BODY_BYTES = 8_192;
     private final ApiAuthenticator authenticator;
     private final DurablePaymentLinkService links;
-    private final FixedWindowRateLimiter rateLimiter = new FixedWindowRateLimiter(60, 60,
-            Clock.systemUTC());
+    private final FixedWindowRateLimiter rateLimiter;
 
     public PaymentLinkHttpHandler(ApiAuthenticator authenticator,
             DurablePaymentLinkService links) {
+        this(authenticator, links, Clock.systemUTC());
+    }
+
+    PaymentLinkHttpHandler(ApiAuthenticator authenticator,
+            DurablePaymentLinkService links, Clock clock) {
         this.authenticator = java.util.Objects.requireNonNull(authenticator, "authenticator");
         this.links = java.util.Objects.requireNonNull(links, "links");
+        this.rateLimiter = new FixedWindowRateLimiter(60, 60,
+                java.util.Objects.requireNonNull(clock, "clock"));
     }
 
     @Override

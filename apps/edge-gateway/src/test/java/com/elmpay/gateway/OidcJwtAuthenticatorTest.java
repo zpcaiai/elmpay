@@ -158,14 +158,16 @@ final class OidcJwtAuthenticatorTest {
         assertThrows(IllegalArgumentException.class, () ->
                 OidcJwtAuthenticator.fromEnvironment(Map.of(), Clock.systemUTC()));
 
-        KeyPairGenerator weakGenerator = KeyPairGenerator.getInstance("RSA");
-        weakGenerator.initialize(1_024);
-        RSAPublicKey weakKey = (RSAPublicKey) weakGenerator.generateKeyPair().getPublic();
+        // Only public JWKS input is needed for this rejection test. Never
+        // generate a usable private signing key with an insecure key size.
+        RSAPublicKey strongKey = (RSAPublicKey) keyPair.getPublic();
+        BigInteger undersizedModulus = strongKey.getModulus().shiftRight(1_024).setBit(0);
+        assertEquals(1_024, undersizedModulus.bitLength());
         Path weakJwks = temporary.resolve("weak-jwks.json");
         Files.writeString(weakJwks, Json.stringify(Map.of("keys", java.util.List.of(Map.of(
                 "kid", "weak-key", "kty", "RSA", "alg", "RS256", "use", "sig",
-                "n", base64Url(unsigned(weakKey.getModulus())),
-                "e", base64Url(unsigned(weakKey.getPublicExponent()))
+                "n", base64Url(unsigned(undersizedModulus)),
+                "e", base64Url(unsigned(strongKey.getPublicExponent()))
         )))), StandardCharsets.UTF_8);
         assertThrows(IllegalArgumentException.class, () ->
                 OidcJwtAuthenticator.fromEnvironment(Map.of(

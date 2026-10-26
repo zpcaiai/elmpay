@@ -2,6 +2,7 @@ package com.elmpay.gateway;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -51,6 +52,106 @@ final class PaymentGatewayE2eTest {
     }
 
     @Test
+    void rejectsInvalidHeadersCredentialsUnknownRoutesAndUnsupportedQueriesOverHttp()
+            throws Exception {
+        String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
+                + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
+        RuntimeComponents runtime = RuntimeFactory.create(Map.of(
+                "ELMPAY_RUNTIME_MODE", "local",
+                "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
+                "ELMPAY_API_PRINCIPALS", principals));
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
+        server.createContext("/", new PaymentHttpHandler(runtime));
+        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.start();
+        try {
+            URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            HttpClient client = HttpClient.newHttpClient();
+
+            HttpResponse<String> invalidTrace = client.send(getRequest(
+                    base.resolve("/v1/not-a-route"), "Bearer " + KEY, "invalid"),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, invalidTrace.statusCode(), invalidTrace.body());
+            assertEquals("invalid_request", Json.object(invalidTrace.body()).get("code"));
+
+            HttpResponse<String> invalidCredentials = client.send(getRequest(
+                    base.resolve("/v1/not-a-route"), "Bearer invalid", validTraceparent()),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, invalidCredentials.statusCode(), invalidCredentials.body());
+            assertEquals("unauthenticated",
+                    Json.object(invalidCredentials.body()).get("code"));
+
+            HttpResponse<String> unknownRoute = client.send(getRequest(
+                    base.resolve("/v1/not-a-route"), "Bearer " + KEY, validTraceparent()),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(404, unknownRoute.statusCode(), unknownRoute.body());
+            assertEquals("resource_not_found", Json.object(unknownRoute.body()).get("code"));
+
+            HttpResponse<String> unsupportedQuery = client.send(getRequest(
+                    base.resolve("/v1/payment_intents?debug=true"), "Bearer " + KEY,
+                    validTraceparent()), HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, unsupportedQuery.statusCode(), unsupportedQuery.body());
+            assertEquals("invalid_request", Json.object(unsupportedQuery.body()).get("code"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void canonicalIntentCreationBindsMetadataAndRejectsInvalidOptionalFieldsOverHttp()
+            throws Exception {
+        String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
+                + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
+        RuntimeComponents runtime = RuntimeFactory.create(Map.of(
+                "ELMPAY_RUNTIME_MODE", "local",
+                "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
+                "ELMPAY_API_PRINCIPALS", principals));
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
+        server.createContext("/", new PaymentHttpHandler(runtime));
+        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.start();
+        try {
+            URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> created = client.send(request(
+                    base.resolve("/v1/payment_intents"), "canonical-create-0001", """
+                    {"business_order_no":"canonical-http-order-1","amount":1250,
+                     "currency":"USD","allowed_payment_methods":["card"],
+                     "capture_method":"manual","ttl_minutes":30,
+                     "metadata":{"invoice":"invoice-42","source":"demo"}}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, created.statusCode(), created.body());
+            Map<String, Object> createdBody = Json.object(created.body());
+            assertEquals("US", createdBody.get("region"));
+            assertEquals(1_250L, createdBody.get("amount_minor"));
+            assertEquals("created", createdBody.get("state"));
+            UUID intentId = UUID.fromString(String.valueOf(createdBody.get("id")));
+            assertEquals(Map.of("invoice", "invoice-42", "source", "demo"),
+                    runtime.metadata().find(TENANT, intentId));
+
+            HttpResponse<String> invalidMetadata = client.send(request(
+                    base.resolve("/v1/payment_intents"), "canonical-create-0002", """
+                    {"business_order_no":"canonical-http-order-2","amount":1000,
+                     "currency":"USD","metadata":{"invoice":42}}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, invalidMetadata.statusCode(), invalidMetadata.body());
+            assertEquals("invalid_request", Json.object(invalidMetadata.body()).get("code"));
+
+            HttpResponse<String> invalidTtl = client.send(request(
+                    base.resolve("/v1/payment_intents"), "canonical-create-0003", """
+                    {"business_order_no":"canonical-http-order-3","amount":1000,
+                     "currency":"USD","ttl_minutes":0}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, invalidTtl.statusCode(), invalidTtl.body());
+            assertEquals("invalid_request", Json.object(invalidTtl.body()).get("code"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void createsAndConfirmsAnIntentThroughTheHttpBoundary() throws Exception {
         String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
                 + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
@@ -88,6 +189,72 @@ final class PaymentGatewayE2eTest {
             Map<String, Object> intent = (Map<String, Object>) confirmation.get("payment_intent");
             assertEquals("captured", intent.get("state"));
             assertEquals(1_250L, intent.get("captured_amount_minor"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void declinedAndUnknownProviderOutcomesNeverBecomeSuccessfulOverHttp() throws Exception {
+        String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
+                + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
+        RuntimeComponents runtime = RuntimeFactory.create(Map.of(
+                "ELMPAY_RUNTIME_MODE", "local",
+                "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
+                "ELMPAY_API_PRINCIPALS", principals));
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
+        server.createContext("/", new PaymentHttpHandler(runtime));
+        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.start();
+        try {
+            URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            HttpClient client = HttpClient.newHttpClient();
+            for (String simulation : List.of("declined", "unknown")) {
+                HttpResponse<String> created = client.send(request(
+                        base.resolve("/v1/payment-intents"),
+                        "non-success-create-" + simulation, """
+                        {"external_reference":"order-non-success-%s","amount_minor":1000,
+                         "currency":"USD","allowed_methods":["card"],
+                         "confirmation_mode":"automatic","region":"US","ttl_minutes":60}
+                        """.formatted(simulation)), HttpResponse.BodyHandlers.ofString());
+                assertEquals(201, created.statusCode(), created.body());
+                String intentId = String.valueOf(Json.object(created.body()).get("id"));
+                URI confirmUri = base.resolve("/v1/payment-intents/" + intentId + "/confirm");
+                String idempotencyKey = "non-success-confirm-" + simulation;
+                String confirmationBody = """
+                        {"method":"card","payment_method_reference":"psp://local/%s",
+                         "fingerprint":"fp-%s","provider_parameters":{"simulation":"%s"}}
+                        """.formatted(simulation, simulation, simulation);
+                HttpResponse<String> first = client.send(request(confirmUri, idempotencyKey,
+                        confirmationBody), HttpResponse.BodyHandlers.ofString());
+                assertEquals(200, first.statusCode(), first.body());
+                Map<String, Object> firstBody = Json.object(first.body());
+                @SuppressWarnings("unchecked")
+                Map<String, Object> firstIntent =
+                        (Map<String, Object>) firstBody.get("payment_intent");
+                @SuppressWarnings("unchecked")
+                Map<String, Object> firstAttempt = (Map<String, Object>) firstBody.get("attempt");
+                assertNotEquals("succeeded", firstIntent.get("status"), simulation);
+                assertNotEquals("SUCCEEDED", firstAttempt.get("state"), simulation);
+                if ("declined".equals(simulation)) {
+                    assertEquals("requires_payment_method", firstIntent.get("status"));
+                    assertEquals("failed", firstAttempt.get("state"));
+                } else {
+                    assertEquals("requires_payment_method", firstIntent.get("status"));
+                    assertEquals("unknown", firstAttempt.get("state"));
+                }
+
+                HttpResponse<String> replay = client.send(request(confirmUri, idempotencyKey,
+                        confirmationBody), HttpResponse.BodyHandlers.ofString());
+                assertEquals(200, replay.statusCode(), replay.body());
+                Map<String, Object> replayBody = Json.object(replay.body());
+                @SuppressWarnings("unchecked")
+                Map<String, Object> replayIntent =
+                        (Map<String, Object>) replayBody.get("payment_intent");
+                assertEquals(firstIntent.get("status"), replayIntent.get("status"));
+                assertTrue((Boolean) replayBody.get("replayed"));
+            }
         } finally {
             server.stop(0);
         }
@@ -262,6 +429,58 @@ final class PaymentGatewayE2eTest {
     }
 
     @Test
+    void authenticatedCanonicalCheckoutConfirmationUsesLocalSimulationAndValidatesDeviceClass()
+            throws Exception {
+        String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
+                + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
+        RuntimeComponents runtime = RuntimeFactory.create(Map.of(
+                "ELMPAY_RUNTIME_MODE", "local",
+                "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
+                "ELMPAY_API_PRINCIPALS", principals));
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
+        server.createContext("/", new PaymentHttpHandler(runtime));
+        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.start();
+        try {
+            URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> created = client.send(checkoutRequest(
+                    base.resolve("/v1/checkout-sessions"), "POST", KEY,
+                    "canonical-session-create-0001", """
+                    {"business_order_no":"canonical-confirm-order-1","amount":1250,
+                     "currency":"USD","return_route_id":"checkout-complete",
+                     "payment_method":"card"}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, created.statusCode(), created.body());
+            String sessionId = String.valueOf(
+                    Json.object(created.body()).get("checkout_session_id"));
+
+            HttpResponse<String> unsupportedDevice = client.send(canonicalCheckoutRequest(
+                    base.resolve("/v1/checkout-sessions/" + sessionId), "GET", null, null,
+                    "zh-CN", "DESKTOP"), HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, unsupportedDevice.statusCode(), unsupportedDevice.body());
+            assertEquals("invalid_request",
+                    Json.object(unsupportedDevice.body()).get("code"));
+
+            HttpResponse<String> confirmed = client.send(canonicalCheckoutRequest(
+                    base.resolve("/v1/checkout-sessions/" + sessionId + "/confirm"), "POST",
+                    "canonical-session-confirm-0001", "{\"method\":\"card\"}",
+                    "zh-CN", "android"), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, confirmed.statusCode(), confirmed.body());
+            assertEquals("SUCCEEDED", Json.object(confirmed.body()).get("status"));
+
+            HttpResponse<String> retrieved = client.send(canonicalCheckoutRequest(
+                    base.resolve("/v1/checkout-sessions/" + sessionId), "GET", null, null,
+                    "zh-CN", "android"), HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, retrieved.statusCode(), retrieved.body());
+            assertEquals("SUCCEEDED", Json.object(retrieved.body()).get("status"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void refundRouteUsesCapturedPaymentAndReturnsDurableProviderState() throws Exception {
         String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
                 + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
@@ -406,6 +625,19 @@ final class PaymentGatewayE2eTest {
                 .POST(HttpRequest.BodyPublishers.ofString(body)).build();
     }
 
+    private static HttpRequest getRequest(URI uri, String authorization, String traceparent) {
+        return HttpRequest.newBuilder(uri)
+                .header("Authorization", authorization)
+                .header("X-Project-Id", PROJECT.toString())
+                .header("X-Request-Id", "request-boundary-0001")
+                .header("traceparent", traceparent)
+                .GET().build();
+    }
+
+    private static String validTraceparent() {
+        return "00-11111111111111111111111111111111-2222222222222222-01";
+    }
+
     private static HttpRequest checkoutRequest(URI uri, String method, String token,
             String idempotencyKey, String body) {
         HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
@@ -414,6 +646,26 @@ final class PaymentGatewayE2eTest {
                 .header("X-Request-Id", "request-checkout-0001")
                 .header("traceparent",
                         "00-33333333333333333333333333333333-4444444444444444-01");
+        if (idempotencyKey != null) {
+            builder.header("Idempotency-Key", idempotencyKey);
+        }
+        if (body != null) {
+            builder.header("Content-Type", "application/json");
+        }
+        return builder.method(method, body == null ? HttpRequest.BodyPublishers.noBody()
+                : HttpRequest.BodyPublishers.ofString(body)).build();
+    }
+
+    private static HttpRequest canonicalCheckoutRequest(URI uri, String method,
+            String idempotencyKey, String body, String language, String deviceClass) {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
+                .header("Authorization", "Bearer " + KEY)
+                .header("X-Project-Id", PROJECT.toString())
+                .header("X-Request-Id", "request-canonical-checkout-0001")
+                .header("traceparent",
+                        "00-33333333333333333333333333333333-4444444444444444-01")
+                .header("Accept-Language", language)
+                .header("X-ElmPay-Device-Class", deviceClass);
         if (idempotencyKey != null) {
             builder.header("Idempotency-Key", idempotencyKey);
         }

@@ -652,6 +652,16 @@ def _job_resources(
     return [service_account_document, network_policy, job_document]
 
 
+def _cronjob_annotations(annotations: Mapping[str, str]) -> dict[str, str]:
+    selected = {}
+    for key, value in annotations.items():
+        namespace, separator, name = key.partition("/")
+        if namespace == "elmpay.io" and separator and name \
+                and name != "requires-drained-database-roles":
+            selected[key] = value
+    return selected
+
+
 def _cronjob_resources(
     namespace: str,
     cron_job: Mapping[str, Any],
@@ -690,11 +700,7 @@ def _cronjob_resources(
     for dependency in (service_account, network_policy):
         dependency["metadata"].pop("annotations", None)
     job_annotations = job["metadata"]["annotations"]
-    cron_annotations = {
-        key: value for key, value in job_annotations.items()
-        if key.startswith("elmpay.io/")
-        and key != "elmpay.io/requires-drained-database-roles"
-    }
+    cron_annotations = _cronjob_annotations(job_annotations)
     cron_annotations["elmpay.io/schedule-timezone"] = "UTC"
     job_spec = job["spec"]
     job_spec.pop("ttlSecondsAfterFinished", None)

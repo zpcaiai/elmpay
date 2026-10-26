@@ -843,16 +843,30 @@ class EnterpriseInvoiceCliIntegrationTest(unittest.TestCase):
         self.assertEqual("ISSUED", inv["status"])
 
         # 2. invoice-tax-declaration JSON
+        # Billing cycle labels do not backdate the invoice. Report its actual
+        # issue period so this real CLI test also runs after September 2026.
+        tax_period = inv["issuedAt"][:7]
+        self.assertEqual(tax_period, inv["createdAt"][:7])
         code, summary, _ = self.run_cli(
             "invoice-tax-declaration",
             "--database", str(self.db_path),
             "--tenant", tenant,
-            "--tax-period", "2026-09",
+            "--tax-period", tax_period,
             "--format", "json",
         )
         self.assertEqual(0, code)
-        self.assertEqual("2026-09", summary["taxPeriod"])
+        self.assertEqual(tax_period, summary["taxPeriod"])
         self.assertEqual(1, summary["totals"]["totalBlueCount"])
+
+        year, month = map(int, tax_period.split("-"))
+        previous_period = f"{year - 1:04d}-12" if month == 1 else f"{year:04d}-{month - 1:02d}"
+        code, excluded, _ = self.run_cli(
+            "invoice-tax-declaration", "--database", str(self.db_path),
+            "--tenant", tenant, "--tax-period", previous_period, "--format", "json",
+        )
+        self.assertEqual(0, code)
+        self.assertEqual(0, excluded["totals"]["totalBlueCount"])
+        self.assertEqual(0, excluded["totals"]["totalNetTotalMinor"])
 
         # 3. invoice-tax-declaration CSV file export
         csv_out = Path(self.temporary.name) / "declaration.csv"
@@ -860,7 +874,7 @@ class EnterpriseInvoiceCliIntegrationTest(unittest.TestCase):
             "invoice-tax-declaration",
             "--database", str(self.db_path),
             "--tenant", tenant,
-            "--tax-period", "2026-09",
+            "--tax-period", tax_period,
             "--format", "csv",
             "--out", str(csv_out),
         )

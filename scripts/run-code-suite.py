@@ -69,11 +69,14 @@ SUITES: dict[str, SuiteSpec] = {
                 "tools.tests.test_b18_mfa", "tools.tests.test_b19_authz",
                 "tools.tests.test_b20_keys", "tools.tests.test_b21_certs",
                 "tools.tests.test_b22_baseline", "tools.tests.test_b23_audit",
-                "testing.test_mounted_secrets",
+                "testing.test_mounted_secrets", "testing.test_rr02_security",
             ),
             _unittest("testing.test_b16_b21_identity_security"),
         ),
-        test_modules=("testing.test_b16_b21_identity_security", "testing.test_mounted_secrets"),
+        test_modules=(
+            "testing.test_b16_b21_identity_security", "testing.test_mounted_secrets",
+            "testing.test_rr02_security",
+        ),
     ),
     "merchant": SuiteSpec(
         commands=(

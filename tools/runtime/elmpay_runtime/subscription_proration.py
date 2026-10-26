@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from enum import Enum
 import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -9,6 +10,12 @@ import uuid
 
 from .common import ValidationError, require_text, parse_instant
 from .durable import DurableStore
+
+
+class BillingInterval(str, Enum):
+    MONTHLY = "MONTHLY"
+    QUARTERLY = "QUARTERLY"
+    ANNUAL = "ANNUAL"
 
 
 def _current(now: datetime | None = None) -> datetime:
@@ -50,9 +57,12 @@ class SubscriptionProrationEngine:
         require_text(name, "name")
         require_text(currency, "currency")
 
-        interval = billing_interval.upper()
-        if interval not in ("MONTHLY", "QUARTERLY", "ANNUAL"):
-            raise ValidationError(f"Invalid billing_interval: {billing_interval}. Must be MONTHLY, QUARTERLY, or ANNUAL")
+        if not isinstance(billing_interval, str):
+            raise ValidationError("billing_interval must be MONTHLY, QUARTERLY, or ANNUAL")
+        try:
+            interval = BillingInterval(billing_interval.upper())
+        except ValueError:
+            raise ValidationError("billing_interval must be MONTHLY, QUARTERLY, or ANNUAL") from None
 
         if not isinstance(amount_minor, int) or amount_minor < 0:
             raise ValidationError("amount_minor must be a non-negative integer in minor units")
@@ -72,7 +82,7 @@ class SubscriptionProrationEngine:
             conn.execute(
                 "INSERT INTO subscription_plan (plan_id, tenant_id, plan_code, name, billing_interval, amount_minor, currency, created_at, is_active) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
-                (pid, tenant_id, plan_code, name, interval, amount_minor, curr, now_iso),
+                (pid, tenant_id, plan_code, name, interval.value, amount_minor, curr, now_iso),
             )
 
         return {
@@ -80,7 +90,7 @@ class SubscriptionProrationEngine:
             "tenantId": tenant_id,
             "planCode": plan_code,
             "name": name,
-            "billingInterval": interval,
+            "billingInterval": interval.value,
             "amountMinor": amount_minor,
             "currency": curr,
             "createdAt": now_iso,

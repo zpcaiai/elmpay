@@ -18,6 +18,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 from typing import Any, Mapping, Sequence
 import xml.etree.ElementTree as ET
@@ -312,7 +313,18 @@ def parse_jacoco_xml(path: Path) -> LineCounts:
             None,
         )
         if counter is None:
-            raise ValidationError("JaCoCo source file has no LINE counter")
+            classes = [item for item in parent.findall("./class")
+                       if item.attrib.get("sourcefilename") == key[1]]
+            if source.findall("./line") or not classes:
+                raise ValidationError("JaCoCo source file has no LINE counter")
+            for item in classes:
+                for value in item.findall(".//counter"):
+                    if (_xml_integer(value.attrib.get("missed"), "JaCoCo class missed")
+                            or _xml_integer(value.attrib.get("covered"), "JaCoCo class covered")):
+                        raise ValidationError("JaCoCo executable source file has no LINE counter")
+            # JaCoCo emits abstract-only interfaces as empty source/class nodes.
+            # Retain their identity and every executable source/counter in the denominator.
+            continue
         missed = _xml_integer(counter.attrib.get("missed"), "JaCoCo missed lines")
         covered = _xml_integer(counter.attrib.get("covered"), "JaCoCo covered lines")
         detail_covered = 0
@@ -348,6 +360,29 @@ def _xml_integer(value: object, field: str) -> int:
     return int(value)
 
 
+def _pit_coordinates(mutation: ET.Element) -> tuple[tuple[int, ...], tuple[int, ...]]:
+    values = []
+    shapes = []
+    for singular, plural in (("index", "indexes"), ("block", "blocks")):
+        scalar = mutation.findall("./" + singular)
+        containers = mutation.findall("./" + plural)
+        if bool(scalar) == bool(containers) or len(scalar) > 1 or len(containers) > 1:
+            raise ValidationError("PIT mutation coordinate is missing or ambiguous")
+        if scalar:
+            nodes = scalar
+            shapes.append("legacy")
+        else:
+            nodes = list(containers[0])
+            shapes.append("list")
+        if not nodes or any(node.tag != singular or list(node) for node in nodes):
+            raise ValidationError("PIT mutation coordinate list is invalid")
+        values.append(tuple(sorted(_xml_integer(node.text, "PIT mutation " + singular)
+                                   for node in nodes)))
+    if shapes[0] != shapes[1]:
+        raise ValidationError("PIT mutation coordinate schemas cannot be mixed")
+    return values[0], values[1]
+
+
 def parse_pitest_xml(path: Path) -> MutationCounts:
     """Recompute mutation score from every PIT mutation element."""
 
@@ -365,7 +400,7 @@ def parse_pitest_xml(path: Path) -> MutationCounts:
     if not mutations:
         raise ValidationError("PIT report contains no mutants")
     killed = 0
-    seen: set[tuple[str, ...]] = set()
+    seen: set[tuple[object, ...]] = set()
     for mutation in mutations:
         status = require_text(mutation.attrib.get("status"), "PIT mutation status")
         if status not in _PIT_TERMINAL:
@@ -382,13 +417,10 @@ def parse_pitest_xml(path: Path) -> MutationCounts:
                 "methodDescription",
                 "lineNumber",
                 "mutator",
-                "index",
-                "block",
             )
         )
         _xml_integer(fields[4], "PIT mutation lineNumber")
-        _xml_integer(fields[6], "PIT mutation index")
-        _xml_integer(fields[7], "PIT mutation block")
+        fields = fields + _pit_coordinates(mutation)
         if fields in seen:
             raise ValidationError("PIT report contains a duplicate mutant")
         seen.add(fields)
@@ -852,6 +884,21 @@ def _tool_execution(
         stderr = bytes(exc.stderr or b"") + b"\nquality tool timed out"
         failure_kind = "TIMEOUT"
     duration = max(0, (time.monotonic_ns() - started) // 1_000_000)
+    output_root = _safe_report_path(cwd, "build/quality-metrics/tool-output")
+    output_root.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(tempfile.mkdtemp(prefix="execution-", dir=output_root))
+    receipt = {
+        "tool": tool, "command": list(command), "executed": True,
+        "executor_pid": os.getpid(), "exit_code": exit_code,
+        "stdout_sha256": _sha256(stdout), "stderr_sha256": _sha256(stderr),
+    }
+    for name, raw in (
+        ("stdout.log", stdout), ("stderr.log", stderr),
+        ("receipt.json", json.dumps(receipt, sort_keys=True).encode("utf-8")),
+    ):
+        descriptor = os.open(output_dir / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, "wb") as stream:
+            stream.write(raw)
     return ToolExecution(
         tool,
         tuple(command),
@@ -862,6 +909,19 @@ def _tool_execution(
         version,
         failure_kind,
     )
+
+
+def _canonical_tool_version(output: bytes) -> str:
+    pattern = (
+        r"(?:Gradle [0-9]+(?:\.[0-9]+){1,3}|"
+        r"Coverage\.py,? version [0-9]+(?:\.[0-9]+){1,3}"
+        r"(?: (?:with|without) C extension)?)"
+    )
+    identities = [line.strip() for line in output.decode("utf-8", errors="replace").splitlines()
+                  if re.fullmatch(pattern, line.strip())]
+    if len(identities) != 1 or len(identities[0]) > 256:
+        raise ValidationError("quality tool canonical version is missing or ambiguous")
+    return identities[0]
 
 
 def _tool_version(executable: str, arguments: Sequence[str]) -> str:
@@ -878,7 +938,7 @@ def _tool_version(executable: str, arguments: Sequence[str]) -> str:
     text = completed.stdout.decode("utf-8", errors="replace").strip().splitlines()
     if completed.returncode != 0 or not text:
         raise ValidationError(f"quality tool version probe failed: {executable}")
-    return text[0][:256]
+    return _canonical_tool_version(completed.stdout)
 
 
 def _fresh(path: Path, started_ns: int) -> bool:

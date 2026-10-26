@@ -31,6 +31,14 @@ function problem(response, status, code, requestId, extraHeaders = {}) {
   sendJson(response, status, { type: "about:blank", title: code, status, requestId }, extraHeaders);
 }
 
+class RequestRejected extends Error {
+  constructor(status, code) {
+    super("admin request rejected");
+    this.status = status;
+    this.code = code;
+  }
+}
+
 async function boundedJson(request, maximumBytes = 32_768) {
   const raw = [];
   for (let index = 0; index < (request.rawHeaders?.length ?? 0); index += 2) {
@@ -156,22 +164,23 @@ export function createAdminHandler({ authenticator, policy, store, upstream, pub
         sendJson(response, 200, { nonce, expiresAt }, { "dpop-nonce": nonce }); return;
       }
       if (!path.startsWith("/api/admin/")) { problem(response, 404, "NOT_FOUND", requestId); return; }
-      if (request.headers.cookie !== undefined) { problem(response, 401, "COOKIE_AUTH_FORBIDDEN", requestId); return; }
+      if (request.headers.cookie !== undefined) throw new RequestRejected(401, "COOKIE_AUTH_FORBIDDEN");
       const operator = await authenticate(request, requestUrl);
       authenticatedOperator = operator;
 
       if (path === "/api/admin/diagnostics") {
+        const authorization = policy.authorizeDiagnostic(operator, operator.tenantId);
         if (request.method !== "GET" || requestUrl.searchParams.size !== 2
             || requestUrl.searchParams.getAll("tenantId").length !== 1
             || requestUrl.searchParams.getAll("service").length !== 1) {
-          problem(response, 400, "INVALID_DIAGNOSTIC_REQUEST", requestId); return;
+          throw new RequestRejected(400, "INVALID_DIAGNOSTIC_REQUEST");
         }
         const tenantId = requestUrl.searchParams.get("tenantId");
         const service = requestUrl.searchParams.get("service");
         if (!UUID.test(tenantId ?? "") || !SERVICE.test(service ?? "")) {
           problem(response, 400, "INVALID_DIAGNOSTIC_REQUEST", requestId); return;
         }
-        const authorization = policy.authorizeDiagnostic(operator, tenantId);
+        if (tenantId !== operator.tenantId) throw new RequestRejected(403, "AUTHORIZATION_DENIED");
         let view; let source; let capturedAt = now().toISOString();
         try {
           view = buildDiagnosticView(operator, await upstream.diagnostic(operator, service));
@@ -192,32 +201,40 @@ export function createAdminHandler({ authenticator, policy, store, upstream, pub
       }
 
       if (path === "/api/admin/approvals") {
-        if (request.method !== "POST" || requestUrl.search !== "") {
-          problem(response, 405, "METHOD_NOT_ALLOWED", requestId); return;
+        if (request.method !== "POST") {
+          throw new RequestRejected(405, "METHOD_NOT_ALLOWED");
         }
         if (!dispatcher.isHealthy() || !await upstream.ready()) throw new UpstreamUnavailableError();
         const body = exactKeys(await boundedJson(request), new Set([
           "tenantId", "projectId", "kind", "operationCode", "targetId", "proposalDigest",
           "reasonCode", "ticketReference", "expiresAt",
         ]));
-        const authorization = policy.authorizeAction(operator, body.tenantId, body.kind,
+        const authorization = policy.authorizeAction(operator, operator.tenantId, body.kind,
           { requireStepUp: (actor) => authenticator.isRecentStepUp(actor) });
+        if (requestUrl.search !== "") throw new RequestRejected(405, "METHOD_NOT_ALLOWED");
         const command = createApprovalCommand(body, operator, authorization, request.headers["idempotency-key"], now());
         const approval = await store.createApproval(command);
         sendJson(response, 201, { approval }, { location: `/api/admin/approvals/${approval.id}` }); return;
       }
 
       const match = path.match(APPROVAL_PATH);
-      if (match === null || requestUrl.searchParams.size !== 1
-          || requestUrl.searchParams.getAll("tenantId").length !== 1
-          || !UUID.test(requestUrl.searchParams.get("tenantId") ?? "")) {
-        problem(response, 404, "NOT_FOUND", requestId); return;
+      if (match === null) {
+        throw new RequestRejected(404, "NOT_FOUND");
       }
-      const tenantId = requestUrl.searchParams.get("tenantId");
+      const tenantId = operator.tenantId;
       const current = await store.getApproval(tenantId, match[1]);
       if (current === null) { problem(response, 404, "NOT_FOUND", requestId); return; }
+      if (current.tenantId !== tenantId) throw new RequestRejected(403, "AUTHORIZATION_DENIED");
       const authorization = policy.authorizeAction(operator, tenantId, current.kind,
         { requireStepUp: (actor) => authenticator.isRecentStepUp(actor) });
+      if (requestUrl.searchParams.size !== 1
+          || requestUrl.searchParams.getAll("tenantId").length !== 1
+          || !UUID.test(requestUrl.searchParams.get("tenantId") ?? "")) {
+        throw new RequestRejected(404, "NOT_FOUND");
+      }
+      if (requestUrl.searchParams.get("tenantId") !== tenantId) {
+        throw new RequestRejected(403, "AUTHORIZATION_DENIED");
+      }
       if (!path.endsWith("/decisions")) {
         if (request.method !== "GET") { problem(response, 405, "METHOD_NOT_ALLOWED", requestId); return; }
         await store.recordAccess({ tenantId, actorId: operator.id, eventType: "APPROVAL_READ",
@@ -235,7 +252,8 @@ export function createAdminHandler({ authenticator, policy, store, upstream, pub
       sendJson(response, 200, { approval: decided });
     } catch (error) {
       let status = 500; let code = "ADMIN_REQUEST_FAILED";
-      if (error?.code === "AUTHENTICATION_FAILED") { status = 401; code = "AUTHENTICATION_REQUIRED"; }
+      if (error instanceof RequestRejected) { status = error.status; code = error.code; }
+      else if (error?.code === "AUTHENTICATION_FAILED") { status = 401; code = "AUTHENTICATION_REQUIRED"; }
       else if (error?.code === "AUTHENTICATION_CONTROL_UNAVAILABLE") { status = 503; code = "IDENTITY_CONTROL_UNAVAILABLE"; }
       else if (error instanceof TypeError || error instanceof SyntaxError) { status = 400; code = "INVALID_REQUEST"; }
       else if (error instanceof DatabaseUnavailableError || error instanceof UpstreamUnavailableError) {

@@ -1,5 +1,5 @@
 import { createPublicKey, verify } from "node:crypto";
-import { readFileSync, statSync } from "node:fs";
+import { readControlledFile } from "./controlled-file.mjs";
 import { canonicalJson, sha256Base64Url, sha256Hex } from "./canonical-json.mjs";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -88,12 +88,7 @@ function verifyEs256(parsed, key, label) {
 }
 
 export function loadCorporateJwks(path) {
-  const stat = statSync(path, { throwIfNoEntry: true });
-  if (!stat.isFile() || stat.size < 1 || stat.size > 1_048_576
-      || (stat.mode & 0o222) !== 0) {
-    throw new Error("corporate JWKS must be a bounded read-only regular file");
-  }
-  const document = JSON.parse(readFileSync(path, "utf8"));
+  const document = JSON.parse(readControlledFile(path, "corporate JWKS", 1_048_576).toString("utf8"));
   exactObject(document, new Set(["keys"]), "corporate JWKS");
   if (!Array.isArray(document.keys) || document.keys.length === 0 || document.keys.length > 20) {
     throw new Error("corporate JWKS must contain between 1 and 20 keys");
@@ -121,10 +116,8 @@ export class FileRevocationSource {
 
   current(now = new Date()) {
     try {
-      const stat = statSync(this.path, { throwIfNoEntry: true });
-      if (!stat.isFile() || stat.size < 1 || stat.size > 16 * 1024 * 1024
-          || (stat.mode & 0o222) !== 0) throw new Error("invalid file");
-      const document = JSON.parse(readFileSync(this.path, "utf8"));
+      const document = JSON.parse(readControlledFile(this.path, "revocation snapshot",
+        16 * 1024 * 1024).toString("utf8"));
       exactObject(document, new Set(["schemaVersion", "issuer", "issuedAt", "expiresAt", "revokedJtis", "signature"]), "revocation snapshot");
       if (document.schemaVersion !== 1 || document.issuer !== this.issuer
           || !Array.isArray(document.revokedJtis) || document.revokedJtis.length > 100_000) throw new Error("invalid contract");

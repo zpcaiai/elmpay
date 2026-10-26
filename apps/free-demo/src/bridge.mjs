@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, pbkdf2Sync, randomBytes, randomUUID } from 'node:crypto';
 
 export const scenarios = Object.freeze(['succeeded', 'declined', 'unknown', 'authorized', 'requires_action']);
 const demoCurrencies = Object.freeze({ card: 'USD', wechat_native: 'CNY' });
@@ -38,7 +38,9 @@ export function demoConfiguration(environment) {
   const healthPort = port(environment.ELMPAY_DEMO_HEALTH_PORT, 8501);
   if (gatewayPort === healthPort) throw new Error('demo ports must differ');
   const apiToken = randomBytes(32).toString('base64url');
-  const digest = createHash('sha256').update(apiToken).digest('hex');
+  const salt = randomBytes(16);
+  const digest = pbkdf2Sync(apiToken, salt, 600000, 32, 'sha256').toString('hex');
+  const verifier = `pbkdf2-sha256:600000:${salt.toString('hex')}:${digest}`;
   const tenant = '21000000-0000-4000-8000-000000000001';
   const project = '21000000-0000-4000-8000-000000000002';
   const merchant = '21000000-0000-4000-8000-000000000003';
@@ -60,7 +62,7 @@ export function demoConfiguration(environment) {
       ELMPAY_RUNTIME_MODE: 'local', ELMPAY_ENABLE_LOCAL_SANDBOX: 'true',
       ELMPAY_LOCAL_RISK_POLICY: 'approve-sandbox', PORT: String(gatewayPort),
       ELMPAY_HEALTH_PORT: String(healthPort),
-      ELMPAY_API_PRINCIPALS: `${digest}|free-demo|${tenant}|${project}|${merchant}|payments.read+payments.write`,
+      ELMPAY_API_PRINCIPALS: `${verifier}|free-demo|${tenant}|${project}|${merchant}|payments.read+payments.write`,
       ELMPAY_CHECKOUT_PUBLIC_BASE_URL: `${publicUrl.origin}/checkout`,
       ELMPAY_CHECKOUT_RETURN_ROUTES: `demo-complete=${publicUrl.origin}/complete`,
       ELMPAY_CHECKOUT_DEFAULT_RETURN_ROUTE_ID: 'demo-complete',
@@ -90,7 +92,16 @@ async function jsonBody(request) {
 }
 
 async function upstreamJson(origin, path, options = {}) {
-  const response = await fetch(new URL(path, origin), {
+  const target = new URL(origin);
+  if (target.protocol !== 'http:' || target.hostname !== '127.0.0.1'
+      || target.username || target.password || target.pathname !== '/'
+      || target.search || target.hash || typeof path !== 'string'
+      || !path.startsWith('/') || path.startsWith('//') || /[?#\\]/.test(path)) {
+    throw new Error('demo upstream must be the fixed loopback sandbox');
+  }
+  target.pathname = path;
+  if (target.origin !== origin) throw new Error('demo upstream authority changed');
+  const response = await fetch(target, {
     ...options, redirect: 'manual', signal: AbortSignal.timeout(5000),
   });
   if (response.status >= 300 && response.status < 400) throw new Error('upstream redirect refused');
@@ -113,6 +124,9 @@ export function createDemoBridge(configuration, { page = null, asset = null, gat
     active += 1;
     try {
       const url = new URL(request.url, 'https://demo.invalid');
+      if (url.origin !== 'https://demo.invalid' || request.url.startsWith('//')) {
+        return respond(response, 400, { code: 'absolute_request_target_not_allowed' });
+      }
       if (url.search) return respond(response, 400, { code: 'query_not_allowed' });
       if (active > 8) return respond(response, 429, { code: 'demo_busy' });
       const path = url.pathname;

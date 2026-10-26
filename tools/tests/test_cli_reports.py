@@ -38,7 +38,7 @@ class CliReports(FixtureTestCase):
             report = self.fixture.root / relative
             self.assertEqual(report.read_text(encoding="utf-8"), stdout.getvalue())
             self.assertEqual(json.loads(report.read_text(encoding="utf-8"))["ok"], True)
-            self.assertEqual(report.stat().st_mode & 0o777, 0o644)
+            self.assertEqual(report.stat().st_mode & 0o777, 0o600)
             self.assertEqual(list(report.parent.glob(f".{report.name}.*")), [])
 
     def test_failing_validation_is_still_recorded(self):

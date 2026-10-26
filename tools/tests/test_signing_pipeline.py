@@ -66,6 +66,13 @@ def _write_jar(path: Path, payload: bool = True) -> None:
             archive.writestr("com/elmpay/Reference.class", b"test-bytecode-placeholder")
 
 
+def _write_private_executable(path: Path, content: str) -> None:
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o700)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        os.fchmod(output.fileno(), 0o700)
+        output.write(content)
+
+
 class SigningWorkflowRendering(unittest.TestCase):
     def test_oidc_is_global_none_and_write_only_in_sign_job(self):
         workflow = cigen.workflow(REAL_ROOT)
@@ -180,6 +187,10 @@ class ArtifactStagingScript(unittest.TestCase):
 
 
 class GeneratedSigningScript(unittest.TestCase):
+    def test_generated_scripts_are_owner_only(self):
+        for name in ("sign-artifacts.sh", "stage-signing-artifacts.sh"):
+            self.assertEqual((self.root / "scripts" / name).stat().st_mode & 0o777, 0o700)
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory(prefix="elmpay-signing-test-")
         self.addCleanup(self.temporary.cleanup)
@@ -187,11 +198,9 @@ class GeneratedSigningScript(unittest.TestCase):
         scripts = self.root / "scripts"
         scripts.mkdir(parents=True)
         self.script = scripts / "sign-artifacts.sh"
-        self.script.write_text(cigen.sign_script(REAL_ROOT))
-        self.script.chmod(0o755)
+        _write_private_executable(self.script, cigen.sign_script(REAL_ROOT))
         stage_script = scripts / "stage-signing-artifacts.sh"
-        stage_script.write_text(cigen.stage_signing_artifacts_script(REAL_ROOT))
-        stage_script.chmod(0o755)
+        _write_private_executable(stage_script, cigen.stage_signing_artifacts_script(REAL_ROOT))
         self.environment = os.environ.copy()
         self.environment.update(_github_environment())
         self.projects = _projects()
@@ -571,9 +580,12 @@ class SigningGovernanceRejects(FixtureTestCase):
         ):
             problems = self._validate()
         self.assertIn("CI_RELEASE_GATE_CONTEXT", self.codes(problems))
-        injected = original.replace(
+        release_job = _job(original, "release-gate")
+        injected_job = release_job.replace(
             "          set -euo pipefail",
             f"          set -euo pipefail\n          echo ${{{{ vars.{OPT_IN} }}}}", 1)
+        self.assertNotEqual(injected_job, release_job)
+        injected = original.replace(release_job, injected_job, 1)
         with patch.object(
             cigen,
             "render_all",

@@ -1,4 +1,4 @@
-import { readFileSync, realpathSync, statSync } from 'node:fs';
+import { closeSync, constants, fstatSync, openSync, readSync, realpathSync } from 'node:fs';
 import { request as httpsRequest, Agent } from 'node:https';
 import { createSecureContext } from 'node:tls';
 import { dirname, sep } from 'node:path';
@@ -15,12 +15,28 @@ export function readMountedCredential(path, name) {
   if (!(resolved === directory || resolved.startsWith(`${directory}${sep}`))) {
     throw new Error(`${name} must remain inside its read-only mount`);
   }
-  const metadata = statSync(resolved);
-  if (!metadata.isFile() || (metadata.mode & 0o222) !== 0 || metadata.size < 1
-      || metadata.size > maximumCredentialBytes) {
-    throw new Error(`${name} must be a bounded read-only regular file`);
-  }
-  return readFileSync(resolved);
+  const fd = openSync(resolved, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+  try {
+    const metadata = fstatSync(fd);
+    if (!metadata.isFile() || (metadata.mode & 0o222) !== 0 || metadata.size < 1
+        || metadata.size > maximumCredentialBytes) {
+      throw new Error(`${name} must be a bounded read-only regular file`);
+    }
+    const bytes = Buffer.alloc(metadata.size + 1);
+    let size = 0;
+    while (size < bytes.length) {
+      const count = readSync(fd, bytes, size, bytes.length - size, null);
+      if (count === 0) break;
+      size += count;
+    }
+    const after = fstatSync(fd);
+    if (size !== metadata.size || after.size !== metadata.size || after.mode !== metadata.mode
+        || after.mtimeMs !== metadata.mtimeMs || after.ctimeMs !== metadata.ctimeMs) {
+      bytes.fill(0);
+      throw new Error(`${name} changed during its bounded read`);
+    }
+    return bytes.subarray(0, size);
+  } finally { closeSync(fd); }
 }
 
 function boundedBody(body) {
