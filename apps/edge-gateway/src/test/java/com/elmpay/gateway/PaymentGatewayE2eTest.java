@@ -138,7 +138,7 @@ final class PaymentGatewayE2eTest {
                 assertNotEquals("succeeded", firstIntent.get("status"), simulation);
                 assertNotEquals("SUCCEEDED", firstAttempt.get("state"), simulation);
                 if ("declined".equals(simulation)) {
-                    assertEquals("failed", firstIntent.get("status"));
+                    assertEquals("requires_payment_method", firstIntent.get("status"));
                     assertEquals("FAILED", firstAttempt.get("state"));
                 } else {
                     assertEquals("requires_payment_method", firstIntent.get("status"));
