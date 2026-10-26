@@ -1,19 +1,31 @@
 package com.elmpay.provider;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.Provider;
+import java.security.Security;
 import java.security.Signature;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Isolated;
 
+@Isolated("temporarily removes JCA providers to verify fail-closed behavior")
 final class ProviderEvidenceVerifierTest {
     private static final Instant NOW = Instant.parse("2026-08-30T00:00:00Z");
     private static final String TYPE = "PROVIDER_RENEWAL_RESULT";
@@ -101,6 +113,9 @@ final class ProviderEvidenceVerifierTest {
         assertThrows(IllegalArgumentException.class, () -> new ProviderEvidenceVerifier.TrustKey(
                 keyPair.getPublic(), "stripe-query-verifier", "stripe", Set.of(TYPE),
                 NOW, NOW, false));
+        assertThrows(IllegalArgumentException.class, () -> new ProviderEvidenceVerifier.TrustKey(
+                keyPair.getPublic(), " ", "stripe", Set.of(TYPE),
+                NOW.minusSeconds(60), NOW.plusSeconds(60), false));
 
         Map<String, String> fields = fields("succeeded");
         ProviderEvidenceVerifier revoked = verifierWithTrust(
@@ -121,6 +136,86 @@ final class ProviderEvidenceVerifierTest {
         assertThrows(SecurityException.class,
                 () -> verifier.verify(longLived, TYPE, fields, NOW));
     }
+
+    @Test
+    void rejectsMalformedReceiptFieldsBeforeSignatureVerification() {
+        Map<String, String> fields = fields("succeeded");
+        assertThrows(IllegalArgumentException.class, () -> receipt("bad", fields,
+                "stripe-key-1", "provider-evidence-nonce-0010", new byte[64]));
+        assertThrows(IllegalArgumentException.class, () -> receipt(TYPE, Map.of(),
+                "stripe-key-1", "provider-evidence-nonce-0011", new byte[64]));
+        assertThrows(IllegalArgumentException.class, () -> receipt(TYPE,
+                Map.of("bad field", "succeeded"), "stripe-key-1",
+                "provider-evidence-nonce-0012", new byte[64]));
+        assertThrows(IllegalArgumentException.class, () -> receipt(TYPE, fields,
+                "bad key id", "provider-evidence-nonce-0013", new byte[64]));
+        assertThrows(IllegalArgumentException.class, () -> receipt(TYPE, fields,
+                "stripe-key-1", "short", new byte[64]));
+        assertThrows(IllegalArgumentException.class, () -> receipt(TYPE, fields,
+                "stripe-key-1", "provider-evidence-nonce-0014", new byte[63]));
+    }
+
+    @Test
+    void unavailableEd25519ProviderFailsClosedAndIsRestored() throws Exception {
+        Map<String, String> fields = fields("succeeded");
+        ProviderEvidenceReceipt signed = receipt(fields,
+                "provider-evidence-nonce-provider-unavailable");
+
+        withoutProviders("Signature", "Ed25519", () -> {
+            SecurityException failure = assertThrows(SecurityException.class,
+                    () -> verifier.verify(signed, TYPE, fields, NOW));
+            assertInstanceOf(NoSuchAlgorithmException.class, failure.getCause());
+        });
+    }
+
+    @Test
+    void unavailableSha256ProviderFailsClosedAndIsRestored() throws Exception {
+        Map<String, String> fields = fields("succeeded");
+        ProviderEvidenceReceipt signed = receipt(fields,
+                "provider-evidence-nonce-sha-unavailable");
+
+        withoutProviders("MessageDigest", "SHA-256", () -> {
+            IllegalStateException failure = assertThrows(IllegalStateException.class,
+                    () -> verifier.verify(signed, TYPE, fields, NOW));
+            assertInstanceOf(NoSuchAlgorithmException.class, failure.getCause());
+        });
+    }
+
+    private static ProviderEvidenceReceipt receipt(String evidenceType,
+            Map<String, String> fields, String keyId, String nonce, byte[] signature) {
+        return new ProviderEvidenceReceipt(evidenceType, fields, keyId,
+                NOW.minusSeconds(1), NOW.plusSeconds(120), nonce, signature);
+    }
+
+    private static void withoutProviders(String service, String algorithm, Runnable action) {
+        Provider[] original = Security.getProviders();
+        List<PositionedProvider> removed = new ArrayList<>();
+        for (int index = 0; index < original.length; index++) {
+            Provider provider = original[index];
+            if (provider.getService(service, algorithm) != null) {
+                Security.removeProvider(provider.getName());
+                removed.add(new PositionedProvider(index + 1, provider));
+            }
+        }
+        assertTrue(!removed.isEmpty(), service + "." + algorithm + " must have a provider");
+        try {
+            assertTrue(Security.getProviders(service + "." + algorithm) == null,
+                    service + "." + algorithm + " should be unavailable during the probe");
+            action.run();
+        } finally {
+            removed.sort(Comparator.comparingInt(PositionedProvider::position));
+            for (PositionedProvider entry : removed) {
+                Security.insertProviderAt(entry.provider(), entry.position());
+            }
+            String[] originalNames = Arrays.stream(original).map(Provider::getName)
+                    .toArray(String[]::new);
+            String[] restoredNames = Arrays.stream(Security.getProviders())
+                    .map(Provider::getName).toArray(String[]::new);
+            assertArrayEquals(originalNames, restoredNames);
+        }
+    }
+
+    private record PositionedProvider(int position, Provider provider) { }
 
     private Map<String, String> fields(String result) {
         return Map.of(
