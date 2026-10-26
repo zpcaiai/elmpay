@@ -34,6 +34,24 @@ final class EventEnvelopeTest {
                 Map.of()));
     }
 
+    @Test
+    void malformedTypedFieldsOverflowAndNonObjectPayloadFailClosed() {
+        EventEnvelope value = envelope(Map.of());
+        String json = value.canonicalJson();
+        assertThrows(IllegalArgumentException.class, () -> EventEnvelope.parse(json.replace(
+                "\"event_id\":\"" + value.eventId() + "\"",
+                "\"event_id\":\"not-a-uuid\"")));
+        assertThrows(IllegalArgumentException.class, () -> EventEnvelope.parse(json.replace(
+                "\"event_version\":1", "\"event_version\":2147483648")));
+        assertThrows(IllegalArgumentException.class, () -> EventEnvelope.parse(json.replace(
+                "\"revision\":7", "\"revision\":0")));
+        assertThrows(IllegalArgumentException.class, () -> EventEnvelope.parse(json.replace(
+                "\"occurred_at\":\"2026-08-30T00:00:00Z\"",
+                "\"occurred_at\":\"not-an-instant\"")));
+        assertThrows(IllegalArgumentException.class,
+                () -> EventEnvelope.parse(json.replace("\"payload\":{}", "\"payload\":[]")));
+    }
+
     private static EventEnvelope envelope(Map<String, Object> payload) {
         Instant occurred = Instant.parse("2026-08-30T00:00:00Z");
         return new EventEnvelope(UUID.randomUUID(), "payment_intent.captured", 1,
