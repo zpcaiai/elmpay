@@ -63,6 +63,44 @@ final class AdminActionPolicyBindingTest {
                 () -> AdminActionPolicyBinding.load(invalidUtf8.toAbsolutePath()));
     }
 
+    @Test
+    void groupWorldWritableEmptyAndOversizedBindingsAreRejected(@TempDir Path root)
+            throws Exception {
+        Path groupWritable = root.resolve("group-writable.json");
+        Files.writeString(groupWritable, bindingJson());
+        Files.setPosixFilePermissions(groupWritable,
+                PosixFilePermissions.fromString("r---w----"));
+        assertThrows(IllegalStateException.class,
+                () -> AdminActionPolicyBinding.load(groupWritable.toAbsolutePath()));
+
+        Path worldWritable = root.resolve("world-writable.json");
+        Files.writeString(worldWritable, bindingJson());
+        Files.setPosixFilePermissions(worldWritable,
+                PosixFilePermissions.fromString("r------w-"));
+        assertThrows(IllegalStateException.class,
+                () -> AdminActionPolicyBinding.load(worldWritable.toAbsolutePath()));
+
+        Path empty = root.resolve("empty.json");
+        Files.createFile(empty);
+        Files.setPosixFilePermissions(empty, PosixFilePermissions.fromString("r--r-----"));
+        assertThrows(IllegalStateException.class,
+                () -> AdminActionPolicyBinding.load(empty.toAbsolutePath()));
+
+        Path oversized = root.resolve("oversized.json");
+        Files.writeString(oversized, "x".repeat(16_385));
+        Files.setPosixFilePermissions(oversized,
+                PosixFilePermissions.fromString("r--r-----"));
+        assertThrows(IllegalStateException.class,
+                () -> AdminActionPolicyBinding.load(oversized.toAbsolutePath()));
+    }
+
+    private static String bindingJson() {
+        return """
+                {"schemaVersion":1,"adminActionPolicyDigest":"%s",
+                 "validUntil":"2026-08-30T01:15:00Z"}
+                """.formatted(DIGEST);
+    }
+
     private static AdminDomainCommand command(String policyDigest, Instant expiresAt) {
         UUID id = UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
         UUID tenant = UUID.fromString("11111111-1111-4111-8111-111111111111");

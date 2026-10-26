@@ -40,9 +40,15 @@ final class TenantEvidenceVerifierTest {
                 TenantEvidenceType.KYB_VERIFIED, NOW);
 
         assertEquals(TENANT_A, verified.tenantId());
+        assertEquals(TenantEvidenceType.KYB_VERIFIED, verified.evidenceType());
+        assertEquals(AUTHORITY, verified.authority());
         assertEquals("decision/kyb-001", verified.decisionReference());
         assertEquals(DIGEST, verified.payloadDigest());
         assertTrue(verified.receiptDigest().matches("[0-9a-f]{64}"));
+        assertEquals("tenant-authority-workload", verified.signerIdentity());
+        assertEquals(KEY_ID, verified.keyId());
+        assertEquals(NOW.minusSeconds(1), verified.issuedAt());
+        assertEquals(NOW.plusSeconds(120), verified.expiresAt());
         assertFalse(Arrays.stream(VerifiedTenantEvidence.class.getDeclaredConstructors())
                 .anyMatch(constructor -> Modifier.isPublic(constructor.getModifiers())));
     }

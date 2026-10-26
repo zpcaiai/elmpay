@@ -41,6 +41,8 @@ final class ProviderEvidenceVerifierTest {
         Map<String, String> fields = fields("succeeded");
         ProviderEvidenceReceipt receipt = receipt(fields, "provider-evidence-nonce-0001");
         VerifiedProviderEvidence verified = verifier.verify(receipt, TYPE, fields, NOW);
+        assertEquals(TYPE, verified.evidenceType());
+        assertEquals(fields, verified.fields());
         assertEquals("stripe-query-verifier", verified.signerIdentity());
         assertEquals(64, verified.receiptDigest().length());
         assertEquals(verified.receiptDigest(),
