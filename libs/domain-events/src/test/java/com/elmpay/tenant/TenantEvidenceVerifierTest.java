@@ -120,6 +120,64 @@ final class TenantEvidenceVerifierTest {
                 TenantEvidenceType.KEK_DESTROYED, NOW));
     }
 
+    @Test
+    void rejectsInvalidVerifierPolicyTrustKeysRevocationAndKeyWindows() throws Exception {
+        Fixture fixture = new Fixture();
+        assertThrows(IllegalArgumentException.class, () -> new TenantEvidenceVerifier(Map.of(),
+                (receipt, digest, acceptedAt) -> true, Duration.ofMinutes(5), Duration.ZERO));
+        assertThrows(IllegalArgumentException.class, () -> new TenantEvidenceVerifier(
+                Map.of(KEY_ID, fixture.trustKey(Set.of(TenantEvidenceType.KYB_VERIFIED), false)),
+                (receipt, digest, acceptedAt) -> true, Duration.ZERO, Duration.ZERO));
+        assertThrows(IllegalArgumentException.class, () -> new TenantEvidenceVerifier(
+                Map.of(KEY_ID, fixture.trustKey(Set.of(TenantEvidenceType.KYB_VERIFIED), false)),
+                (receipt, digest, acceptedAt) -> true, Duration.ofMinutes(11), Duration.ZERO));
+        assertThrows(IllegalArgumentException.class, () -> new TenantEvidenceVerifier(
+                Map.of(KEY_ID, fixture.trustKey(Set.of(TenantEvidenceType.KYB_VERIFIED), false)),
+                (receipt, digest, acceptedAt) -> true, Duration.ofMinutes(5),
+                Duration.ofSeconds(121)));
+        assertThrows(IllegalArgumentException.class, () -> new TenantEvidenceVerifier.TrustKey(
+                fixture.keyPair.getPublic(), "tenant-authority-workload", AUTHORITY, Set.of(),
+                NOW.minusSeconds(60), NOW.plusSeconds(60), false));
+        assertThrows(IllegalArgumentException.class, () -> new TenantEvidenceVerifier.TrustKey(
+                fixture.keyPair.getPublic(), "tenant-authority-workload", AUTHORITY,
+                Set.of(TenantEvidenceType.UNKNOWN), NOW.minusSeconds(60), NOW.plusSeconds(60),
+                false));
+        KeyPair rsa = KeyPairGenerator.getInstance("RSA").generateKeyPair();
+        assertThrows(IllegalArgumentException.class, () -> new TenantEvidenceVerifier.TrustKey(
+                rsa.getPublic(), "tenant-authority-workload", AUTHORITY,
+                Set.of(TenantEvidenceType.KYB_VERIFIED), NOW.minusSeconds(60),
+                NOW.plusSeconds(60), false));
+
+        Map<String, TenantEvidenceVerifier.TrustKey> malformedKeys = new HashMap<>();
+        malformedKeys.put("invalid key id", fixture.trustKey(
+                Set.of(TenantEvidenceType.KYB_VERIFIED), false));
+        assertThrows(IllegalArgumentException.class, () -> new TenantEvidenceVerifier(
+                malformedKeys, (receipt, digest, acceptedAt) -> true,
+                Duration.ofMinutes(5), Duration.ZERO));
+
+        AuthorityEvidenceReceipt receipt = fixture.signed(TENANT_A,
+                TenantEvidenceType.KYB_VERIFIED, AUTHORITY, "decision/kyb-002", DIGEST,
+                NOW.minusSeconds(1), NOW.plusSeconds(120), "tenant-evidence-nonce-0010");
+        TenantEvidenceVerifier revokedVerifier = verifier(fixture.trustKey(
+                Set.of(TenantEvidenceType.KYB_VERIFIED), true));
+        assertThrows(SecurityException.class, () -> revokedVerifier.verify(receipt, TENANT_A,
+                TenantEvidenceType.KYB_VERIFIED, NOW));
+        TenantEvidenceVerifier otherTypeVerifier = verifier(fixture.trustKey(
+                Set.of(TenantEvidenceType.CONTRACT_SIGNED), false));
+        assertThrows(SecurityException.class, () -> otherTypeVerifier.verify(receipt, TENANT_A,
+                TenantEvidenceType.KYB_VERIFIED, NOW));
+        TenantEvidenceVerifier expiredKeyVerifier = verifier(new TenantEvidenceVerifier.TrustKey(
+                fixture.keyPair.getPublic(), "tenant-authority-workload", AUTHORITY,
+                Set.of(TenantEvidenceType.KYB_VERIFIED), NOW.minusSeconds(120), NOW, false));
+        assertThrows(SecurityException.class, () -> expiredKeyVerifier.verify(receipt, TENANT_A,
+                TenantEvidenceType.KYB_VERIFIED, NOW));
+    }
+
+    private static TenantEvidenceVerifier verifier(TenantEvidenceVerifier.TrustKey trustKey) {
+        return new TenantEvidenceVerifier(Map.of(KEY_ID, trustKey),
+                (receipt, digest, acceptedAt) -> true, Duration.ofMinutes(5), Duration.ZERO);
+    }
+
     private static final class Fixture {
         private final KeyPair keyPair;
         private final TenantEvidenceVerifier verifier;
@@ -145,6 +203,13 @@ final class TenantEvidenceVerifierTest {
                                 receipt.keyId() + ":" + receipt.nonce(), digest);
                         return existing == null || existing.equals(digest);
                     }, Duration.ofMinutes(5), Duration.ofSeconds(5));
+        }
+
+        private TenantEvidenceVerifier.TrustKey trustKey(
+                Set<TenantEvidenceType> evidenceTypes, boolean revoked) {
+            return new TenantEvidenceVerifier.TrustKey(keyPair.getPublic(),
+                    "tenant-authority-workload", AUTHORITY, evidenceTypes,
+                    NOW.minus(Duration.ofDays(1)), NOW.plus(Duration.ofDays(1)), revoked);
         }
 
         private AuthorityEvidenceReceipt signed(UUID tenantId, TenantEvidenceType type,

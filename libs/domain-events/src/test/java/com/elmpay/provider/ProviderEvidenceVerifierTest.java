@@ -75,6 +75,53 @@ final class ProviderEvidenceVerifierTest {
                 verifier.verify(expired, TYPE, fields, NOW));
     }
 
+    @Test
+    void rejectsInvalidTrustPolicyRevokedKeysAndExcessiveEvidenceLifetime() throws Exception {
+        assertThrows(IllegalArgumentException.class, () ->
+                new ProviderEvidenceVerifier(Map.of(), (receipt, digest, acceptedAt) -> true,
+                        Duration.ofMinutes(5), Duration.ZERO));
+        ProviderEvidenceVerifier.TrustKey validTrust = new ProviderEvidenceVerifier.TrustKey(
+                keyPair.getPublic(), "stripe-query-verifier", "stripe", Set.of(TYPE),
+                NOW.minusSeconds(60), NOW.plusSeconds(3600), false);
+        assertThrows(IllegalArgumentException.class, () ->
+                new ProviderEvidenceVerifier(Map.of("stripe-key-1", validTrust),
+                        (receipt, digest, acceptedAt) -> true,
+                        Duration.ZERO, Duration.ZERO));
+        assertThrows(IllegalArgumentException.class, () ->
+                new ProviderEvidenceVerifier(Map.of("stripe-key-1", validTrust),
+                        (receipt, digest, acceptedAt) -> true,
+                        Duration.ofMinutes(11), Duration.ZERO));
+        assertThrows(IllegalArgumentException.class, () ->
+                new ProviderEvidenceVerifier(Map.of("stripe-key-1", validTrust),
+                        (receipt, digest, acceptedAt) -> true,
+                        Duration.ofMinutes(5), Duration.ofSeconds(121)));
+        assertThrows(IllegalArgumentException.class, () -> new ProviderEvidenceVerifier.TrustKey(
+                keyPair.getPublic(), "stripe-query-verifier", "stripe", Set.of(),
+                NOW.minusSeconds(60), NOW.plusSeconds(60), false));
+        assertThrows(IllegalArgumentException.class, () -> new ProviderEvidenceVerifier.TrustKey(
+                keyPair.getPublic(), "stripe-query-verifier", "stripe", Set.of(TYPE),
+                NOW, NOW, false));
+
+        Map<String, String> fields = fields("succeeded");
+        ProviderEvidenceVerifier revoked = verifierWithTrust(
+                new ProviderEvidenceVerifier.TrustKey(keyPair.getPublic(),
+                        "stripe-query-verifier", "stripe", Set.of(TYPE),
+                        NOW.minusSeconds(60), NOW.plusSeconds(3600), true));
+        assertThrows(SecurityException.class, () -> revoked.verify(
+                receipt(fields, "provider-evidence-revoked-001"), TYPE, fields, NOW));
+        ProviderEvidenceVerifier wrongType = verifierWithTrust(
+                new ProviderEvidenceVerifier.TrustKey(keyPair.getPublic(),
+                        "stripe-query-verifier", "stripe", Set.of("OTHER_EVIDENCE"),
+                        NOW.minusSeconds(60), NOW.plusSeconds(3600), false));
+        assertThrows(SecurityException.class, () -> wrongType.verify(
+                receipt(fields, "provider-evidence-type-0001"), TYPE, fields, NOW));
+
+        ProviderEvidenceReceipt longLived = receipt(fields,
+                "provider-evidence-lifetime-001", NOW.minusSeconds(10), NOW.plusSeconds(400));
+        assertThrows(SecurityException.class,
+                () -> verifier.verify(longLived, TYPE, fields, NOW));
+    }
+
     private Map<String, String> fields(String result) {
         return Map.of(
                 "tenantId", "11111111-1111-4111-8111-111111111111",
@@ -85,6 +132,11 @@ final class ProviderEvidenceVerifierTest {
                 "subscriptionId", "44444444-4444-4444-8444-444444444444",
                 "result", result,
                 "providerResultDigest", "a".repeat(64));
+    }
+
+    private ProviderEvidenceVerifier verifierWithTrust(ProviderEvidenceVerifier.TrustKey trust) {
+        return new ProviderEvidenceVerifier(Map.of("stripe-key-1", trust),
+                (receipt, digest, acceptedAt) -> true, Duration.ofMinutes(5), Duration.ZERO);
     }
 
     private ProviderEvidenceReceipt receipt(Map<String, String> fields, String nonce)
