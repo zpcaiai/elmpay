@@ -52,6 +52,53 @@ final class PaymentGatewayE2eTest {
     }
 
     @Test
+    void rejectsInvalidHeadersCredentialsUnknownRoutesAndUnsupportedQueriesOverHttp()
+            throws Exception {
+        String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
+                + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
+        RuntimeComponents runtime = RuntimeFactory.create(Map.of(
+                "ELMPAY_RUNTIME_MODE", "local",
+                "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
+                "ELMPAY_API_PRINCIPALS", principals));
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
+        server.createContext("/", new PaymentHttpHandler(runtime));
+        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.start();
+        try {
+            URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            HttpClient client = HttpClient.newHttpClient();
+
+            HttpResponse<String> invalidTrace = client.send(getRequest(
+                    base.resolve("/v1/not-a-route"), "Bearer " + KEY, "invalid"),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, invalidTrace.statusCode(), invalidTrace.body());
+            assertEquals("invalid_request", Json.object(invalidTrace.body()).get("code"));
+
+            HttpResponse<String> invalidCredentials = client.send(getRequest(
+                    base.resolve("/v1/not-a-route"), "Bearer invalid", validTraceparent()),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(401, invalidCredentials.statusCode(), invalidCredentials.body());
+            assertEquals("unauthenticated",
+                    Json.object(invalidCredentials.body()).get("code"));
+
+            HttpResponse<String> unknownRoute = client.send(getRequest(
+                    base.resolve("/v1/not-a-route"), "Bearer " + KEY, validTraceparent()),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(404, unknownRoute.statusCode(), unknownRoute.body());
+            assertEquals("resource_not_found", Json.object(unknownRoute.body()).get("code"));
+
+            HttpResponse<String> unsupportedQuery = client.send(getRequest(
+                    base.resolve("/v1/payment_intents?debug=true"), "Bearer " + KEY,
+                    validTraceparent()), HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, unsupportedQuery.statusCode(), unsupportedQuery.body());
+            assertEquals("invalid_request", Json.object(unsupportedQuery.body()).get("code"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void createsAndConfirmsAnIntentThroughTheHttpBoundary() throws Exception {
         String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
                 + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
@@ -471,6 +518,19 @@ final class PaymentGatewayE2eTest {
                 .header("X-Request-Id", "request-http-0001")
                 .header("traceparent", "00-11111111111111111111111111111111-2222222222222222-01")
                 .POST(HttpRequest.BodyPublishers.ofString(body)).build();
+    }
+
+    private static HttpRequest getRequest(URI uri, String authorization, String traceparent) {
+        return HttpRequest.newBuilder(uri)
+                .header("Authorization", authorization)
+                .header("X-Project-Id", PROJECT.toString())
+                .header("X-Request-Id", "request-boundary-0001")
+                .header("traceparent", traceparent)
+                .GET().build();
+    }
+
+    private static String validTraceparent() {
+        return "00-11111111111111111111111111111111-2222222222222222-01";
     }
 
     private static HttpRequest checkoutRequest(URI uri, String method, String token,
