@@ -2,6 +2,7 @@ package com.elmpay.gateway;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -88,6 +89,72 @@ final class PaymentGatewayE2eTest {
             Map<String, Object> intent = (Map<String, Object>) confirmation.get("payment_intent");
             assertEquals("captured", intent.get("state"));
             assertEquals(1_250L, intent.get("captured_amount_minor"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void declinedAndUnknownProviderOutcomesNeverBecomeSuccessfulOverHttp() throws Exception {
+        String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
+                + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
+        RuntimeComponents runtime = RuntimeFactory.create(Map.of(
+                "ELMPAY_RUNTIME_MODE", "local",
+                "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
+                "ELMPAY_API_PRINCIPALS", principals));
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
+        server.createContext("/", new PaymentHttpHandler(runtime));
+        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.start();
+        try {
+            URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            HttpClient client = HttpClient.newHttpClient();
+            for (String simulation : List.of("declined", "unknown")) {
+                HttpResponse<String> created = client.send(request(
+                        base.resolve("/v1/payment-intents"),
+                        "non-success-create-" + simulation, """
+                        {"external_reference":"order-non-success-%s","amount_minor":1000,
+                         "currency":"USD","allowed_methods":["card"],
+                         "confirmation_mode":"automatic","region":"US","ttl_minutes":60}
+                        """.formatted(simulation)), HttpResponse.BodyHandlers.ofString());
+                assertEquals(201, created.statusCode(), created.body());
+                String intentId = String.valueOf(Json.object(created.body()).get("id"));
+                URI confirmUri = base.resolve("/v1/payment-intents/" + intentId + "/confirm");
+                String idempotencyKey = "non-success-confirm-" + simulation;
+                String confirmationBody = """
+                        {"method":"card","payment_method_reference":"psp://local/%s",
+                         "fingerprint":"fp-%s","provider_parameters":{"simulation":"%s"}}
+                        """.formatted(simulation, simulation, simulation);
+                HttpResponse<String> first = client.send(request(confirmUri, idempotencyKey,
+                        confirmationBody), HttpResponse.BodyHandlers.ofString());
+                assertEquals(200, first.statusCode(), first.body());
+                Map<String, Object> firstBody = Json.object(first.body());
+                @SuppressWarnings("unchecked")
+                Map<String, Object> firstIntent =
+                        (Map<String, Object>) firstBody.get("payment_intent");
+                @SuppressWarnings("unchecked")
+                Map<String, Object> firstAttempt = (Map<String, Object>) firstBody.get("attempt");
+                assertNotEquals("succeeded", firstIntent.get("status"), simulation);
+                assertNotEquals("SUCCEEDED", firstAttempt.get("state"), simulation);
+                if ("declined".equals(simulation)) {
+                    assertEquals("failed", firstIntent.get("status"));
+                    assertEquals("FAILED", firstAttempt.get("state"));
+                } else {
+                    assertEquals("requires_payment_method", firstIntent.get("status"));
+                    assertEquals("UNKNOWN", firstAttempt.get("state"));
+                }
+
+                HttpResponse<String> replay = client.send(request(confirmUri, idempotencyKey,
+                        confirmationBody), HttpResponse.BodyHandlers.ofString());
+                assertEquals(200, replay.statusCode(), replay.body());
+                Map<String, Object> replayBody = Json.object(replay.body());
+                @SuppressWarnings("unchecked")
+                Map<String, Object> replayIntent =
+                        (Map<String, Object>) replayBody.get("payment_intent");
+                assertEquals(firstIntent.get("status"), replayIntent.get("status"));
+                assertTrue((Boolean) replayBody.get("replayed"));
+            }
         } finally {
             server.stop(0);
         }
