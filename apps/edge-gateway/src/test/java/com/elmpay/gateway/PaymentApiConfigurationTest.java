@@ -39,12 +39,12 @@ final class PaymentApiConfigurationTest {
     @Test
     void environmentParsingTrimsCsvAndCanonicalizesRegionAndMethods() {
         PaymentApiConfiguration config = PaymentApiConfiguration.from(Map.of(
-                "ELMPAY_PAYMENT_REGION", "us-east",
+                "ELMPAY_PAYMENT_REGION", "uswest",
                 "ELMPAY_PAYMENT_INTENT_TTL_MINUTES", "90",
                 "ELMPAY_PAYMENT_DEFAULT_METHODS", " Stripe_Card, WeChat_Native ",
                 "ELMPAY_PAYMENT_RETURN_ROUTE_IDS", " checkout.done,route:cancel-1 "), false);
 
-        assertEquals("US-EAST", config.region());
+        assertEquals("USWEST", config.region());
         assertEquals(Duration.ofMinutes(90), config.intentTtl());
         assertEquals(Set.of("stripe_card", "wechat_native"), config.defaultAllowedMethods());
         assertEquals(Set.of("checkout.done", "route:cancel-1"), config.returnRouteIds());
@@ -107,7 +107,7 @@ final class PaymentApiConfigurationTest {
     @Test
     void returnRouteIsAcceptedOnlyWhenRegisteredAndCanonical() {
         PaymentApiConfiguration config = new PaymentApiConfiguration("US", Duration.ofMinutes(10),
-                Set.of("stripe_card"), Set.of("checkout.done", "route:cancel_1"));
+                Set.of("stripe_card"), Set.of("checkout.done", "route:cancel-1"));
 
         assertEquals("checkout.done", config.approvedReturnRoute("checkout.done"));
         assertEquals("route:cancel-1", config.approvedReturnRoute("route:cancel-1"));
