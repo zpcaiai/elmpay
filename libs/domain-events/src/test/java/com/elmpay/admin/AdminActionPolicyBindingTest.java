@@ -94,6 +94,33 @@ final class AdminActionPolicyBindingTest {
                 () -> AdminActionPolicyBinding.load(oversized.toAbsolutePath()));
     }
 
+    @Test
+    void unsupportedSchemaAndInvalidValuesAreRejected(@TempDir Path root) throws Exception {
+        assertRejected(root.resolve("unsupported-version.json"), """
+                {"schemaVersion":2,"adminActionPolicyDigest":"%s",
+                 "validUntil":"2026-08-30T01:15:00Z"}
+                """.formatted(DIGEST));
+        assertRejected(root.resolve("extra-field.json"), """
+                {"schemaVersion":1,"adminActionPolicyDigest":"%s",
+                 "validUntil":"2026-08-30T01:15:00Z","unexpected":true}
+                """.formatted(DIGEST));
+        assertRejected(root.resolve("invalid-digest.json"), """
+                {"schemaVersion":1,"adminActionPolicyDigest":"INVALID",
+                 "validUntil":"2026-08-30T01:15:00Z"}
+                """);
+        assertRejected(root.resolve("invalid-expiry.json"), """
+                {"schemaVersion":1,"adminActionPolicyDigest":"%s",
+                 "validUntil":"not-an-instant"}
+                """.formatted(DIGEST));
+    }
+
+    private static void assertRejected(Path path, String encoded) throws Exception {
+        Files.writeString(path, encoded);
+        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("r--r-----"));
+        assertThrows(IllegalStateException.class,
+                () -> AdminActionPolicyBinding.load(path.toAbsolutePath()));
+    }
+
     private static String bindingJson() {
         return """
                 {"schemaVersion":1,"adminActionPolicyDigest":"%s",
