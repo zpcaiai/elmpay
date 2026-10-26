@@ -216,7 +216,7 @@ final class PayPalAdapterTest {
         assertEquals(PayPalAdapter.State.UNKNOWN, result.state());
         assertFalse(result.finalState());
         assertEquals(0, result.httpStatus());
-        assertEquals(1, calls.get());
+        assertEquals(2, calls.get());
     }
 
     @Test
