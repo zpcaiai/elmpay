@@ -42,12 +42,12 @@ final class PaymentApiConfigurationTest {
                 "ELMPAY_PAYMENT_REGION", "us-east",
                 "ELMPAY_PAYMENT_INTENT_TTL_MINUTES", "90",
                 "ELMPAY_PAYMENT_DEFAULT_METHODS", " Stripe_Card, WeChat_Native ",
-                "ELMPAY_PAYMENT_RETURN_ROUTE_IDS", " checkout.done,route:cancel_1 "), false);
+                "ELMPAY_PAYMENT_RETURN_ROUTE_IDS", " checkout.done,route:cancel-1 "), false);
 
         assertEquals("US-EAST", config.region());
         assertEquals(Duration.ofMinutes(90), config.intentTtl());
         assertEquals(Set.of("stripe_card", "wechat_native"), config.defaultAllowedMethods());
-        assertEquals(Set.of("checkout.done", "route:cancel_1"), config.returnRouteIds());
+        assertEquals(Set.of("checkout.done", "route:cancel-1"), config.returnRouteIds());
     }
 
     @Test
@@ -110,7 +110,7 @@ final class PaymentApiConfigurationTest {
                 Set.of("stripe_card"), Set.of("checkout.done", "route:cancel_1"));
 
         assertEquals("checkout.done", config.approvedReturnRoute("checkout.done"));
-        assertEquals("route:cancel_1", config.approvedReturnRoute("route:cancel_1"));
+        assertEquals("route:cancel-1", config.approvedReturnRoute("route:cancel-1"));
         assertNull(config.approvedReturnRoute(null));
         assertThrows(IllegalArgumentException.class,
                 () -> config.approvedReturnRoute("attacker.example"));
