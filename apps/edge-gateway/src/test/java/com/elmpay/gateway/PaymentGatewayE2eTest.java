@@ -99,6 +99,59 @@ final class PaymentGatewayE2eTest {
     }
 
     @Test
+    void canonicalIntentCreationBindsMetadataAndRejectsInvalidOptionalFieldsOverHttp()
+            throws Exception {
+        String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
+                + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
+        RuntimeComponents runtime = RuntimeFactory.create(Map.of(
+                "ELMPAY_RUNTIME_MODE", "local",
+                "ELMPAY_ENABLE_LOCAL_SANDBOX", "true",
+                "ELMPAY_LOCAL_RISK_POLICY", "approve-sandbox",
+                "ELMPAY_API_PRINCIPALS", principals));
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 16);
+        server.createContext("/", new PaymentHttpHandler(runtime));
+        server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
+        server.start();
+        try {
+            URI base = URI.create("http://127.0.0.1:" + server.getAddress().getPort());
+            HttpClient client = HttpClient.newHttpClient();
+            HttpResponse<String> created = client.send(request(
+                    base.resolve("/v1/payment_intents"), "canonical-create-0001", """
+                    {"business_order_no":"canonical-http-order-1","amount":1250,
+                     "currency":"USD","allowed_payment_methods":["card"],
+                     "capture_method":"manual","ttl_minutes":30,
+                     "metadata":{"invoice":"invoice-42","source":"demo"}}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(201, created.statusCode(), created.body());
+            Map<String, Object> createdBody = Json.object(created.body());
+            assertEquals("US", createdBody.get("region"));
+            assertEquals(1_250L, createdBody.get("amount_minor"));
+            assertEquals("created", createdBody.get("state"));
+            UUID intentId = UUID.fromString(String.valueOf(createdBody.get("id")));
+            assertEquals(Map.of("invoice", "invoice-42", "source", "demo"),
+                    runtime.metadata().find(TENANT, intentId));
+
+            HttpResponse<String> invalidMetadata = client.send(request(
+                    base.resolve("/v1/payment_intents"), "canonical-create-0002", """
+                    {"business_order_no":"canonical-http-order-2","amount":1000,
+                     "currency":"USD","metadata":{"invoice":42}}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, invalidMetadata.statusCode(), invalidMetadata.body());
+            assertEquals("invalid_request", Json.object(invalidMetadata.body()).get("code"));
+
+            HttpResponse<String> invalidTtl = client.send(request(
+                    base.resolve("/v1/payment_intents"), "canonical-create-0003", """
+                    {"business_order_no":"canonical-http-order-3","amount":1000,
+                     "currency":"USD","ttl_minutes":0}
+                    """), HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, invalidTtl.statusCode(), invalidTtl.body());
+            assertEquals("invalid_request", Json.object(invalidTtl.body()).get("code"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
     void createsAndConfirmsAnIntentThroughTheHttpBoundary() throws Exception {
         String principals = ApiKeyAuthenticator.digestForProvisioning(KEY)
                 + "|test|" + TENANT + "|" + PROJECT + "|" + MERCHANT;
