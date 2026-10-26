@@ -234,6 +234,8 @@ final class ProviderEvidenceVerifierTest {
     }
 
     private static final class Sha512BridgeProvider extends Provider {
+        private static final long serialVersionUID = 1L;
+
         private Sha512BridgeProvider(Provider delegate) {
             super("ElmpayTestSHA512Bridge", "1.0",
                     "Test-only SHA-512 bridge to isolate SHA-256 provider absence");
