@@ -8,9 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Modifier;
+import java.security.DigestException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.MessageDigest;
+import java.security.MessageDigestSpi;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
@@ -222,6 +225,9 @@ final class TenantEvidenceVerifierTest {
     private static void withoutProviders(String service, String algorithm, Runnable action) {
         Provider[] original = Security.getProviders();
         List<PositionedProvider> removed = new ArrayList<>();
+        Provider sha512Delegate = Arrays.stream(original)
+                .filter(provider -> provider.getService("MessageDigest", "SHA-512") != null)
+                .findFirst().orElseThrow();
         for (int index = 0; index < original.length; index++) {
             Provider provider = original[index];
             if (provider.getService(service, algorithm) != null) {
@@ -230,11 +236,19 @@ final class TenantEvidenceVerifierTest {
             }
         }
         assertTrue(!removed.isEmpty(), service + "." + algorithm + " must have a provider");
+        Provider sha512Bridge = null;
+        if (service.equals("MessageDigest") && algorithm.equals("SHA-256")) {
+            sha512Bridge = sha512Bridge(sha512Delegate);
+            Security.insertProviderAt(sha512Bridge, 1);
+        }
         try {
             assertTrue(Security.getProviders(service + "." + algorithm) == null,
                     service + "." + algorithm + " should be unavailable during the probe");
             action.run();
         } finally {
+            if (sha512Bridge != null) {
+                Security.removeProvider(sha512Bridge.getName());
+            }
             removed.sort(Comparator.comparingInt(PositionedProvider::position));
             for (PositionedProvider entry : removed) {
                 Security.insertProviderAt(entry.provider(), entry.position());
@@ -244,6 +258,62 @@ final class TenantEvidenceVerifierTest {
             String[] restoredNames = Arrays.stream(Security.getProviders())
                     .map(Provider::getName).toArray(String[]::new);
             assertArrayEquals(originalNames, restoredNames);
+        }
+    }
+
+    private static Provider sha512Bridge(Provider delegate) {
+        return new Sha512BridgeProvider(delegate);
+    }
+
+    private static final class Sha512BridgeProvider extends Provider {
+        private Sha512BridgeProvider(Provider delegate) {
+            super("ElmpayTestSHA512Bridge", "1.0",
+                    "Test-only SHA-512 bridge to isolate SHA-256 provider absence");
+            putService(new Service(this, "MessageDigest", "SHA-512", "test-only",
+                    List.of(), Map.of()) {
+                @Override
+                public Object newInstance(Object parameter) throws NoSuchAlgorithmException {
+                    return new Sha512Bridge(delegate);
+                }
+            });
+        }
+    }
+
+    private static final class Sha512Bridge extends MessageDigestSpi {
+        private final MessageDigest delegate;
+
+        private Sha512Bridge(Provider provider) throws NoSuchAlgorithmException {
+            delegate = MessageDigest.getInstance("SHA-512", provider);
+        }
+
+        @Override
+        protected int engineGetDigestLength() {
+            return delegate.getDigestLength();
+        }
+
+        @Override
+        protected void engineUpdate(byte input) {
+            delegate.update(input);
+        }
+
+        @Override
+        protected void engineUpdate(byte[] input, int offset, int length) {
+            delegate.update(input, offset, length);
+        }
+
+        @Override
+        protected byte[] engineDigest() {
+            return delegate.digest();
+        }
+
+        @Override
+        protected int engineDigest(byte[] output, int offset, int length) throws DigestException {
+            return delegate.digest(output, offset, length);
+        }
+
+        @Override
+        protected void engineReset() {
+            delegate.reset();
         }
     }
 
