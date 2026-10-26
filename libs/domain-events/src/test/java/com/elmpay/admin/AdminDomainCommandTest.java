@@ -42,6 +42,35 @@ final class AdminDomainCommandTest {
     }
 
     @Test
+    void everyKindAcceptsOnlyItsExactOperationAndConsumerMapping() {
+        assertCommand(AdminDomainCommand.Kind.CASE_CLOSE,
+                AdminDomainCommand.OperationCode.CASE_CLOSE,
+                AdminDomainCommand.ConsumerGroup.RISK);
+        assertCommand(AdminDomainCommand.Kind.LIST_CHANGE,
+                AdminDomainCommand.OperationCode.LIST_ADD,
+                AdminDomainCommand.ConsumerGroup.RISK);
+        assertCommand(AdminDomainCommand.Kind.LIST_CHANGE,
+                AdminDomainCommand.OperationCode.LIST_REMOVE,
+                AdminDomainCommand.ConsumerGroup.RISK);
+        assertCommand(AdminDomainCommand.Kind.REFUND_OVERRIDE,
+                AdminDomainCommand.OperationCode.REFUND_OVERRIDE,
+                AdminDomainCommand.ConsumerGroup.PAYMENT);
+        assertCommand(AdminDomainCommand.Kind.ROLLOUT_APPROVAL,
+                AdminDomainCommand.OperationCode.ROLLOUT_APPROVAL,
+                AdminDomainCommand.ConsumerGroup.ROLLOUT);
+
+        assertInvalidMapping(AdminDomainCommand.Kind.CASE_CLOSE,
+                AdminDomainCommand.OperationCode.LIST_ADD,
+                AdminDomainCommand.ConsumerGroup.RISK);
+        assertInvalidMapping(AdminDomainCommand.Kind.REFUND_OVERRIDE,
+                AdminDomainCommand.OperationCode.REFUND_OVERRIDE,
+                AdminDomainCommand.ConsumerGroup.RISK);
+        assertInvalidMapping(AdminDomainCommand.Kind.ROLLOUT_APPROVAL,
+                AdminDomainCommand.OperationCode.ROLLOUT_APPROVAL,
+                AdminDomainCommand.ConsumerGroup.PAYMENT);
+    }
+
+    @Test
     void digestIsStableAcrossTransportRefencingAndDatabaseAssignedCreationTime() {
         String first = AdminDomainCommand.computeCommandDigest(COMMAND, TENANT, PROJECT,
                 "1".repeat(64), AdminDomainCommand.Kind.LIST_CHANGE,
@@ -60,17 +89,38 @@ final class AdminDomainCommandTest {
     private static AdminDomainCommand command(UUID projectId,
             AdminDomainCommand.OperationCode operation,
             AdminDomainCommand.ConsumerGroup group, String overrideDigest) {
+        return command(projectId, AdminDomainCommand.Kind.LIST_CHANGE, operation, group,
+                overrideDigest);
+    }
+
+    private static void assertCommand(AdminDomainCommand.Kind kind,
+            AdminDomainCommand.OperationCode operation,
+            AdminDomainCommand.ConsumerGroup group) {
+        AdminDomainCommand value = command(PROJECT, kind, operation, group, null);
+        assertEquals(value.commandDigest(), value.expectedCommandDigest());
+    }
+
+    private static void assertInvalidMapping(AdminDomainCommand.Kind kind,
+            AdminDomainCommand.OperationCode operation,
+            AdminDomainCommand.ConsumerGroup group) {
+        assertThrows(IllegalArgumentException.class,
+                () -> command(PROJECT, kind, operation, group, null));
+    }
+
+    private static AdminDomainCommand command(UUID projectId, AdminDomainCommand.Kind kind,
+            AdminDomainCommand.OperationCode operation,
+            AdminDomainCommand.ConsumerGroup group, String overrideDigest) {
         String idempotency = "1".repeat(64);
         String proposal = "2".repeat(64);
         String policy = "3".repeat(64);
         String proposer = "4".repeat(64);
         String approver = "5".repeat(64);
         String digest = AdminDomainCommand.computeCommandDigest(COMMAND, TENANT, projectId,
-                idempotency, AdminDomainCommand.Kind.LIST_CHANGE, operation, group,
+                idempotency, kind, operation, group,
                 "6".repeat(64), proposal, policy, 2, proposer, approver, EXPIRES, 7, CREATED);
         return new AdminDomainCommand(COMMAND, TENANT, projectId, idempotency,
                 overrideDigest == null ? digest : overrideDigest,
-                AdminDomainCommand.Kind.LIST_CHANGE, operation, group, "6".repeat(64),
+                kind, operation, group, "6".repeat(64),
                 proposal, policy, 2, proposer, approver, EXPIRES, 7, CREATED);
     }
 }
