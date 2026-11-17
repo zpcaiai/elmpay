@@ -29,6 +29,7 @@ public final class LedgerPostingConsumer {
             "billing.dunning.retry_due.v1", "billing.mandate.created.v1",
             "billing.mandate.revoked.v1", "billing.plan.created.v1",
             "billing.subscription.adjusted.v1", "billing.subscription.created.v1",
+            "billing.subscription.canceled.v1",
             "billing.subscription.renewal_due.v1",
             "billing.subscription.renewal_result.v1",
             "billing.subscription.usage_recorded.v1", "dispute.evidence_submitted.v1",
