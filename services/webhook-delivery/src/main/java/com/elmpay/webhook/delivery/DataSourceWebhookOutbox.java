@@ -63,28 +63,70 @@ public final class DataSourceWebhookOutbox implements WebhookDeliveryService.Out
             connection.setAutoCommit(false);
             setTenant(connection, tenantId);
             try {
+                String state;
+                long round;
+                // Every terminal write and replay takes the outbox row first. A
+                // duplicate ticket must be checked before a later round is reset.
+                try (PreparedStatement lock = connection.prepareStatement(
+                        "SELECT state, recovery_round FROM webhook_delivery_outbox "
+                                + "WHERE tenant_id=? AND delivery_id=? FOR UPDATE")) {
+                    lock.setString(1, tenantId);
+                    lock.setLong(2, deliveryId);
+                    try (ResultSet rows = lock.executeQuery()) {
+                        if (!rows.next()) {
+                            throw new IllegalArgumentException("unknown webhook delivery");
+                        }
+                        state = rows.getString(1);
+                        round = rows.getLong(2);
+                    }
+                }
+                try (PreparedStatement request = connection.prepareStatement(
+                        "SELECT actor_id, approver_id, reason FROM webhook_delivery_admin_audit "
+                                + "WHERE tenant_id=? AND action='DEAD_LETTER_REPLAY' "
+                                + "AND target_id=? AND ticket_id=?")) {
+                    request.setString(1, tenantId);
+                    request.setString(2, Long.toString(deliveryId));
+                    request.setString(3, ticketId);
+                    try (ResultSet rows = request.executeQuery()) {
+                        if (rows.next()) {
+                            if (!actorId.equals(rows.getString(1)) || !approverId.equals(rows.getString(2))
+                                    || !reason.equals(rows.getString(3))) {
+                                throw new IllegalArgumentException("replay ticket approval does not match");
+                            }
+                            connection.commit();
+                            return;
+                        }
+                    }
+                }
+                if (!"DEAD".equals(state)) {
+                    throw new IllegalArgumentException("non-dead webhook delivery");
+                }
                 try (PreparedStatement statement = connection.prepareStatement(
                         "UPDATE webhook_delivery_outbox SET state='PENDING', attempt_count=0, "
+                                + "recovery_round=recovery_round+1, "
                                 + "next_attempt_at=?, lease_until=NULL, lease_owner=NULL, "
                                 + "last_status_code=NULL, "
                                 + "last_error_code=NULL, updated_at=? "
-                                + "WHERE tenant_id=? AND delivery_id=? AND state='DEAD'")) {
+                                + "WHERE tenant_id=? AND delivery_id=? AND state='DEAD' AND recovery_round=?")) {
                     statement.setTimestamp(1, Timestamp.from(now));
                     statement.setTimestamp(2, Timestamp.from(now));
                     statement.setString(3, tenantId);
                     statement.setLong(4, deliveryId);
+                    statement.setLong(5, round);
                     if (statement.executeUpdate() != 1) {
                         throw new IllegalArgumentException("unknown or non-dead webhook delivery");
                     }
                 }
                 try (PreparedStatement statement = connection.prepareStatement(
                         "UPDATE webhook_delivery_dead_letter SET replayed_at=?, replayed_by=?, "
-                                + "replay_ticket_id=? WHERE tenant_id=? AND delivery_id=? AND replayed_at IS NULL")) {
+                                + "replay_ticket_id=? WHERE tenant_id=? AND delivery_id=? "
+                                + "AND recovery_round=? AND replayed_at IS NULL")) {
                     statement.setTimestamp(1, Timestamp.from(now));
                     statement.setString(2, actorId);
                     statement.setString(3, ticketId);
                     statement.setString(4, tenantId);
                     statement.setLong(5, deliveryId);
+                    statement.setLong(6, round);
                     if (statement.executeUpdate() != 1) {
                         throw new IllegalArgumentException("dead letter was already replayed");
                     }
@@ -265,26 +307,6 @@ public final class DataSourceWebhookOutbox implements WebhookDeliveryService.Out
             connection.setAutoCommit(false);
             setTenant(connection, tenantId);
             try {
-                try (PreparedStatement copy = connection.prepareStatement(
-                        "INSERT INTO webhook_delivery_dead_letter "
-                                + "(delivery_id, tenant_id, project_id, endpoint_id, event_id, event_type, payload, "
-                                + "attempt_count, final_status_code, final_error_code, failed_at) "
-                                + "SELECT delivery_id, tenant_id, project_id, endpoint_id, event_id, event_type, "
-                                + "payload, attempt_count+1, ?, ?, ? FROM webhook_delivery_outbox "
-                                + "WHERE tenant_id=? AND delivery_id=? AND state='IN_FLIGHT' "
-                                + "AND lease_owner=? AND fencing_token=? "
-                                + "ON CONFLICT (tenant_id, delivery_id) DO NOTHING")) {
-                    copy.setInt(1, statusCode);
-                    copy.setString(2, errorCode);
-                    copy.setTimestamp(3, Timestamp.from(failedAt));
-                    copy.setString(4, tenantId);
-                    copy.setLong(5, deliveryId);
-                    copy.setString(6, delivery.leaseOwner());
-                    copy.setLong(7, delivery.fencingToken());
-                    if (copy.executeUpdate() != 1) {
-                        throw new SQLException("unable to create webhook dead letter");
-                    }
-                }
                 try (PreparedStatement update = connection.prepareStatement(
                         "UPDATE webhook_delivery_outbox SET state='DEAD', attempt_count=attempt_count+1, "
                                 + "last_status_code=?, last_error_code=?, lease_until=NULL, "
@@ -299,6 +321,24 @@ public final class DataSourceWebhookOutbox implements WebhookDeliveryService.Out
                     update.setLong(7, delivery.fencingToken());
                     if (update.executeUpdate() != 1) {
                         throw new SQLException("unable to mark webhook delivery dead");
+                    }
+                }
+                // The guarded update holds the outbox row until commit. Copy
+                // its already incremented count; the worker needs no history
+                // SELECT/UPDATE permission and a failed copy rolls it all back.
+                try (PreparedStatement copy = connection.prepareStatement(
+                        "INSERT INTO webhook_delivery_dead_letter "
+                                + "(delivery_id, tenant_id, project_id, endpoint_id, event_id, event_type, payload, "
+                                + "attempt_count, final_status_code, final_error_code, failed_at, recovery_round) "
+                                + "SELECT delivery_id, tenant_id, project_id, endpoint_id, event_id, event_type, "
+                                + "payload, attempt_count, last_status_code, last_error_code, updated_at, recovery_round "
+                                + "FROM webhook_delivery_outbox WHERE tenant_id=? AND delivery_id=? "
+                                + "AND state='DEAD' AND fencing_token=?")) {
+                    copy.setString(1, tenantId);
+                    copy.setLong(2, deliveryId);
+                    copy.setLong(3, delivery.fencingToken());
+                    if (copy.executeUpdate() != 1) {
+                        throw new SQLException("unable to create webhook dead letter");
                     }
                 }
                 connection.commit();
