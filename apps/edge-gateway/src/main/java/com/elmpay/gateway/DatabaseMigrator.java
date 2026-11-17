@@ -64,7 +64,10 @@ public final class DatabaseMigrator {
             "db/migration/V100__provider_call_circuit.sql",
             "db/migration/V105__provider_tenant_binding_hardening.sql",
             "db/migration/V106__tenant_partition_maintenance_hardening.sql",
-            "db/migration/V107__runtime_role_acl_manifest.sql");
+            "db/migration/V107__runtime_role_acl_manifest.sql",
+            "db/migration/V108__webhook_recovery_rounds.sql",
+            "db/migration/V109__billing_usage_watermarks.sql",
+            "db/migration/V109_1__usage_acceptance_order.sql");
     private final DataSource dataSource;
 
     public DatabaseMigrator(DataSource dataSource) {

@@ -36,6 +36,7 @@ public final class JdbcCommerceService implements CommerceService {
     private static final Duration[] DUNNING_DELAYS = {
         Duration.ofHours(12), Duration.ofDays(1), Duration.ofDays(3), Duration.ofDays(7)
     };
+    private static final int MAXIMUM_CANCELLATIONS_PER_SCAN = 100;
 
     private final DataSource dataSource;
     private final Clock clock;
@@ -251,7 +252,7 @@ public final class JdbcCommerceService implements CommerceService {
         return transaction(context.tenantId(), connection -> {
             Subscription current = subscription(connection, context, subscriptionId, true);
             Plan plan = plan(connection, context, current.planId());
-            if (!plan.metered() || current.state() == SubscriptionState.CANCELED) {
+            if (!plan.metered() || cancellationDue(current, clock.instant())) {
                 throw new CommerceRuntimeException("USAGE_NOT_ALLOWED",
                         "usage requires an active metered subscription");
             }
@@ -357,8 +358,18 @@ public final class JdbcCommerceService implements CommerceService {
                 throw invalid("cross-currency plan changes are not supported");
             }
             Instant now = clock.instant();
-            Instant effectiveAt = cancelAt == null ? now : cancelAt;
-            if (effectiveAt.isBefore(now) || effectiveAt.isAfter(current.periodEnd())) {
+            boolean immediateCancellation = cancelAt != null && !cancelAt.isAfter(now);
+            if (cancelAt != null && cancelAt.isBefore(current.periodStart())) {
+                throw invalid("cancellation cannot predate the current period");
+            }
+            // A client timestamp normally arrives before processing time. Treat it as
+            // immediate, but never grant retrospective credit from caller-chosen time.
+            Instant effectiveAt = cancelAt == null || immediateCancellation ? now : cancelAt;
+            if (immediateCancellation && effectiveAt.isAfter(current.periodEnd())) {
+                effectiveAt = current.periodEnd();
+            }
+            if ((!immediateCancellation && effectiveAt.isBefore(now))
+                    || effectiveAt.isAfter(current.periodEnd())) {
                 throw invalid("adjustment effective time must be inside the current period");
             }
             long periodSeconds = Duration.between(current.periodStart(), current.periodEnd()).getSeconds();
@@ -395,7 +406,7 @@ public final class JdbcCommerceService implements CommerceService {
                     ? "UPDATE billing_subscription SET cancel_at=?,version=version+1,updated_at=? WHERE id=? AND tenant_id=? AND project_id=? AND version=?"
                     : "UPDATE billing_subscription SET plan_id=?,version=version+1,updated_at=? WHERE id=? AND tenant_id=? AND project_id=? AND version=?";
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
-                statement.setObject(1, newPlan == null ? timestamp(cancelAt) : newPlan.id());
+                statement.setObject(1, newPlan == null ? timestamp(effectiveAt) : newPlan.id());
                 statement.setTimestamp(2, timestamp(now));
                 statement.setObject(3, subscriptionId);
                 statement.setObject(4, context.tenantId());
@@ -407,6 +418,10 @@ public final class JdbcCommerceService implements CommerceService {
                     "billing.subscription.adjusted.v1", correlationId,
                     "{\"adjustment_id\":\"" + adjustmentId
                             + "\",\"subscription_id\":\"" + subscriptionId + "\"}");
+            if (newPlan == null && !effectiveAt.isAfter(now)) {
+                applyDueCancellation(connection, context,
+                        subscription(connection, context, subscriptionId, false), now, correlationId);
+            }
             return adjustment(connection, context, adjustmentId);
         });
     }
@@ -636,13 +651,15 @@ public final class JdbcCommerceService implements CommerceService {
         Objects.requireNonNull(now, "now");
         text(workerId, "worker id");
         return transaction(tenantId, connection -> {
+            applyDueCancellations(connection, tenantId, now, workerId);
             try (PreparedStatement query = connection.prepareStatement("""
-                    SELECT s.id,s.project_id,s.period_start,s.period_end,s.usage_quantity,
-                           p.amount_minor,p.currency,p.metered
+                    SELECT s.id,s.project_id,s.period_start,s.period_end,s.usage_quantity,s.version,
+                           p.amount_minor,p.currency,p.metered,p.billing_period_seconds
                       FROM billing_subscription s
                       JOIN billing_plan p ON p.id=s.plan_id AND p.tenant_id=s.tenant_id
                      WHERE s.tenant_id=? AND s.state IN ('trialing','active')
                        AND s.period_end<=?
+                       AND (s.cancel_at IS NULL OR s.cancel_at>?)
                        AND NOT EXISTS (SELECT 1 FROM subscription_billing_cycle c
                          WHERE c.tenant_id=s.tenant_id AND c.subscription_id=s.id
                            AND c.period_start=s.period_start)
@@ -650,6 +667,7 @@ public final class JdbcCommerceService implements CommerceService {
                     """)) {
                 query.setObject(1, tenantId);
                 query.setTimestamp(2, timestamp(now));
+                query.setTimestamp(3, timestamp(now));
                 try (ResultSet result = query.executeQuery()) {
                     if (!result.next()) {
                         return Optional.empty();
@@ -657,15 +675,19 @@ public final class JdbcCommerceService implements CommerceService {
                     UUID cycleId = UUID.randomUUID();
                     UUID subscriptionId = result.getObject("id", UUID.class);
                     UUID projectId = result.getObject("project_id", UUID.class);
+                    long capturedUsage = result.getLong("usage_quantity");
+                    long watermarkVersion = result.getLong("version");
                     long amount = result.getLong("amount_minor");
                     if (result.getBoolean("metered")) {
-                        amount = Math.multiplyExact(amount, result.getLong("usage_quantity"));
+                        amount = Math.multiplyExact(amount, capturedUsage);
                     }
+                    String state = amount == 0 ? "succeeded" : "queued";
                     try (PreparedStatement insert = connection.prepareStatement("""
                             INSERT INTO subscription_billing_cycle
                               (id,tenant_id,project_id,subscription_id,period_start,period_end,
-                               amount_minor,currency,state,created_at,updated_at)
-                            VALUES (?,?,?,?,?,?,?,?,'queued',?,?)
+                               amount_minor,currency,state,captured_usage_quantity,
+                               usage_watermark_version,usage_reconciliation_required,created_at,updated_at)
+                            VALUES (?,?,?,?,?,?,?,?,?,?,?,false,?,?)
                             """)) {
                         insert.setObject(1, cycleId);
                         insert.setObject(2, tenantId);
@@ -675,19 +697,55 @@ public final class JdbcCommerceService implements CommerceService {
                         insert.setTimestamp(6, result.getTimestamp("period_end"));
                         insert.setLong(7, amount);
                         insert.setString(8, result.getString("currency"));
-                        insert.setTimestamp(9, timestamp(now));
-                        insert.setTimestamp(10, timestamp(now));
+                        insert.setString(9, state);
+                        insert.setLong(10, capturedUsage);
+                        insert.setLong(11, watermarkVersion);
+                        insert.setTimestamp(12, timestamp(now));
+                        insert.setTimestamp(13, timestamp(now));
                         insert.executeUpdate();
                     }
                     Context worker = new Context(tenantId, projectId, workerId);
-                    outbox(connection, worker, "subscription_billing_cycle", cycleId,
-                            "billing.subscription.renewal_due.v1", "worker:" + cycleId,
-                            "{\"billing_cycle_id\":\"" + cycleId
-                                    + "\",\"subscription_id\":\"" + subscriptionId + "\"}");
+                    // The durable cycle is the seal. Clear only its captured pending
+                    // bucket under the same row lock/transaction, before any external
+                    // dispatch. Arrivals after this commit accrue in the next bucket.
+                    try (PreparedStatement seal = connection.prepareStatement("""
+                            UPDATE billing_subscription
+                               SET usage_quantity=usage_quantity-?,version=version+1,updated_at=?
+                             WHERE id=? AND tenant_id=? AND project_id=? AND version=? AND usage_quantity=?
+                            """)) {
+                        seal.setLong(1,capturedUsage);
+                        seal.setTimestamp(2,timestamp(now));
+                        seal.setObject(3,subscriptionId);
+                        seal.setObject(4,tenantId);
+                        seal.setObject(5,projectId);
+                        seal.setLong(6,watermarkVersion);
+                        seal.setLong(7,capturedUsage);
+                        requireUpdated(seal.executeUpdate(),"stale subscription usage seal");
+                    }
+                    if (amount == 0) {
+                        Subscription sealed = subscription(connection,worker,subscriptionId,true);
+                        Instant start = sealed.periodEnd();
+                        // This transaction just inserted the cycle. Reading its own
+                        // immutable snapshot needs no additional FOR UPDATE lock or
+                        // UPDATE capability on the worker's INSERT-only cycle path.
+                        updateSubscriptionPeriod(connection,worker,sealed,cycle(connection,worker,cycleId,false),
+                                start,start.plusSeconds(result.getLong("billing_period_seconds")));
+                        // This is an internal zero-amount closure, never a provider
+                        // receipt or a debit request. The existing event is non-money.
+                        outbox(connection,worker,"subscription_billing_cycle",cycleId,
+                                "billing.subscription.renewal_result.v1","worker:" + cycleId,
+                                "{\"billing_cycle_id\":\"" + cycleId
+                                        + "\",\"result\":\"succeeded\",\"settlement_source\":\"zero_amount\"}");
+                    } else {
+                        outbox(connection, worker, "subscription_billing_cycle", cycleId,
+                                "billing.subscription.renewal_due.v1", "worker:" + cycleId,
+                                "{\"billing_cycle_id\":\"" + cycleId
+                                        + "\",\"subscription_id\":\"" + subscriptionId + "\"}");
+                    }
                     return Optional.of(new BillingCycle(cycleId, tenantId, projectId,
                             subscriptionId, result.getTimestamp("period_start").toInstant(),
                             result.getTimestamp("period_end").toInstant(), amount,
-                            result.getString("currency"), "queued"));
+                            result.getString("currency"), state));
                 }
             }
         });
@@ -740,11 +798,14 @@ public final class JdbcCommerceService implements CommerceService {
                 if (outcome == RenewalOutcome.SUCCEEDED) {
                     Plan plan = plan(connection, context, subscription.planId());
                     Instant start = subscription.periodEnd();
-                    updateSubscriptionPeriod(connection, context, subscription, start,
+                    updateSubscriptionPeriod(connection, context, subscription, cycle, start,
                             start.plusSeconds(plan.billingPeriodSeconds()));
-                } else {
+                } else if (!cancellationDue(subscription, clock.instant())) {
                     markPastDueAndOpenDunning(connection, context, subscription, billingCycleId,
                             outcome, correlationId);
+                } else {
+                    // Preserve the verified cycle result without opening a new debit path.
+                    applyDueCancellation(connection, context, subscription, clock.instant(), correlationId);
                 }
                 outbox(connection, context, "subscription_billing_cycle", billingCycleId,
                         "billing.subscription.renewal_result.v1", correlationId,
@@ -765,12 +826,20 @@ public final class JdbcCommerceService implements CommerceService {
         text(workerId, "worker id");
         return transaction(tenantId, connection -> {
             try (PreparedStatement query = connection.prepareStatement("""
-                    SELECT * FROM dunning_case
-                     WHERE tenant_id=? AND state='scheduled' AND next_attempt_at<=?
-                     ORDER BY next_attempt_at,id FOR UPDATE SKIP LOCKED LIMIT 1
+                    SELECT d.* FROM dunning_case d
+                      JOIN subscription_billing_cycle c
+                        ON c.id=d.billing_cycle_id AND c.tenant_id=d.tenant_id AND c.project_id=d.project_id
+                      JOIN billing_subscription s
+                        ON s.id=d.subscription_id AND s.tenant_id=d.tenant_id
+                       AND s.project_id=d.project_id
+                     WHERE d.tenant_id=? AND d.state='scheduled' AND d.next_attempt_at<=?
+                       AND NOT c.usage_reconciliation_required AND c.usage_watermark_version IS NOT NULL
+                       AND s.state<>'canceled' AND (s.cancel_at IS NULL OR s.cancel_at>?)
+                     ORDER BY d.next_attempt_at,d.id FOR UPDATE OF d SKIP LOCKED LIMIT 1
                     """)) {
                 query.setObject(1, tenantId);
                 query.setTimestamp(2, timestamp(now));
+                query.setTimestamp(3, timestamp(now));
                 try (ResultSet result = query.executeQuery()) {
                     if (!result.next()) {
                         return Optional.empty();
@@ -810,6 +879,9 @@ public final class JdbcCommerceService implements CommerceService {
         String resultDigest = sha256(providerResultDigest, "provider result digest");
         return transaction(context.tenantId(), connection -> {
             DunningCase current = dunning(connection, context, dunningCaseId, true);
+            // Match renewal's cycle -> subscription ordering; never acquire an
+            // existing cycle lock after the subscription lock.
+            CycleRow cycle = cycle(connection,context,current.billingCycleId(),true);
             Subscription currentSubscription = subscription(connection, context,
                     current.subscriptionId(), true);
             Mandate mandate = mandate(connection, context, currentSubscription.mandateId());
@@ -837,10 +909,14 @@ public final class JdbcCommerceService implements CommerceService {
                             current.subscriptionId(), true);
                     Plan plan = plan(connection, context, subscription.planId());
                     Instant start = subscription.periodEnd();
-                    updateSubscriptionPeriod(connection, context, subscription, start,
+                    updateSubscriptionPeriod(connection, context, subscription, cycle, start,
                             start.plusSeconds(plan.billingPeriodSeconds()));
                 } else if (outcome == RenewalOutcome.UNKNOWN) {
                     nextState = "waiting_provider_query";
+                } else if (cancellationDue(currentSubscription, clock.instant())) {
+                    applyDueCancellation(connection, context, currentSubscription,
+                            clock.instant(), correlationId);
+                    nextState = "paused";
                 } else if (current.attempts() >= current.maximumAttempts()
                         || !clock.instant().isBefore(current.graceEndsAt())) {
                     nextState = "exhausted";
@@ -923,10 +999,34 @@ public final class JdbcCommerceService implements CommerceService {
     }
 
     private void updateSubscriptionPeriod(Connection connection, Context context,
-            Subscription subscription, Instant start, Instant end) throws SQLException {
+            Subscription subscription, CycleRow cycle, Instant start, Instant end) throws SQLException {
+        if (cancellationDue(subscription, clock.instant())) {
+            // A late success is a money fact, not permission to restore the subscription.
+            applyDueCancellation(connection, context, subscription, clock.instant(),
+                    "cancel:" + subscription.id());
+            return;
+        }
+        if (cycle.reconciliationRequired() || cycle.capturedUsage() == null || cycle.watermarkVersion() == null
+                || cycle.watermarkVersion() >= subscription.version()
+                || !cycle.periodStart().equals(subscription.periodStart())
+                || !cycle.periodEnd().equals(subscription.periodEnd())) {
+            // A legacy/inconsistent seal cannot authorize clearing usage or a new
+            // period. Keep the verified money outcome already written by the caller
+            // and leave a durable reconciliation gate instead of rolling it back.
+            try (PreparedStatement statement = connection.prepareStatement("""
+                    UPDATE subscription_billing_cycle SET usage_reconciliation_required=true
+                     WHERE id=? AND tenant_id=? AND project_id=?
+                    """)) {
+                statement.setObject(1,cycle.id());
+                statement.setObject(2,context.tenantId());
+                statement.setObject(3,context.projectId());
+                requireUpdated(statement.executeUpdate(),"billing seal reconciliation marker missing");
+            }
+            return;
+        }
         try (PreparedStatement statement = connection.prepareStatement("""
                 UPDATE billing_subscription
-                   SET state='active',period_start=?,period_end=?,usage_quantity=0,cancel_at=NULL,
+                   SET state='active',period_start=?,period_end=?,
                        version=version+1,updated_at=?
                  WHERE id=? AND tenant_id=? AND project_id=? AND version=?
                 """)) {
@@ -939,6 +1039,59 @@ public final class JdbcCommerceService implements CommerceService {
             statement.setLong(7, subscription.version());
             requireUpdated(statement.executeUpdate(), "stale subscription version");
         }
+    }
+
+    /** Bounded work inside the scheduler's existing tenant transaction; no external calls. */
+    private void applyDueCancellations(Connection connection, UUID tenantId, Instant now,
+            String workerId) throws SQLException {
+        for (int index = 0; index < MAXIMUM_CANCELLATIONS_PER_SCAN; index++) {
+            UUID subscriptionId;
+            UUID projectId;
+            try (PreparedStatement query = connection.prepareStatement("""
+                    SELECT id,project_id FROM billing_subscription
+                     WHERE tenant_id=? AND state<>'canceled' AND cancel_at<=?
+                     ORDER BY cancel_at,id FOR UPDATE SKIP LOCKED LIMIT 1
+                    """)) {
+                query.setObject(1, tenantId);
+                query.setTimestamp(2, timestamp(now));
+                try (ResultSet result = query.executeQuery()) {
+                    if (!result.next()) return;
+                    subscriptionId = result.getObject("id", UUID.class);
+                    projectId = result.getObject("project_id", UUID.class);
+                }
+            }
+            Context worker = new Context(tenantId, projectId, workerId);
+            applyDueCancellation(connection, worker,
+                    subscription(connection, worker, subscriptionId, false), now,
+                    "cancel:" + subscriptionId);
+        }
+    }
+
+    private static boolean cancellationDue(Subscription subscription, Instant now) {
+        return subscription.state() == SubscriptionState.CANCELED
+                || (subscription.cancelAt() != null && !subscription.cancelAt().isAfter(now));
+    }
+
+    private void applyDueCancellation(Connection connection, Context context,
+            Subscription subscription, Instant now, String correlationId) throws SQLException {
+        if (subscription.state() == SubscriptionState.CANCELED || !cancellationDue(subscription, now)) {
+            return;
+        }
+        try (PreparedStatement statement = connection.prepareStatement("""
+                UPDATE billing_subscription SET state='canceled',version=version+1,updated_at=?
+                 WHERE id=? AND tenant_id=? AND project_id=? AND version=? AND state<>'canceled'
+                """)) {
+            statement.setTimestamp(1, timestamp(now));
+            statement.setObject(2, subscription.id());
+            statement.setObject(3, context.tenantId());
+            statement.setObject(4, context.projectId());
+            statement.setLong(5, subscription.version());
+            requireUpdated(statement.executeUpdate(), "stale subscription cancellation version");
+        }
+        outbox(connection, context, "billing_subscription", subscription.id(),
+                "billing.subscription.canceled.v1", correlationId,
+                "{\"subscription_id\":\"" + subscription.id()
+                        + "\",\"effective_at\":\"" + subscription.cancelAt() + "\"}");
     }
 
     private void pauseSubscription(Connection connection, Context context, UUID subscriptionId)
@@ -1118,7 +1271,11 @@ public final class JdbcCommerceService implements CommerceService {
                 }
                 return new CycleRow(result.getObject("id", UUID.class),
                         result.getObject("subscription_id", UUID.class),
-                        result.getString("state"));
+                        result.getString("state"),result.getTimestamp("period_start").toInstant(),
+                        result.getTimestamp("period_end").toInstant(),
+                        result.getObject("captured_usage_quantity",Long.class),
+                        result.getObject("usage_watermark_version",Long.class),
+                        result.getBoolean("usage_reconciliation_required"));
             }
         }
     }
@@ -1425,5 +1582,6 @@ public final class JdbcCommerceService implements CommerceService {
     }
 
     private record Reservation(boolean replay, UUID resourceId) {}
-    private record CycleRow(UUID id, UUID subscriptionId, String state) {}
+    private record CycleRow(UUID id, UUID subscriptionId, String state, Instant periodStart,
+            Instant periodEnd, Long capturedUsage, Long watermarkVersion, boolean reconciliationRequired) {}
 }
