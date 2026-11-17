@@ -684,7 +684,7 @@
         "治理门禁拒绝任何密钥字面量",
         "凭证只能以 kms:// 或 vault:// 引用出现"
       ],
-      "due_date": "2026-11-16",
+      "due_date": "2026-12-16",
       "review_batch": "B20",
       "related_abuse_cases": [
         "AC-05",
