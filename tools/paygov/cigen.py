@@ -51,7 +51,7 @@ RELEASE_ONLY_STAGES=(@@RELEASE_ONLY_STAGES@@)
 NON_RELEASE_REQUIRED_STAGES=(@@NON_RELEASE_REQUIRED_STAGES@@)
 
 for variable in ELMPAY_GATE_EVENT_NAME ELMPAY_GATE_REPOSITORY ELMPAY_GATE_REF; do
-  if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+  if [[ -z "${!variable:-}" ]]; then
     echo "release gate blocked: required context '${variable}' is missing" >&2
     exit 1
   fi
@@ -59,9 +59,9 @@ done
 
 stage_result() {
   local stage="$1"
-  local variable="ELMPAY_NEEDS_${stage^^}"
-  variable="${variable//-/_}"
-  if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+  local variable
+  variable="ELMPAY_NEEDS_$(printf '%s' "${stage}" | tr '[:lower:]-' '[:upper:]_')"
+  if [[ -z "${!variable:-}" ]]; then
     echo "release gate blocked: result for '${stage}' is missing" >&2
     return 1
   fi
@@ -86,7 +86,7 @@ if [[ "${ELMPAY_GATE_EVENT_NAME}" == "${TRUSTED_EVENT}" &&
                   ELMPAY_EXTERNAL_EVIDENCE_B64 ELMPAY_EXTERNAL_TRUST_B64 \
                   ELMPAY_PRODUCT_IMAGE_INDEX_B64 \
                   ELMPAY_GATE_SHA; do
-    if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+    if [[ -z "${!variable:-}" ]]; then
       echo "release gate blocked: protected evidence input '${variable}' is missing" >&2
       exit 1
     fi
@@ -428,7 +428,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 STAGING_ROOT="${ROOT}/build/signing-inputs"
 for variable in GITHUB_ACTIONS GITHUB_REPOSITORY GITHUB_SHA GITHUB_RUN_ID \
                 GITHUB_RUN_ATTEMPT GITHUB_WORKFLOW_REF RUNNER_ENVIRONMENT; do
-  if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+  if [[ -z "${!variable:-}" ]]; then
     echo "required artifact staging environment '${variable}' is missing" >&2
     exit 1
   fi
@@ -577,7 +577,7 @@ required_environment=(
   ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN
 )
 for required in "${required_environment[@]}"; do
-  if [[ ! -v "${required}" || -z "${!required}" ]]; then
+  if [[ -z "${!required:-}" ]]; then
     echo "required signing environment '${required}' is missing" >&2
     exit 1
   fi
@@ -598,7 +598,7 @@ if [[ "${GITHUB_WORKFLOW_REF}" != "${expected_workflow_ref}" ]]; then
   exit 1
 fi
 
-if [[ ! -v "${OPT_IN_VARIABLE}" || "${!OPT_IN_VARIABLE}" != 'true' ]]; then
+if [[ "${!OPT_IN_VARIABLE:-}" != 'true' ]]; then
   echo "public Sigstore metadata disclosure is not opted in via ${OPT_IN_VARIABLE}" >&2
   exit 1
 fi

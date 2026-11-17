@@ -12,7 +12,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 STAGING_ROOT="${ROOT}/build/signing-inputs"
 for variable in GITHUB_ACTIONS GITHUB_REPOSITORY GITHUB_SHA GITHUB_RUN_ID \
                 GITHUB_RUN_ATTEMPT GITHUB_WORKFLOW_REF RUNNER_ENVIRONMENT; do
-  if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+  if [[ -z "${!variable:-}" ]]; then
     echo "required artifact staging environment '${variable}' is missing" >&2
     exit 1
   fi

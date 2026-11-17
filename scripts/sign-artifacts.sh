@@ -34,7 +34,7 @@ required_environment=(
   ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN
 )
 for required in "${required_environment[@]}"; do
-  if [[ ! -v "${required}" || -z "${!required}" ]]; then
+  if [[ -z "${!required:-}" ]]; then
     echo "required signing environment '${required}' is missing" >&2
     exit 1
   fi
@@ -55,7 +55,7 @@ if [[ "${GITHUB_WORKFLOW_REF}" != "${expected_workflow_ref}" ]]; then
   exit 1
 fi
 
-if [[ ! -v "${OPT_IN_VARIABLE}" || "${!OPT_IN_VARIABLE}" != 'true' ]]; then
+if [[ "${!OPT_IN_VARIABLE:-}" != 'true' ]]; then
   echo "public Sigstore metadata disclosure is not opted in via ${OPT_IN_VARIABLE}" >&2
   exit 1
 fi
