@@ -3,14 +3,264 @@ package com.elmpay.gateway;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 final class DatabaseMigratorTest {
+    @Test
+    void usageWatermarkMigrationPreservesLegacyAndRejectsHalfNullOrMutableSeals() throws Exception {
+        String url = LoopbackPostgresTestCluster.jdbcUrl();
+        assertTrue(url != null && url.matches("jdbc:postgresql://127\\.0\\.0\\.1:[0-9]+/elmpay_p1_[a-z0-9_]+"));
+        assertEquals("elmpay_p1_admin",LoopbackPostgresTestCluster.adminUser());
+        String suffix = UUID.randomUUID().toString().replace("-","");
+        String schema = "p1_usage_schema_" + suffix;
+        String owner = "p1_usage_owner_" + suffix;
+        String tenant = UUID.randomUUID().toString();
+        String project = UUID.randomUUID().toString();
+        String plan = UUID.randomUUID().toString();
+        String mandate = UUID.randomUUID().toString();
+        String subscription = UUID.randomUUID().toString();
+        String cycle = UUID.randomUUID().toString();
+        try (Connection connection = DriverManager.getConnection(url,"elmpay_p1_admin","");
+                Statement sql = connection.createStatement()) {
+            sql.execute("CREATE ROLE " + owner + " NOLOGIN NOSUPERUSER NOBYPASSRLS");
+            sql.execute("CREATE SCHEMA " + schema + " AUTHORIZATION " + owner);
+            sql.execute("SET ROLE " + owner);
+            sql.execute("SET search_path TO " + schema + ",public");
+            sql.execute("SELECT set_config('app.tenant_id','" + tenant + "',false)");
+            for (String name : new String[] {"V032__payment_runtime.sql","V034__durable_refund_runtime.sql",
+                    "V012__event_delivery_runtime.sql","V012_1__event_envelope_revision.sql",
+                    "V066__durable_commerce_runtime.sql"}) {
+                for (String command : SqlScripts.split(resource("db/migration/" + name))) {
+                    sql.execute(command);
+                }
+            }
+            sql.execute("""
+                    INSERT INTO billing_plan
+                    (id,tenant_id,project_id,code,amount_minor,currency,billing_period_seconds,
+                     trial_period_seconds,metered,created_at)
+                    VALUES ('%s','%s','%s','legacy',100,'USD',60,0,true,now());
+                    INSERT INTO billing_mandate
+                    (id,tenant_id,project_id,customer_reference,provider,provider_mandate_reference,
+                     payment_method_reference,purpose,maximum_amount_minor,currency,consent_digest,state,consented_at)
+                    VALUES ('%s','%s','%s','test-customer','stripe','test-mandate','psp://stripe/test',
+                     'renewal',10000,'USD',repeat('d',64),'active',now());
+                    INSERT INTO billing_subscription
+                    (id,tenant_id,project_id,customer_reference,plan_id,mandate_id,state,period_start,
+                     period_end,usage_quantity,created_at,updated_at)
+                    VALUES ('%s','%s','%s','test-customer','%s','%s','active',now()-interval '1 minute',now(),7,now(),now());
+                    INSERT INTO subscription_billing_cycle
+                    (id,tenant_id,project_id,subscription_id,period_start,period_end,amount_minor,currency,
+                     state,created_at,updated_at)
+                    VALUES ('%s','%s','%s','%s',now()-interval '1 minute',now(),500,'USD','queued',now(),now());
+                    """.formatted(plan,tenant,project,mandate,tenant,project,subscription,tenant,project,
+                            plan,mandate,cycle,tenant,project,subscription));
+            for (String command : SqlScripts.split(resource("db/migration/V109__billing_usage_watermarks.sql"))) {
+                sql.execute(command);
+            }
+            assertEquals("NULL:NULL:true:500",scalar(sql,"SELECT coalesce(captured_usage_quantity::text,'NULL')||':'||"
+                    + "coalesce(usage_watermark_version::text,'NULL')||':'||usage_reconciliation_required||':'||amount_minor "
+                    + "FROM subscription_billing_cycle"));
+            assertEquals("7",scalar(sql,"SELECT usage_quantity::text FROM billing_subscription"));
+            assertThrows(SQLException.class, () -> sql.execute("UPDATE subscription_billing_cycle SET captured_usage_quantity=5"));
+            assertThrows(SQLException.class, () -> sql.execute("UPDATE subscription_billing_cycle SET usage_watermark_version=1"));
+            assertThrows(SQLException.class, () -> sql.execute("UPDATE subscription_billing_cycle SET usage_reconciliation_required=false"));
+            for (String invalid : new String[] {
+                    "UPDATE subscription_billing_cycle SET captured_usage_quantity=-1,usage_watermark_version=1",
+                    "UPDATE subscription_billing_cycle SET captured_usage_quantity=5,usage_watermark_version=0"}) {
+                SQLException boundary = assertThrows(SQLException.class, () -> sql.execute(invalid));
+                assertEquals("23514",boundary.getSQLState());
+                assertTrue(boundary.getMessage().contains("billing_cycle_usage_seal_pair"));
+            }
+            sql.execute("UPDATE subscription_billing_cycle SET captured_usage_quantity=5,usage_watermark_version=1,usage_reconciliation_required=false");
+            assertThrows(SQLException.class, () -> sql.execute("UPDATE subscription_billing_cycle SET captured_usage_quantity=-1"));
+            assertThrows(SQLException.class, () -> sql.execute("UPDATE subscription_billing_cycle SET usage_watermark_version=0"));
+            assertThrows(SQLException.class, () -> sql.execute("UPDATE subscription_billing_cycle SET captured_usage_quantity=6"));
+            assertThrows(SQLException.class, () -> sql.execute("UPDATE subscription_billing_cycle SET amount_minor=600"));
+            sql.execute("UPDATE subscription_billing_cycle SET state='succeeded',provider_result_digest=repeat('a',64)");
+            assertEquals("5:1:false:succeeded",scalar(sql,"SELECT captured_usage_quantity||':'||usage_watermark_version||':'||"
+                    + "usage_reconciliation_required||':'||state FROM subscription_billing_cycle"));
+            sql.execute("INSERT INTO subscription_usage_inbox "
+                    + "(tenant_id,project_id,subscription_id,idempotency_key,request_digest,quantity,received_at) "
+                    + "VALUES ('" + tenant + "','" + project + "','" + subscription + "','legacy_usage',repeat('d',64),7,now())");
+            for (String command : SqlScripts.split(resource("db/migration/V109_1__usage_acceptance_order.sql"))) {
+                sql.execute(command);
+            }
+            assertEquals("true",scalar(sql,"SELECT usage_traceability_requires_reconciliation::text FROM billing_subscription"));
+            assertEquals("1",scalar(sql,"SELECT count(*) FROM subscription_usage_inbox WHERE accepted_subscription_version IS NULL"));
+            assertThrows(SQLException.class, () -> sql.execute("UPDATE subscription_usage_inbox SET accepted_subscription_version=1"));
+            String acceptance = "INSERT INTO subscription_usage_inbox "
+                    + "(tenant_id,project_id,subscription_id,idempotency_key,request_digest,quantity,received_at,accepted_subscription_version) "
+                    + "VALUES ('" + tenant + "','" + project + "','" + subscription + "',?,repeat('a',64),2,now(),?)";
+            try (var insert = connection.prepareStatement(acceptance)) {
+                insert.setString(1,"invalid_version");insert.setLong(2,0);
+                SQLException invalid = assertThrows(SQLException.class,insert::executeUpdate);
+                assertEquals("23514",invalid.getSQLState());
+                assertTrue(invalid.getMessage().contains("subscription_usage_acceptance_positive"));
+                insert.setString(1,"ordered_usage");insert.setLong(2,2);assertEquals(1,insert.executeUpdate());
+                insert.setString(1,"duplicate_version");
+                SQLException duplicate = assertThrows(SQLException.class,insert::executeUpdate);
+                assertEquals("23505",duplicate.getSQLState());
+                assertTrue(duplicate.getMessage().contains("subscription_usage_accepted_version_once"));
+            }
+            assertEquals("1",scalar(sql,"SELECT count(*) FROM subscription_usage_inbox WHERE accepted_subscription_version=2"));
+            assertThrows(SQLException.class, () -> sql.execute("UPDATE subscription_usage_inbox SET accepted_subscription_version=3 WHERE idempotency_key='ordered_usage'"));
+            assertThrows(SQLException.class, () -> sql.execute("UPDATE subscription_usage_inbox SET quantity=3 WHERE idempotency_key='ordered_usage'"));
+            assertThrows(SQLException.class, () -> sql.execute("DELETE FROM subscription_usage_inbox WHERE idempotency_key='ordered_usage'"));
+            String postImage = scalar(sql,"SELECT row_to_json(c)::text FROM subscription_billing_cycle c")
+                    + "|" + scalar(sql,"SELECT row_to_json(s)::text FROM billing_subscription s")
+                    + "|" + scalar(sql,"SELECT string_agg(row_to_json(u)::text,',' ORDER BY idempotency_key) FROM subscription_usage_inbox u");
+            String digest = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(postImage.getBytes(StandardCharsets.UTF_8)));
+            sql.execute("SELECT set_config('app.tenant_id','" + UUID.randomUUID() + "',false)");
+            assertEquals("0",scalar(sql,"SELECT count(*) FROM subscription_billing_cycle"));
+            assertEquals("false",scalar(sql,"SELECT (rolsuper OR rolbypassrls)::text FROM pg_roles WHERE rolname=current_user"));
+            System.out.println("usage_schema_jvm_pid=" + ProcessHandle.current().pid()
+                    + " pg_backend_pid=" + scalar(sql,"SELECT pg_backend_pid()::text") + " schema=" + schema
+                    + " db_postimage_sha256=" + digest);
+        }
+    }
+
+    @Test
+    void recoverySchemaUpgradesLegacyRowsOnRealPostgres() throws Exception {
+        String url = LoopbackPostgresTestCluster.jdbcUrl();
+        assertTrue(url != null && url.matches(
+                "jdbc:postgresql://127\\.0\\.0\\.1:[0-9]+/elmpay_p1_[a-z0-9_]+"),
+                "a dedicated loopback task PostgreSQL database is mandatory");
+        assertEquals("elmpay_p1_admin", LoopbackPostgresTestCluster.adminUser());
+        String suffix = UUID.randomUUID().toString().replace("-", "");
+        String schema = "p1_webhook_" + suffix;
+        String worker = "p1_webhook_worker_" + suffix;
+        String owner = "p1_webhook_owner_" + suffix;
+        try (Connection connection = DriverManager.getConnection(url, "elmpay_p1_admin", "");
+                Statement sql = connection.createStatement()) {
+            sql.execute("CREATE ROLE " + owner + " NOLOGIN NOSUPERUSER NOBYPASSRLS");
+            sql.execute("CREATE SCHEMA " + schema + " AUTHORIZATION " + owner);
+            sql.execute("SET ROLE " + owner);
+            sql.execute("SET search_path TO " + schema + ",public");
+            sql.execute("SELECT set_config('app.tenant_id','tenant_one',false)");
+            for (String command : SqlScripts.split(resource("db/migration/V038__business_webhook_delivery.sql"))) {
+                sql.execute(command);
+            }
+            sql.execute("""
+                    INSERT INTO webhook_endpoint VALUES
+                    ('tenant_one','project_one','endpoint_one','https://example.com/hook',
+                     'example.com','ACTIVE',2,now(),now());
+                    INSERT INTO webhook_delivery_outbox
+                    (delivery_id,tenant_id,project_id,endpoint_id,event_id,event_type,payload,state,
+                     attempt_count,next_attempt_at,created_at,updated_at)
+                    OVERRIDING SYSTEM VALUE VALUES
+                    (1,'tenant_one','project_one','endpoint_one','event_one','payment.succeeded',
+                     decode('010203','hex'),'PENDING',0,now(),now(),now()),
+                    (2,'tenant_one','project_one','endpoint_one','event_two','payment.succeeded',
+                     decode('040506','hex'),'DEAD',2,now(),now(),now());
+                    INSERT INTO webhook_delivery_dead_letter
+                    (delivery_id,tenant_id,project_id,endpoint_id,event_id,event_type,payload,attempt_count,
+                     final_status_code,final_error_code,failed_at,replayed_at,replayed_by,replay_ticket_id)
+                    VALUES
+                    (1,'tenant_one','project_one','endpoint_one','event_one','payment.succeeded',
+                     decode('010203','hex'),2,503,'legacy_error',now()-interval '1 day',now(),'actor_one','ticket_one'),
+                    (2,'tenant_one','project_one','endpoint_one','event_two','payment.succeeded',
+                     decode('040506','hex'),2,504,'legacy_timeout',now()-interval '1 day',NULL,NULL,NULL);
+                    """);
+            String before = scalar(sql, "SELECT string_agg(row_to_json(d)::text, ',' ORDER BY delivery_id) "
+                    + "FROM webhook_delivery_dead_letter d");
+            sql.execute("SELECT set_config('app.tenant_id','',false)");
+            for (String command : SqlScripts.split(resource("db/migration/V108__webhook_recovery_rounds.sql"))) {
+                sql.execute(command);
+            }
+            sql.execute("SELECT set_config('app.tenant_id','tenant_one',false)");
+            String after = scalar(sql, "SELECT string_agg((to_jsonb(d)-'recovery_round')::text, ',' "
+                    + "ORDER BY delivery_id) FROM webhook_delivery_dead_letter d");
+            // Compare canonical JSONB representations so only the additive round field is ignored.
+            try (var query = connection.prepareStatement("SELECT ?::jsonb = ?::jsonb")) {
+                query.setString(1, "[" + before + "]");
+                query.setString(2, "[" + after + "]");
+                try (ResultSet rows = query.executeQuery()) {
+                    assertTrue(rows.next());
+                    assertTrue(rows.getBoolean(1), "legacy payload/error/replay history must remain exact");
+                }
+            }
+            assertEquals("2,1", scalar(sql, "SELECT string_agg(recovery_round::text,',' ORDER BY delivery_id) "
+                    + "FROM webhook_delivery_outbox"));
+            assertEquals("1,1", scalar(sql, "SELECT string_agg(recovery_round::text,',' ORDER BY delivery_id) "
+                    + "FROM webhook_delivery_dead_letter"));
+            sql.execute("INSERT INTO webhook_delivery_dead_letter SELECT delivery_id,tenant_id,project_id,"
+                    + "endpoint_id,event_id,event_type,payload,2,502,'round_two',now(),NULL,NULL,NULL,2 "
+                    + "FROM webhook_delivery_outbox WHERE delivery_id=1");
+            assertThrows(SQLException.class, () -> sql.execute(
+                    "INSERT INTO webhook_delivery_dead_letter SELECT delivery_id,tenant_id,project_id,"
+                    + "endpoint_id,event_id,event_type,payload,2,502,'round_three',now(),NULL,NULL,NULL,3 "
+                    + "FROM webhook_delivery_outbox WHERE delivery_id=1"));
+            assertThrows(SQLException.class, () -> sql.execute(
+                    "UPDATE webhook_delivery_dead_letter SET final_error_code='changed' WHERE recovery_round=1"));
+            assertThrows(SQLException.class, () -> sql.execute(
+                    "DELETE FROM webhook_delivery_dead_letter WHERE delivery_id=2"));
+            assertThrows(SQLException.class, () -> sql.execute(
+                    "UPDATE webhook_delivery_dead_letter SET replayed_by='actor_two' WHERE delivery_id=1 AND recovery_round=1"));
+            sql.execute("UPDATE webhook_delivery_dead_letter SET replayed_at=now(),replayed_by='actor_two',"
+                    + "replay_ticket_id='ticket_two' WHERE delivery_id=1 AND recovery_round=2");
+            sql.execute("INSERT INTO webhook_delivery_admin_audit "
+                    + "(tenant_id,action,target_id,actor_id,approver_id,reason,ticket_id,occurred_at) "
+                    + "VALUES ('tenant_one','DEAD_LETTER_REPLAY','1','actor_one','approver_one','reason','ticket_one',now())");
+            assertThrows(SQLException.class, () -> sql.execute("INSERT INTO webhook_delivery_admin_audit "
+                    + "(tenant_id,action,target_id,actor_id,approver_id,reason,ticket_id,occurred_at) "
+                    + "VALUES ('tenant_one','DEAD_LETTER_REPLAY','1','actor_one','approver_one','reason','ticket_one',now())"));
+            assertThrows(SQLException.class, () -> sql.execute(
+                    "UPDATE webhook_delivery_admin_audit SET reason='changed'"));
+            assertThrows(SQLException.class, () -> sql.execute("DELETE FROM webhook_delivery_admin_audit"));
+            sql.execute("RESET ROLE");
+            sql.execute("CREATE ROLE " + worker + " NOLOGIN NOSUPERUSER NOBYPASSRLS");
+            sql.execute("GRANT USAGE ON SCHEMA " + schema + " TO " + worker);
+            sql.execute("GRANT SELECT,UPDATE ON webhook_delivery_outbox TO " + worker);
+            sql.execute("GRANT INSERT ON webhook_delivery_dead_letter TO " + worker);
+            sql.execute("SET ROLE " + worker);
+            sql.execute("SELECT set_config('app.tenant_id','tenant_one',false)");
+            assertEquals("false", scalar(sql, "SELECT (rolsuper OR rolbypassrls)::text FROM pg_roles WHERE rolname=current_user"));
+            sql.execute("UPDATE webhook_delivery_outbox SET recovery_round=3 WHERE delivery_id=1");
+            sql.execute("INSERT INTO webhook_delivery_dead_letter "
+                    + "(delivery_id,tenant_id,project_id,endpoint_id,event_id,event_type,payload,attempt_count,"
+                    + "final_status_code,final_error_code,failed_at,recovery_round) "
+                    + "SELECT delivery_id,tenant_id,project_id,endpoint_id,event_id,event_type,payload,2,"
+                    + "503,'round_three',now(),recovery_round FROM webhook_delivery_outbox WHERE delivery_id=1");
+            assertThrows(SQLException.class, () -> sql.executeQuery("SELECT * FROM webhook_delivery_dead_letter"));
+            sql.execute("SELECT set_config('app.tenant_id','tenant_two',false)");
+            assertEquals("0", scalar(sql, "SELECT count(*) FROM webhook_delivery_outbox"));
+            assertEquals(0, sql.executeUpdate("INSERT INTO webhook_delivery_dead_letter "
+                    + "(delivery_id,tenant_id,project_id,endpoint_id,event_id,event_type,payload,attempt_count,"
+                    + "final_status_code,final_error_code,failed_at,recovery_round) "
+                    + "SELECT delivery_id,tenant_id,project_id,endpoint_id,event_id,event_type,payload,2,"
+                    + "503,'wrong_tenant',now(),4 FROM webhook_delivery_outbox WHERE delivery_id=1"));
+            sql.execute("RESET ROLE");
+            String postImage = scalar(sql, "SELECT string_agg(to_jsonb(d)::text,',' ORDER BY delivery_id,recovery_round) "
+                    + "FROM webhook_delivery_dead_letter d");
+            String digest = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(postImage.getBytes(StandardCharsets.UTF_8)));
+            String backendPid = scalar(sql, "SELECT pg_backend_pid()::text");
+            System.out.println("webhook_schema_jvm_pid=" + ProcessHandle.current().pid()
+                    + " pg_backend_pid=" + backendPid + " schema=" + schema
+                    + " history_rows=4 postimage_sha256=" + digest);
+        }
+    }
+
+    private static String scalar(Statement sql, String query) throws SQLException {
+        try (ResultSet rows = sql.executeQuery(query)) {
+            assertTrue(rows.next());
+            return rows.getString(1);
+        }
+    }
+
     @Test
     void everyProductionMigrationHasAUniquePackagedResource() {
         List<String> resources = DatabaseMigrator.migrationResources();
@@ -59,7 +309,10 @@ final class DatabaseMigratorTest {
                 "db/migration/V100__provider_call_circuit.sql",
                 "db/migration/V105__provider_tenant_binding_hardening.sql",
                 "db/migration/V106__tenant_partition_maintenance_hardening.sql",
-                "db/migration/V107__runtime_role_acl_manifest.sql"), resources);
+                "db/migration/V107__runtime_role_acl_manifest.sql",
+                "db/migration/V108__webhook_recovery_rounds.sql",
+                "db/migration/V109__billing_usage_watermarks.sql",
+                "db/migration/V109_1__usage_acceptance_order.sql"), resources);
         for (String resource : resources) {
             assertNotNull(getClass().getClassLoader().getResource(resource), resource);
         }
