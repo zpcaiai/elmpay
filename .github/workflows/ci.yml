@@ -740,7 +740,7 @@ jobs:
           NON_RELEASE_REQUIRED_STAGES=(governance python-floor build unit-test ios-sdk-test flutter-sdk-test quality-metrics static-analysis secret-scan dependency-scan container-scan iac-scan sbom negative-controls rule-knockout)
 
           for variable in ELMPAY_GATE_EVENT_NAME ELMPAY_GATE_REPOSITORY ELMPAY_GATE_REF; do
-            if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+            if [[ -z "${!variable:-}" ]]; then
               echo "release gate blocked: required context '${variable}' is missing" >&2
               exit 1
             fi
@@ -748,9 +748,9 @@ jobs:
 
           stage_result() {
             local stage="$1"
-            local variable="ELMPAY_NEEDS_${stage^^}"
-            variable="${variable//-/_}"
-            if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+            local variable
+            variable="ELMPAY_NEEDS_$(printf '%s' "${stage}" | tr '[:lower:]-' '[:upper:]_')"
+            if [[ -z "${!variable:-}" ]]; then
               echo "release gate blocked: result for '${stage}' is missing" >&2
               return 1
             fi
@@ -775,7 +775,7 @@ jobs:
                             ELMPAY_EXTERNAL_EVIDENCE_B64 ELMPAY_EXTERNAL_TRUST_B64 \
                             ELMPAY_PRODUCT_IMAGE_INDEX_B64 \
                             ELMPAY_GATE_SHA; do
-              if [[ ! -v "${variable}" || -z "${!variable}" ]]; then
+              if [[ -z "${!variable:-}" ]]; then
                 echo "release gate blocked: protected evidence input '${variable}' is missing" >&2
                 exit 1
               fi
