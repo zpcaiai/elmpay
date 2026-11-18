@@ -83,8 +83,11 @@ final class SubscriptionCancellationPostgresIT {
                     "services/worker-scheduler/src/main/resources/db/migration/V012_1__event_envelope_revision.sql",
                     "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
                     "services/payment-core/src/main/resources/db/migration/V066_1__provider_evidence_receipts.sql",
-                    "services/payment-core/src/main/resources/db/migration/V109__billing_usage_watermarks.sql"}) {
-                statement.execute(Files.readString(repo.resolve(path)));
+                    "services/payment-core/src/main/resources/db/migration/V109__billing_usage_watermarks.sql",
+                    "services/payment-core/src/main/resources/db/migration/V109_1__usage_acceptance_order.sql"}) {
+                for (String command : SqlScripts.split(Files.readString(repo.resolve(path)))) {
+                    statement.execute(command);
+                }
             }
             for (String path : new String[] {
                     "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql",

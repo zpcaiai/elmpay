@@ -77,6 +77,7 @@ final class BillingUsagePostgresIT {
                     "services/payment-core/src/main/resources/db/migration/V066__durable_commerce_runtime.sql",
                     "services/payment-core/src/main/resources/db/migration/V066_1__provider_evidence_receipts.sql",
                     "services/payment-core/src/main/resources/db/migration/V109__billing_usage_watermarks.sql",
+                    "services/payment-core/src/main/resources/db/migration/V109_1__usage_acceptance_order.sql",
                     "services/ledger-service/src/main/resources/db/migration/V072__immutable_ledger.sql",
                     "services/ledger-service/src/main/resources/db/migration/V073__event_ledger_posting_policy.sql"}) {
                 for (String command : SqlScripts.split(Files.readString(repo.resolve(file)))) {
@@ -405,6 +406,18 @@ final class BillingUsagePostgresIT {
         assertEquals(Long.toString(accepted),query(value,"SELECT coalesce(sum(captured_usage_quantity),0)+"
                 + "(SELECT usage_quantity FROM billing_subscription WHERE id='" + value.id() + "') FROM subscription_billing_cycle"));
         assertEquals(Long.toString(accepted),query(value,"SELECT sum(quantity)::text FROM subscription_usage_inbox"));
+        assertEquals("0",query(value,"SELECT count(*) FROM subscription_usage_inbox WHERE accepted_subscription_version IS NULL"));
+        assertEquals("0",query(value,"""
+                SELECT count(*) FROM subscription_billing_cycle c
+                 WHERE c.subscription_id='%s'
+                   AND c.captured_usage_quantity IS NOT NULL
+                   AND c.captured_usage_quantity <> (
+                       SELECT coalesce(sum(u.quantity),0)
+                         FROM subscription_usage_inbox u
+                        WHERE u.subscription_id=c.subscription_id
+                          AND u.accepted_subscription_version <= c.usage_watermark_version
+                   )
+                """.formatted(value.id())));
     }
 
     private static void proof(Fixture value) throws Exception {
