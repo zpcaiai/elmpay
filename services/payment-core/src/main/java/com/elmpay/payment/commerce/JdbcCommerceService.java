@@ -256,12 +256,18 @@ public final class JdbcCommerceService implements CommerceService {
                 throw new CommerceRuntimeException("USAGE_NOT_ALLOWED",
                         "usage requires an active metered subscription");
             }
+            if (usageTraceabilityRequiresReconciliation(connection, context, subscriptionId)) {
+                throw new CommerceRuntimeException("USAGE_RECONCILIATION_REQUIRED",
+                        "subscription usage history requires reconciliation before accepting new metered usage");
+            }
+            long acceptedVersion = Math.addExact(current.version(), 1L);
             Savepoint savepoint = connection.setSavepoint("usage_inbox_insert");
             boolean inserted;
             try (PreparedStatement statement = connection.prepareStatement("""
                     INSERT INTO subscription_usage_inbox
                       (tenant_id,project_id,subscription_id,idempotency_key,request_digest,
-                       quantity,received_at) VALUES (?,?,?,?,?,?,?)
+                       quantity,received_at,accepted_subscription_version)
+                    VALUES (?,?,?,?,?,?,?,?)
                     """)) {
                 statement.setObject(1, context.tenantId());
                 statement.setObject(2, context.projectId());
@@ -270,6 +276,7 @@ public final class JdbcCommerceService implements CommerceService {
                 statement.setString(5, requestDigest);
                 statement.setLong(6, quantity);
                 statement.setTimestamp(7, timestamp(clock.instant()));
+                statement.setLong(8, acceptedVersion);
                 statement.executeUpdate();
                 connection.releaseSavepoint(savepoint);
                 inserted = true;
@@ -294,21 +301,24 @@ public final class JdbcCommerceService implements CommerceService {
             if (inserted) {
                 try (PreparedStatement statement = connection.prepareStatement("""
                         UPDATE billing_subscription
-                           SET usage_quantity=usage_quantity+?, version=version+1, updated_at=?
+                           SET usage_quantity=usage_quantity+?, version=?, updated_at=?
                          WHERE id=? AND tenant_id=? AND project_id=? AND version=?
+                           AND NOT usage_traceability_requires_reconciliation
                         """)) {
                     statement.setLong(1, quantity);
-                    statement.setTimestamp(2, timestamp(clock.instant()));
-                    statement.setObject(3, subscriptionId);
-                    statement.setObject(4, context.tenantId());
-                    statement.setObject(5, context.projectId());
-                    statement.setLong(6, current.version());
+                    statement.setLong(2, acceptedVersion);
+                    statement.setTimestamp(3, timestamp(clock.instant()));
+                    statement.setObject(4, subscriptionId);
+                    statement.setObject(5, context.tenantId());
+                    statement.setObject(6, context.projectId());
+                    statement.setLong(7, current.version());
                     requireUpdated(statement.executeUpdate(), "stale subscription version");
                 }
                 outbox(connection, context, "billing_subscription", subscriptionId,
                         "billing.subscription.usage_recorded.v1", correlationId,
                         "{\"subscription_id\":\"" + subscriptionId
-                                + "\",\"quantity\":" + quantity + "}");
+                                + "\",\"quantity\":" + quantity
+                                + ",\"accepted_subscription_version\":" + acceptedVersion + "}");
             }
             return subscription(connection, context, subscriptionId, false);
         });
@@ -660,6 +670,7 @@ public final class JdbcCommerceService implements CommerceService {
                      WHERE s.tenant_id=? AND s.state IN ('trialing','active')
                        AND s.period_end<=?
                        AND (s.cancel_at IS NULL OR s.cancel_at>?)
+                       AND NOT s.usage_traceability_requires_reconciliation
                        AND NOT EXISTS (SELECT 1 FROM subscription_billing_cycle c
                          WHERE c.tenant_id=s.tenant_id AND c.subscription_id=s.id
                            AND c.period_start=s.period_start)
@@ -712,6 +723,7 @@ public final class JdbcCommerceService implements CommerceService {
                             UPDATE billing_subscription
                                SET usage_quantity=usage_quantity-?,version=version+1,updated_at=?
                              WHERE id=? AND tenant_id=? AND project_id=? AND version=? AND usage_quantity=?
+                               AND NOT usage_traceability_requires_reconciliation
                             """)) {
                         seal.setLong(1,capturedUsage);
                         seal.setTimestamp(2,timestamp(now));
@@ -1006,7 +1018,9 @@ public final class JdbcCommerceService implements CommerceService {
                     "cancel:" + subscription.id());
             return;
         }
-        if (cycle.reconciliationRequired() || cycle.capturedUsage() == null || cycle.watermarkVersion() == null
+        if (cycle.reconciliationRequired()
+                || usageTraceabilityRequiresReconciliation(connection, context, subscription.id())
+                || cycle.capturedUsage() == null || cycle.watermarkVersion() == null
                 || cycle.watermarkVersion() >= subscription.version()
                 || !cycle.periodStart().equals(subscription.periodStart())
                 || !cycle.periodEnd().equals(subscription.periodEnd())) {
@@ -1152,6 +1166,25 @@ public final class JdbcCommerceService implements CommerceService {
                         result.getString("consent_digest"), result.getString("state"),
                         result.getTimestamp("consented_at").toInstant(),
                         revoked == null ? null : revoked.toInstant(), result.getLong("version"));
+            }
+        }
+    }
+
+    private boolean usageTraceabilityRequiresReconciliation(Connection connection,
+            Context context, UUID subscriptionId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                SELECT usage_traceability_requires_reconciliation
+                  FROM billing_subscription
+                 WHERE id=? AND tenant_id=? AND project_id=?
+                """)) {
+            statement.setObject(1, subscriptionId);
+            statement.setObject(2, context.tenantId());
+            statement.setObject(3, context.projectId());
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    throw notFound("subscription");
+                }
+                return result.getBoolean(1);
             }
         }
     }
