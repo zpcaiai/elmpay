@@ -1,6 +1,7 @@
 package com.elmpay.payment.provider;
 
 import com.elmpay.security.BoundedHttpTransport;
+import com.elmpay.security.EnvelopeEncryptionService;
 import com.elmpay.security.MountedHttpsClient;
 import com.elmpay.security.SecretReference;
 import com.elmpay.security.WipeableFlatJson;
@@ -36,6 +37,9 @@ public final class HttpsProviderCredentialResolver implements ProviderCredential
     private static final Set<String> RESPONSE_BINDING_FIELDS = Set.of(
             "tenantId", "providerAccountId", "secretReference", "credentialVersion",
             "leaseId", "expiresAt");
+    private static final Set<String> ENVELOPE_PARTS = Set.of(
+            "keyReference", "keyVersion", "wrappedDataKey", "nonce", "ciphertext",
+            "aadDigest", "createdAt");
 
     public static final class Response implements AutoCloseable {
         private final int statusCode;
@@ -126,7 +130,8 @@ public final class HttpsProviderCredentialResolver implements ProviderCredential
     }
 
     private record Configuration(URI endpoint, Transport transport, Supplier<String> token,
-            Duration timeout, Duration maximumLease, Clock clock, boolean configured) {
+            Duration timeout, Duration maximumLease, Clock clock,
+            EnvelopeEncryptionService envelopeEncryption, boolean configured) {
         private Configuration {
             Objects.requireNonNull(timeout, "timeout");
             Objects.requireNonNull(maximumLease, "maximumLease");
@@ -140,6 +145,7 @@ public final class HttpsProviderCredentialResolver implements ProviderCredential
     private final Duration timeout;
     private final Duration maximumLease;
     private final Clock clock;
+    private final EnvelopeEncryptionService envelopeEncryption;
     private final boolean configured;
 
     /** ServiceLoader constructor. Configuration is read once; token material is read per request. */
@@ -149,8 +155,15 @@ public final class HttpsProviderCredentialResolver implements ProviderCredential
 
     public HttpsProviderCredentialResolver(URI endpoint, Transport transport,
             Supplier<String> accessToken, Duration timeout, Duration maximumLease, Clock clock) {
+        this(endpoint, transport, accessToken, timeout, maximumLease, clock, null);
+    }
+
+    public HttpsProviderCredentialResolver(URI endpoint, Transport transport,
+            Supplier<String> accessToken, Duration timeout, Duration maximumLease, Clock clock,
+            EnvelopeEncryptionService envelopeEncryption) {
         this(new Configuration(requireHttpsBase(endpoint), Objects.requireNonNull(transport, "transport"),
-                Objects.requireNonNull(accessToken, "accessToken"), timeout, maximumLease, clock, true));
+                Objects.requireNonNull(accessToken, "accessToken"), timeout, maximumLease, clock,
+                envelopeEncryption, true));
     }
 
     /**
@@ -171,6 +184,7 @@ public final class HttpsProviderCredentialResolver implements ProviderCredential
         timeout = configuration.timeout();
         maximumLease = configuration.maximumLease();
         clock = configuration.clock();
+        envelopeEncryption = configuration.envelopeEncryption();
         configured = configuration.configured();
         if (timeout.isZero() || timeout.isNegative() || timeout.compareTo(Duration.ofSeconds(10)) > 0) {
             throw new IllegalArgumentException("credential timeout must be 1ms..10s");
@@ -226,7 +240,8 @@ public final class HttpsProviderCredentialResolver implements ProviderCredential
                     throw new SecurityException(
                             "credential lease expiration is outside the requested bound");
                 }
-                Map<String, byte[]> material = decodeMaterial(document);
+                Map<String, byte[]> material = decodeLeaseMaterial(document, tenantId,
+                        providerAccountId, reference, credentialVersion);
                 try {
                     Runnable revoker = () -> revoke(token(), tenantId, providerAccountId,
                             reference, credentialVersion, leaseId);
@@ -278,6 +293,122 @@ public final class HttpsProviderCredentialResolver implements ProviderCredential
                 "Content-Type", "application/json",
                 "Accept", "application/json",
                 "X-Elmpay-Request-Id", UUID.randomUUID().toString());
+    }
+
+    public static Map<String, String> credentialEnvelopeAad(UUID tenantId,
+            UUID providerAccountId, SecretReference reference, String credentialVersion,
+            String field) {
+        Objects.requireNonNull(tenantId, "tenantId");
+        Objects.requireNonNull(providerAccountId, "providerAccountId");
+        Objects.requireNonNull(reference, "reference");
+        requireText(credentialVersion, "credentialVersion");
+        if (field == null || !field.matches("[a-z][a-z0-9_.-]{0,63}")) {
+            throw new SecurityException("credential response has an invalid material field");
+        }
+        return Map.of(
+                "tenantId", tenantId.toString(),
+                "resourceId", providerAccountId.toString(),
+                "purpose", "provider_credential:" + field,
+                "secretReference", reference.uri().toString(),
+                "credentialVersion", credentialVersion);
+    }
+
+    private Map<String, byte[]> decodeLeaseMaterial(WipeableFlatJson document, UUID tenantId,
+            UUID providerAccountId, SecretReference reference, String credentialVersion) {
+        boolean hasEnvelope = document.keys().stream().anyMatch(key -> key.startsWith("envelope."));
+        boolean hasPlainMaterial = document.keys().stream().anyMatch(key -> key.startsWith("material."));
+        if (hasEnvelope && hasPlainMaterial) {
+            throw new SecurityException("credential response must not mix plaintext and envelope material");
+        }
+        if (envelopeEncryption != null && "kms".equalsIgnoreCase(reference.uri().getScheme()) && !hasEnvelope) {
+            throw new SecurityException("kms:// provider credential lease requires KMS envelope material");
+        }
+        if (hasEnvelope) {
+            if (envelopeEncryption == null) {
+                throw new SecurityException("KMS envelope material requires a configured EnvelopeEncryptionService");
+            }
+            return decodeEnvelopeMaterial(document, tenantId, providerAccountId, reference,
+                    credentialVersion);
+        }
+        return decodeMaterial(document);
+    }
+
+    private Map<String, byte[]> decodeEnvelopeMaterial(WipeableFlatJson document, UUID tenantId,
+            UUID providerAccountId, SecretReference reference, String credentialVersion) {
+        java.util.Set<String> fields = new java.util.TreeSet<>();
+        for (String key : document.keys()) {
+            if (!key.startsWith("envelope.")) {
+                continue;
+            }
+            String remainder = key.substring("envelope.".length());
+            int dot = remainder.lastIndexOf('.');
+            if (dot <= 0 || dot == remainder.length() - 1) {
+                throw new SecurityException("credential envelope field is malformed");
+            }
+            String field = remainder.substring(0, dot);
+            String part = remainder.substring(dot + 1);
+            if (!field.matches("[a-z][a-z0-9_.-]{0,63}") || !ENVELOPE_PARTS.contains(part)) {
+                throw new SecurityException("credential envelope field is invalid");
+            }
+            fields.add(field);
+        }
+        if (fields.isEmpty() || fields.size() > 64) {
+            throw new SecurityException("credential response envelope field count is invalid");
+        }
+        Map<String, byte[]> result = new LinkedHashMap<>();
+        long total = 0;
+        for (String field : fields) {
+            String prefix = "envelope." + field + ".";
+            byte[] wrapped = null;
+            byte[] nonce = null;
+            byte[] ciphertext = null;
+            byte[] aadDigest = null;
+            byte[] plaintext = null;
+            try {
+                for (String part : ENVELOPE_PARTS) {
+                    if (!document.keys().contains(prefix + part)) {
+                        throw new SecurityException("credential envelope is missing " + part);
+                    }
+                }
+                document.requireBound(prefix + "keyReference", reference.uri().toString());
+                String keyVersion = document.requireMetadata(prefix + "keyVersion", 256);
+                wrapped = document.requireBase64Url(prefix + "wrappedDataKey", 32, 65_536);
+                nonce = document.requireBase64Url(prefix + "nonce", 12, 12);
+                ciphertext = document.requireBase64Url(prefix + "ciphertext", 17, 65_536);
+                aadDigest = document.requireBase64Url(prefix + "aadDigest", 32, 32);
+                Instant createdAt = document.requireInstant(prefix + "createdAt");
+                EnvelopeEncryptionService.Envelope envelope =
+                        new EnvelopeEncryptionService.Envelope(
+                                reference.uri().toString(), keyVersion, wrapped, nonce,
+                                ciphertext, aadDigest, createdAt);
+                plaintext = envelopeEncryption.decrypt(envelope,
+                        credentialEnvelopeAad(tenantId, providerAccountId, reference,
+                                credentialVersion, field));
+                if (plaintext.length == 0 || plaintext.length > 65_536) {
+                    throw new SecurityException("decrypted credential material size is invalid");
+                }
+                total += plaintext.length;
+                if (total > 262_144) {
+                    throw new SecurityException("credential response material exceeds its bound");
+                }
+                result.put(field, plaintext);
+                plaintext = null;
+            } catch (RuntimeException | Error exception) {
+                if (plaintext != null) {
+                    Arrays.fill(plaintext, (byte) 0);
+                }
+                wipe(result);
+                throw exception instanceof SecurityException security
+                        ? security
+                        : new SecurityException("KMS credential envelope decryption failed", exception);
+            } finally {
+                if (wrapped != null) Arrays.fill(wrapped, (byte) 0);
+                if (nonce != null) Arrays.fill(nonce, (byte) 0);
+                if (ciphertext != null) Arrays.fill(ciphertext, (byte) 0);
+                if (aadDigest != null) Arrays.fill(aadDigest, (byte) 0);
+            }
+        }
+        return result;
     }
 
     private static Map<String, byte[]> decodeMaterial(WipeableFlatJson document) {
@@ -337,7 +468,7 @@ public final class HttpsProviderCredentialResolver implements ProviderCredential
         boolean any = environment.keySet().stream()
                 .anyMatch(key -> key.startsWith("ELMPAY_PROVIDER_CREDENTIAL_"));
         if (!any && allowAbsent) {
-            return new Configuration(null, null, null, timeout, lease, clock, false);
+            return new Configuration(null, null, null, timeout, lease, clock, null, false);
         }
         if (environment.containsKey("ELMPAY_PROVIDER_CREDENTIAL_ACCESS_TOKEN")
                 || environment.containsKey("ELMPAY_PROVIDER_CREDENTIAL_TOKEN_FILE")
@@ -355,8 +486,13 @@ public final class HttpsProviderCredentialResolver implements ProviderCredential
         }
         MountedHttpsClient.Client mounted = MountedHttpsClient.fromEnvironment(environment,
                 "ELMPAY_PROVIDER_CREDENTIAL", "provider-credential-client", clock, timeout);
+        boolean kmsConfigured = environment.keySet().stream()
+                .anyMatch(key -> key.startsWith("ELMPAY_KMS_"));
+        EnvelopeEncryptionService envelope = kmsConfigured
+                ? EnvelopeEncryptionService.fromEnvironment(environment, clock)
+                : null;
         return new Configuration(endpoint, new JdkMutualTlsTransport(mounted.httpClient()),
-                mounted.accessToken(), timeout, lease, clock, true);
+                mounted.accessToken(), timeout, lease, clock, envelope, true);
     }
 
     private static Duration duration(String value, long fallback, String kind) {
@@ -479,7 +615,9 @@ public final class HttpsProviderCredentialResolver implements ProviderCredential
             throw new SecurityException("credential response is missing required fields");
         }
         for (String key : document.keys()) {
-            if (!RESPONSE_BINDING_FIELDS.contains(key) && !key.startsWith("material.")) {
+            if (!RESPONSE_BINDING_FIELDS.contains(key)
+                    && !key.startsWith("material.")
+                    && !key.startsWith("envelope.")) {
                 throw new SecurityException("credential response has an unexpected field");
             }
         }

@@ -6,16 +6,20 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.elmpay.security.EnvelopeEncryptionService;
+import com.elmpay.security.HttpsKmsClient;
 import com.elmpay.security.SecretReference;
 import java.net.URI;
 import java.net.http.HttpHeaders;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -35,6 +39,7 @@ final class HttpsProviderCredentialResolverTest {
     private static final UUID TENANT = UUID.fromString("00000000-0000-0000-0000-000000000101");
     private static final UUID ACCOUNT = UUID.fromString("00000000-0000-0000-0000-000000000202");
     private static final SecretReference REFERENCE = SecretReference.parse("vault://provider/stripe/a");
+    private static final SecretReference KMS_REFERENCE = SecretReference.parse("kms://provider/stripe/live-key");
 
     @TempDir
     java.nio.file.Path directory;
@@ -212,6 +217,100 @@ final class HttpsProviderCredentialResolverTest {
                 () -> HttpsProviderCredentialResolver.fromEnvironment(Map.of(
                         "ELMPAY_PROVIDER_CREDENTIAL_TOKEN_FILE", "/tmp/legacy-token"),
                         Clock.fixed(NOW, ZoneOffset.UTC)));
+    }
+
+    @Test
+    void kmsEnvelopeLeaseUnwrapsThroughHttpsKmsAndRejectsAadOrPlaintextDowngrade() {
+        Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+        byte[] dataKey = "0123456789abcdef0123456789abcdef".getBytes(StandardCharsets.UTF_8);
+        byte[] wrappedDataKey = "wrapped-kms-data-key-material-0123456789".getBytes(StandardCharsets.UTF_8);
+        String b64DataKey = Base64.getUrlEncoder().withoutPadding().encodeToString(dataKey);
+        String b64Wrapped = Base64.getUrlEncoder().withoutPadding().encodeToString(wrappedDataKey);
+        List<String> kmsPaths = new ArrayList<>();
+        HttpsKmsClient kmsClient = new HttpsKmsClient(
+                URI.create("https://kms.internal.example/v1"),
+                (endpoint, headers, body, timeout) -> {
+                    kmsPaths.add(endpoint.getPath());
+                    String payload = endpoint.getPath().endsWith("/generate")
+                            ? "{\"keyReference\":\"" + KMS_REFERENCE.uri()
+                                    + "\",\"keyVersion\":\"kv-9\",\"plaintextKey\":\""
+                                    + b64DataKey + "\",\"wrappedDataKey\":\"" + b64Wrapped
+                                    + "\",\"plaintextExpiresAt\":\"" + NOW.plusSeconds(5) + "\"}"
+                            : "{\"plaintextKey\":\"" + b64DataKey
+                                    + "\",\"plaintextExpiresAt\":\"" + NOW.plusSeconds(5) + "\"}";
+                    return new HttpsKmsClient.Response(200, JSON_HEADERS,
+                            payload.getBytes(StandardCharsets.UTF_8));
+                },
+                () -> "kms-workload-token",
+                Duration.ofSeconds(2));
+        EnvelopeEncryptionService envelopeService = new EnvelopeEncryptionService(
+                kmsClient, clock, new SecureRandom(), Duration.ofSeconds(5));
+        EnvelopeEncryptionService.Envelope sealed = envelopeService.encrypt(
+                KMS_REFERENCE.uri().toString(),
+                "kms-sealed-stripe-secret".getBytes(StandardCharsets.UTF_8),
+                HttpsProviderCredentialResolver.credentialEnvelopeAad(
+                        TENANT, ACCOUNT, KMS_REFERENCE, "version-9", "api_key"));
+
+        Map<String, String> leaseFields = new LinkedHashMap<>();
+        leaseFields.put("tenantId", TENANT.toString());
+        leaseFields.put("providerAccountId", ACCOUNT.toString());
+        leaseFields.put("secretReference", KMS_REFERENCE.uri().toString());
+        leaseFields.put("credentialVersion", "version-9");
+        leaseFields.put("leaseId", "lease-kms-9");
+        leaseFields.put("expiresAt", NOW.plusSeconds(60).toString());
+        leaseFields.put("envelope.api_key.keyReference", sealed.keyReference());
+        leaseFields.put("envelope.api_key.keyVersion", sealed.keyVersion());
+        leaseFields.put("envelope.api_key.wrappedDataKey",
+                Base64.getUrlEncoder().withoutPadding().encodeToString(sealed.wrappedDataKey()));
+        leaseFields.put("envelope.api_key.nonce",
+                Base64.getUrlEncoder().withoutPadding().encodeToString(sealed.nonce()));
+        leaseFields.put("envelope.api_key.ciphertext",
+                Base64.getUrlEncoder().withoutPadding().encodeToString(sealed.ciphertext()));
+        leaseFields.put("envelope.api_key.aadDigest",
+                Base64.getUrlEncoder().withoutPadding().encodeToString(sealed.aadDigest()));
+        leaseFields.put("envelope.api_key.createdAt", sealed.createdAt().toString());
+
+        RecordingTransport transport = new RecordingTransport(response(leaseFields));
+        HttpsProviderCredentialResolver kmsResolver = new HttpsProviderCredentialResolver(
+                URI.create("https://vault.internal.example/"),
+                transport, () -> "workload-token", Duration.ofSeconds(2),
+                Duration.ofMinutes(5), clock, envelopeService);
+
+        try (SecretMaterialProviderCredential credential = (SecretMaterialProviderCredential)
+                kmsResolver.resolve(TENANT, ACCOUNT, KMS_REFERENCE, "version-9")) {
+            assertEquals("kms-sealed-stripe-secret",
+                    credential.use("api_key", bytes -> new String(bytes, StandardCharsets.UTF_8)));
+        }
+        assertEquals(List.of("/v1/data-keys/generate", "/v1/data-keys/unwrap"), kmsPaths);
+        assertEquals(2, transport.requests.size());
+
+        // Plaintext material downgrade on a kms:// reference must fail closed.
+        RecordingTransport downgrade = new RecordingTransport(response(Map.of(
+                "tenantId", TENANT.toString(),
+                "providerAccountId", ACCOUNT.toString(),
+                "secretReference", KMS_REFERENCE.uri().toString(),
+                "credentialVersion", "version-9",
+                "leaseId", "lease-downgrade",
+                "expiresAt", NOW.plusSeconds(60).toString(),
+                "material.api_key", Base64.getUrlEncoder().withoutPadding()
+                        .encodeToString("downgraded".getBytes(StandardCharsets.UTF_8)))));
+        HttpsProviderCredentialResolver downgradeResolver = new HttpsProviderCredentialResolver(
+                URI.create("https://vault.internal.example/"),
+                downgrade, () -> "workload-token", Duration.ofSeconds(2),
+                Duration.ofMinutes(5), clock, envelopeService);
+        assertThrows(SecurityException.class,
+                () -> downgradeResolver.resolve(TENANT, ACCOUNT, KMS_REFERENCE, "version-9"));
+
+        // Envelope sealed for version-9 replayed under version-10 must fail AAD verification.
+        Map<String, String> replayedVersion = new LinkedHashMap<>(leaseFields);
+        replayedVersion.put("credentialVersion", "version-10");
+        HttpsProviderCredentialResolver replayResolver = new HttpsProviderCredentialResolver(
+                URI.create("https://vault.internal.example/"),
+                new RecordingTransport(response(replayedVersion)),
+                () -> "workload-token", Duration.ofSeconds(2),
+                Duration.ofMinutes(5), clock, envelopeService);
+        assertThrows(SecurityException.class,
+                () -> replayResolver.resolve(TENANT, ACCOUNT, KMS_REFERENCE, "version-10"));
     }
 
     private static HttpsProviderCredentialResolver resolver(RecordingTransport transport) {
