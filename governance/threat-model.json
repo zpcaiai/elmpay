@@ -682,7 +682,8 @@
       "compensating_controls": [
         "仅存在 integration 环境且无生产凭证",
         "治理门禁拒绝任何密钥字面量",
-        "凭证只能以 kms:// 或 vault:// 引用出现"
+        "凭证只能以 kms:// 或 vault:// 引用出现",
+        "HttpsProviderCredentialResolver 已接入 EnvelopeEncryptionService (HttpsKmsClient) 对 kms:// 渠道凭证强制执行 AES-256-GCM 信封解密与租户/账户/版本 AAD 绑定"
       ],
       "due_date": "2026-12-16",
       "review_batch": "B20",
@@ -760,6 +761,30 @@
     }
   ],
   "remediated_risks": [
+    {
+      "id": "RR-01-LOCAL-ENVELOPE",
+      "original_record": {
+        "id": "RR-01",
+        "title": "生产渠道凭证尚未接入 KMS/HSM（当前仅 integration 环境）",
+        "severity": "medium",
+        "owner": "payment-platform-security",
+        "compensating_controls": [
+          "仅存在 integration 环境且无生产凭证",
+          "治理门禁拒绝任何密钥字面量",
+          "凭证只能以 kms:// 或 vault:// 引用出现"
+        ],
+        "due_date": "2026-11-16",
+        "review_batch": "B20",
+        "related_abuse_cases": [
+          "AC-05",
+          "AC-08"
+        ]
+      },
+      "remediated_on": "2026-11-18",
+      "verified_source": "39c83e1c21f9b97d250af5daa51e7c5c59c6bff5",
+      "evidence_document": "docs/security/rr01-remediation.md",
+      "scope": "HttpsProviderCredentialResolver is wired to EnvelopeEncryptionService and HttpsKmsClient with tenant/account/reference/version/field AAD binding and fail-closed plaintext downgrade rejection; external production HSM hardware ceremony remains gated by B122/B127."
+    },
     {
       "id": "RR-02",
       "original_record": {
